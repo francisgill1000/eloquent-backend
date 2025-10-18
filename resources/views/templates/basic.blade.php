@@ -290,7 +290,7 @@
                 <td style="width: 33.33%; text-align:left;">
                     <div class="info-item">
                         <span>DUE DATE:</span>
-                        <span class="value">{{ '17 NOV 2025' }}</span>
+                        <span class="value">{{ $invoice['due_date'] }}</span>
                     </div>
                 </td>
                 <td style="width: 33.33%; text-align:left;">
