@@ -1,0 +1,86 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Customer;
+use Illuminate\Http\Request;
+
+class CustomerController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index()
+    {
+        return Customer::when(request('search'), function ($q) {
+            $search = request('search');
+            $q->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%']);
+        })
+            ->orderBy('id', 'desc')
+            ->paginate(request('per_page', 10));
+
+        // return response()->json($customers);
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        try {
+            $validatedData = $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'nullable|email|max:255',
+                'phone' => 'nullable|string|max:20',
+                'whatsapp' => 'nullable|string|max:20',
+            ]);
+
+            $validatedData['user_id'] = $request->user()->id; // Assuming the user is authenticated
+
+            info($validatedData);
+
+            $customer = Customer::create($validatedData);
+
+            return response()->json($customer, 201);
+
+        } catch (\Exception $e) {
+            info($request->user()->id);
+            return response()->json($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Customer $customer)
+    {
+        return response()->json($customer);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Customer $customer)
+    {
+        $validatedData = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|nullable|email|max:255',
+            'phone' => 'sometimes|nullable|string|max:20',
+            'whatsapp' => 'sometimes|nullable|string|max:20',
+        ]);
+
+        $customer->update($validatedData);
+
+        return response()->json($customer);
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Customer $customer)
+    {
+        $customer->delete();
+
+        return response()->json(null, 204);
+    }
+}
