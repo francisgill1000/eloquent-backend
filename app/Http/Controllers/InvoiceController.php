@@ -122,7 +122,9 @@ class InvoiceController extends Controller
                 'discount' => number_format($invoiceData->discount, 2),
                 'subtotal' => number_format($invoiceData->subtotal, 2),
                 'total' => number_format($invoiceData->total, 2),
-                'tax_rate' => 0.05, // 5% tax rate
+                'tax_rate' => (0.05 * 100)  . "%", // 5% tax rate
+
+                'grand_total' => number_format($invoiceData->tota + ($invoiceData->total * 0.05),2),
             ],
 
             'primary_color' => '#37053e',
