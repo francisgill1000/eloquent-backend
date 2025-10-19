@@ -369,7 +369,7 @@
                                 TOTAL</td>
                             <td class="text-right"
                                 style="padding-top: 10px; padding-bottom: 20px; font-size: 14px; color: {{ $primary_color }}; font-weight: bold;">
-                                AED {{ $invoice['grand_total'] }}</td>
+                                AED {{ $invoice['total'] }}</td>
                         </tr>
                     </table> <!-- CLOSING TAG ADDED -->
                 </td> <!-- CLOSING TAG ADDED -->
