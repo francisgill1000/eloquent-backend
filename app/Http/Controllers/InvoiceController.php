@@ -110,9 +110,13 @@ class InvoiceController extends Controller
 
         $invoiceData = $invoice->load('items', 'customer', 'user');
 
+        $tax_rate = (0.05 * $invoiceData->subtotal);
+
         $result = [
             /* color: #0b2f50; */
             /* color: #37053e; */
+
+            
 
             'invoice' => [
                 'invoice_num' => 'INV-'.str_pad($invoiceData->id, 6, '0', STR_PAD_LEFT),
@@ -122,9 +126,8 @@ class InvoiceController extends Controller
                 'discount' => number_format($invoiceData->discount, 2),
                 'subtotal' => number_format($invoiceData->subtotal, 2),
                 'total' => number_format($invoiceData->total, 2),
-                'tax_rate' => (0.05 * 100)  . "%", // 5% tax rate
-
-                'grand_total' => number_format($invoiceData->total,2),
+                'tax_rate' => $tax_rate  . "%", // 5% tax rate
+                'grand_total' => number_format($invoiceData->total + $tax_rate,2),
             ],
 
             'primary_color' => '#37053e',
