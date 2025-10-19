@@ -125,7 +125,6 @@ class InvoiceController extends Controller
                 'tax' => $invoiceData->tax,
                 'discount' => number_format($invoiceData->discount, 2),
                 'total' => number_format($invoiceData->total, 2),
-                'grand_total' => number_format($invoiceData->grand_total, 2),
             ],
 
             'primary_color' => '#37053e',
