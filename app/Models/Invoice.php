@@ -6,9 +6,21 @@ use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
+    const TAX_RATE = 0.05; // 5% tax rate
+
     protected $guarded = [];
 
-    protected $appends = ['invoice_number','status_front_class'];
+    protected $appends = ['invoice_number','status_front_class','tax_amount','grand_total'];
+
+    public function getTaxAmountAttribute()
+    {
+        return (self::TAX_RATE * $this->subtotal);
+    }
+
+    public function getGrandTotalAttribute()
+    {
+        return $this->total + $this->tax_amount;
+    }
 
     public function getInvoiceNumberAttribute()
     {
