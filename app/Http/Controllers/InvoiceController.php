@@ -20,6 +20,7 @@ class InvoiceController extends Controller
             $search = request('search');
             $q->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%']);
         })
+            ->where('user_id', request()->user()->id)
             ->with('customer')
             ->orderBy('id', 'desc')
             ->paginate(request('per_page', 10));
