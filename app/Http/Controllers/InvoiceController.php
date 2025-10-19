@@ -124,7 +124,7 @@ class InvoiceController extends Controller
                 'total' => number_format($invoiceData->total, 2),
                 'tax_rate' => (0.05 * 100)  . "%", // 5% tax rate
 
-                'grand_total' => number_format($invoiceData->total + ($invoiceData->total * 0.05),2),
+                'grand_total' => number_format($invoiceData->total,2),
             ],
 
             'primary_color' => '#37053e',
