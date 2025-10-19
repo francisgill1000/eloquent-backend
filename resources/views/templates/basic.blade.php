@@ -350,14 +350,6 @@
                         </tr>
                         <tr>
                             <td class="text-right"
-                                style="width: 60%; padding-top: 15px; padding-bottom: 5px; font-size: 10pt; color: #555;">
-                                DISCOUNT</td>
-                            <td class="text-right"
-                                style="width: 40%; padding-top: 15px; padding-bottom: 5px; font-size: 10pt; color: #555;">
-                                AED {{ $invoice['discount'] }}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-right"
                                 style="padding-top: 5px; padding-bottom: 5px; font-size: 10pt; color: #555;">TAX
                                 ({{ $invoice['tax_rate'] }})</td>
                             <td class="text-right"
@@ -366,11 +358,19 @@
                         </tr>
                         <tr>
                             <td class="text-right"
+                                style="width: 60%; padding-top: 15px; padding-bottom: 5px; font-size: 10pt; color: #555;">
+                                DISCOUNT</td>
+                            <td class="text-right"
+                                style="width: 40%; padding-top: 15px; padding-bottom: 5px; font-size: 10pt; color: #555;">
+                                AED {{ $invoice['discount'] }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-right"
                                 style="padding-top: 10px; padding-bottom: 20px; font-size: 14px; color: {{ $primary_color }}; font-weight: bold;">
                                 TOTAL</td>
                             <td class="text-right"
                                 style="padding-top: 10px; padding-bottom: 20px; font-size: 14px; color: {{ $primary_color }}; font-weight: bold;">
-                                AED {{ $invoice['grand_total']}}</td>
+                                AED {{ $invoice['grand_total'] }}</td>
                         </tr>
                     </table> <!-- CLOSING TAG ADDED -->
                 </td> <!-- CLOSING TAG ADDED -->
