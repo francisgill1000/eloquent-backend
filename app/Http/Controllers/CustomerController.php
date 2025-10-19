@@ -16,6 +16,7 @@ class CustomerController extends Controller
             $search = request('search');
             $q->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%']);
         })
+            ->where('user_id', request()->user()->id)
             ->orderBy('id', 'desc')
             ->paginate(request('per_page', 10));
 
