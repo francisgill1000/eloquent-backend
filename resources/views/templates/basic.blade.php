@@ -350,11 +350,10 @@
                         </tr>
                         <tr>
                             <td class="text-right"
-                                style="padding-top: 5px; padding-bottom: 5px; font-size: 10pt; color: #555;">TAX
-                                ({{ $invoice['tax_rate'] }})</td>
+                                style="padding-top: 5px; padding-bottom: 5px; font-size: 10pt; color: #555;">TAX</td>
                             <td class="text-right"
                                 style="padding-top: 5px; padding-bottom: 5px; font-size: 10pt; color: #555;">
-                                AED {{ $invoice['tax_rate'] }}</td>
+                                AED {{ $invoice['tax'] }}</td>
                         </tr>
                         <tr>
                             <td class="text-right"

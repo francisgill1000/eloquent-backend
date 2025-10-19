@@ -36,8 +36,9 @@ class InvoiceController extends Controller
                 'customer_id' => 'required|exists:customers,id',
                 'due_date' => 'required|date',
                 'status' => 'required|string|in:Draft,Paid,Pending,Overdue',
-                'discount' => 'nullable|numeric|min:0',
                 'subtotal' => 'required|numeric|min:0',
+                'tax' => 'nullable|numeric|min:0',
+                'discount' => 'nullable|numeric|min:0',
                 'total' => 'required|numeric|min:0',
                 'items' => 'required|array|min:1',
                 'items.*.description' => 'nullable|string',
@@ -54,8 +55,9 @@ class InvoiceController extends Controller
                 'user_id' => $request->user()->id,
                 'due_date' => date('Y-m-d', strtotime($validated['due_date'])),
                 'status' => $validated['status'],
-                'discount' => $validated['discount'] ?? 0,
                 'subtotal' => $validated['subtotal'],
+                'tax' => $validated['tax'] ?? 0,
+                'discount' => $validated['discount'] ?? 0,
                 'total' => $validated['total'],
             ]);
 
@@ -119,10 +121,10 @@ class InvoiceController extends Controller
                 'date' => $invoiceData->created_at->format('d M, Y'),
                 'due_date' => Carbon::parse($invoiceData->due_date)->format('d M, Y'),
                 'terms' => 'Due on Receipt',
-                'discount' => number_format($invoiceData->discount, 2),
                 'subtotal' => number_format($invoiceData->subtotal, 2),
+                'tax' => $invoiceData->tax,
+                'discount' => number_format($invoiceData->discount, 2),
                 'total' => number_format($invoiceData->total, 2),
-                'tax_rate' => $invoiceData->tax_amount.'%', // 5% tax rate
                 'grand_total' => number_format($invoiceData->grand_total, 2),
             ],
 
