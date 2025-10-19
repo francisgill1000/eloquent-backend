@@ -320,8 +320,8 @@
                             <span style="font-size: 9pt; color: #777;">{{ $item['detail'] }}</span>
                         </td>
                         <td>{{ $item['qty'] }}</td>
-                        <td class="text-right">AED {{ number_format($item['unit_price'], 2) }}</td>
-                        <td class="text-right">AED {{ number_format($item['qty'] * $item['unit_price'], 2) }}</td>
+                        <td class="text-right">AED {{ $item['unit_price'] }}</td>
+                        <td class="text-right">AED {{ $item['total'] }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -339,30 +339,30 @@
                 <!-- Grand Total Summary -->
                 <td style="width: 40%; text-align: right;">
                     <table style="width: 100%; border-collapse: collapse;" cellpadding="0" cellspacing="0">
-                      
-                           <tr>
+
+                        <tr>
                             <td class="text-right"
                                 style="width: 60%; padding-top: 15px; padding-bottom: 5px; font-size: 10pt; color: #555;">
                                 SUBTOTAL</td>
                             <td class="text-right"
                                 style="width: 40%; padding-top: 15px; padding-bottom: 5px; font-size: 10pt; color: #555;">
-                                AED {{ number_format($invoice['subtotal'], 2) }}</td>
+                                AED {{ $invoice['subtotal'] }}</td>
                         </tr>
-                          <tr>
+                        <tr>
                             <td class="text-right"
                                 style="width: 60%; padding-top: 15px; padding-bottom: 5px; font-size: 10pt; color: #555;">
                                 DISCOUNT</td>
                             <td class="text-right"
                                 style="width: 40%; padding-top: 15px; padding-bottom: 5px; font-size: 10pt; color: #555;">
-                                AED {{ number_format($invoice['discount'], 2) }}</td>
+                                AED {{ $invoice['discount'] }}</td>
                         </tr>
                         <tr>
                             <td class="text-right"
                                 style="padding-top: 5px; padding-bottom: 5px; font-size: 10pt; color: #555;">TAX
-                                ({{ $invoice['tax_rate'] * 100 }}%)</td>
+                                ({{ $invoice['tax_rate'] }})</td>
                             <td class="text-right"
                                 style="padding-top: 5px; padding-bottom: 5px; font-size: 10pt; color: #555;">
-                                AED {{ number_format($invoice['tax_rate'], 2) }}</td>
+                                AED {{ $invoice['tax_rate'] }}</td>
                         </tr>
                         <tr>
                             <td class="text-right"
@@ -370,7 +370,7 @@
                                 TOTAL</td>
                             <td class="text-right"
                                 style="padding-top: 10px; padding-bottom: 20px; font-size: 14px; color: {{ $primary_color }}; font-weight: bold;">
-                                AED {{ number_format($invoice['total'] + $invoice['tax_rate'], 2) }}</td>
+                                AED {{ $invoice['grand_total']}}</td>
                         </tr>
                     </table> <!-- CLOSING TAG ADDED -->
                 </td> <!-- CLOSING TAG ADDED -->
