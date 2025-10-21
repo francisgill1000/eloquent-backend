@@ -6,9 +6,43 @@ use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
+        // Define the Invoice Statuses as public constants
+    public const STATUS_PAID = 'Paid';
+
+    public const STATUS_PENDING = 'Pending';
+
+    public const STATUS_OVERDUE = 'Overdue';
+
+    public const STATUS_CANCELLED = 'Cancelled';
+
+    public const STATUS_DEFAULT = 'Draft'; // 'default' might be better named 'draft' or 'new'
+
     protected $guarded = [];
 
-    protected $appends = ['status_front_class'];
+    protected $appends = ['status_front_class', 'date_only','remaining_days_count'];
+
+    // public function getOverdueTotalAttribute()
+    // {
+    //     return number_format(self::where('status', self::STATUS_OVERDUE)->sum('total'), 2);
+    // }
+
+    protected function getDateOnlyAttribute()
+    {
+        return date('jS M',strtotime($this->due_date));
+    }
+
+    protected function getTotalAttribute($value)
+    {
+        return number_format($value, 2); // Output: $12,345.68
+    }
+
+    protected function getRemainingDaysCountAttribute()
+    {
+        // Count how many days have passed since creation
+        $daysCount = now()->diffInDays($this->due_date);
+
+        return ceil($daysCount);
+    }
 
     protected static function booted()
     {
@@ -17,7 +51,7 @@ class Invoice extends Model
         });
     }
 
-     public static function generateInvoiceNumber($userId)
+    public static function generateInvoiceNumber($userId)
     {
         // Get the latest invoice for this user
         $lastInvoice = self::where('user_id', $userId)
@@ -30,19 +64,8 @@ class Invoice extends Model
             : 1;
 
         // Format as INV-0000001
-        return 'INV-' . str_pad($nextNumber, 7, '0', STR_PAD_LEFT);
+        return 'INV-'.str_pad($nextNumber, 7, '0', STR_PAD_LEFT);
     }
-
-    // Define the Invoice Statuses as public constants
-    public const STATUS_PAID = 'Paid';
-
-    public const STATUS_PENDING = 'Pending';
-
-    public const STATUS_OVERDUE = 'Overdue';
-
-    public const STATUS_CANCELLED = 'Cancelled';
-
-    public const STATUS_DEFAULT = 'Draft'; // 'default' might be better named 'draft' or 'new'
 
     public function getStatusClass($status): string
     {
@@ -81,7 +104,7 @@ class Invoice extends Model
         return $this->belongsTo(User::class);
     }
 
-     public static function getMockInvoiceData()
+    public static function getMockInvoiceData()
     {
         return [
             /* color: #0b2f50; */
