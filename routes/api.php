@@ -23,4 +23,5 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
+Route::get('/mark-as-paid/{id}', [InvoiceController::class, 'handleMarkAsPaid']);
 Route::get('/invoices/generate/{id}', [InvoiceController::class, 'generatePdf']);
