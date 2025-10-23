@@ -19,7 +19,7 @@ class Invoice extends Model
 
     protected $guarded = [];
 
-    protected $appends = ['status_front_class', 'date_only','remaining_days_count'];
+    protected $appends = ['status_front_class', 'date_only','remaining_days_count','recieved_date'];
 
     // public function getOverdueTotalAttribute()
     // {
@@ -29,6 +29,11 @@ class Invoice extends Model
     protected function getDateOnlyAttribute()
     {
         return date('jS M',strtotime($this->due_date));
+    }
+
+    protected function getRecievedDateAttribute()
+    {
+        return date('jS M',strtotime($this->updated_at));
     }
 
     protected function getTotalAttribute($value)

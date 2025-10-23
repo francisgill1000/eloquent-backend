@@ -18,6 +18,8 @@ class CustomerController extends Controller
         })
             ->where('user_id', request()->user()->id)
             ->orderBy('id', 'desc')
+            ->with('invoices')
+            ->withCount('invoices')
             ->paginate(request('per_page', 10));
 
         // return response()->json($customers);

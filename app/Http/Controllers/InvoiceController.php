@@ -100,9 +100,20 @@ class InvoiceController extends Controller
         return response()->json($invoice->load('items', 'customer'));
     }
 
-    /**
-     * Generates a PDF invoice based on a mock dataset.
-     */
+    public function handleMarkAsPaid($id)
+    {
+        $invoice = Invoice::findOrFail($id);
+
+        $invoice->status = Invoice::STATUS_PAID;
+
+        $invoice->save();
+
+        return response()->json([
+            'sucess' => true,
+            'message' => 'Invoice marked as paid successfully.',
+        ]);
+    }
+
     public function generatePdf($id)
     {
         // 1. Prepare Mock Invoice Data (Replace with real database data in a production app)
