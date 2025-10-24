@@ -12,14 +12,12 @@ class CustomerController extends Controller
      */
     public function index()
     {
-        return Customer::when(request('search'), function ($q) {
-            $search = request('search');
-            $q->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%']);
-        })
+        return Customer::search(['name'])
             ->where('user_id', request()->user()->id)
             ->orderBy('id', 'desc')
             ->with('invoices')
             ->withCount('invoices')
+            ->withSum('invoices','total')
             ->paginate(request('per_page', 10));
 
         // return response()->json($customers);
