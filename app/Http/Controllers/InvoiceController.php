@@ -16,16 +16,14 @@ class InvoiceController extends Controller
 {
     public function index()
     {
-        return Invoice::when(request('search'), function ($q) {
-            $search = request('search');
-            $q->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%']);
+        return Invoice::search(['invoice_number', 'customer.name'])
+        ->when(request('status'), function ($q) {
+            $q->where('status', request("status"));
         })
             ->where('user_id', request()->user()->id)
             ->with('customer')
             ->orderBy('id', 'desc')
             ->paginate(request('per_page', 10));
-
-        // return response()->json($customers);
     }
 
     public function store(Request $request)
