@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\InvoiceReminderController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -25,3 +26,4 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
 Route::get('/mark-as-paid/{id}', [InvoiceController::class, 'handleMarkAsPaid']);
 Route::get('/invoices/generate/{id}', [InvoiceController::class, 'generatePdf']);
+Route::get('/invoices/reminder/{id}', [InvoiceReminderController::class, 'invoiceReminder']);
