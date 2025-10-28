@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invoice;
+use App\Models\Payment;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -17,12 +18,13 @@ class InvoiceController extends Controller
     public function index()
     {
         return Invoice::search(['invoice_number', 'customer.name'])
-        ->when(request('status'), function ($q) {
-            $q->where('status', request("status"));
-        })
+            ->when(request('status'), function ($q) {
+                $q->where('status', request("status"));
+            })
             ->where('user_id', request()->user()->id)
-            ->with('customer')
-            ->orderBy('id', 'desc')
+            ->with('customer', 'items')
+            ->withCount('payments')
+            ->orderBy(request('order_by', "id"), request('order', "desc"))
             ->paginate(request('per_page', 10));
     }
 
@@ -112,6 +114,40 @@ class InvoiceController extends Controller
         ]);
     }
 
+    public function handlePayment()
+    {
+        $id = request('id');
+        $balance = request('balance');
+        $amount = request('amount');
+        $mode = request('mode', "Cash");
+
+        $invoice = Invoice::findOrFail($id);
+
+        if (request('balance') <= 0) {
+            $invoice->status =  Invoice::STATUS_PAID;
+        }
+
+        $invoice->balance =  $balance;
+
+        $invoice->save();
+
+        $payload = [
+            'amount' => $amount ?? 0,
+            'mode' => $mode ?? 0,
+            'model' => "Invoice",
+            'model_id' => $id,
+        ];
+
+        info($payload);
+
+        Payment::create($payload);
+
+        return response()->json([
+            'sucess' => true,
+            'message' => 'Payment has been recorded.',
+        ]);
+    }
+
     public function generatePdf($id)
     {
         // 1. Prepare Mock Invoice Data (Replace with real database data in a production app)
@@ -121,19 +157,21 @@ class InvoiceController extends Controller
 
         $invoiceData = $invoice->load('items', 'customer', 'user');
 
+        $numericValue = (float) str_replace(',', '', $invoiceData->total);
+
         $result = [
             /* color: #0b2f50; */
             /* color: #37053e; */
 
             'invoice' => [
-                'invoice_num' => 'INV-'.str_pad($invoiceData->id, 6, '0', STR_PAD_LEFT),
+                'invoice_num' => 'INV-' . str_pad($invoiceData->id, 6, '0', STR_PAD_LEFT),
                 'date' => $invoiceData->created_at->format('d M, Y'),
                 'due_date' => Carbon::parse($invoiceData->due_date)->format('d M, Y'),
                 'terms' => 'Due on Receipt',
                 'subtotal' => number_format($invoiceData->subtotal, 2),
                 'tax' => $invoiceData->tax,
                 'discount' => number_format($invoiceData->discount, 2),
-                'total' => number_format($invoiceData->total, 2),
+                'total' => number_format($numericValue, 2),
             ],
 
             'primary_color' => '#37053e',
@@ -172,6 +210,6 @@ class InvoiceController extends Controller
 
         // 3. Return the PDF
         // Use ->stream() to display in the browser, or ->download('invoice.pdf') to force a download.
-        return $pdf->download('Invoice-'.$invoiceData['id'].'.pdf');
+        return $pdf->download('Invoice-' . $invoiceData['id'] . '.pdf');
     }
 }
