@@ -27,3 +27,5 @@ Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
 Route::get('/mark-as-paid/{id}', [InvoiceController::class, 'handleMarkAsPaid']);
 Route::get('/invoices/generate/{id}', [InvoiceController::class, 'generatePdf']);
 Route::get('/invoices/reminder/{id}', [InvoiceReminderController::class, 'invoiceReminder']);
+Route::post('/invoices/pay', [InvoiceController::class, 'handlePayment']);
+

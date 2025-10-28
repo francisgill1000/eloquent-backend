@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
-        // Define the Invoice Statuses as public constants
+    // Define the Invoice Statuses as public constants
     public const STATUS_PAID = 'Paid';
 
     public const STATUS_PENDING = 'Pending';
@@ -19,7 +19,7 @@ class Invoice extends Model
 
     protected $guarded = [];
 
-    protected $appends = ['status_front_class', 'date_only','remaining_days_count','recieved_date'];
+    protected $appends = ['status_front_class', 'date_only', 'remaining_days_count', 'recieved_date', "display_total"];
 
     // public function getOverdueTotalAttribute()
     // {
@@ -28,17 +28,26 @@ class Invoice extends Model
 
     protected function getDateOnlyAttribute()
     {
-        return date('jS M',strtotime($this->due_date));
+        return date('jS M', strtotime($this->due_date));
+    }
+
+    protected function getDisplayTotalAttribute()
+    {
+        $numericValue = (float) str_replace(',', '', $this->total);
+
+        return number_format($numericValue, 2); // Output: $12,345.68
     }
 
     protected function getRecievedDateAttribute()
     {
-        return date('jS M',strtotime($this->updated_at));
+        return date('jS M', strtotime($this->updated_at));
     }
 
     protected function getTotalAttribute($value)
     {
-        return number_format($value, 2); // Output: $12,345.68
+        $numericValue = (float) str_replace(',', '', $value);
+
+        return number_format($numericValue, 2); // Output: $12,345.68
     }
 
     protected function getRemainingDaysCountAttribute()
@@ -69,7 +78,7 @@ class Invoice extends Model
             : 1;
 
         // Format as INV-0000001
-        return 'INV-'.str_pad($nextNumber, 7, '0', STR_PAD_LEFT);
+        return 'INV-' . str_pad($nextNumber, 7, '0', STR_PAD_LEFT);
     }
 
     public function getStatusClass($status): string
@@ -112,6 +121,11 @@ class Invoice extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class,"model_id")->where("model", "Invoice");
     }
 
     public static function getMockInvoiceData()
