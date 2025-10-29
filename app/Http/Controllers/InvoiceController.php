@@ -22,7 +22,7 @@ class InvoiceController extends Controller
                 $q->where('status', request("status"));
             })
             ->where('user_id', request()->user()->id)
-            ->with('customer', 'items')
+            ->with('customer', 'items','payments')
             ->withCount('payments')
             ->orderBy(request('order_by', "id"), request('order', "desc"))
             ->paginate(request('per_page', 10));
