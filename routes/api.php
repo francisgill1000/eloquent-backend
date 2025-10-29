@@ -29,3 +29,21 @@ Route::get('/invoices/generate/{id}', [InvoiceController::class, 'generatePdf'])
 Route::get('/invoices/reminder/{id}', [InvoiceReminderController::class, 'invoiceReminder']);
 Route::post('/invoices/pay', [InvoiceController::class, 'handlePayment']);
 
+Route::get('/template', function () {
+    $id = request("id");
+    $method = request("method");
+    $user_id = request("user_id");
+
+    $template = <<<EOT
+Hello {{name}},
+
+Your invoice {{invoice_number}} is due.
+Balance: {{balance}} AED.
+
+Best Regards,
+{{company_name}}
+EOT;
+
+    return response($template, 200)
+        ->header('Content-Type', 'text/plain');
+});
