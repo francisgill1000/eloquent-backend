@@ -26,7 +26,7 @@ class UpdateStatusOverdueInvoices extends Command
         $today = Carbon::now();
 
         // Update all overdue invoices in one query
-        $updatedCount = Invoice::where('due_date', '<', $today)
+        $updatedCount = Invoice::where('due_date', '<=', $today)
             ->where('status', Invoice::STATUS_PENDING)
             ->update(['status' => Invoice::STATUS_OVERDUE]);
 
