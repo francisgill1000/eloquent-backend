@@ -17,10 +17,8 @@ class CustomerController extends Controller
             ->orderBy('id', 'desc')
             ->with('invoices')
             ->withCount('invoices')
-            ->withSum('invoices','total')
+            ->withSum('invoices', 'total')
             ->paginate(request('per_page', 10));
-
-        // return response()->json($customers);
     }
 
     /**
@@ -32,8 +30,16 @@ class CustomerController extends Controller
             $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
                 'email' => 'nullable|email|max:255',
-                'phone' => 'nullable|string|max:20',
-                'whatsapp' => 'nullable|string|max:20',
+
+                'phone' => [
+                    'nullable',
+                    'regex:/^[0-9]{7,15}$/', // only digits, 7–15 characters long
+                ],
+                'whatsapp' => [
+                    'nullable',
+                    'regex:/^[0-9]{7,15}$/', // only digits, 7–15 characters long
+                ],
+
             ]);
 
             $validatedData['user_id'] = $request->user()->id; // Assuming the user is authenticated
@@ -43,7 +49,6 @@ class CustomerController extends Controller
             $customer = Customer::create($validatedData);
 
             return response()->json($customer, 201);
-
         } catch (\Exception $e) {
             info($request->user()->id);
             return response()->json($e->getMessage(), 500);
