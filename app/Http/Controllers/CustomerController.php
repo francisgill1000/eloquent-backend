@@ -46,8 +46,6 @@ class CustomerController extends Controller
 
             $validatedData['user_id'] = $request->user()->id; // Assuming the user is authenticated
 
-            info($validatedData);
-
             $customer = Customer::create($validatedData);
 
             return response()->json($customer, 201);

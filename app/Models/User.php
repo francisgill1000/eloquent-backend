@@ -22,6 +22,15 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'user_type',
+
+        'phone',
+        'whatsapp',
+        'country',
+        'city',
+
+        'user_created_by_id',
+
     ];
 
     /**
@@ -56,8 +65,8 @@ class User extends Authenticatable
     protected function name(): \Illuminate\Database\Eloquent\Casts\Attribute
     {
         return \Illuminate\Database\Eloquent\Casts\Attribute::make(
-            get: fn ($value) => $value === null ? null : mb_convert_case($value, MB_CASE_TITLE, 'UTF-8'),
-            set: fn ($value) => $value === null ? null : mb_convert_case($value, MB_CASE_TITLE, 'UTF-8'),
+            get: fn($value) => $value === null ? null : mb_convert_case($value, MB_CASE_TITLE, 'UTF-8'),
+            set: fn($value) => $value === null ? null : mb_convert_case($value, MB_CASE_TITLE, 'UTF-8'),
         );
     }
 }
