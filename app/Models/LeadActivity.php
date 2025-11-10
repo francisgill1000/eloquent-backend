@@ -11,10 +11,9 @@ class LeadActivity extends Model
 
     protected $fillable = [
         'lead_id',
-        'agent_id',
-        'type',
-        'description',
+        'user_id',
         'follow_up_date',
+        'note',
     ];
 
     public function lead()
@@ -22,8 +21,8 @@ class LeadActivity extends Model
         return $this->belongsTo(Lead::class);
     }
 
-    public function agent()
+    public function user()
     {
-        return $this->belongsTo(User::class, 'agent_id');
+        return $this->belongsTo(User::class);
     }
 }

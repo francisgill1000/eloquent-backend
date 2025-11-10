@@ -36,6 +36,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('leads', LeadController::class);
     Route::apiResource('leads-activities', LeadActivityController::class);
+
+    Route::get('leads-activities', [LeadActivityController::class, 'index']);
+    Route::post('leads-activities', [LeadActivityController::class, 'store']);
 });
 
 Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
