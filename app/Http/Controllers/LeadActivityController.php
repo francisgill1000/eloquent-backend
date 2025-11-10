@@ -5,57 +5,33 @@ namespace App\Http\Controllers;
 use App\Models\Lead;
 use App\Models\LeadActivity;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class LeadActivityController extends Controller
 {
     // Get all activities for a specific lead
     public function index($leadId)
     {
-        return LeadActivity::with(['agent'])->orderBy('id', 'desc')->paginate(request('per_page', 10));
+        return LeadActivity::with(['user', "lead"])->orderBy('id', 'desc')->paginate(request('per_page', 10));
     }
 
-    // Store a new activity for a lead
-    public function store(Request $request, $leadId)
+    public function store(Request $request)
     {
-        $request->validate([
-            'agent_id' => 'nullable|exists:users,id',
-            'type' => 'required|string|max:255',
-            'description' => 'required|string',
-            'follow_up_date' => 'nullable|date',
+        $data = $request->validate([
+            'lead_id' => 'required',
+            'note' => 'required|string',
         ]);
 
-        $lead = Lead::findOrFail($leadId);
+        $activity = LeadActivity::create([
+            'lead_id' => $data['lead_id'],
+            'note' => $data['note'],
+            'follow_up_date' => date("Y-m-d") ?? null,
+            'user_id' => Auth::id(),
+        ]);
 
-        $activity = $lead->activities()->create($request->only([
-            'agent_id',
-            'type',
-            'description',
-            'follow_up_date',
-        ]));
-
-        return response()->json(['message' => 'Activity added successfully', 'activity' => $activity], 201);
-    }
-
-    // Update a specific activity
-    public function update(Request $request, $leadId, $activityId)
-    {
-        $activity = LeadActivity::where('lead_id', $leadId)->findOrFail($activityId);
-
-        $activity->update($request->only([
-            'type',
-            'description',
-            'follow_up_date',
-        ]));
-
-        return response()->json(['message' => 'Activity updated successfully', 'activity' => $activity]);
-    }
-
-    // Delete an activity
-    public function destroy($leadId, $activityId)
-    {
-        $activity = LeadActivity::where('lead_id', $leadId)->findOrFail($activityId);
-        $activity->delete();
-
-        return response()->json(['message' => 'Activity deleted successfully']);
+        return response()->json([
+            'message' => 'Activity added successfully',
+            'activity' => $activity->load(['user', 'lead'])
+        ], 201);
     }
 }

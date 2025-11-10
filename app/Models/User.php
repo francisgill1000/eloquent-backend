@@ -69,4 +69,14 @@ class User extends Authenticatable
             set: fn($value) => $value === null ? null : mb_convert_case($value, MB_CASE_TITLE, 'UTF-8'),
         );
     }
+
+    public function leadsAsCustomer()
+    {
+        return $this->hasMany(Lead::class, 'customer_id');
+    }
+
+    public function leadsAsAgent()
+    {
+        return $this->hasMany(Lead::class, 'agent_id');
+    }
 }

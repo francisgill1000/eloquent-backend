@@ -10,7 +10,7 @@ class LeadController extends Controller
     // Get all leads
     public function index()
     {
-        return Lead::with(['customer', 'agent'])->orderBy('id', 'desc')->paginate(request('per_page', 10));
+        return Lead::with(['customer', 'agent', 'activities.user'])->orderBy('id', 'desc')->paginate(request('per_page', 10));
     }
 
     // Store new lead
@@ -24,7 +24,7 @@ class LeadController extends Controller
         ]);
 
         $lead = Lead::create($request->all());
-        
+
         return response()->json(['message' => 'Lead created successfully', 'lead' => $lead], 201);
     }
 
