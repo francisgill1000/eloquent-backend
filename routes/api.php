@@ -37,6 +37,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('leads', LeadController::class);
     Route::apiResource('leads-activities', LeadActivityController::class);
 
+    Route::get('activities-by-lead/{id}', [LeadActivityController::class, 'activitiesByLead']);
+
     Route::get('leads-activities', [LeadActivityController::class, 'index']);
     Route::post('leads-activities', [LeadActivityController::class, 'store']);
 });
