@@ -15,6 +15,11 @@ class LeadActivityController extends Controller
         return LeadActivity::with(['user', "lead"])->orderBy('id', 'desc')->paginate(request('per_page', 10));
     }
 
+    public function activitiesByLead($leadId)
+    {
+        return LeadActivity::with(['user', "lead"])->where("lead_id", $leadId)->orderBy('id', 'desc')->get();
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
