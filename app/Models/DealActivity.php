@@ -5,21 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class LeadActivity extends Model
+class DealActivity extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'lead_id',
+        'deal_id',
         'user_id',
         'contact_method',
         'follow_up_date',
         'note',
     ];
 
-    public function lead()
+    public function deal()
     {
-        return $this->belongsTo(Lead::class);
+        return $this->belongsTo(Deal::class);
     }
 
     public function user()
