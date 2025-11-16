@@ -9,9 +9,16 @@ class Lead extends Model
 {
     const STATUS_NEW = 'New';
     const STATUS_CONTACTED = 'Contacted';
+    const STATUS_CONVERTED_TO_DEAL = 'Converted-to-Deal';
     const STATUS_INTERESTED = 'Interested';
-    const STATUS_CONVERTED = 'Converted';
-    const STATUS_LOST = 'Lost';
+    const STATUS_WON = 'Closed-Won';
+    const STATUS_LOST = 'Closed-Lost';
+
+    const SOURCE_FACEBOOK = 'Facebook';
+    const SOURCE_INSTAGRAM = 'Instagram';
+    const SOURCE_WEBSITE = 'Website';
+    const SOURCE_WHATSAPP = 'WhatsApp';
+    const SOURCE_REFERRAL = 'Referral';
 
     public static function statuses()
     {
@@ -19,8 +26,19 @@ class Lead extends Model
             self::STATUS_NEW,
             self::STATUS_CONTACTED,
             self::STATUS_INTERESTED,
-            self::STATUS_CONVERTED,
+            self::STATUS_WON,
             self::STATUS_LOST,
+        ];
+    }
+
+    public static function sources()
+    {
+        return [
+            self::SOURCE_FACEBOOK,
+            self::SOURCE_INSTAGRAM,
+            self::SOURCE_WEBSITE,
+            self::SOURCE_WHATSAPP,
+            self::SOURCE_REFERRAL,
         ];
     }
 
