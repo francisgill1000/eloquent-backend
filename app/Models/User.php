@@ -79,4 +79,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Lead::class, 'agent_id');
     }
+
+    public function activities()
+    {
+        return $this->hasMany(LeadActivity::class);
+    }
 }

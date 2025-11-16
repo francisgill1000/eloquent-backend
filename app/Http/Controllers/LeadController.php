@@ -10,7 +10,13 @@ class LeadController extends Controller
     // Get all leads
     public function index()
     {
-        return Lead::with(['customer', 'agent', 'activities.user'])->orderBy('id', 'desc')->paginate(request('per_page', 10));
+        return Lead::with(['customer', 'agent', 'activities.user'])
+            ->when(request('status'), function ($query) {
+                $query->where('status', request('status'));
+            })
+            ->where('status', '!=', Lead::STATUS_CONVERTED_TO_DEAL)
+            ->orderBy('status', 'desc')
+            ->paginate(request('per_page', 10));
     }
 
     // Store new lead

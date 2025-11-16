@@ -3,6 +3,7 @@
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\DealController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\InvoiceReminderController;
 use App\Http\Controllers\LeadActivityController;
@@ -36,6 +37,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('leads', LeadController::class);
     Route::apiResource('leads-activities', LeadActivityController::class);
+
+    Route::apiResource('deals', DealController::class);
 
     Route::get('activities-by-lead/{id}', [LeadActivityController::class, 'activitiesByLead']);
 

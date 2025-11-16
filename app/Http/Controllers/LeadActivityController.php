@@ -25,12 +25,15 @@ class LeadActivityController extends Controller
         $data = $request->validate([
             'lead_id' => 'required',
             'note' => 'required|string',
+            'contact_method' => 'required',
+            'follow_up_date' => 'nullable|date',
         ]);
 
         $activity = LeadActivity::create([
             'lead_id' => $data['lead_id'],
             'note' => $data['note'],
-            'follow_up_date' => date("Y-m-d") ?? null,
+            'contact_method' => $data['contact_method'],
+            'follow_up_date' => $data['follow_up_date'] ?? null,
             'user_id' => Auth::id(),
         ]);
 
