@@ -24,8 +24,8 @@ class LeadSeeder extends Seeder
 
     public function run(): void
     {
-        LeadActivity::truncate();
-        Lead::truncate();
+        // LeadActivity::truncate();
+        // Lead::truncate();
 
         // Fetch some users for customer_id and agent_id
         $customers = User::pluck('id')->toArray();
