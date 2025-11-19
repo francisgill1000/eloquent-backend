@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Lead;
+use App\Models\LeadActivity;
 use App\Models\User;
 
 class LeadSeeder extends Seeder
@@ -23,6 +24,7 @@ class LeadSeeder extends Seeder
 
     public function run(): void
     {
+        LeadActivity::truncate();
         Lead::truncate();
 
         // Fetch some users for customer_id and agent_id
