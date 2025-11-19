@@ -23,6 +23,13 @@ Route::get('/user', function (Request $request) {
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+Route::get('deals/summary', [DealController::class, 'summary']);
+Route::get('leads/summary', [LeadController::class, 'summary']);
+Route::get('leads/count-per-agent', [LeadController::class, 'countPerAgent']);
+Route::get('deals/count-per-agent', [DealController::class, 'countPerAgent']);
+
+
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);

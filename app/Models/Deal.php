@@ -6,6 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Deal extends Model
 {
+    const STATUS_OPEN = 'Open';
+    const STATUS_NEGOTIATION = 'Negotiation';
+    const STATUS_WON = 'Closed-Won';
+    const STATUS_LOST = 'Closed-Lost';
+
     protected $fillable = [
         'lead_id',
         'customer_id',
@@ -18,6 +23,16 @@ class Deal extends Model
         'status',
         'expected_close_date',
     ];
+
+    public static function statuses()
+    {
+        return [
+            self::STATUS_OPEN,
+            self::STATUS_NEGOTIATION,
+            self::STATUS_WON,
+            self::STATUS_LOST,
+        ];
+    }
 
     public function lead()
     {

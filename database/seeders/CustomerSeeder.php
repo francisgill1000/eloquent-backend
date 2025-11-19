@@ -11,7 +11,7 @@ class CustomerSeeder extends Seeder
 {
     public function run(): void
     {
-        Customer::truncate();
+        // Customer::truncate();
         
         $faker = Faker::create();
 
