@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 
 class DealController extends Controller
@@ -16,7 +17,7 @@ class DealController extends Controller
             ->when(request('status'), function ($query) {
                 $query->where('status', request('status'));
             })
-            ->orderBy('status', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate(request('per_page', 10));
     }
 
@@ -97,5 +98,39 @@ class DealController extends Controller
         $lead->delete();
 
         return response()->json(['message' => 'Deal deleted successfully']);
+    }
+
+    public function summary()
+    {
+        $leadCounts = Deal::selectRaw("status, COUNT(*) as count")
+            ->groupBy('status')
+            ->pluck('count', 'status')  // returns ['New' => 40, 'Contacted' => 25, ...]
+            ->toArray();
+
+        // Ensure all statuses exist in response, even if 0
+        $allStatuses = Deal::statuses();
+        foreach ($allStatuses as $status) {
+            if (!isset($leadCounts[$status])) {
+                $leadCounts[$status] = 0;
+            }
+        }
+
+        return response()->json($leadCounts);
+    }
+
+    public function countPerAgent()
+    {
+        // Get all users who have leads assigned as agent
+        $agents = User::withCount('dealsAsAgent')->get();
+
+        $result = $agents->map(function ($agent) {
+            return [
+                'agent_id' => $agent->id,
+                'agent_name' => $agent->name,
+                'deal_count' => $agent->deals_as_agent_count, // automatically provided by withCount
+            ];
+        });
+
+        return response()->json($result);
     }
 }

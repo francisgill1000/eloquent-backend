@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lead;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class LeadController extends Controller
@@ -15,7 +16,7 @@ class LeadController extends Controller
                 $query->where('status', request('status'));
             })
             ->where('status', '!=', Lead::STATUS_CONVERTED_TO_DEAL)
-            ->orderBy('status', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate(request('per_page', 10));
     }
 
@@ -52,5 +53,39 @@ class LeadController extends Controller
         $lead->delete();
 
         return response()->json(['message' => 'Lead deleted successfully']);
+    }
+
+    public function summary()
+    {
+        $leadCounts = Lead::selectRaw("status, COUNT(*) as count")
+            ->groupBy('status')
+            ->pluck('count', 'status')  // returns ['New' => 40, 'Contacted' => 25, ...]
+            ->toArray();
+
+        // Ensure all statuses exist in response, even if 0
+        $allStatuses = Lead::statuses();
+        foreach ($allStatuses as $status) {
+            if (!isset($leadCounts[$status])) {
+                $leadCounts[$status] = 0;
+            }
+        }
+
+        return response()->json($leadCounts);
+    }
+
+    public function countPerAgent()
+    {
+        // Get all users who have leads assigned as agent
+        $agents = User::withCount('leadsAsAgent')->get();
+
+        $result = $agents->map(function ($agent) {
+            return [
+                'agent_id' => $agent->id,
+                'agent_name' => $agent->name,
+                'lead_count' => $agent->leads_as_agent_count, // automatically provided by withCount
+            ];
+        });
+
+        return response()->json($result);
     }
 }
