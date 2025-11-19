@@ -31,7 +31,7 @@ class CustomerSeeder extends Seeder
                 $createdAt = Carbon::create($year, $month, $day, rand(0, 23), rand(0, 59), rand(0, 59));
 
                 Customer::create([
-                    'user_id'  => 19,
+                    'user_id'  => 1,
                     'name'     => $faker->name,
                     'email'    => $faker->unique()->safeEmail,
                     'phone'    => $faker->phoneNumber,
