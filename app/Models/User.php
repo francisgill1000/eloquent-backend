@@ -31,6 +31,7 @@ class User extends Authenticatable
 
         'user_created_by_id',
 
+        'user_code',
     ];
 
     /**
@@ -88,5 +89,10 @@ class User extends Authenticatable
     public function activities()
     {
         return $this->hasMany(LeadActivity::class);
+    }
+
+    public function todos()
+    {
+        return $this->hasMany(Todo::class);
     }
 }

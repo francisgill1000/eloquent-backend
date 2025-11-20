@@ -9,6 +9,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\InvoiceReminderController;
 use App\Http\Controllers\LeadActivityController;
 use App\Http\Controllers\LeadController;
+use App\Http\Controllers\TodoController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -52,6 +53,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('activities-by-deal/{id}', [DealActivityController::class, 'activitiesByDeaL']);
     Route::get('deals-activities', [DealActivityController::class, 'index']);
     Route::post('deals-activities', [DealActivityController::class, 'store']);
+
+    Route::apiResource('todos', TodoController::class);
 });
 
 Route::get('/invoices/{id}', [InvoiceController::class, 'show']);

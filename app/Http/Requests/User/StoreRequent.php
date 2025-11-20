@@ -23,6 +23,13 @@ class StoreRequent extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
+            'user_code' => [
+                'required_if:user_type,agent',
+                'string',
+                'min:5',
+                'max:10',
+                'unique:users,user_code',
+            ],
             'email' => 'required|string|email|unique:users',
             'password' => 'nullable|string|min:6|confirmed',
             'password_confirmation' => 'nullable|string|min:6',
