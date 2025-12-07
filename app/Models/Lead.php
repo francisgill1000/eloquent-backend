@@ -67,6 +67,8 @@ class Lead extends Model
     {
         $files = json_decode($value, true) ?? [];
 
+        if(!count($files)) return $files;
+
         // Prepend backend base URL
         $baseUrl = env("APP_URL"); // Make sure APP_URL is set in .env
 
