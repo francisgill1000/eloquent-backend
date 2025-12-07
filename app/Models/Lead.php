@@ -65,12 +65,18 @@ class Lead extends Model
 
     public function getAttachmentsAttribute($value)
     {
-        $files = json_decode($value, true) ?? [];
+        // Decode JSON, fallback to empty array if null
+        $files = json_decode($value, true);
+        if (!is_array($files)) {
+            $files = [];
+        }
 
-        if(!count($files)) return $files;
+        if (!count($files)) {
+            return $files;
+        }
 
         // Prepend backend base URL
-        $baseUrl = env("APP_URL"); // Make sure APP_URL is set in .env
+        $baseUrl = env("APP_URL"); // Ensure APP_URL is set in .env
 
         return array_map(fn($file) => $baseUrl . Storage::url($file), $files);
     }
