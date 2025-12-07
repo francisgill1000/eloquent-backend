@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
@@ -100,25 +101,39 @@ class CustomerController extends Controller
         return response()->json(null, 204);
     }
 
+
     public function stats()
     {
-        $customersPerMonth = Customer::selectRaw('strftime("%m", created_at) as month, COUNT(*) as total')
+        $customersPerMonth = User::selectRaw('strftime("%m", created_at) as month, COUNT(*) as total')
             ->groupBy('month')
             ->orderBy('month')
-            ->get();
+            ->pluck("total", "month")
+            ->toArray();
 
-        // return $customersPerMonth = Customer::selectRaw('MONTH(created_at) as month, COUNT(*) as total')
-        //     ->groupBy('month')
-        //     ->orderBy('month')
-        //     ->get();
+        $currentMonth = now()->month; // integer 1–12
 
-        return $customersPerMonth->map(function ($item) {
-            return [
-                'month' => date('F', mktime(0, 0, 0, $item->month, 1)), // e.g., January
-                'total' => $item->total,
+        // Build array from last Dec → current month
+        $months = collect();
+
+        // Last December
+        $months->push('12');
+
+        // Months from Jan up to current month
+        for ($m = 1; $m <= $currentMonth; $m++) {
+            $months->push(str_pad($m, 2, '0', STR_PAD_LEFT));
+        }
+
+        $data = [];
+        foreach ($months as $month) {
+            $data[] = [
+                "month" => $month,
+                "total" => $customersPerMonth[$month] ?? 0,
             ];
-        });
+        }
+
+        return $data;
     }
+
 
     public function customersCityWise()
     {

@@ -24,14 +24,21 @@ class UpdateRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'user_code' => 'nullable|string|min:5|max:10:unique:users,user_code,' . $this->route('id'),
+
+            'user_code' => [
+                'nullable',
+                'string',
+                'min:5',
+                'max:10',
+                Rule::unique('users', 'user_code')->ignore($this->user),
+            ],
 
             // ✅ Fix: allow updating the same email without failing unique rule
             'email' => [
                 'required',
                 'string',
                 'email',
-                Rule::unique('users')->ignore($this->route('id')),
+                Rule::unique('users', 'email')->ignore($this->user),
             ],
 
             'password' => 'nullable|string|min:6|confirmed',

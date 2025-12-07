@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Lead extends Model
 {
@@ -49,7 +50,28 @@ class Lead extends Model
         'agent_id',
         'source',
         'status', // Add statuses: New, Contacted, Qualified, In Progress, Closed-Won, Closed-Lost.
+
+        "notes",
+        "attachments",
+        "lat",
+        "lon",
+        "address",
     ];
+
+
+    protected $casts = [
+        'attachments' => 'array', // JSON array -> PHP array
+    ];
+
+    public function getAttachmentsAttribute($value)
+    {
+        $files = json_decode($value, true) ?? [];
+
+        // Prepend backend base URL
+        $baseUrl = env("APP_URL"); // Make sure APP_URL is set in .env
+
+        return array_map(fn($file) => $baseUrl . Storage::url($file), $files);
+    }
 
     public function customer()
     {
