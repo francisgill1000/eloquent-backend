@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CoordinateController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DealActivityController;
 use App\Http\Controllers\DealController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\InvoiceReminderController;
 use App\Http\Controllers\LeadActivityController;
 use App\Http\Controllers\LeadController;
+use App\Http\Controllers\LocationController;
 use App\Http\Controllers\TodoController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -24,19 +26,13 @@ Route::get('/user', function (Request $request) {
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::get('deals/summary', [DealController::class, 'summary']);
-Route::get('leads/summary', [LeadController::class, 'summary']);
-Route::get('leads/count-per-agent', [LeadController::class, 'countPerAgent']);
-Route::get('deals/count-per-agent', [DealController::class, 'countPerAgent']);
-
-
+Route::get('/customers-stats', [CustomerController::class, 'stats']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::resource('/customers', CustomerController::class);
-    Route::get('/customers-stats', [CustomerController::class, 'stats']);
     Route::get('/customers-city-wise', [CustomerController::class, 'customersCityWise']);
 
     Route::get('/invoices', [InvoiceController::class, 'index']);
@@ -44,17 +40,24 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('users', UserController::class);
 
+
+    Route::get('leads/summary', [LeadController::class, 'summary']);
+    Route::get('leads/count-per-agent', [LeadController::class, 'countPerAgent']);
     Route::apiResource('leads', LeadController::class);
     Route::get('activities-by-lead/{id}', [LeadActivityController::class, 'activitiesByLead']);
     Route::get('leads-activities', [LeadActivityController::class, 'index']);
     Route::post('leads-activities', [LeadActivityController::class, 'store']);
 
+    Route::get('deals/summary', [DealController::class, 'summary']);
+    Route::get('deals/count-per-agent', [DealController::class, 'countPerAgent']);
     Route::apiResource('deals', DealController::class);
     Route::get('activities-by-deal/{id}', [DealActivityController::class, 'activitiesByDeaL']);
     Route::get('deals-activities', [DealActivityController::class, 'index']);
     Route::post('deals-activities', [DealActivityController::class, 'store']);
 
     Route::apiResource('todos', TodoController::class);
+
+    Route::get('location', [LocationController::class, 'index']);
 });
 
 Route::get('/invoices/{id}', [InvoiceController::class, 'show']);

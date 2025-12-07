@@ -13,11 +13,12 @@ class DealController extends Controller
 {
     public function index()
     {
-        return Deal::with(['customer', 'agent', 'lead'])
+        return Deal::search(['customer.name'])->with(['customer', 'agent', 'lead'])
             ->when(request('status'), function ($query) {
                 $query->where('status', request('status'));
             })
             ->orderBy('id', 'desc')
+            // ->filterByKey("agent_id")
             ->paginate(request('per_page', 10));
     }
 
@@ -103,6 +104,7 @@ class DealController extends Controller
     public function summary()
     {
         $leadCounts = Deal::selectRaw("status, COUNT(*) as count")
+            ->filterByKey("agent_id")
             ->groupBy('status')
             ->pluck('count', 'status')  // returns ['New' => 40, 'Contacted' => 25, ...]
             ->toArray();
@@ -121,7 +123,7 @@ class DealController extends Controller
     public function countPerAgent()
     {
         // Get all users who have leads assigned as agent
-        $agents = User::withCount('dealsAsAgent')->get();
+        $agents = User::filterByKey()->withCount('dealsAsAgent')->get();
 
         $result = $agents->map(function ($agent) {
             return [

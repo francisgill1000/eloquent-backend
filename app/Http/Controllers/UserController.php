@@ -14,7 +14,7 @@ class UserController extends Controller
     public function index()
     {
         return User::search(['name'])
-            // ->where('user_id', request()->user()->id)
+            ->filterByKey('user_created_by_id')
             ->where('user_type', request("user_type", "customer"))
             ->orderBy('id', 'desc')
             ->paginate(request('per_page', 10));
@@ -36,6 +36,17 @@ class UserController extends Controller
             'message' => 'User created successfully',
             'user' => $user,
         ], 201);
+    }
+
+    public function show($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        return response()->json($user);
     }
 
     public function update(UpdateRequest $request, $id)
@@ -78,9 +89,9 @@ class UserController extends Controller
 
     public function dropDown()
     {
-        $users = User::where('user_type', request("user_type", "customer"))
-            ->select('id', 'name', 'email')
-            ->orderBy('name')
+        $users = User::orderBy('id', 'desc')
+            ->where('user_type', request("user_type", "customer"))
+            ->where('user_created_by_id', request("user_id"))
             ->get();
 
         return response()->json($users);
