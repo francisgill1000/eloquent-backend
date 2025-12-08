@@ -26,8 +26,6 @@ class LeadController extends Controller
     // Store new lead
     public function store(Request $request)
     {
-        Lead::truncate();
-        
         $validated = $request->validate([
             'customer_id' => 'required|exists:users,id',
             'agent_id' => 'nullable|exists:users,id',
