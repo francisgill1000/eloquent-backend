@@ -63,23 +63,23 @@ class Lead extends Model
         'attachments' => 'array', // JSON array -> PHP array
     ];
 
-    // public function getAttachmentsAttribute($value)
-    // {
-    //     // Decode JSON, fallback to empty array if null
-    //     $files = json_decode($value, true);
-    //     if (!is_array($files)) {
-    //         $files = [];
-    //     }
+    public function getAttachmentsAttribute($value)
+    {
+        // Decode JSON, fallback to empty array if null
+        $files = json_decode($value, true);
+        // if (!is_array($files)) {
+        //     $files = [];
+        // }
 
-    //     if (!count($files)) {
-    //         return $files;
-    //     }
+        // if (!count($files)) {
+        //     return $files;
+        // }
 
-    //     // Prepend backend base URL
-    //     $baseUrl = env("APP_URL"); // Ensure APP_URL is set in .env
+        // Prepend backend base URL
+        $baseUrl = env("APP_URL"); // Ensure APP_URL is set in .env
 
-    //     return array_map(fn($file) => $baseUrl . Storage::url($file), $files);
-    // }
+        return array_map(fn($file) => $baseUrl . Storage::url($file), $files);
+    }
 
     public function customer()
     {
