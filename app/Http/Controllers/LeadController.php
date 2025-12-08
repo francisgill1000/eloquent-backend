@@ -75,7 +75,7 @@ class LeadController extends Controller
         }
 
         // store in database as JSON array
-        $validated['attachments'] = json_encode($storedFiles);
+        $validated['attachments'] = ($storedFiles);
 
         $lead = Lead::create($validated);
 
