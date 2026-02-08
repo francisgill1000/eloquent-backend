@@ -55,8 +55,8 @@ class UpdateRequest extends FormRequest
                 'regex:/^[0-9]{7,15}$/',
             ],
 
-            'country' => 'required|string|max:255',
-            'city' => 'required|string|max:255',
+            'country' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:255',
         ];
     }
 }

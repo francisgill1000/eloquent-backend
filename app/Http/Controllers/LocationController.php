@@ -16,13 +16,18 @@ class LocationController extends Controller
         // Check if address exists in DB first
         $location = Location::where('lat', $lat)->where('lon', $lon)->first();
 
-        if ($location) { 
+        if ($location) {
             info("location found based on lat $lat, lon $lon");
             return $location;
-         }
+        }
 
         // Otherwise, call Google Maps API
         $apiKey = env('GOOGLE_MAPS_KEY');
+
+        if ($location) {
+            info("Calling api for new $lat, lon $lon");
+            return $location;
+        }
 
         $res = Http::withoutVerifying()->get("https://maps.googleapis.com/maps/api/geocode/json", [
             'latlng' => "$lat,$lon",

@@ -2,17 +2,21 @@
 
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BookingController;
 use App\Http\Controllers\CoordinateController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DealActivityController;
 use App\Http\Controllers\DealController;
+use App\Http\Controllers\GuestFavouriteController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\InvoiceReminderController;
 use App\Http\Controllers\LeadActivityController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TodoController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ShopController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -40,7 +44,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('users', UserController::class);
 
-
     Route::get('leads/summary', [LeadController::class, 'summary']);
     Route::get('leads/count-per-agent', [LeadController::class, 'countPerAgent']);
     Route::apiResource('leads', LeadController::class);
@@ -56,9 +59,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('deals-activities', [DealActivityController::class, 'store']);
 
     Route::apiResource('todos', TodoController::class);
-
-    Route::get('location', [LocationController::class, 'index']);
 });
+
+Route::get('location', [LocationController::class, 'index']);
+
+Route::get('/services', [ServiceController::class, 'index']);
 
 Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
 Route::get('/mark-as-paid/{id}', [InvoiceController::class, 'handleMarkAsPaid']);
@@ -84,3 +89,10 @@ EOT;
     return response($template, 200)
         ->header('Content-Type', 'text/plain');
 });
+
+
+Route::apiResource('/shops', ShopController::class);
+Route::post('/shops/{shop}/favourite', [GuestFavouriteController::class, 'toggle']);
+Route::post('/shops/{shop}/book', [BookingController::class, 'bookSlot']);
+Route::get('/booking/{id}', [BookingController::class, 'show']);
+Route::get('/bookings', [BookingController::class, 'index']);
