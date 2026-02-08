@@ -26,6 +26,7 @@ class ShopController extends Controller
         $search = request("search");
 
         $shops = Shop::where('status', Shop::ACTIVE)
+            ->whereHas('working_hours')
             ->withCount([
                 'guest_favourites as is_favourite' => function ($q) use ($deviceId) {
                     $q->where('device_id', $deviceId);
