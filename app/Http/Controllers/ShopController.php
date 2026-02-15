@@ -26,7 +26,7 @@ class ShopController extends Controller
         $search = request("search");
 
         $shops = Shop::where('status', Shop::ACTIVE)
-            ->whereHas('working_hours')
+            // ->whereHas('working_hours')
             ->withCount([
                 'guest_favourites as is_favourite' => function ($q) use ($deviceId) {
                     $q->where('device_id', $deviceId);
@@ -54,11 +54,42 @@ class ShopController extends Controller
             $dataToStore['logo'] = Shop::saveBase64Image($dataToStore['logo'], "logos");
         }
 
-        $created = Shop::create($dataToStore);
+        if (!empty($dataToStore['hero_image'])) {
+            $dataToStore['hero_image'] = Shop::saveBase64Image($dataToStore['hero_image'], "hero_images");
+        }
 
-        return response()->json($created);
+        $shop = Shop::create($dataToStore);
+
+        $token = $shop->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'shop' => $shop,
+            'token' => $token
+        ], 201);
     }
 
+    public function login(Request $request)
+    {
+        $shopCode = $request->input('shop_code');
+        $pin = $request->input('pin');
+
+        $shop = Shop::where('shop_code', $shopCode)->first();
+
+        if (!$shop) {
+            return response()->json(['message' => 'Shop not found'], 404);
+        }
+
+        if ($shop->pin !== $pin) {
+            return response()->json(['message' => 'Invalid PIN'], 401);
+        }
+
+        $token = $shop->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'shop' => $shop,
+            'token' => $token
+        ], 201);
+    }
 
     public function show(Request $request, Shop $shop)
     {
@@ -74,6 +105,63 @@ class ShopController extends Controller
 
     public function update(Request $request, Shop $shop)
     {
-        //
+        // Verify the shop owns this request (protect with auth)
+        // Update working hours if provided
+        if ($request->has('working_hours')) {
+            $workingHoursData = $request->input('working_hours');
+
+            // Validate working hours data
+            $validated = $request->validate([
+                'working_hours' => 'required|array',
+                'working_hours.*.day_of_week' => 'required|integer|between:0,6',
+                'working_hours.*.start_time' => 'required|date_format:H:i',
+                'working_hours.*.end_time' => 'required|date_format:H:i',
+                'working_hours.*.slot_duration' => 'integer|min:15|max:120'
+            ]);
+
+            // Delete existing working hours for this shop
+            $shop->working_hours()->delete();
+
+            // Create new working hours entries
+            foreach ($validated['working_hours'] as $hours) {
+                $shop->working_hours()->create([
+                    'day_of_week' => $hours['day_of_week'],
+                    'start_time' => $hours['start_time'],
+                    'end_time' => $hours['end_time'],
+                    'slot_duration' => $hours['slot_duration'] ?? 30
+                ]);
+            }
+        }
+
+        return response()->json([
+            'message' => 'Working hours updated successfully',
+            'working_hours' => $shop->working_hours()->get()
+        ]);
+    }
+
+
+    public function login_log(Request $request)
+    {
+        $deviceId = $request->header('X-Device-Id');
+
+        if (!$deviceId) {
+            return response()->json(['message' => 'Device ID missing'], 400);
+        }
+
+        // Find the shop linked to this specific device
+        $shop = Shop::where('device_id', $deviceId)->first();
+
+        if ($shop) {
+            // Generate a new token for this session
+            $token = $shop->createToken('auto_login_token')->plainTextToken;
+
+            return response()->json([
+                'authenticated' => true,
+                'token' => $token,
+                'shop' => $shop
+            ]);
+        }
+
+        return response()->json(['authenticated' => false], 404);
     }
 }

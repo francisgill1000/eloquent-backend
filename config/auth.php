@@ -65,6 +65,11 @@ return [
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
 
+        'users' => [
+            'driver' => 'eloquent',
+            'model' => env('AUTH_MODEL', App\Models\Shop::class),
+        ],
+
         // 'users' => [
         //     'driver' => 'database',
         //     'table' => 'users',

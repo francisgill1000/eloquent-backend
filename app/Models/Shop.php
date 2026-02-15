@@ -8,10 +8,11 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\HasApiTokens;
 
 class Shop extends Model
 {
-    use HasBase64Image;
+    use HasBase64Image, HasApiTokens;
 
     const INACTIVE = "inactive";
     const ACTIVE = "active";
@@ -24,8 +25,47 @@ class Shop extends Model
     {
         static::creating(function ($shop) {
             $shop->status = self::ACTIVE;
-            $shop->shop_code = mt_rand(100000, 999999);
+            $shop->shop_code = self::resolveShopCode($shop->shop_code ?? null);
+            $shop->pin = self::resolvePin($shop->pin ?? null, $shop->shop_code);
         });
+    }
+
+    protected static function resolveShopCode($providedShopCode = null): string
+    {
+        if (!empty($providedShopCode) && !self::where('shop_code', $providedShopCode)->exists()) {
+            return (string) $providedShopCode;
+        }
+
+        for ($attempts = 0; $attempts < 50; $attempts++) {
+            $shopCode = (string) random_int(100000, 999999);
+            if (!self::where('shop_code', $shopCode)->exists()) {
+                return $shopCode;
+            }
+        }
+
+        throw new \RuntimeException('Unable to generate a unique shop code.');
+    }
+
+    protected static function resolvePin($providedPin, string $shopCode): string
+    {
+        if (!empty($providedPin)) {
+            $providedPin = str_pad((string) $providedPin, 4, '0', STR_PAD_LEFT);
+            if (
+                $providedPin !== $shopCode &&
+                !self::where('pin', $providedPin)->exists()
+            ) {
+                return $providedPin;
+            }
+        }
+
+        for ($attempts = 0; $attempts < 200; $attempts++) {
+            $pin = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            if ($pin !== $shopCode && !self::where('pin', $pin)->exists()) {
+                return $pin;
+            }
+        }
+
+        throw new \RuntimeException('Unable to generate a unique pin.');
     }
 
     protected static function getFakeShops(): array
@@ -267,28 +307,39 @@ class Shop extends Model
             ->format('H:i');
     }
 
+
     public static function getSlots($date, $start, $end, $slot_duration, $shop_id)
     {
         $slots = [];
+        $now = Carbon::now();
+        $isToday = Carbon::parse($date)->isToday();
 
         // Get already booked slots
         $bookedSlots = Booking::where('shop_id', $shop_id)
             ->where('date', $date)
-            ->where('status', 'booked')
+            ->whereIn('status', ['booked', 'Booked'])
             ->pluck('start_time')
             ->map(fn($time) => Carbon::parse($time)->format('H:i'))
             ->toArray() ?? [];
 
         // Generate available slots
-        $start = Carbon::createFromTimeString($start);
-        $end   = Carbon::createFromTimeString($end);
+        $startTime = Carbon::createFromTimeString($start);
+        $endTime   = Carbon::createFromTimeString($end);
 
-        while ($start->lt($end)) {
-            $time = $start->format('H:i');
-            if (!in_array($time, $bookedSlots)) {
-                $slots[] = $time;
+        while ($startTime->lt($endTime)) {
+            $timeString = $startTime->format('H:i');
+
+            // Check 1: Is the slot already booked?
+            $isNotBooked = !in_array($timeString, $bookedSlots);
+
+            // Check 2: If it's today, is the slot in the future?
+            $isFuture = !$isToday || $startTime->gt($now);
+
+            if ($isNotBooked && $isFuture) {
+                $slots[] = $timeString;
             }
-            $start->addMinutes($slot_duration);
+
+            $startTime->addMinutes($slot_duration);
         }
 
         return $slots;
