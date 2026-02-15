@@ -14,16 +14,15 @@ class StoreShopRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'        => 'required|string|max:255',
-            'logo'        => 'nullable|string|max:255',
-            'hero_image'  => 'nullable|string|max:255',
-            'lat'         => 'required|between:-90,90',
-            'lon'         => 'required|between:-180,180',
-            'location'    => 'required|string|max:255',
+            'name'        => 'required|string|max:255|unique:shops,name',
+            'logo'        => 'nullable',
+            'hero_image'  => 'nullable',
+            'lat'         => 'nullable|between:-90,90',
+            'lon'         => 'nullable|between:-180,180',
+            'location'    => 'nullable|string|max:255',
             'is_verified' => 'boolean',
             'category_id' => 'required|integer|min:1',
             'status'      => 'required|string|in:active,inactive',
-            'logo'      => 'required',
 
         ];
     }

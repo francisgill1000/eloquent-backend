@@ -13,6 +13,7 @@ use App\Http\Controllers\InvoiceReminderController;
 use App\Http\Controllers\LeadActivityController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TodoController;
 use App\Http\Controllers\UserController;
@@ -95,4 +96,19 @@ Route::apiResource('/shops', ShopController::class);
 Route::post('/shops/{shop}/favourite', [GuestFavouriteController::class, 'toggle']);
 Route::post('/shops/{shop}/book', [BookingController::class, 'bookSlot']);
 Route::get('/booking/{id}', [BookingController::class, 'show']);
+Route::put('/booking/{id}', [BookingController::class, 'update']);
 Route::get('/bookings', [BookingController::class, 'index']);
+
+Route::post('/shops/login', [ShopController::class, 'login']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/shop/bookings', [BookingController::class, 'shopBookings']);
+
+    Route::apiResource('shop/catalogs', CatalogController::class)->only([
+        'index',
+        'store',
+        'show',
+        'update',
+        'destroy',
+    ]);
+});

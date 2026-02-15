@@ -36,7 +36,11 @@ class BookingController extends Controller
                     $q->where('shop_code', 'LIKE', $search . '%');
                 });
         }])
-            ->orderBy("id","desc")
+            ->when($search, function ($q) use ($search) {
+                // Search by booking reference (BK00011 format)
+                $q->where('booking_reference', 'LIKE', $search . '%');
+            })
+            ->orderBy("id", "desc")
             ->paginate(request('per_page', 15));
 
         return response()->json($bookings);
@@ -89,8 +93,6 @@ class BookingController extends Controller
         }
     }
 
-
-
     public function show($id)
     {
         $booking = Booking::with('shop')->find($id);
@@ -100,5 +102,58 @@ class BookingController extends Controller
         }
 
         return response()->json($booking);
+    }
+
+    /**
+     * Get bookings for the authenticated shop
+     */
+    public function shopBookings(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user || !$user instanceof Shop) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+        $bookings = Booking::where('shop_id', $user->id)
+            ->whereBetween('created_at', [
+                Carbon::now()->startOfDay(),
+                Carbon::now()->addDays(10)->endOfDay()
+            ])
+            ->with(['shop'])
+            ->orderBy('date', 'asc') // Changed to 'asc' so the soonest bookings appear first
+            ->get();
+
+        $totalBookings = $bookings->count();
+        $totalRevenue = $bookings->sum('charges');
+
+        return response()->json([
+            'data' => $bookings,
+            'total_bookings' => $totalBookings,
+            'total_revenue' => $totalRevenue,
+        ]);
+    }
+
+    /**
+     * Update booking status
+     */
+    public function update(Request $request, $id)
+    {
+        $booking = Booking::find($id);
+
+        if (!$booking) {
+            return response()->json(['message' => 'Booking not found'], 404);
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|in:booked,completed,cancelled,Booked,Completed,Cancelled'
+        ]);
+
+        // Store status in lowercase for consistency
+        $booking->update(['status' => strtolower($validated['status'])]);
+
+        return response()->json([
+            'message' => 'Booking updated successfully',
+            'data' => $booking
+        ]);
     }
 }

@@ -20,7 +20,8 @@ class Booking extends Model
         'status',
         'device_id',
         'charges',
-        'services'
+        'services',
+        'booking_reference'
     ];
 
     // Cast date fields
@@ -33,6 +34,27 @@ class Booking extends Model
     protected $appends = [
         'show_date',
     ];
+
+    /**
+     * Boot the model
+     */
+    protected static function booted()
+    {
+        static::creating(function ($booking) {
+            $booking->booking_reference = self::generateBookingReference();
+        });
+    }
+
+    /**
+     * Generate unique booking reference number in format BK00011
+     */
+    protected static function generateBookingReference(): string
+    {
+        // BK + 5-digit zero-padded ID
+        $lastId = self::latest('id')->first();
+        $nextId = ($lastId ? $lastId->id : 0) + 1;
+        return 'BK' . str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
+    }
 
     /**
      * Booking belongs to a shop
@@ -68,7 +90,6 @@ class Booking extends Model
         $exists = self::where('shop_id', $shopId)
             ->where('date', $date)
             ->where('start_time', $startTime)
-            ->where('status', 'booked')
             ->exists();
 
         if ($exists) {
