@@ -172,12 +172,10 @@ class ShopController extends Controller
         $status = request("status");
         $shop_id = request("shop_id");
 
-        $bookings = Booking::when($search, function ($q) use ($search) {
-            // Search by booking reference (BK00011 format)
-            $q->where('booking_reference', 'LIKE', $search . '%');
-        })
-            ->when($shop_id, function ($q) use ($shop_id) {
-                $q->where('shop_id', $shop_id);
+        $bookings = Booking::where('shop_id', $shop_id)
+            ->when($search, function ($q) use ($search) {
+                // Search by booking reference (BK00011 format)
+                $q->where('booking_reference', 'LIKE', $search . '%');
             })
             ->when($status, function ($q) use ($status) {
                 $q->where('status', $status);
