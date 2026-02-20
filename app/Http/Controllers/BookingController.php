@@ -109,12 +109,8 @@ class BookingController extends Controller
      */
     public function shopBookings(Request $request)
     {
-        $user = $request->user();
-
-        if (!$user || !$user instanceof Shop) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
-        $bookings = Booking::where('shop_id', $user->id)
+       
+        $bookings = Booking::where('shop_id', $request->shop_id ?? 0)
             ->whereBetween('created_at', [
                 Carbon::now()->startOfDay(),
                 Carbon::now()->addDays(10)->endOfDay()
