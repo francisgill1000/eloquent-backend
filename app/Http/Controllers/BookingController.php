@@ -126,6 +126,10 @@ class BookingController extends Controller
             'data' => $bookings,
             'total_bookings' => $totalBookings,
             'total_revenue' => $totalRevenue,
+            'dates_range' => [
+                'from' => Carbon::now()->startOfDay()->toDateTimeString(),
+                'to' => Carbon::now()->addDays(10)->endOfDay()->toDateTimeString(),
+            ]
         ]);
     }
 
