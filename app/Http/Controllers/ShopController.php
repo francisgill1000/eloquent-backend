@@ -164,4 +164,27 @@ class ShopController extends Controller
 
         return response()->json(['authenticated' => false], 404);
     }
+
+
+    public function bookings()
+    {
+        $search = request("search");
+        $status = request("status");
+        $shop_id = request("shop_id");
+
+        $bookings = Booking::when($search, function ($q) use ($search) {
+            // Search by booking reference (BK00011 format)
+            $q->where('booking_reference', 'LIKE', $search . '%');
+        })
+            ->when($shop_id, function ($q) use ($shop_id) {
+                $q->where('shop_id', $shop_id);
+            })
+            ->when($status, function ($q) use ($status) {
+                $q->where('status', $status);
+            })
+            ->orderBy("id", "desc")
+            ->paginate(request('per_page', 15));
+
+        return response()->json($bookings);
+    }
 }
