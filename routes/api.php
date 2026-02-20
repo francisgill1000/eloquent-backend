@@ -100,10 +100,11 @@ Route::put('/booking/{id}', [BookingController::class, 'update']);
 Route::get('/bookings', [BookingController::class, 'index']);
 
 Route::post('/shops/login', [ShopController::class, 'login']);
+
 Route::get('/shop/all-bookings', [ShopController::class, 'bookings']);
+Route::get('/shop/bookings', [BookingController::class, 'shopBookings']);
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/shop/bookings', [BookingController::class, 'shopBookings']);
 
     Route::apiResource('shop/catalogs', CatalogController::class)->only([
         'index',
