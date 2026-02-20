@@ -104,31 +104,37 @@ class BookingController extends Controller
         return response()->json($booking);
     }
 
-    /**
-     * Get bookings for the authenticated shop
-     */
     public function shopBookings(Request $request)
     {
-       
-        $bookings = Booking::where('shop_id', $request->shop_id ?? 0)
-            ->whereBetween('created_at', [
-                Carbon::now()->startOfDay(),
-                Carbon::now()->addDays(10)->endOfDay()
-            ])
-            ->with(['shop'])
-            ->orderBy('date', 'asc') // Changed to 'asc' so the soonest bookings appear first
+        // 1. Validate the request
+        $request->validate([
+            'shop_id' => 'required|exists:shops,id',
+        ]);
+
+        $shopId = $request->shop_id;
+        $start = now()->startOfDay();
+        $end = now()->addDays(10)->endOfDay();
+
+        // 2. Fetch bookings (Filtering by the actual booking 'date')
+        $upcomingBookings = Booking::where('shop_id', $shopId)
+            ->whereBetween('date', [$start, $end])
+            ->with('shop:id,name') // Only pull necessary columns from shop
+            ->orderBy('date', 'asc')
             ->get();
 
-        $totalBookings = $bookings->count();
-        $totalRevenue = $bookings->sum('charges');
+        // 3. Aggregate data efficiently 
+        // We filter total stats by shop_id (as per your original logic)
+        $stats = Booking::where('shop_id', $shopId)
+            ->selectRaw('count(*) as total_count, sum(charges) as total_rev')
+            ->first();
 
         return response()->json([
-            'data' => $bookings,
-            'total_bookings' => $totalBookings,
-            'total_revenue' => $totalRevenue,
+            'data' => $upcomingBookings,
+            'total_bookings' => (int) $stats->total_count,
+            'total_revenue' => (float) $stats->total_rev,
             'dates_range' => [
-                'from' => Carbon::now()->startOfDay()->toDateTimeString(),
-                'to' => Carbon::now()->addDays(10)->endOfDay()->toDateTimeString(),
+                'from' => $start->toDateTimeString(),
+                'to' => $end->toDateTimeString(),
             ]
         ]);
     }
