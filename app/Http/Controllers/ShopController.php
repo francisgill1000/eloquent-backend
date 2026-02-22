@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreShopRequest;
+use App\Http\Requests\UpdateShopRequest;
 use App\Models\Booking;
 use App\Models\Shop;
 use Carbon\Carbon;
@@ -103,40 +104,45 @@ class ShopController extends Controller
         return response()->json($shop);
     }
 
-    public function update(Request $request, Shop $shop)
+    public function update(UpdateShopRequest $request, Shop $shop)
     {
-        // Verify the shop owns this request (protect with auth)
-        // Update working hours if provided
-        if ($request->has('working_hours')) {
-            $workingHoursData = $request->input('working_hours');
+        try {
+            $validated = $request->validated();
 
-            // Validate working hours data
-            $validated = $request->validate([
-                'working_hours' => 'required|array',
-                'working_hours.*.day_of_week' => 'required|integer|between:0,6',
-                'working_hours.*.start_time' => 'required|date_format:H:i',
-                'working_hours.*.end_time' => 'required|date_format:H:i',
-                'working_hours.*.slot_duration' => 'integer|min:15|max:120'
-            ]);
+            // Extract image fields for special handling
+            $logo = $validated['logo'] ?? null;
+            $heroImage = $validated['hero_image'] ?? null;
 
-            // Delete existing working hours for this shop
-            $shop->working_hours()->delete();
+            // Remove image fields from validated data
+            unset($validated['logo'], $validated['hero_image']);
 
-            // Create new working hours entries
-            foreach ($validated['working_hours'] as $hours) {
-                $shop->working_hours()->create([
-                    'day_of_week' => $hours['day_of_week'],
-                    'start_time' => $hours['start_time'],
-                    'end_time' => $hours['end_time'],
-                    'slot_duration' => $hours['slot_duration'] ?? 30
-                ]);
+            // Mass assign validated fields
+            $shop->fill($validated);
+
+            // Handle logo upload (base64)
+            if (!empty($logo)) {
+                $shop->logo = Shop::saveBase64Image($logo, "logos");
             }
-        }
 
-        return response()->json([
-            'message' => 'Working hours updated successfully',
-            'working_hours' => $shop->working_hours()->get()
-        ]);
+            // Handle hero image upload (base64)
+            if (!empty($heroImage)) {
+                $shop->hero_image = Shop::saveBase64Image($heroImage, "hero_images");
+            }
+
+            // Save the shop
+            $shop->save();
+
+            return response()->json([
+                'message' => 'Shop updated successfully',
+                'shop' => $shop
+            ], 200);
+        } catch (Throwable $e) {
+            Log::error('Shop update error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to update shop',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
 
