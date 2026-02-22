@@ -28,6 +28,24 @@ class Shop extends Model
             $shop->shop_code = self::resolveShopCode($shop->shop_code ?? null);
             $shop->pin = self::resolvePin($shop->pin ?? null, $shop->shop_code);
         });
+
+        // After a shop is created, ensure it has default working hours
+        static::created(function ($shop) {
+            // If there are already working hours (e.g., seeded), don't duplicate
+            if ($shop->working_hours()->count() > 0) return;
+
+            for ($day = 0; $day <= 6; $day++) {
+                $shop->working_hours()->create([
+                    'day_of_week' => $day,
+                    'start_time' => '09:00:00',
+                    'end_time' => '17:00:00',
+                    'slot_duration' => 30,
+                ]);
+            }
+            
+            // Create default catalogs for the shop (if none exist)
+            Catalog::createDefaultsForShop($shop);
+        });
     }
 
     protected static function resolveShopCode($providedShopCode = null): string
