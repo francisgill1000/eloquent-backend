@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\BookSlotRequest;
 use App\Models\Booking;
 use App\Models\Shop;
+use App\Services\Notify;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -75,6 +76,13 @@ class BookingController extends Controller
                     'device_id'  => $request->header('X-Device-Id'),
                     'charges'    => $request->charges ?? 0,
                     'services'   => $request->services ?? [],
+                ]);
+
+                Notify::push($shop->id, 'booking', "New booking confirmed", [
+                    'booking_id' => $booking->id,
+                    'date' => $booking->date,
+                    'start_time' => $booking->start_time,
+                    'end_time' => $booking->end_time,
                 ]);
 
                 return response()->json([
