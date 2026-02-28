@@ -95,10 +95,24 @@ class ShopController extends Controller
     public function show(Request $request, Shop $shop)
     {
         $shop->load(['working_hours', 'catalogs']);
-
         $date = $request->query('date', now()->toDateString());
-        $workingHour = $shop->today_working_hours;
-        $shop->slots = $shop::getSlots($date, $workingHour->start_time ?? "00:00:00", $workingHour->end_time ?? "00:00:00", $workingHour->slot_duration ?? 30, $shop->id);
+
+        // Resolve working hours for the requested date (not just today)
+        $dayOfWeek = Carbon::parse($date)->dayOfWeek;
+        $workingHour = $shop->working_hours->firstWhere('day_of_week', $dayOfWeek);
+
+        if ($workingHour) {
+            $shop->slots = $shop::getSlots(
+                $date,
+                $workingHour->start_time ?? "00:00:00",
+                $workingHour->end_time ?? "00:00:00",
+                $workingHour->slot_duration ?? 30,
+                $shop->id
+            );
+        } else {
+            // Shop closed on requested day
+            $shop->slots = [];
+        }
         $shop->date = $date;
         $shop->rating = 5;
         return response()->json($shop);
