@@ -26,6 +26,10 @@ class TestSseNotifications extends Command
      */
     public function handle()
     {
-        Notify::push(107, 'test', "from francis test notifications");
+        Notify::push(108, 'test', "New Booking Created", [
+            'booking_id' => 123,
+            'customer_name' => 'John Doe',
+            'service' => 'Haircut',
+        ]);
     }
 }

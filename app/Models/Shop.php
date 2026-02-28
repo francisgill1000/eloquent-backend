@@ -34,7 +34,8 @@ class Shop extends Model
             // If there are already working hours (e.g., seeded), don't duplicate
             if ($shop->working_hours()->count() > 0) return;
 
-            for ($day = 0; $day <= 6; $day++) {
+            // Create defaults for Monday(1) through Saturday(6). Sunday(0) will be closed by default.
+            for ($day = 1; $day <= 6; $day++) {
                 $shop->working_hours()->create([
                     'day_of_week' => $day,
                     'start_time' => '09:00:00',
