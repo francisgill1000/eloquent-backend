@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
+use function Laravel\Prompts\info;
 
 class LocationController extends Controller
 {
@@ -29,6 +32,22 @@ class LocationController extends Controller
 
         // Otherwise, call Google Maps API
         $apiKey = env('GOOGLE_MAPS_KEY');
+
+        Log::info("Google Maps API key: ". ($apiKey));
+
+        if (empty($apiKey)) {
+            info('Google Maps key missing on server configuration', [
+                'lat' => $lat,
+                'lon' => $lon,
+            ]);
+
+            return response()->json([
+                'lat' => $lat,
+                'lon' => $lon,
+                'address' => null,
+                'google_status' => 'MISSING_KEY',
+            ]);
+        }
 
         info("Calling api for new $lat, lon $lon");
 
