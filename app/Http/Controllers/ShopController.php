@@ -126,9 +126,10 @@ class ShopController extends Controller
             // Extract image fields for special handling
             $logo = $validated['logo'] ?? null;
             $heroImage = $validated['hero_image'] ?? null;
+            $workingHours = $validated['working_hours'] ?? null;
 
             // Remove image fields from validated data
-            unset($validated['logo'], $validated['hero_image']);
+            unset($validated['logo'], $validated['hero_image'], $validated['working_hours']);
 
             // Mass assign validated fields
             $shop->fill($validated);
@@ -146,6 +147,12 @@ class ShopController extends Controller
             // Save the shop
             $shop->save();
 
+            if (is_array($workingHours)) {
+                $this->syncWorkingHours($shop, $workingHours);
+            }
+
+            $shop->load('working_hours');
+
             return response()->json([
                 'message' => 'Shop updated successfully',
                 'shop' => $shop
@@ -156,6 +163,35 @@ class ShopController extends Controller
                 'message' => 'Failed to update shop',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    private function syncWorkingHours(Shop $shop, array $workingHours): void
+    {
+        $dayIndexes = collect($workingHours)
+            ->pluck('day_of_week')
+            ->map(fn($day) => (int) $day)
+            ->values()
+            ->all();
+
+        if (empty($dayIndexes)) {
+            $shop->working_hours()->delete();
+            return;
+        }
+
+        $shop->working_hours()
+            ->whereNotIn('day_of_week', $dayIndexes)
+            ->delete();
+
+        foreach ($workingHours as $entry) {
+            $shop->working_hours()->updateOrCreate(
+                ['day_of_week' => (int) $entry['day_of_week']],
+                [
+                    'start_time' => $entry['start_time'],
+                    'end_time' => $entry['end_time'],
+                    'slot_duration' => (int) ($entry['slot_duration'] ?? 30),
+                ]
+            );
         }
     }
 
