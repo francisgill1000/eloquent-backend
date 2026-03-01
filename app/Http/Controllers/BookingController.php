@@ -78,12 +78,7 @@ class BookingController extends Controller
                     'services'   => $request->services ?? [],
                 ]);
 
-                Notify::push($shop->id, 'booking', "New booking confirmed", [
-                    'booking_id' => $booking->id,
-                    'date' => $booking->date,
-                    'start_time' => $booking->start_time,
-                    'end_time' => $booking->end_time,
-                ]);
+                Notify::push($shop->id, 'booking', "New booking confirmed", $booking->toArray());
 
                 return response()->json([
                     'message' => 'Booking confirmed successfully',
