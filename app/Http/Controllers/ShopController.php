@@ -91,8 +91,8 @@ class ShopController extends Controller
                         ->orWhere('name', 'LIKE', '%' . $search . '%');
                 });
             })
-            ->having('distance_km', '<=', $radiusKm)
-            ->orderBy('distance_km')
+            ->whereRaw($distanceExpr . ' <= ?', [$lat, $lon, $lat, $radiusKm])
+            ->orderByRaw($distanceExpr . ' asc', [$lat, $lon, $lat])
             ->paginate($perPage);
 
         $shops->getCollection()->transform(function ($shop) {
