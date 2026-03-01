@@ -17,6 +17,8 @@ class UpdateShopRequest extends FormRequest
             'name'          => 'nullable|string|max:255',
             'logo'          => 'nullable|string',
             'pin'           => 'nullable|string',
+            'lat'           => 'nullable|between:-90,90',
+            'lon'           => 'nullable|between:-180,180',
             'location'      => 'nullable|string|max:255',
             'hero_image'    => 'nullable|string',
             'working_hours' => 'sometimes|array|max:7',
