@@ -78,8 +78,11 @@ class BookingController extends Controller
                     'services'   => $request->services ?? [],
                 ]);
 
+                $payload = $booking->toArray();
 
-                Notify::push($shop->id, 'booking', "New booking confirmed: " . $booking->booking_reference, $booking->toArray());
+                $payload['notification_url'] = "https://eloquentservice.com/shop/bookings/action?id=" . $payload['id'];
+
+                Notify::push($shop->id, 'booking', "New booking confirmed: " . $booking->booking_reference, $payload);
 
                 return response()->json([
                     'message' => 'Booking confirmed successfully',
