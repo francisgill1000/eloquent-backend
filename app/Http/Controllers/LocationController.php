@@ -13,21 +13,24 @@ class LocationController extends Controller
         $lat = request("lat");
         $lon = request("lon");
 
+        if ($lat === null || $lon === null) {
+            return response()->json([
+                'message' => 'lat and lon are required',
+            ], 422);
+        }
+
         // Check if address exists in DB first
         $location = Location::where('lat', $lat)->where('lon', $lon)->first();
 
         if ($location) {
             info("location found based on lat $lat, lon $lon");
-            return $location;
+            return response()->json($location);
         }
 
         // Otherwise, call Google Maps API
         $apiKey = env('GOOGLE_MAPS_KEY');
 
-        if ($location) {
-            info("Calling api for new $lat, lon $lon");
-            return $location;
-        }
+        info("Calling api for new $lat, lon $lon");
 
         $res = Http::withoutVerifying()->get("https://maps.googleapis.com/maps/api/geocode/json", [
             'latlng' => "$lat,$lon",
@@ -36,11 +39,19 @@ class LocationController extends Controller
 
         $data = $res->json();
         if ($data['status'] === "OK" && count($data['results']) > 0) {
-            return Location::create([
+            $savedLocation = Location::create([
                 'lat' => $lat,
                 'lon' => $lon,
                 'address' => $data['results'][0]['formatted_address']
             ]);
+
+            return response()->json($savedLocation);
         }
+
+        return response()->json([
+            'lat' => $lat,
+            'lon' => $lon,
+            'address' => null,
+        ]);
     }
 }
