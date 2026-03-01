@@ -47,6 +47,63 @@ class ShopController extends Controller
         return response()->json($shops);
     }
 
+    public function nearby(Request $request)
+    {
+        $validated = $request->validate([
+            'lat' => 'required|numeric|between:-90,90',
+            'lon' => 'required|numeric|between:-180,180',
+            'radius_km' => 'nullable|numeric|min:1|max:500',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'is_favourite_only' => 'nullable|boolean',
+            'search' => 'nullable|string|max:100',
+        ]);
+
+        $lat = (float) $validated['lat'];
+        $lon = (float) $validated['lon'];
+        $radiusKm = (float) ($validated['radius_km'] ?? 25);
+        $perPage = (int) ($validated['per_page'] ?? 15);
+        $isFavouriteOnly = filter_var($validated['is_favourite_only'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $search = $validated['search'] ?? null;
+        $deviceId = $request->header('X-Device-Id');
+
+        $distanceExpr = "(6371 * ACOS(LEAST(1, GREATEST(-1, COS(RADIANS(?)) * COS(RADIANS(lat)) * COS(RADIANS(lon) - RADIANS(?)) + SIN(RADIANS(?)) * SIN(RADIANS(lat))))))";
+
+        $shops = Shop::query()
+            ->where('status', Shop::ACTIVE)
+            ->whereNotNull('lat')
+            ->whereNotNull('lon')
+            ->select('shops.*')
+            ->selectRaw($distanceExpr . ' as distance_km', [$lat, $lon, $lat])
+            ->withCount([
+                'guest_favourites as is_favourite' => function ($q) use ($deviceId) {
+                    $q->where('device_id', $deviceId);
+                }
+            ])
+            ->when($isFavouriteOnly, function ($query) use ($deviceId) {
+                $query->whereHas('guest_favourites', function ($q) use ($deviceId) {
+                    $q->where('device_id', $deviceId);
+                });
+            })
+            ->with('today_working_hours')
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($subQuery) use ($search) {
+                    $subQuery->where('shop_code', 'LIKE', $search . '%')
+                        ->orWhere('name', 'LIKE', '%' . $search . '%');
+                });
+            })
+            ->having('distance_km', '<=', $radiusKm)
+            ->orderBy('distance_km')
+            ->paginate($perPage);
+
+        $shops->getCollection()->transform(function ($shop) {
+            $distance = (float) ($shop->distance_km ?? 0);
+            $shop->distance = number_format($distance, 1) . ' km';
+            return $shop;
+        });
+
+        return response()->json($shops);
+    }
+
     public function store(StoreShopRequest $request)
     {
         $dataToStore = $request->validated();

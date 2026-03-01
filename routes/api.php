@@ -99,6 +99,7 @@ EOT;
 });
 
 
+Route::get('/shops/nearby', [ShopController::class, 'nearby']);
 Route::apiResource('/shops', ShopController::class);
 Route::post('/shops/{shop}/favourite', [GuestFavouriteController::class, 'toggle']);
 Route::post('/shops/{shop}/book', [BookingController::class, 'bookSlot']);
