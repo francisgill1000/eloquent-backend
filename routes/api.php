@@ -18,6 +18,7 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TodoController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ShopController;
+use App\Http\Controllers\ShopQrLoginController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -108,6 +109,9 @@ Route::put('/booking/{id}', [BookingController::class, 'update']);
 Route::get('/bookings', [BookingController::class, 'index']);
 
 Route::post('/shops/login', [ShopController::class, 'login']);
+Route::post('/shops/qr-login/request', [ShopQrLoginController::class, 'requestLogin']);
+Route::get('/shops/qr-login/status/{token}', [ShopQrLoginController::class, 'status']);
+Route::middleware('auth:sanctum')->post('/shops/qr-login/approve/{token}', [ShopQrLoginController::class, 'approve']);
 
 Route::get('/shop/all-bookings', [ShopController::class, 'bookings']);
 Route::get('/shop/bookings', [BookingController::class, 'shopBookings']);
