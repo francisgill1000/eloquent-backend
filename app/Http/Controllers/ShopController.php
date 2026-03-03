@@ -60,7 +60,7 @@ class ShopController extends Controller
 
         $lat = (float) $validated['lat'];
         $lon = (float) $validated['lon'];
-        $radiusKm = (float) ($validated['radius_km'] ?? 25);
+        $radiusKm = (float) ($validated['radius_km'] ?? 2);
         $perPage = (int) ($validated['per_page'] ?? 15);
         $isFavouriteOnly = filter_var($validated['is_favourite_only'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $search = $validated['search'] ?? null;
