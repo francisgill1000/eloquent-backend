@@ -19,7 +19,7 @@ class Shop extends Model
 
     protected $guarded = [];
 
-    protected $appends = ["registered_at", "year_of_experience", "total_bookings", "is_favourite"];
+    protected $appends = ["registered_at", "year_of_experience", "total_bookings", "is_favourite", "is_open"];
 
     protected static function booted()
     {
@@ -277,7 +277,7 @@ class Shop extends Model
             return false;
         }
 
-        $now = Carbon::now()->format('H:i:s');
+        $now = Carbon::now()->format('H:i');
 
         return $now >= $workingHour->start_time
             && $now <= $workingHour->end_time;
