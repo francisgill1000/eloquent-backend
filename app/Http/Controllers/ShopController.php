@@ -41,6 +41,8 @@ class ShopController extends Controller
             ->with('today_working_hours')
             ->when($search, function ($query) use ($search) {
                 $query->where('shop_code', 'LIKE', $search . '%');
+                $query->orWhere('name', 'LIKE', $search . '%');
+                $query->orWhere('location', 'LIKE', $search . '%');
             })
             ->paginate(request('per_page', 15));
 
