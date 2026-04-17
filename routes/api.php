@@ -109,6 +109,7 @@ Route::put('/booking/{id}', [BookingController::class, 'update']);
 Route::get('/bookings', [BookingController::class, 'index']);
 
 Route::post('/shops/login', [ShopController::class, 'login']);
+Route::post('/shops/reset-pin', [ShopController::class, 'resetPin']);
 Route::post('/shops/qr-login/request', [ShopQrLoginController::class, 'requestLogin']);
 Route::get('/shops/qr-login/status/{token}', [ShopQrLoginController::class, 'status']);
 Route::middleware('auth:sanctum')->post('/shops/qr-login/approve/{token}', [ShopQrLoginController::class, 'approve']);

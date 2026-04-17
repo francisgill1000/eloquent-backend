@@ -151,6 +151,29 @@ class ShopController extends Controller
         ], 201);
     }
 
+    public function resetPin(Request $request)
+    {
+        $validated = $request->validate([
+            'shop_code' => 'required|string',
+        ]);
+
+        $shop = Shop::where('shop_code', $validated['shop_code'])->first();
+
+        if (!$shop) {
+            return response()->json(['message' => 'Shop not found'], 404);
+        }
+
+        $newPin = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        $shop->pin = $newPin;
+        $shop->save();
+
+        return response()->json([
+            'message' => 'PIN reset successful',
+            'shop_code' => $shop->shop_code,
+            'pin' => $newPin,
+        ]);
+    }
+
     public function show(Request $request, Shop $shop)
     {
         $shop->load(['working_hours', 'catalogs']);
