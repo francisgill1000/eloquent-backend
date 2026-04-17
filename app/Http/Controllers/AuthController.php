@@ -13,16 +13,15 @@ class AuthController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|unique:users',
+            'phone' => 'required|string|unique:users,phone',
             'password' => 'required|string|min:5|confirmed',
             'password_confirmation' => 'required|string|min:5',
         ]);
 
         $user = User::create([
             'name' => $request->name,
-            'email' => $request->email,
+            'phone' => $request->phone,
             'password' => $request->password,
-            // 'password' => Hash::make($request->password),
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -39,15 +38,15 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|string',
+            'phone' => 'required|string',
             'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('phone', $request->phone)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['Invalid credentials provided.'],
+                'phone' => ['Invalid credentials provided.'],
             ]);
         }
 
