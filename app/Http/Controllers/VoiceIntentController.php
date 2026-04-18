@@ -19,7 +19,7 @@ class VoiceIntentController extends Controller
         ]);
 
         $transcript = trim($data['text']);
-        $userId     = $data['user_id'] ?? 'guest';
+        $userId     = is_numeric($data['user_id'] ?? null) ? (int) $data['user_id'] : null;
 
         if ($transcript === '') {
             return response()->json($this->noneResponse(''));
