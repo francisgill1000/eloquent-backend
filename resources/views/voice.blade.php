@@ -26,6 +26,13 @@
         #err { color: #b91c1c; font-size: 13px; margin-top: 8px; text-align: center; min-height: 16px; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
         .hint { color: #64748b; font-size: 13px; text-align: center; padding: 24px 16px; }
+        .shops { align-self: stretch; display: flex; flex-direction: column; gap: 8px; }
+        .shop { display: flex; gap: 10px; padding: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; align-items: center; }
+        .shop img { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; background: #e2e8f0; flex-shrink: 0; }
+        .shop .info { flex: 1; min-width: 0; }
+        .shop .name { font-weight: 600; font-size: 14px; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .shop .sub { font-size: 12px; color: #64748b; }
+        .shop .dist { font-size: 12px; font-weight: 600; color: #2563eb; }
     </style>
 </head>
 <body>
@@ -58,6 +65,75 @@
         if (!userId) {
             userId = 'guest-' + Math.random().toString(36).slice(2, 10);
             localStorage.setItem('rezzy_user_id', userId);
+        }
+
+        let coords = null;
+        function getCoords() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) return resolve(null);
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+                    () => resolve(null),
+                    { timeout: 6000, maximumAge: 60000 }
+                );
+            });
+        }
+        getCoords().then((c) => { coords = c; });
+
+        async function fetchShops(query) {
+            if (!coords) coords = await getCoords();
+            if (!coords) return { error: 'Location permission required to show nearby shops.' };
+            const url = new URL('/api/shops/nearby', location.origin);
+            url.searchParams.set('lat', coords.lat);
+            url.searchParams.set('lon', coords.lon);
+            url.searchParams.set('radius_km', '10');
+            url.searchParams.set('per_page', '5');
+            if (query) url.searchParams.set('search', query);
+            try {
+                const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+                return { shops: data.data || [] };
+            } catch (e) {
+                return { error: 'Failed to load nearby shops.' };
+            }
+        }
+
+        function renderShops(shops) {
+            const wrap = document.createElement('div');
+            wrap.className = 'shops';
+            if (!shops.length) {
+                const empty = document.createElement('div');
+                empty.className = 'msg bot';
+                empty.textContent = 'No nearby shops found.';
+                wrap.appendChild(empty);
+            } else {
+                shops.forEach((s) => {
+                    const card = document.createElement('div');
+                    card.className = 'shop';
+                    const img = document.createElement('img');
+                    img.src = s.logo || s.hero_image || '';
+                    img.onerror = () => { img.style.display = 'none'; };
+                    const info = document.createElement('div');
+                    info.className = 'info';
+                    const name = document.createElement('div');
+                    name.className = 'name';
+                    name.textContent = s.name || 'Shop';
+                    const sub = document.createElement('div');
+                    sub.className = 'sub';
+                    sub.textContent = s.address || s.city || '';
+                    const dist = document.createElement('div');
+                    dist.className = 'dist';
+                    dist.textContent = s.distance || '';
+                    info.appendChild(name);
+                    info.appendChild(sub);
+                    card.appendChild(img);
+                    card.appendChild(info);
+                    card.appendChild(dist);
+                    wrap.appendChild(card);
+                });
+            }
+            chat.appendChild(wrap);
+            chat.scrollTop = chat.scrollHeight;
         }
 
         function addMessage(role, text, extra = '') {
@@ -165,6 +241,15 @@
                     if (data.reply && 'speechSynthesis' in window) {
                         speechSynthesis.cancel();
                         speechSynthesis.speak(new SpeechSynthesisUtterance(data.reply));
+                    }
+
+                    if (data.action === 'search') {
+                        const result = await fetchShops(data.query);
+                        if (result.error) {
+                            addMessage('bot', result.error);
+                        } else {
+                            renderShops(result.shops);
+                        }
                     }
                 } catch (err) {
                     typing.classList.remove('typing');
