@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Macros\FilterByKeyMacro;
 use App\Macros\SearchMacro;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,5 +25,9 @@ class AppServiceProvider extends ServiceProvider
         // Register macros
         (new SearchMacro())();
         (new FilterByKeyMacro())();
+
+        if ($this->app->environment('local')) {
+            Http::globalOptions(['verify' => false]);
+        }
     }
 }
