@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rezzy Voice Intent Tester</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0B121B;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 560px;
+      background: #16202A;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 24px;
+    }
+    h1 { margin: 0 0 6px; font-size: 22px; }
+    .sub { color: #92adc9; font-size: 13px; margin-bottom: 20px; }
+    .endpoint {
+      background: #0a0f18;
+      border: 1px solid #1E293B;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+      color: #adc6ff;
+      margin-bottom: 16px;
+      word-break: break-all;
+    }
+    label { display: block; font-size: 13px; margin: 16px 0 6px; color: #c1c6d7; }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      background: #0a0f18;
+      border: 1px solid #1E293B;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+    }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    button {
+      flex: 1;
+      min-width: 140px;
+      height: 48px;
+      border: 0;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-record { background: #007AFF; color: #fff; }
+    .btn-stop { background: #ef4444; color: #fff; }
+    .btn-text { background: #25D366; color: #fff; }
+    .btn-secondary { background: rgba(255,255,255,0.08); color: #fff; }
+    .status {
+      margin-top: 16px;
+      padding: 10px 14px;
+      background: rgba(0,122,255,0.1);
+      border: 1px solid rgba(0,122,255,0.2);
+      border-radius: 10px;
+      font-size: 13px;
+      color: #adc6ff;
+      min-height: 20px;
+    }
+    .status.err { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: #ef4444; }
+    .status.ok { background: rgba(78,222,163,0.1); border-color: rgba(78,222,163,0.3); color: #4edea3; }
+    pre {
+      margin-top: 12px;
+      background: #0a0f18;
+      border: 1px solid #1E293B;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      overflow-x: auto;
+      color: #dce3f0;
+    }
+    .pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-right: 6px;
+    }
+    .pill-action { background: rgba(0,122,255,0.15); color: #007AFF; }
+    .pill-screen { background: rgba(78,222,163,0.15); color: #4edea3; }
+    .summary {
+      margin-top: 16px;
+      padding: 14px;
+      background: #0a0f18;
+      border: 1px solid #1E293B;
+      border-radius: 10px;
+    }
+    .summary .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #64748b;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .summary .val { font-size: 15px; margin-bottom: 10px; }
+    .recording-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background: #ef4444;
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse { 50% { opacity: 0.3; } }
+    hr { border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 24px 0 16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Rezzy Voice Intent Tester</h1>
+    <div class="sub">Record your voice or type a command — see what the AI routes it to.</div>
+
+    <div class="endpoint" id="endpoint">POST /api/voice/intent</div>
+
+    <label>Endpoint (edit if using a different host)</label>
+    <input type="text" id="endpointInput" value="http://127.0.0.1:8000/api/voice/intent" />
+    <div style="font-size:11px;color:#64748b;margin-top:4px">Resolved URL will be shown below each request.</div>
+
+    <hr />
+
+    <label>1. Record voice</label>
+    <div class="row">
+      <button type="button" class="btn-record" id="recordBtn">Start recording</button>
+      <button type="button" class="btn-stop" id="stopBtn" disabled>Stop &amp; send</button>
+    </div>
+
+    <hr />
+
+    <label>2. Or send plain text (skips Whisper, tests intent parsing only)</label>
+    <input type="text" id="textInput" placeholder="e.g. I need a haircut" />
+    <div class="row">
+      <button type="button" class="btn-text" id="sendTextBtn">Send as text</button>
+      <button type="button" class="btn-secondary" id="clearBtn">Clear</button>
+    </div>
+
+    <div class="status" id="status">Ready.</div>
+
+    <div id="summary" class="summary" style="display:none"></div>
+
+    <pre id="output" style="display:none"></pre>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const recordBtn = $('recordBtn');
+    const stopBtn = $('stopBtn');
+    const sendTextBtn = $('sendTextBtn');
+    const clearBtn = $('clearBtn');
+    const textInput = $('textInput');
+    const endpointInput = $('endpointInput');
+    const status = $('status');
+    const output = $('output');
+    const summary = $('summary');
+
+    let mediaRecorder = null;
+    let chunks = [];
+    let stream = null;
+
+    function setStatus(msg, kind = '') {
+      status.textContent = msg;
+      status.className = 'status ' + kind;
+    }
+
+    function renderResponse(data) {
+      output.style.display = 'block';
+      output.textContent = JSON.stringify(data, null, 2);
+
+      if (data && data.action) {
+        summary.style.display = 'block';
+        const actionClass = 'pill pill-action';
+        const screenPill = data.screen
+          ? `<span class="pill pill-screen">${data.screen}</span>`
+          : '';
+        summary.innerHTML = `
+          <div class="label">Transcript</div>
+          <div class="val">${data.transcript || '(empty)'}</div>
+          <div class="label">Detected intent</div>
+          <div class="val">
+            <span class="${actionClass}">${data.action}</span>
+            ${screenPill}
+            ${data.query ? `query: "${data.query}"` : ''}
+          </div>
+          <div class="label">App reply</div>
+          <div class="val">${data.reply || '(empty)'}</div>
+        `;
+      } else {
+        summary.style.display = 'none';
+      }
+    }
+
+    async function sendForm(form) {
+      let url = endpointInput.value.trim() || '/api/voice/intent';
+      // Force absolute URL so it never resolves to the current page
+      if (!/^https?:\/\//i.test(url)) {
+        url = window.location.origin + (url.startsWith('/') ? url : '/' + url);
+      }
+      setStatus('Sending to: ' + url);
+      try {
+        const res = await fetch(url, { method: 'POST', body: form, headers: { 'Accept': 'application/json' } });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { raw: text }; }
+
+        if (!res.ok) {
+          setStatus(`HTTP ${res.status} — see response below`, 'err');
+          output.style.display = 'block';
+          output.textContent = JSON.stringify(data, null, 2);
+          return;
+        }
+        setStatus('Success.', 'ok');
+        renderResponse(data);
+      } catch (err) {
+        setStatus('Network error: ' + err.message, 'err');
+      }
+    }
+
+    recordBtn.addEventListener('click', async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        chunks = [];
+        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : 'audio/webm';
+        mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+        mediaRecorder.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop());
+          const blob = new Blob(chunks, { type: mime });
+          const form = new FormData();
+          form.append('audio', blob, 'voice.webm');
+          await sendForm(form);
+        };
+        mediaRecorder.start();
+        recordBtn.disabled = true;
+        stopBtn.disabled = false;
+        setStatus('<span class="recording-indicator"></span> Recording… speak now.');
+        status.innerHTML = '<span class="recording-indicator"></span> Recording… speak now.';
+      } catch (err) {
+        setStatus('Microphone error: ' + err.message, 'err');
+      }
+    });
+
+    stopBtn.addEventListener('click', () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+      }
+      recordBtn.disabled = false;
+      stopBtn.disabled = true;
+    });
+
+    sendTextBtn.addEventListener('click', async () => {
+      const text = textInput.value.trim();
+      if (!text) { setStatus('Type something first.', 'err'); return; }
+      const form = new FormData();
+      form.append('text', text);
+      await sendForm(form);
+    });
+
+    clearBtn.addEventListener('click', () => {
+      textInput.value = '';
+      output.style.display = 'none';
+      summary.style.display = 'none';
+      setStatus('Ready.');
+    });
+  </script>
+</body>
+</html>
