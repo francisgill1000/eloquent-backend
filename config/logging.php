@@ -127,6 +127,14 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'ai_assistant' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/ai-assistant.log'),
+            'level' => env('AI_ASSISTANT_LOG_LEVEL', 'info'),
+            'days' => env('AI_ASSISTANT_LOG_DAYS', 30),
+            'replace_placeholders' => true,
+        ],
+
     ],
 
 ];

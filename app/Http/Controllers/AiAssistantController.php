@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Ai\KnowledgeBase;
 use App\Ai\RezzyAssistantAgent;
+use App\Models\AiAssistantLog;
 use App\Models\Shop;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,6 +33,34 @@ class AiAssistantController extends Controller
             ], 422);
         }
 
+        // Short-circuit via knowledge base — no LLM call for common FAQ-style questions.
+        if ($kb = KnowledgeBase::match($message)) {
+            Log::channel('ai_assistant')->info('kb_hit', [
+                'message' => $message,
+                'kb_id'   => $kb['id'],
+            ]);
+
+            $this->logInteraction([
+                'message'         => $message,
+                'source'          => 'knowledge_base',
+                'kb_id'           => $kb['id'],
+                'matched'         => true,
+                'user_id'         => $data['user_id'] ?? null,
+                'conversation_id' => $data['conversation_id'] ?? null,
+                'lat'             => $data['lat'] ?? null,
+                'lon'             => $data['lon'] ?? null,
+                'reply'           => $kb['answer'],
+            ]);
+
+            return response()->json([
+                'conversation_id' => $data['conversation_id'] ?? null,
+                'action'          => 'chat',
+                'source'          => 'knowledge_base',
+                'kb_id'           => $kb['id'],
+                'reply'           => $kb['answer'],
+            ]);
+        }
+
         try {
             $agent       = RezzyAssistantAgent::make();
             $userId      = is_numeric($data['user_id'] ?? null) ? (int) $data['user_id'] : null;
@@ -46,7 +76,7 @@ class AiAssistantController extends Controller
             $rawText    = trim((string) $response->text);
             $actionData = $this->parseActionJson($rawText);
 
-            Log::info('AI assistant reply', [
+            Log::channel('ai_assistant')->info('llm_reply', [
                 'message'     => $message,
                 'raw_text'    => $rawText,
                 'parsed'      => $actionData,
@@ -54,14 +84,41 @@ class AiAssistantController extends Controller
             ]);
 
             if (($actionData['action'] ?? null) === 'find_shops') {
-                return $this->handleFindShops(
+                $findResponse = $this->handleFindShops(
                     response:       $response,
                     query:          (string) ($actionData['query'] ?? ''),
                     limit:          $actionData['limit'] ?? null,
                     lat:            $data['lat'] ?? null,
                     lon:            $data['lon'] ?? null,
                 );
+
+                $findPayload = $findResponse->getData(true);
+                $this->logInteraction([
+                    'message'         => $message,
+                    'source'          => 'llm',
+                    'llm_action'      => $findPayload['action'] ?? 'find_shops',
+                    'matched'         => ! empty($findPayload['shops'] ?? []),
+                    'user_id'         => $data['user_id'] ?? null,
+                    'conversation_id' => $response->conversationId,
+                    'lat'             => $data['lat'] ?? null,
+                    'lon'             => $data['lon'] ?? null,
+                    'reply'           => $findPayload['reply'] ?? null,
+                ]);
+
+                return $findResponse;
             }
+
+            $this->logInteraction([
+                'message'         => $message,
+                'source'          => 'llm',
+                'llm_action'      => 'chat',
+                'matched'         => false,
+                'user_id'         => $data['user_id'] ?? null,
+                'conversation_id' => $response->conversationId,
+                'lat'             => $data['lat'] ?? null,
+                'lon'             => $data['lon'] ?? null,
+                'reply'           => $rawText,
+            ]);
 
             return response()->json([
                 'conversation_id' => $response->conversationId,
@@ -69,11 +126,28 @@ class AiAssistantController extends Controller
                 'reply'           => $rawText,
             ]);
         } catch (Throwable $e) {
-            Log::error('AI assistant chat failed', ['error' => $e->getMessage()]);
+            Log::channel('ai_assistant')->error('chat_failed', [
+                'error'   => $e->getMessage(),
+                'message' => $message,
+            ]);
 
             return response()->json([
                 'message' => 'Assistant is unavailable right now. Please try again.',
             ], 500);
+        }
+    }
+
+    private function logInteraction(array $payload): void
+    {
+        try {
+            AiAssistantLog::create(array_merge([
+                'matched' => false,
+            ], $payload));
+        } catch (Throwable $e) {
+            // DB logging is best-effort — failures shouldn't break the chat request.
+            Log::channel('ai_assistant')->warning('log_persist_failed', [
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
