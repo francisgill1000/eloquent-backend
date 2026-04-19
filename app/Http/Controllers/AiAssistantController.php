@@ -57,6 +57,7 @@ class AiAssistantController extends Controller
                 return $this->handleFindShops(
                     response:       $response,
                     query:          (string) ($actionData['query'] ?? ''),
+                    limit:          $actionData['limit'] ?? null,
                     lat:            $data['lat'] ?? null,
                     lon:            $data['lon'] ?? null,
                 );
@@ -76,7 +77,7 @@ class AiAssistantController extends Controller
         }
     }
 
-    private function handleFindShops($response, string $query, $lat, $lon): JsonResponse
+    private function handleFindShops($response, string $query, $limit, $lat, $lon): JsonResponse
     {
         $query = trim($query);
 
@@ -92,6 +93,7 @@ class AiAssistantController extends Controller
         $lat = (float) $lat;
         $lon = (float) $lon;
         $radiusKm = 10;
+        $take = is_numeric($limit) ? max(1, min(50, (int) $limit)) : 10;
 
         // Bounding-box prefilter (~1° lat ≈ 111 km) so we don't scan every shop.
         $latDelta = $radiusKm / 111.0;
@@ -104,22 +106,22 @@ class AiAssistantController extends Controller
             ->whereBetween('lat', [$lat - $latDelta, $lat + $latDelta])
             ->whereBetween('lon', [$lon - $lonDelta, $lon + $lonDelta])
             ->when($query !== '', function ($q) use ($query) {
-                $q->where(function ($sub) use ($query) {
-                    $sub->where('name', 'LIKE', '%' . $query . '%')
-                        ->orWhere('shop_code', 'LIKE', $query . '%')
-                        ->orWhere('location', 'LIKE', '%' . $query . '%')
-                        ->orWhereHas('catalogs', function ($c) use ($query) {
-                            $c->where('title', 'LIKE', '%' . $query . '%');
+                $needle = '%' . strtolower($query) . '%';
+                $q->where(function ($sub) use ($query, $needle) {
+                    $sub->whereRaw('LOWER(name) LIKE ?', [$needle])
+                        ->orWhereRaw('LOWER(shop_code) LIKE ?', [strtolower($query) . '%'])
+                        ->orWhereRaw('LOWER(location) LIKE ?', [$needle])
+                        ->orWhereHas('catalogs', function ($c) use ($needle) {
+                            $c->whereRaw('LOWER(title) LIKE ?', [$needle]);
                         });
                 });
             })
-            ->limit(100)
+            ->limit(200)
             ->get();
 
-        $shops = $this->rankByDistance($candidates, $lat, $lon, $radiusKm);
-        $usedFallback = false;
+        $shops = $this->rankByDistance($candidates, $lat, $lon, $radiusKm, $take);
 
-        // Fallback: if the keyword filter found nothing, show the nearest shops regardless of query.
+        // If the keyword filter found nothing, silently fall back to the nearest shops.
         if ($shops->isEmpty() && $query !== '') {
             $fallbackCandidates = Shop::query()
                 ->where('status', Shop::ACTIVE)
@@ -127,11 +129,10 @@ class AiAssistantController extends Controller
                 ->whereNotNull('lon')
                 ->whereBetween('lat', [$lat - $latDelta, $lat + $latDelta])
                 ->whereBetween('lon', [$lon - $lonDelta, $lon + $lonDelta])
-                ->limit(100)
+                ->limit(200)
                 ->get();
 
-            $shops = $this->rankByDistance($fallbackCandidates, $lat, $lon, $radiusKm);
-            $usedFallback = $shops->isNotEmpty();
+            $shops = $this->rankByDistance($fallbackCandidates, $lat, $lon, $radiusKm, $take);
         }
 
         if ($shops->isEmpty()) {
@@ -158,11 +159,9 @@ class AiAssistantController extends Controller
             return ($i + 1) . ". [{$s['name']}]({$s['url']}) — {$s['distance']}";
         })->implode("\n");
 
-        $heading = match (true) {
-            $usedFallback        => "I didn't find an exact match for \"{$query}\", but here are the closest shops to you:",
-            $query !== ''        => "Here are the closest \"{$query}\" shops to you:",
-            default              => "Here are the closest shops to you:",
-        };
+        $heading = $query !== ''
+            ? "Here are the closest \"{$query}\" shops to you:"
+            : "Here are the closest shops to you:";
 
         return response()->json([
             'conversation_id' => $response->conversationId,
@@ -173,7 +172,7 @@ class AiAssistantController extends Controller
         ]);
     }
 
-    private function rankByDistance($candidates, float $lat, float $lon, float $radiusKm)
+    private function rankByDistance($candidates, float $lat, float $lon, float $radiusKm, int $take = 10)
     {
         return $candidates
             ->map(function ($shop) use ($lat, $lon) {
@@ -182,7 +181,7 @@ class AiAssistantController extends Controller
             })
             ->filter(fn ($shop) => $shop->distance_km <= $radiusKm)
             ->sortBy('distance_km')
-            ->take(5)
+            ->take($take)
             ->values();
     }
 
