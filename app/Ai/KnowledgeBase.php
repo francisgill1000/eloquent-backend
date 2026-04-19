@@ -184,7 +184,7 @@ class KnowledgeBase
                     '/\b(contact|reach|talk\s+to|speak\s+to)\b.*\b(support|team|customer\s*service|help\s*desk)\b/i',
                     '/\b(support|help)\s+(email|phone|number|contact)\b/i',
                 ],
-                'answer'   => "You can reach Rezzy support from the Account tab → Help & Support, or email the team at support@eloquentservice.com.",
+                'answer'   => "You can reach Rezzy support from the Account tab → Help & Support, call/WhatsApp +971 55 736 9629, or email support@eloquentservice.com.",
             ],
         ];
     }
