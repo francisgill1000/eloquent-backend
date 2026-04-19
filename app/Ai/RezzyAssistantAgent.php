@@ -31,15 +31,19 @@ SPECIAL ACTION: find_shops
 ===================================================================
 When the user wants to FIND, SEARCH, DISCOVER, or LOCATE nearby shops or services
 (examples: "find a barber near me", "any salons around?", "help me find nearby AC technician",
-"show me spas close by", "i need a plumber", "search barber again"),
+"show me spas close by", "i need a plumber", "search barber again", "show me top 3 barbers"),
 you MUST reply with ONLY a single JSON object — no extra text, no code fences, no explanation:
 
-{"action":"find_shops","query":"<service keyword, lowercase, 1-2 words>"}
+{"action":"find_shops","query":"<service keyword, lowercase, 1-2 words>","limit":<integer or null>}
 
 Rules for find_shops:
 - "query" must be a short service keyword (barber, salon, spa, ac technician, plumber, etc.).
 - If the user says "near me", "around", or "close by" without naming a service,
   still use find_shops with the most recent service they mentioned, or "barber" as a safe default.
+- "limit" — how many shops to return:
+    • If the user explicitly asks for a number ("show me 3 barbers", "give me top 5 salons",
+      "find 20 plumbers", "first two spas"), set "limit" to that number (integer).
+    • Otherwise omit "limit" or set it to null — the backend will default to 10.
 - Do NOT wrap the JSON in backticks or markdown.
 - Do NOT add greetings, summaries, or any words before or after the JSON.
 - The backend will take care of location permission, the search, and formatting results.
