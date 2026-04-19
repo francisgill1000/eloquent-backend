@@ -16,6 +16,8 @@ class VoiceIntentController extends Controller
             'text'            => 'required|string|max:500',
             'conversation_id' => 'nullable|string|size:36',
             'user_id'         => 'nullable|string|max:64',
+            'lat'             => 'required|numeric|between:-90,90',
+            'lon'             => 'required|numeric|between:-180,180',
         ]);
 
         $transcript = trim($data['text']);
@@ -36,9 +38,53 @@ class VoiceIntentController extends Controller
                 $agent->forUser($participant);
             }
 
-            $response = $agent->prompt($transcript);
+            // 🔥 IMPORTANT: use respond() instead of prompt()
+            $response = $agent->respond($transcript);
 
-            $parsed = $this->parseJson($response->text);
+            // ================================
+            // 🔥 TOOL HANDLING
+            // ================================
+            if ($response->toolCall()) {
+
+                $tool = $response->toolCall()->name;
+                $args = $response->toolCall()->arguments ?? [];
+
+                switch ($tool) {
+
+                    case 'nearby_search':
+
+                        $query = $args['query'] ?? $agent->recall('last_search') ?? 'barber';
+
+                        // Save last search
+                        $agent->remember('last_search', $query);
+
+                        // ✅ Call your existing nearby() WITHOUT modifying it
+                        return app()->call([$this, 'nearby'], [
+                            'request' => new Request([
+                                'lat' => $data['lat'],
+                                'lon' => $data['lon'],
+                                'search' => $query,
+                                'radius_km' => $args['radius_km'] ?? 2,
+                            ])
+                        ]);
+
+                    case 'navigate_screen':
+
+                        return response()->json([
+                            'transcript'      => $transcript,
+                            'conversation_id' => $response->conversationId,
+                            'action'          => 'navigate',
+                            'query'           => '',
+                            'screen'          => $args['screen'] ?? '',
+                            'reply'           => 'Opening screen',
+                        ]);
+                }
+            }
+
+            // ================================
+            // 🔁 FALLBACK (JSON MODE)
+            // ================================
+            $parsed = $this->parseJson($response->text());
 
             return response()->json([
                 'transcript'      => $transcript,
@@ -48,6 +94,7 @@ class VoiceIntentController extends Controller
                 'screen'          => $parsed['screen'] ?? '',
                 'reply'           => $parsed['reply']  ?? "Sorry, I didn't catch that.",
             ]);
+
         } catch (Throwable $e) {
             Log::error('Voice intent failed', ['error' => $e->getMessage()]);
 
