@@ -11,6 +11,27 @@ class UpdateShopRequest extends FormRequest
         return true; // no auth restriction
     }
 
+    protected function prepareForValidation(): void
+    {
+        // Older mobile clients send day_of_week 1..7 (Mon..Sun).
+        // Normalise to backend convention 0..6 (Sun..Sat) before validation.
+        $workingHours = $this->input('working_hours');
+        if (is_array($workingHours)) {
+            $normalised = array_map(function ($entry) {
+                if (is_array($entry) && isset($entry['day_of_week'])) {
+                    $day = (int) $entry['day_of_week'];
+                    if ($day === 7) {
+                        $day = 0;
+                    }
+                    $entry['day_of_week'] = $day;
+                }
+                return $entry;
+            }, $workingHours);
+
+            $this->merge(['working_hours' => $normalised]);
+        }
+    }
+
     public function rules(): array
     {
         return [
