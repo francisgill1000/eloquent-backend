@@ -36,7 +36,7 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 12px;
       color: #8fb8ff;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       word-break: break-all;
     }
     .meta {
@@ -47,6 +47,7 @@
       font-size: 11px;
       color: #6d87a3;
       margin-bottom: 10px;
+      flex-wrap: wrap;
     }
     .meta code {
       color: #a0c4ff;
@@ -55,6 +56,15 @@
       border-radius: 4px;
       font-size: 11px;
     }
+    .loc-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .loc-badge.on   { color: #6ee7b7; border-color: rgba(110,231,183,0.3); }
+    .loc-badge.off  { color: #fca5a5; border-color: rgba(252,165,165,0.3); }
+    .loc-badge.pending { color: #fbbf24; border-color: rgba(251,191,36,0.3); }
     .chat {
       flex: 1;
       min-height: 360px;
@@ -70,12 +80,11 @@
       margin-bottom: 12px;
     }
     .msg {
-      max-width: 82%;
+      max-width: 85%;
       padding: 10px 12px;
       border-radius: 12px;
-      line-height: 1.45;
+      line-height: 1.5;
       font-size: 14px;
-      white-space: pre-wrap;
       word-wrap: break-word;
     }
     .msg.user {
@@ -83,6 +92,7 @@
       background: #2563eb;
       color: #fff;
       border-bottom-right-radius: 4px;
+      white-space: pre-wrap;
     }
     .msg.assistant {
       align-self: flex-start;
@@ -90,6 +100,12 @@
       color: #e6edf5;
       border-bottom-left-radius: 4px;
     }
+    .msg.assistant a {
+      color: #8fb8ff;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .msg.assistant a:hover { color: #b7d1ff; }
     .msg.error {
       align-self: stretch;
       background: #3a1d1d;
@@ -104,10 +120,7 @@
       font-size: 13px;
       margin: auto 0;
     }
-    form {
-      display: flex;
-      gap: 8px;
-    }
+    form { display: flex; gap: 8px; }
     textarea {
       flex: 1;
       resize: none;
@@ -134,7 +147,7 @@
       cursor: pointer;
     }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .reset {
+    .btn-small {
       background: transparent;
       color: #92adc9;
       border: 1px solid rgba(255,255,255,0.1);
@@ -144,22 +157,26 @@
       cursor: pointer;
       border-radius: 6px;
     }
-    .reset:hover { background: rgba(255,255,255,0.05); }
+    .btn-small:hover { background: rgba(255,255,255,0.05); }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Rezzy Assistant Tester</h1>
-    <div class="sub">Text-based chat with the Rezzy AI assistant.</div>
+    <div class="sub">Text-based chat with the Rezzy AI assistant — with live shop search.</div>
     <div class="endpoint">POST <span id="endpoint-url">/api/assistant/chat</span></div>
 
     <div class="meta">
       <span>conversation_id: <code id="cid">—</code></span>
-      <button class="reset" type="button" id="reset-btn">New conversation</button>
+      <span class="loc-badge pending" id="loc-badge">location: pending</span>
+      <span style="display:flex; gap:6px;">
+        <button class="btn-small" type="button" id="loc-btn">Enable location</button>
+        <button class="btn-small" type="button" id="reset-btn">New conversation</button>
+      </span>
     </div>
 
     <div class="chat" id="chat">
-      <div class="empty" id="empty-state">Say hi to start the conversation.</div>
+      <div class="empty" id="empty-state">Say hi, or try: "find barber near me".</div>
     </div>
 
     <form id="chat-form">
@@ -172,25 +189,77 @@
     const API_URL = `${window.location.origin}/api/assistant/chat`;
     document.getElementById('endpoint-url').textContent = API_URL;
 
-    const chatEl  = document.getElementById('chat');
-    const inputEl = document.getElementById('input');
-    const formEl  = document.getElementById('chat-form');
-    const sendBtn = document.getElementById('send-btn');
-    const cidEl   = document.getElementById('cid');
+    const chatEl   = document.getElementById('chat');
+    const inputEl  = document.getElementById('input');
+    const formEl   = document.getElementById('chat-form');
+    const sendBtn  = document.getElementById('send-btn');
+    const cidEl    = document.getElementById('cid');
     const resetBtn = document.getElementById('reset-btn');
-    const emptyEl = document.getElementById('empty-state');
+    const locBtn   = document.getElementById('loc-btn');
+    const locBadge = document.getElementById('loc-badge');
+    const emptyEl  = document.getElementById('empty-state');
 
     let conversationId = null;
+    let userLat = null;
+    let userLon = null;
+
+    function setLocationBadge(state, text) {
+      locBadge.className = `loc-badge ${state}`;
+      locBadge.textContent = text;
+    }
+
+    function requestLocation({ silent = false } = {}) {
+      if (!navigator.geolocation) {
+        setLocationBadge('off', 'location: unsupported');
+        return;
+      }
+      setLocationBadge('pending', 'location: requesting…');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          userLat = pos.coords.latitude;
+          userLon = pos.coords.longitude;
+          setLocationBadge('on', `location: ${userLat.toFixed(3)}, ${userLon.toFixed(3)}`);
+        },
+        (err) => {
+          setLocationBadge('off', 'location: denied');
+          if (!silent) addMessage('error', `Location error: ${err.message}`);
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+      );
+    }
 
     function clearEmpty() {
       if (emptyEl && emptyEl.parentNode) emptyEl.remove();
     }
 
-    function addMessage(role, text) {
+    function escapeHtml(s) {
+      return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderMarkdown(text) {
+      // escape first, then convert [label](url) to safe anchors
+      let html = escapeHtml(text);
+      html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, url) => {
+        const safeUrl = url.replace(/"/g, '%22');
+        return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+      });
+      return html.replace(/\n/g, '<br>');
+    }
+
+    function addMessage(role, text, { html = false } = {}) {
       clearEmpty();
       const el = document.createElement('div');
       el.className = `msg ${role}`;
-      el.textContent = text;
+      if (html) {
+        el.innerHTML = renderMarkdown(text);
+      } else {
+        el.textContent = text;
+      }
       chatEl.appendChild(el);
       chatEl.scrollTop = chatEl.scrollHeight;
       return el;
@@ -201,13 +270,19 @@
       sendBtn.disabled = true;
 
       try {
+        const body = {
+          message,
+          conversation_id: conversationId || undefined,
+        };
+        if (userLat !== null && userLon !== null) {
+          body.lat = userLat;
+          body.lon = userLon;
+        }
+
         const res = await fetch(API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({
-            message,
-            conversation_id: conversationId || undefined,
-          }),
+          body: JSON.stringify(body),
         });
 
         const data = await res.json().catch(() => ({}));
@@ -222,7 +297,12 @@
           conversationId = data.conversation_id;
           cidEl.textContent = conversationId;
         }
-        addMessage('assistant', data.reply || '(no reply)');
+
+        addMessage('assistant', data.reply || '(no reply)', { html: true });
+
+        if (data.action === 'needs_location') {
+          requestLocation();
+        }
       } catch (err) {
         typingEl.remove();
         addMessage('error', `Network error: ${err.message}`);
@@ -254,10 +334,15 @@
       chatEl.innerHTML = '';
       const emptyDiv = document.createElement('div');
       emptyDiv.className = 'empty';
-      emptyDiv.textContent = 'Say hi to start the conversation.';
+      emptyDiv.textContent = 'Say hi, or try: "find barber near me".';
       chatEl.appendChild(emptyDiv);
       inputEl.focus();
     });
+
+    locBtn.addEventListener('click', () => requestLocation());
+
+    // Attempt silent location on load (will only succeed if previously granted)
+    requestLocation({ silent: true });
   </script>
 </body>
 </html>
