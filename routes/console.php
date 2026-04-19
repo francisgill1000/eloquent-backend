@@ -11,3 +11,8 @@ Artisan::command('inspire', function () {
 
 Schedule::command('invoices:update-overdue-status')->daily();
 
+Schedule::command('assistant:suggest-kb --days=7')
+    ->weeklyOn(1, '03:00')
+    ->withoutOverlapping()
+    ->onOneServer();
+
