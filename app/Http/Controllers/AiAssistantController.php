@@ -46,6 +46,13 @@ class AiAssistantController extends Controller
             $rawText    = trim((string) $response->text);
             $actionData = $this->parseActionJson($rawText);
 
+            Log::info('AI assistant reply', [
+                'message'     => $message,
+                'raw_text'    => $rawText,
+                'parsed'      => $actionData,
+                'has_coords'  => isset($data['lat'], $data['lon']),
+            ]);
+
             if (($actionData['action'] ?? null) === 'find_shops') {
                 return $this->handleFindShops(
                     response:       $response,
@@ -99,21 +106,33 @@ class AiAssistantController extends Controller
             ->when($query !== '', function ($q) use ($query) {
                 $q->where(function ($sub) use ($query) {
                     $sub->where('name', 'LIKE', '%' . $query . '%')
-                        ->orWhere('shop_code', 'LIKE', $query . '%');
+                        ->orWhere('shop_code', 'LIKE', $query . '%')
+                        ->orWhere('location', 'LIKE', '%' . $query . '%')
+                        ->orWhereHas('catalogs', function ($c) use ($query) {
+                            $c->where('title', 'LIKE', '%' . $query . '%');
+                        });
                 });
             })
             ->limit(100)
             ->get();
 
-        $shops = $candidates
-            ->map(function ($shop) use ($lat, $lon) {
-                $shop->distance_km = $this->haversineKm($lat, $lon, (float) $shop->lat, (float) $shop->lon);
-                return $shop;
-            })
-            ->filter(fn ($shop) => $shop->distance_km <= $radiusKm)
-            ->sortBy('distance_km')
-            ->take(5)
-            ->values();
+        $shops = $this->rankByDistance($candidates, $lat, $lon, $radiusKm);
+        $usedFallback = false;
+
+        // Fallback: if the keyword filter found nothing, show the nearest shops regardless of query.
+        if ($shops->isEmpty() && $query !== '') {
+            $fallbackCandidates = Shop::query()
+                ->where('status', Shop::ACTIVE)
+                ->whereNotNull('lat')
+                ->whereNotNull('lon')
+                ->whereBetween('lat', [$lat - $latDelta, $lat + $latDelta])
+                ->whereBetween('lon', [$lon - $lonDelta, $lon + $lonDelta])
+                ->limit(100)
+                ->get();
+
+            $shops = $this->rankByDistance($fallbackCandidates, $lat, $lon, $radiusKm);
+            $usedFallback = $shops->isNotEmpty();
+        }
 
         if ($shops->isEmpty()) {
             $label = $query !== '' ? "\"{$query}\" shops" : 'shops';
@@ -139,9 +158,11 @@ class AiAssistantController extends Controller
             return ($i + 1) . ". [{$s['name']}]({$s['url']}) — {$s['distance']}";
         })->implode("\n");
 
-        $heading = $query !== ''
-            ? "Here are the closest \"{$query}\" shops to you:"
-            : "Here are the closest shops to you:";
+        $heading = match (true) {
+            $usedFallback        => "I didn't find an exact match for \"{$query}\", but here are the closest shops to you:",
+            $query !== ''        => "Here are the closest \"{$query}\" shops to you:",
+            default              => "Here are the closest shops to you:",
+        };
 
         return response()->json([
             'conversation_id' => $response->conversationId,
@@ -150,6 +171,19 @@ class AiAssistantController extends Controller
             'shops'           => $shopData,
             'reply'           => "{$heading}\n\n{$lines}",
         ]);
+    }
+
+    private function rankByDistance($candidates, float $lat, float $lon, float $radiusKm)
+    {
+        return $candidates
+            ->map(function ($shop) use ($lat, $lon) {
+                $shop->distance_km = $this->haversineKm($lat, $lon, (float) $shop->lat, (float) $shop->lon);
+                return $shop;
+            })
+            ->filter(fn ($shop) => $shop->distance_km <= $radiusKm)
+            ->sortBy('distance_km')
+            ->take(5)
+            ->values();
     }
 
     private function haversineKm(float $lat1, float $lon1, float $lat2, float $lon2): float
@@ -166,17 +200,28 @@ class AiAssistantController extends Controller
     {
         $text = trim($text);
 
-        if (str_starts_with($text, '```')) {
-            $text = preg_replace('/^```(?:json)?\s*|\s*```$/m', '', $text);
+        // Strip code fences if present.
+        if (str_contains($text, '```')) {
+            $text = preg_replace('/```(?:json)?\s*|```/m', '', $text);
             $text = trim($text);
         }
 
-        if (! str_starts_with($text, '{') || ! str_ends_with($text, '}')) {
-            return null;
+        // Fast path: whole string is JSON.
+        $decoded = json_decode($text, true);
+        if (is_array($decoded) && isset($decoded['action'])) {
+            return $decoded;
         }
 
-        $decoded = json_decode($text, true);
+        // Fallback: find any {...} block that parses as JSON with an "action" key.
+        if (preg_match_all('/\{[^{}]*"action"\s*:\s*"[^"]+"[^{}]*\}/s', $text, $matches)) {
+            foreach ($matches[0] as $candidate) {
+                $decoded = json_decode($candidate, true);
+                if (is_array($decoded) && isset($decoded['action'])) {
+                    return $decoded;
+                }
+            }
+        }
 
-        return is_array($decoded) ? $decoded : null;
+        return null;
     }
 }
