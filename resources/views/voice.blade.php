@@ -17,10 +17,11 @@
         .msg { max-width: 80%; padding: 10px 14px; border-radius: 16px; font-size: 15px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; }
         .msg.user { align-self: flex-end; background: #2563eb; color: #fff; border-bottom-right-radius: 4px; }
         .msg.bot { align-self: flex-start; background: #f1f5f9; color: #0f172a; border-bottom-left-radius: 4px; }
+        .msg.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fee2e2; align-self: stretch; max-width: 100%; text-align: center; font-size: 13px; }
         .msg.bot.typing { color: #64748b; font-style: italic; }
         .meta { font-size: 11px; color: #94a3b8; margin-top: 2px; text-transform: uppercase; letter-spacing: .04em; }
         footer { border-top: 1px solid #e2e8f0; padding: 12px 16px; }
-        #mic { width: 100%; padding: 14px; font-size: 15px; font-weight: 600; border: 0; border-radius: 999px; background: #2563eb; color: #fff; cursor: pointer; }
+        #mic { width: 100%; padding: 14px; font-size: 15px; font-weight: 600; border: 0; border-radius: 999px; background: #2563eb; color: #fff; cursor: pointer; transition: all 0.2s; }
         #mic.recording { background: #dc2626; animation: pulse 1.1s infinite; }
         #mic[disabled] { background: #94a3b8; cursor: not-allowed; }
         #err { color: #b91c1c; font-size: 13px; margin-top: 8px; text-align: center; min-height: 16px; }
@@ -33,6 +34,7 @@
         .shop .name { font-weight: 600; font-size: 14px; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .shop .sub { font-size: 12px; color: #64748b; }
         .shop .dist { font-size: 12px; font-weight: 600; color: #2563eb; }
+        .settings-link { font-weight: bold; text-decoration: underline; color: #2563eb; cursor: pointer; display: block; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -68,27 +70,51 @@
         }
 
         let coords = null;
+
+        /**
+         * Updated getCoords with Error Handling
+         */
         function getCoords() {
-            return new Promise((resolve) => {
-                if (!navigator.geolocation) return resolve(null);
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    return reject('NOT_SUPPORTED');
+                }
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-                    () => resolve(null),
-                    { timeout: 6000, maximumAge: 60000 }
+                    (pos) => {
+                        const c = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                        coords = c;
+                        resolve(c);
+                    },
+                    (err) => {
+                        if (err.code === 1) reject('PERMISSION_DENIED');
+                        else reject('POSITION_UNAVAILABLE');
+                    },
+                    { timeout: 8000, maximumAge: 60000, enableHighAccuracy: true }
                 );
             });
         }
-        getCoords().then((c) => { coords = c; });
 
         async function fetchShops(query) {
-            if (!coords) coords = await getCoords();
-            if (!coords) return { error: 'Location permission required to show nearby shops.' };
+            try {
+                // If we don't have coords, try to get them now
+                if (!coords) {
+                    coords = await getCoords();
+                }
+            } catch (error) {
+                let msg = 'Location permission required to show nearby shops.';
+                if (error === 'PERMISSION_DENIED') {
+                    msg = 'Location access is blocked. Please enable it in your browser settings (click the lock icon in the address bar) and try again.';
+                }
+                return { error: msg };
+            }
+
             const url = new URL('/api/shops/nearby', location.origin);
             url.searchParams.set('lat', coords.lat);
             url.searchParams.set('lon', coords.lon);
             url.searchParams.set('radius_km', '10');
             url.searchParams.set('per_page', '5');
             if (query) url.searchParams.set('search', query);
+
             try {
                 const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
                 const data = await res.json();
@@ -136,12 +162,14 @@
             chat.scrollTop = chat.scrollHeight;
         }
 
-        function addMessage(role, text, extra = '') {
-            if (hint) hint.remove();
+        function addMessage(role, text, extra = '', isError = false) {
+            if (document.getElementById('hint')) document.getElementById('hint').remove();
+            
             const el = document.createElement('div');
-            el.className = 'msg ' + role;
+            el.className = 'msg ' + role + (isError ? ' error' : '');
             el.textContent = text;
             chat.appendChild(el);
+            
             if (extra) {
                 const m = document.createElement('div');
                 m.className = 'meta';
@@ -165,13 +193,12 @@
 
         if (!SR) {
             mic.disabled = true;
-            errEl.textContent = 'Speech recognition not supported. Try Chrome or Edge.';
+            errEl.textContent = 'Speech recognition not supported.';
         } else {
             const recognition = new SR();
             recognition.lang = 'en-US';
             recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-
+            
             let listening = false;
 
             mic.addEventListener('click', () => {
@@ -226,16 +253,13 @@
                     typing.classList.remove('typing');
                     typing.textContent = data.reply || data.message || '…';
 
-                    const badge = data.action && data.action !== 'none'
-                        ? (data.action === 'search' ? 'search · ' + (data.query || '') : 'open · ' + (data.screen || ''))
-                        : '';
-                    if (badge) {
+                    // Metadata tag
+                    if (data.action && data.action !== 'none') {
+                        const badgeText = data.action === 'search' ? 'search · ' + (data.query || '') : 'open · ' + (data.screen || '');
                         const m = document.createElement('div');
                         m.className = 'meta';
-                        m.style.alignSelf = 'flex-start';
-                        m.textContent = badge;
+                        m.textContent = badgeText;
                         chat.appendChild(m);
-                        chat.scrollTop = chat.scrollHeight;
                     }
 
                     if (data.reply && 'speechSynthesis' in window) {
@@ -246,7 +270,7 @@
                     if (data.action === 'search') {
                         const result = await fetchShops(data.query);
                         if (result.error) {
-                            addMessage('bot', result.error);
+                            addMessage('bot', result.error, '', true);
                         } else {
                             renderShops(result.shops);
                         }
