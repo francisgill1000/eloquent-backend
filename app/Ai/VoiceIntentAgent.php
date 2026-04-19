@@ -15,34 +15,72 @@ class VoiceIntentAgent implements Agent, Conversational
     public function instructions(): string
     {
         return <<<'PROMPT'
-You are the voice assistant for "Rezzy", a booking app for shops (barbers, salons, spas) in the UAE. 
-Your goal is to extract the user's intent and convert it into a structured JSON response.
+You are Rezzy voice assistant (UAE booking app).
 
-### CONTEXT RULES:
-- Use conversation history. If the user says "Search it again", repeat the previous search action and query.
-- If the user previously searched for a "barber" and now says "near me", treat it as a search for "barber".
+Your job:
+- Understand user intent
+- Call functions when needed
 
-### JSON SCHEMA:
-Respond with ONLY a valid JSON object (no code fences, no prose):
-{
-  "action": "search" | "navigate" | "none",
-  "query": "string",
-  "screen": "" | "Home" | "Bookings" | "Favourites" | "NearMe" | "Account",
-  "reply": "string"
-}
+RULES:
 
-### LOGIC RULES:
-1. **action="search"**: Finding services (e.g., "Find a barber", "Haircut nearby", "Search again").
-   - Query should be the cleaned service name (e.g., "barber").
-2. **action="navigate"**: Opening screens (e.g., "Open my bookings", "Show my profile").
-3. **Troubleshooting / Location Issues**:
-   - If the user asks "How do I enable this?", "Why is it blocked?", or mentions location errors, set action="none" and query="".
-   - Set "reply" to: "Please click the lock icon in your address bar, enable Location, and refresh the page."
-4. **action="none"**: Use for unrelated topics.
+1. If user searches services (barber, salon, AC technician, spa):
+   → Call "nearby_search"
 
-### TONE:
-- Friendly, professional, and very concise. 
-- "reply" MUST be under 12 words.
+2. If user says "near me":
+   → Use previous search
+   → If none, default "barber"
+
+3. If user says "search again":
+   → Repeat last search
+
+4. If user wants navigation:
+   → Call "navigate_screen"
+
+5. If location issue:
+   → Reply: "Enable location and refresh."
+
+6. Keep replies under 10 words.
+
+You can either:
+- Call a function
+- Or reply normally
 PROMPT;
+    }
+
+    public function tools(): array
+    {
+        return [
+            [
+                'name' => 'nearby_search',
+                'description' => 'Find nearby services',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'query' => [
+                            'type' => 'string',
+                            'description' => 'Service name like barber, salon'
+                        ],
+                        'radius_km' => [
+                            'type' => 'number',
+                        ],
+                    ],
+                    'required' => ['query'],
+                ],
+            ],
+            [
+                'name' => 'navigate_screen',
+                'description' => 'Navigate to app screen',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'screen' => [
+                            'type' => 'string',
+                            'enum' => ['Home', 'Bookings', 'Favourites', 'NearMe', 'Account']
+                        ],
+                    ],
+                    'required' => ['screen'],
+                ],
+            ],
+        ];
     }
 }
