@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AgentController;
+use App\Http\Controllers\AiAssistantController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\CoordinateController;
@@ -43,6 +44,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/customers-stats', [CustomerController::class, 'stats']);
 
 Route::post('/voice/intent', VoiceIntentController::class);
+
+Route::post('/assistant/chat', [AiAssistantController::class, 'chat']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);

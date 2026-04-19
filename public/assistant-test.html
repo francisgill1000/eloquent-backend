@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rezzy Assistant Tester</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0B121B;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 640px;
+      background: #16202A;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+    }
+    h1 { margin: 0 0 6px; font-size: 22px; }
+    .sub { color: #92adc9; font-size: 13px; margin-bottom: 16px; }
+    .endpoint {
+      background: #0a0f18;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      color: #8fb8ff;
+      margin-bottom: 16px;
+      word-break: break-all;
+    }
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #6d87a3;
+      margin-bottom: 10px;
+    }
+    .meta code {
+      color: #a0c4ff;
+      background: #0a0f18;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+    .chat {
+      flex: 1;
+      min-height: 360px;
+      max-height: 60vh;
+      overflow-y: auto;
+      background: #0a0f18;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .msg {
+      max-width: 82%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      line-height: 1.45;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: #2563eb;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.assistant {
+      align-self: flex-start;
+      background: #1f2b3a;
+      color: #e6edf5;
+      border-bottom-left-radius: 4px;
+    }
+    .msg.error {
+      align-self: stretch;
+      background: #3a1d1d;
+      color: #ffb4b4;
+      font-size: 12px;
+      text-align: center;
+    }
+    .msg.typing { color: #7e95b0; font-style: italic; }
+    .empty {
+      color: #4d6480;
+      text-align: center;
+      font-size: 13px;
+      margin: auto 0;
+    }
+    form {
+      display: flex;
+      gap: 8px;
+    }
+    textarea {
+      flex: 1;
+      resize: none;
+      min-height: 44px;
+      max-height: 120px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #0a0f18;
+      color: #fff;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+    }
+    textarea:focus { border-color: #2563eb; }
+    button {
+      padding: 0 18px;
+      border-radius: 10px;
+      border: 0;
+      background: #2563eb;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .reset {
+      background: transparent;
+      color: #92adc9;
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    .reset:hover { background: rgba(255,255,255,0.05); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Rezzy Assistant Tester</h1>
+    <div class="sub">Text-based chat with the Rezzy AI assistant.</div>
+    <div class="endpoint">POST <span id="endpoint-url">/api/assistant/chat</span></div>
+
+    <div class="meta">
+      <span>conversation_id: <code id="cid">—</code></span>
+      <button class="reset" type="button" id="reset-btn">New conversation</button>
+    </div>
+
+    <div class="chat" id="chat">
+      <div class="empty" id="empty-state">Say hi to start the conversation.</div>
+    </div>
+
+    <form id="chat-form">
+      <textarea id="input" placeholder="Type a message… (Enter to send, Shift+Enter for newline)" autofocus></textarea>
+      <button type="submit" id="send-btn">Send</button>
+    </form>
+  </div>
+
+  <script>
+    const API_URL = `${window.location.origin}/api/assistant/chat`;
+    document.getElementById('endpoint-url').textContent = API_URL;
+
+    const chatEl  = document.getElementById('chat');
+    const inputEl = document.getElementById('input');
+    const formEl  = document.getElementById('chat-form');
+    const sendBtn = document.getElementById('send-btn');
+    const cidEl   = document.getElementById('cid');
+    const resetBtn = document.getElementById('reset-btn');
+    const emptyEl = document.getElementById('empty-state');
+
+    let conversationId = null;
+
+    function clearEmpty() {
+      if (emptyEl && emptyEl.parentNode) emptyEl.remove();
+    }
+
+    function addMessage(role, text) {
+      clearEmpty();
+      const el = document.createElement('div');
+      el.className = `msg ${role}`;
+      el.textContent = text;
+      chatEl.appendChild(el);
+      chatEl.scrollTop = chatEl.scrollHeight;
+      return el;
+    }
+
+    async function sendMessage(message) {
+      const typingEl = addMessage('assistant typing', 'Thinking…');
+      sendBtn.disabled = true;
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({
+            message,
+            conversation_id: conversationId || undefined,
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        typingEl.remove();
+
+        if (!res.ok) {
+          addMessage('error', data.message || `Request failed (${res.status})`);
+          return;
+        }
+
+        if (data.conversation_id) {
+          conversationId = data.conversation_id;
+          cidEl.textContent = conversationId;
+        }
+        addMessage('assistant', data.reply || '(no reply)');
+      } catch (err) {
+        typingEl.remove();
+        addMessage('error', `Network error: ${err.message}`);
+      } finally {
+        sendBtn.disabled = false;
+        inputEl.focus();
+      }
+    }
+
+    formEl.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = inputEl.value.trim();
+      if (!text) return;
+      addMessage('user', text);
+      inputEl.value = '';
+      sendMessage(text);
+    });
+
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        formEl.requestSubmit();
+      }
+    });
+
+    resetBtn.addEventListener('click', () => {
+      conversationId = null;
+      cidEl.textContent = '—';
+      chatEl.innerHTML = '';
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'empty';
+      emptyDiv.textContent = 'Say hi to start the conversation.';
+      chatEl.appendChild(emptyDiv);
+      inputEl.focus();
+    });
+  </script>
+</body>
+</html>
