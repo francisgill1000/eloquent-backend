@@ -45,7 +45,7 @@ class Shop extends Model
             }
             
             // Create default catalogs for the shop (if none exist)
-            Catalog::createDefaultsForShop($shop);
+            // Catalog::createDefaultsForShop($shop);
         });
     }
 
