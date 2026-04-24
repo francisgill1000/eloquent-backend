@@ -65,17 +65,19 @@ class BookingController extends Controller
                 );
 
                 $booking = Booking::create([
-                    'status'     => 'booked',
-                    'shop_id'    => $shop->id,
-                    'date'       => $date,
-                    'start_time' => $startTime,
-                    'end_time'   => $shop->getEndSlot(
+                    'status'            => 'booked',
+                    'shop_id'           => $shop->id,
+                    'date'              => $date,
+                    'start_time'        => $startTime,
+                    'end_time'          => $shop->getEndSlot(
                         $startTime,
                         $workingHour->slot_duration
                     ),
-                    'device_id'  => $request->header('X-Device-Id'),
-                    'charges'    => $request->charges ?? 0,
-                    'services'   => $request->services ?? [],
+                    'device_id'         => $request->header('X-Device-Id'),
+                    'charges'           => $request->charges ?? 0,
+                    'services'          => $request->services ?? [],
+                    'customer_name'     => $request->customer_name,
+                    'customer_whatsapp' => $request->customer_whatsapp,
                 ]);
 
                 $payload = $booking->toArray();
