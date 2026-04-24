@@ -25,10 +25,12 @@ class BookSlotRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'date'       => ['required', 'date'],
-            'start_time' => ['required'],
-            'charges'    => ['nullable', 'numeric', 'min:0'],
-            'services'   => ['nullable', 'array'],
+            'date'              => ['required', 'date'],
+            'start_time'        => ['required'],
+            'charges'           => ['nullable', 'numeric', 'min:0'],
+            'services'          => ['nullable', 'array'],
+            'customer_name'     => ['nullable', 'string', 'max:255'],
+            'customer_whatsapp' => ['nullable', 'string', 'max:32'],
         ];
     }
 

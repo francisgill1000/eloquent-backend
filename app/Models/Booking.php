@@ -21,7 +21,9 @@ class Booking extends Model
         'device_id',
         'charges',
         'services',
-        'booking_reference'
+        'booking_reference',
+        'customer_name',
+        'customer_whatsapp',
     ];
 
     // Cast date fields
