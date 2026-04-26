@@ -121,7 +121,8 @@ class BookingController extends Controller
         ]);
 
         $shopId = $request->shop_id;
-        $start = now()->startOfDay();
+        // Include past 6 days so the dashboard's 7-day trend chart has data.
+        $start = now()->subDays(6)->startOfDay();
         $end = now()->addDays(10)->endOfDay();
 
         // 2. Fetch bookings (Filtering by the actual booking 'date')
@@ -131,16 +132,21 @@ class BookingController extends Controller
             ->orderBy('date', 'asc')
             ->get();
 
-        // 3. Aggregate data efficiently 
-        // We filter total stats by shop_id (as per your original logic)
+        // 3. Aggregate data efficiently
+        // Revenue excludes cancelled bookings; cancelled_count is reported separately.
         $stats = Booking::where('shop_id', $shopId)
-            ->selectRaw('count(*) as total_count, sum(charges) as total_rev')
+            ->selectRaw("
+                count(*) as total_count,
+                sum(case when lower(status) = 'cancelled' then 1 else 0 end) as cancelled_count,
+                sum(case when lower(status) = 'cancelled' then 0 else charges end) as total_rev
+            ")
             ->first();
 
         return response()->json([
             'data' => $upcomingBookings,
             'total_bookings' => (int) $stats->total_count,
             'total_revenue' => (float) $stats->total_rev,
+            'cancelled_count' => (int) $stats->cancelled_count,
             'dates_range' => [
                 'from' => $start->toDateTimeString(),
                 'to' => $end->toDateTimeString(),
