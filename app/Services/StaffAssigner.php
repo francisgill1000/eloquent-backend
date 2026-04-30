@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\Staff;
+use App\Services\Notify;
 
 class StaffAssigner
 {
@@ -43,5 +44,46 @@ class StaffAssigner
         return $candidates
             ->sortBy(fn ($s) => [(int) ($counts[$s->id] ?? 0), $s->id])
             ->first();
+    }
+
+    /**
+     * After a staff has freed up at a (shop, date, startTime), promote
+     * queued bookings to booked when a free staff exists. Returns
+     * the bookings that were promoted (in promotion order).
+     */
+    public function sweep(int $shopId, string $date, string $startTime): array
+    {
+        $promoted = [];
+
+        while (true) {
+            $next = Booking::where('shop_id', $shopId)
+                ->where('date', $date)
+                ->where('start_time', $startTime)
+                ->whereNull('staff_id')
+                ->where('status', 'queued')
+                ->orderBy('created_at', 'asc')
+                ->first();
+
+            if (!$next) break;
+
+            $staff = $this->pickStaffForSlot($shopId, $date, $startTime);
+            if (!$staff) break;
+
+            $next->update([
+                'staff_id' => $staff->id,
+                'status' => 'booked',
+            ]);
+
+            Notify::push(
+                $shopId,
+                'booking',
+                "Queued booking promoted: {$next->booking_reference} (assigned to {$staff->name})",
+                $next->fresh()->toArray()
+            );
+
+            $promoted[] = $next;
+        }
+
+        return $promoted;
     }
 }

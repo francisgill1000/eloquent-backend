@@ -106,4 +106,61 @@ class StaffAssignerTest extends TestCase
 
         $this->assertNull($picked);
     }
+
+    public function test_sweep_promotes_oldest_queued_booking_for_freed_slot(): void
+    {
+        \Illuminate\Support\Facades\Http::fake();
+
+        $shop = Shop::factory()->create();
+        $staff = Staff::factory()->create(['shop_id' => $shop->id]);
+
+        // Two queued bookings on the same slot, in known order
+        $older = Booking::factory()->queued()->create([
+            'shop_id' => $shop->id,
+            'date' => '2026-05-11', 'start_time' => '10:00:00', 'end_time' => '10:30:00',
+            'created_at' => now()->subMinutes(10),
+        ]);
+        $newer = Booking::factory()->queued()->create([
+            'shop_id' => $shop->id,
+            'date' => '2026-05-11', 'start_time' => '10:00:00', 'end_time' => '10:30:00',
+            'created_at' => now()->subMinutes(2),
+        ]);
+
+        $promoted = (new StaffAssigner())->sweep(
+            shopId: $shop->id,
+            date: '2026-05-11',
+            startTime: '10:00:00'
+        );
+
+        $this->assertCount(1, $promoted);
+        $this->assertEquals($older->id, $promoted[0]->id);
+
+        $older->refresh();
+        $newer->refresh();
+
+        $this->assertEquals($staff->id, $older->staff_id);
+        $this->assertEquals('booked', strtolower($older->status));
+        $this->assertNull($newer->staff_id);
+        $this->assertEquals('queued', strtolower($newer->status));
+    }
+
+    public function test_sweep_promotes_nothing_when_no_staff_free(): void
+    {
+        \Illuminate\Support\Facades\Http::fake();
+
+        $shop = Shop::factory()->create();
+        // No active staff at all
+        Booking::factory()->queued()->create([
+            'shop_id' => $shop->id,
+            'date' => '2026-05-11', 'start_time' => '10:00:00', 'end_time' => '10:30:00',
+        ]);
+
+        $promoted = (new StaffAssigner())->sweep(
+            shopId: $shop->id,
+            date: '2026-05-11',
+            startTime: '10:00:00'
+        );
+
+        $this->assertEmpty($promoted);
+    }
 }
