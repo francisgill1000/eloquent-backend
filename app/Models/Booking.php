@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class Booking extends Model
 {
@@ -88,23 +87,5 @@ class Booking extends Model
     public function getStatusAttribute($value)
     {
         return Str::title($value);
-    }
-
-    public static function ensureSlotIsAvailableOrFail(
-        int $shopId,
-        string $date,
-        string $startTime
-    ): void {
-        $exists = self::where('shop_id', $shopId)
-            ->where('date', $date)
-            ->where('start_time', $startTime)
-            ->exists();
-
-        if ($exists) {
-            throw new HttpException(
-                409,
-                'Slot already booked'
-            );
-        }
     }
 }

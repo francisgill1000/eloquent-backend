@@ -6,6 +6,7 @@ use App\Http\Requests\BookSlotRequest;
 use App\Models\Booking;
 use App\Models\Shop;
 use App\Services\Notify;
+use App\Services\StaffAssigner;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -58,15 +59,16 @@ class BookingController extends Controller
 
                 $workingHour = $shop->getWorkingHourOrFail($date);
 
-                Booking::ensureSlotIsAvailableOrFail(
-                    $shop->id,
-                    $date,
-                    $startTime
+                $staff = (new StaffAssigner())->pickStaffForSlot(
+                    shopId: $shop->id,
+                    date: $date,
+                    startTime: $startTime
                 );
 
                 $booking = Booking::create([
-                    'status'            => 'booked',
+                    'status'            => $staff ? 'booked' : 'queued',
                     'shop_id'           => $shop->id,
+                    'staff_id'          => $staff?->id,
                     'date'              => $date,
                     'start_time'        => $startTime,
                     'end_time'          => $shop->getEndSlot(
@@ -81,24 +83,23 @@ class BookingController extends Controller
                 ]);
 
                 $payload = $booking->toArray();
-
                 $payload['notification_url'] = "https://eloquentservice.com/shop/bookings/action?id=" . $payload['id'];
 
-                Notify::push($shop->id, 'booking', "New booking confirmed: " . $booking->booking_reference, $payload);
+                $message = $staff
+                    ? "New booking confirmed: " . $booking->booking_reference . " (assigned to {$staff->name})"
+                    : "Booking queued: " . $booking->booking_reference . " (no staff free)";
+
+                Notify::push($shop->id, 'booking', $message, $payload);
 
                 return response()->json([
-                    'message' => 'Booking confirmed successfully',
-                    'data' => $booking
+                    'message' => $staff ? 'Booking confirmed successfully' : 'Booking queued — waiting for a free staff',
+                    'data' => $booking,
                 ], 201);
             });
         } catch (HttpException $e) {
-            return response()->json([
-                'message' => $e->getMessage()
-            ], $e->getStatusCode());
+            return response()->json(['message' => $e->getMessage()], $e->getStatusCode());
         } catch (\Throwable $e) {
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
 
