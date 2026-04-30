@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\HasBase64Image;
 use Carbon\Carbon;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -12,7 +13,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class Shop extends Model
 {
-    use HasBase64Image, HasApiTokens;
+    use HasFactory, HasBase64Image, HasApiTokens;
 
     const INACTIVE = "inactive";
     const ACTIVE = "active";
@@ -252,6 +253,11 @@ class Shop extends Model
     public function bookings()
     {
         return $this->hasMany(Booking::class);
+    }
+
+    public function staff()
+    {
+        return $this->hasMany(Staff::class);
     }
 
     public function getTotalBookingsAttribute()
