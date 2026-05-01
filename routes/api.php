@@ -108,6 +108,11 @@ EOT;
 
 Route::get('/shops/nearby', [ShopController::class, 'nearby']);
 Route::apiResource('/shops', ShopController::class);
+Route::get('/shops/{shop}/staff', [\App\Http\Controllers\StaffController::class, 'index']);
+Route::post('/shops/{shop}/staff', [\App\Http\Controllers\StaffController::class, 'store']);
+Route::get('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'show']);
+Route::put('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'update']);
+Route::delete('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'destroy']);
 Route::post('/shops/{shop}/favourite', [GuestFavouriteController::class, 'toggle']);
 Route::post('/shops/{shop}/book', [BookingController::class, 'bookSlot']);
 Route::get('/booking/{id}', [BookingController::class, 'show']);
