@@ -170,8 +170,30 @@ class BookingController extends Controller
             'status' => 'required|in:booked,completed,cancelled,Booked,Completed,Cancelled'
         ]);
 
-        // Store status in lowercase for consistency
-        $booking->update(['status' => strtolower($validated['status'])]);
+        $previousStatus = strtolower($booking->status);
+        $previousStaffId = $booking->staff_id;
+
+        $newStatus = strtolower($validated['status']);
+        $vacates = in_array($newStatus, ['cancelled', 'completed'], true)
+            && in_array($previousStatus, ['booked'], true)
+            && $previousStaffId !== null;
+
+        // When a booked slot is being vacated, also free the staff_id so the
+        // unique (staff_id, date, start_time) index doesn't block promotion of
+        // a queued booking on the same slot.
+        $updateData = ['status' => $newStatus];
+        if ($vacates) {
+            $updateData['staff_id'] = null;
+        }
+        $booking->update($updateData);
+
+        if ($vacates) {
+            (new StaffAssigner())->sweep(
+                shopId: $booking->shop_id,
+                date: Carbon::parse($booking->date)->format('Y-m-d'),
+                startTime: $booking->getRawOriginal('start_time')
+            );
+        }
 
         return response()->json([
             'message' => 'Booking updated successfully',
