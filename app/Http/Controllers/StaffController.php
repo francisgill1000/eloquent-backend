@@ -55,6 +55,44 @@ class StaffController extends Controller
         return response()->json(['data' => $staff->fresh()]);
     }
 
+    public function reassign(\Illuminate\Http\Request $request, $bookingId)
+    {
+        $request->validate(['staff_id' => 'required|integer|exists:staff,id']);
+
+        $booking = \App\Models\Booking::findOrFail($bookingId);
+        $target = Staff::findOrFail($request->staff_id);
+
+        abort_unless($target->shop_id === $booking->shop_id, 422);
+        abort_unless($target->is_active, 422);
+
+        $sourceStaffId = $booking->staff_id;
+
+        // Conflict check on target (skip self)
+        $conflict = \App\Models\Booking::where('shop_id', $booking->shop_id)
+            ->where('staff_id', $target->id)
+            ->where('date', $booking->getRawOriginal('date'))
+            ->where('start_time', $booking->getRawOriginal('start_time'))
+            ->where('id', '!=', $booking->id)
+            ->exists();
+
+        if ($conflict) {
+            return response()->json(['message' => 'Target staff is already booked at this slot.'], 409);
+        }
+
+        $booking->update(['staff_id' => $target->id, 'status' => 'booked']);
+
+        // If we vacated a different staff, sweep that slot
+        if ($sourceStaffId && $sourceStaffId !== $target->id) {
+            (new StaffAssigner())->sweep(
+                shopId: $booking->shop_id,
+                date: \Carbon\Carbon::parse($booking->date)->format('Y-m-d'),
+                startTime: $booking->getRawOriginal('start_time'),
+            );
+        }
+
+        return response()->json(['data' => $booking->fresh()]);
+    }
+
     private function sweepAllQueuedForShop(int $shopId): void
     {
         $assigner = new StaffAssigner();
