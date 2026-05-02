@@ -22,7 +22,7 @@ class BookingController extends Controller
         $isFavouriteOnly = request("is_favourite_only", false);
         $search = request("search");
 
-        $bookings = Booking::with(['shop' => function ($query) use ($deviceId, $isFavouriteOnly, $search) {
+        $bookings = Booking::with(['staff:id,name,is_active', 'shop' => function ($query) use ($deviceId, $isFavouriteOnly, $search) {
             $query->where('status', Shop::ACTIVE)
                 ->withCount([
                     'guest_favourites as is_favourite' => function ($q) use ($deviceId) {
@@ -129,7 +129,7 @@ class BookingController extends Controller
         // 2. Fetch bookings (Filtering by the actual booking 'date')
         $upcomingBookings = Booking::where('shop_id', $shopId)
             ->whereBetween('date', [$start, $end])
-            ->with('shop:id,name') // Only pull necessary columns from shop
+            ->with(['shop:id,name', 'staff:id,name,is_active'])
             ->orderBy('date', 'asc')
             ->get();
 

@@ -311,6 +311,7 @@ class ShopController extends Controller
         $shop_id = request("shop_id");
 
         $bookings = Booking::where('shop_id', $shop_id)
+            ->with('staff:id,name,is_active')
             ->when($search, function ($q) use ($search) {
                 // Search by booking reference (BK00011 format)
                 $q->where('booking_reference', 'LIKE', $search . '%');
