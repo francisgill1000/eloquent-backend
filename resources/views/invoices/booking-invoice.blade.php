@@ -4,39 +4,228 @@
     <meta charset="UTF-8">
     <title>{{ $invoice->invoice_number }}</title>
     <style>
-        body { font-family: 'Helvetica', sans-serif; color: #1a1a1a; font-size: 11pt; }
-        .container { max-width: 720px; margin: 0 auto; padding: 30px; position: relative; }
-        .header { border-bottom: 3px solid #4b8eff; padding-bottom: 16px; margin-bottom: 24px; }
-        .header-table { width: 100%; }
-        .header-table td { vertical-align: top; }
-        .shop-name { font-size: 20pt; font-weight: 900; color: #4b8eff; }
-        .shop-meta { color: #6b7280; font-size: 9pt; line-height: 1.5; }
-        .invoice-title { font-size: 14pt; font-weight: 900; text-align: right; }
-        .invoice-meta { text-align: right; font-size: 9pt; color: #6b7280; line-height: 1.6; }
-        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: 900; font-size: 9pt; text-transform: uppercase; letter-spacing: 1px; }
-        .status-issued { background: #4b8eff20; color: #4b8eff; }
-        .status-paid { background: #22c55e20; color: #16a34a; }
-        .status-cancelled { background: #ef444420; color: #dc2626; }
-        .section-title { font-size: 9pt; text-transform: uppercase; letter-spacing: 1.5px; color: #6b7280; font-weight: 700; margin-bottom: 6px; }
-        .customer-block { margin-bottom: 24px; }
-        .customer-name { font-size: 13pt; font-weight: 700; }
-        .customer-meta { color: #6b7280; font-size: 9pt; margin-top: 2px; }
-        table.items { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        table.items th { text-align: left; font-size: 9pt; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; border-bottom: 2px solid #e5e7eb; padding: 8px 0; }
-        table.items td { padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 11pt; }
-        table.items td.right { text-align: right; }
-        .totals { margin-top: 16px; width: 100%; }
-        .totals td { padding: 4px 0; font-size: 11pt; }
-        .totals td.label { text-align: right; color: #6b7280; padding-right: 16px; width: 75%; }
-        .totals td.value { text-align: right; font-weight: 700; }
-        .totals tr.total td { font-size: 13pt; font-weight: 900; border-top: 2px solid #1a1a1a; padding-top: 8px; }
-        .footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid #e5e7eb; color: #9ca3af; font-size: 8pt; text-align: center; }
-        .stamp { position: absolute; right: 60px; top: 220px; transform: rotate(-15deg); padding: 8px 24px; border: 4px solid; border-radius: 8px; font-size: 28pt; font-weight: 900; letter-spacing: 4px; opacity: 0.4; }
-        .stamp-paid { color: #16a34a; border-color: #16a34a; }
-        .stamp-cancelled { color: #dc2626; border-color: #dc2626; }
+        @page { margin: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Helvetica', sans-serif;
+            color: #0f172a;
+            font-size: 10.5pt;
+            line-height: 1.5;
+            background: #ffffff;
+        }
+
+        /* Top color band */
+        .band {
+            background: #4b8eff;
+            height: 8px;
+            width: 100%;
+        }
+
+        .container {
+            padding: 36px 48px 24px 48px;
+            position: relative;
+        }
+
+        /* Header */
+        .header { width: 100%; margin-bottom: 28px; }
+        .header td { vertical-align: top; }
+        .brand-name {
+            font-size: 22pt;
+            font-weight: 900;
+            color: #4b8eff;
+            letter-spacing: -0.5pt;
+            margin-bottom: 4px;
+        }
+        .brand-meta {
+            color: #64748b;
+            font-size: 9pt;
+            line-height: 1.6;
+        }
+        .brand-meta strong { color: #334155; font-weight: 600; }
+
+        .invoice-block { text-align: right; }
+        .invoice-label {
+            font-size: 9pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5pt;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+        .invoice-number {
+            font-size: 18pt;
+            font-weight: 900;
+            color: #0f172a;
+            letter-spacing: -0.3pt;
+        }
+        .invoice-date {
+            color: #64748b;
+            font-size: 9pt;
+            margin-top: 6px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: 8.5pt;
+            text-transform: uppercase;
+            letter-spacing: 1pt;
+            margin-top: 8px;
+        }
+        .badge-issued { background: #dbeafe; color: #1e40af; }
+        .badge-paid { background: #dcfce7; color: #166534; }
+        .badge-cancelled { background: #fee2e2; color: #991b1b; }
+
+        /* Bill-to / Booking info — two column box */
+        .info-row { width: 100%; margin: 0 0 28px 0; }
+        .info-cell {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 16px 18px;
+            border: 1px solid #e2e8f0;
+        }
+        .info-label {
+            font-size: 8.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2pt;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+        .info-name {
+            font-size: 13pt;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+        .info-meta { font-size: 9.5pt; color: #475569; line-height: 1.55; }
+        .info-meta .pill {
+            display: inline-block;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 8.5pt;
+            font-weight: 700;
+            color: #475569;
+            margin-right: 4px;
+        }
+
+        /* Services table */
+        .section-header {
+            font-size: 9pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.4pt;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        table.items {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table.items th {
+            text-align: left;
+            font-size: 8.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1pt;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 10px 14px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        table.items th.right { text-align: right; }
+        table.items td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 11pt;
+            color: #0f172a;
+            font-weight: 600;
+        }
+        table.items td.right { text-align: right; font-weight: 700; }
+        table.items tr:last-child td { border-bottom: none; }
+
+        /* Totals box (right aligned) */
+        .totals-wrap { width: 100%; }
+        .totals-wrap td { vertical-align: top; }
+        .totals-spacer { width: 60%; }
+        .totals-box {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 14px 18px;
+            border: 1px solid #e2e8f0;
+        }
+        .totals-row {
+            width: 100%;
+            font-size: 10.5pt;
+        }
+        .totals-row td {
+            padding: 5px 0;
+        }
+        .totals-row td.label { color: #64748b; }
+        .totals-row td.value { text-align: right; font-weight: 700; color: #0f172a; }
+        .totals-row tr.grand td {
+            font-size: 13pt;
+            font-weight: 900;
+            color: #0f172a;
+            border-top: 2px solid #0f172a;
+            padding-top: 10px;
+            padding-bottom: 0;
+        }
+        .totals-row tr.grand td.label { color: #0f172a; }
+
+        /* Footer */
+        .thanks {
+            margin-top: 36px;
+            padding: 18px 24px;
+            background: #f1f5f9;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .thanks-title {
+            font-size: 12pt;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+        .thanks-sub {
+            color: #64748b;
+            font-size: 9.5pt;
+        }
+        .footer {
+            margin-top: 14px;
+            color: #94a3b8;
+            font-size: 8.5pt;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        /* Stamp overlay */
+        .stamp {
+            position: absolute;
+            right: 60px;
+            top: 320px;
+            transform: rotate(-18deg);
+            padding: 10px 30px;
+            border: 5px solid;
+            border-radius: 10px;
+            font-size: 36pt;
+            font-weight: 900;
+            letter-spacing: 6pt;
+            opacity: 0.18;
+        }
+        .stamp-paid { color: #166534; border-color: #166534; }
+        .stamp-cancelled { color: #991b1b; border-color: #991b1b; }
     </style>
 </head>
 <body>
+    <div class="band"></div>
+
     <div class="container">
         @if($invoice->status === 'paid')
             <div class="stamp stamp-paid">PAID</div>
@@ -44,43 +233,67 @@
             <div class="stamp stamp-cancelled">CANCELLED</div>
         @endif
 
-        <div class="header">
-            <table class="header-table">
-                <tr>
-                    <td>
-                        <div class="shop-name">{{ $shop->name }}</div>
-                        <div class="shop-meta">
-                            @if(!empty($shop->address)) {{ $shop->address }}<br> @endif
-                            @if(!empty($shop->whatsapp)) WhatsApp: {{ $shop->whatsapp }}<br> @endif
-                            @if(!empty($shop->shop_code)) Code: {{ $shop->shop_code }} @endif
-                        </div>
-                    </td>
-                    <td>
-                        <div class="invoice-title">INVOICE {{ $invoice->invoice_number }}</div>
-                        <div class="invoice-meta">
-                            Issued: {{ \Carbon\Carbon::parse($invoice->issued_at)->format('d M Y') }}<br>
-                            @if($invoice->paid_at)
-                                Paid: {{ \Carbon\Carbon::parse($invoice->paid_at)->format('d M Y') }}<br>
+        {{-- Header: brand left, invoice meta right --}}
+        <table class="header">
+            <tr>
+                <td style="width: 60%;">
+                    <div class="brand-name">{{ $shop->name }}</div>
+                    <div class="brand-meta">
+                        @if(!empty($shop->address)){{ $shop->address }}<br>@endif
+                        @if(!empty($shop->whatsapp))<strong>WhatsApp:</strong> {{ $shop->whatsapp }}<br>@endif
+                        @if(!empty($shop->shop_code))<strong>Shop code:</strong> {{ $shop->shop_code }}@endif
+                    </div>
+                </td>
+                <td style="width: 40%;" class="invoice-block">
+                    <div class="invoice-label">Invoice</div>
+                    <div class="invoice-number">{{ $invoice->invoice_number }}</div>
+                    <div class="invoice-date">
+                        Issued {{ \Carbon\Carbon::parse($invoice->issued_at)->format('d M Y') }}
+                        @if($invoice->paid_at)
+                            <br>Paid {{ \Carbon\Carbon::parse($invoice->paid_at)->format('d M Y') }}
+                        @endif
+                    </div>
+                    <span class="badge badge-{{ $invoice->status }}">{{ strtoupper($invoice->status) }}</span>
+                </td>
+            </tr>
+        </table>
+
+        {{-- Bill-to + Booking info side by side --}}
+        <table class="info-row">
+            <tr>
+                <td style="width: 50%; padding-right: 8px;">
+                    <div class="info-cell">
+                        <div class="info-label">Bill to</div>
+                        <div class="info-name">{{ $booking->customer_name ?? 'Guest' }}</div>
+                        <div class="info-meta">
+                            @if(!empty($booking->customer_whatsapp))
+                                {{ $booking->customer_whatsapp }}
+                            @else
+                                Walk-in customer
                             @endif
-                            <span class="status-badge status-{{ $invoice->status }}">{{ strtoupper($invoice->status) }}</span>
                         </div>
-                    </td>
-                </tr>
-            </table>
-        </div>
+                    </div>
+                </td>
+                <td style="width: 50%; padding-left: 8px;">
+                    <div class="info-cell">
+                        <div class="info-label">Booking</div>
+                        <div class="info-name">{{ $booking->booking_reference }}</div>
+                        <div class="info-meta">
+                            {{ \Carbon\Carbon::parse($booking->date)->format('d M Y') }}
+                            @if($booking->getRawOriginal('start_time'))
+                                · {{ substr($booking->getRawOriginal('start_time'), 0, 5) }}
+                                @if($booking->getRawOriginal('end_time'))
+                                    – {{ substr($booking->getRawOriginal('end_time'), 0, 5) }}
+                                @endif
+                            @endif
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
 
-        <div class="customer-block">
-            <div class="section-title">Bill to</div>
-            <div class="customer-name">{{ $booking->customer_name ?? 'Guest' }}</div>
-            <div class="customer-meta">
-                @if(!empty($booking->customer_whatsapp)) {{ $booking->customer_whatsapp }} · @endif
-                Booking {{ $booking->booking_reference }}
-                · {{ \Carbon\Carbon::parse($booking->date)->format('d M Y') }}
-                {{ $booking->getRawOriginal('start_time') ? '· ' . substr($booking->getRawOriginal('start_time'), 0, 5) : '' }}
-            </div>
-        </div>
-
-        <div class="section-title">Services</div>
+        {{-- Services --}}
+        <div class="section-header">Services</div>
         <table class="items">
             <thead>
                 <tr>
@@ -106,16 +319,46 @@
             </tbody>
         </table>
 
-        <table class="totals">
+        {{-- Totals box, right-aligned --}}
+        <table class="totals-wrap">
             <tr>
-                <td class="label">Subtotal</td>
-                <td class="value">AED {{ number_format((float)$invoice->subtotal, 2) }}</td>
-            </tr>
-            <tr class="total">
-                <td class="label">Total</td>
-                <td class="value">AED {{ number_format((float)$invoice->total, 2) }}</td>
+                <td class="totals-spacer"></td>
+                <td>
+                    <div class="totals-box">
+                        <table class="totals-row">
+                            <tr>
+                                <td class="label">Subtotal</td>
+                                <td class="value">AED {{ number_format((float)$invoice->subtotal, 2) }}</td>
+                            </tr>
+                            <tr class="grand">
+                                <td class="label">Total Due</td>
+                                <td class="value">AED {{ number_format((float)$invoice->total, 2) }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
             </tr>
         </table>
+
+        {{-- Thank you / footer --}}
+        <div class="thanks">
+            <div class="thanks-title">
+                @if($invoice->status === 'paid')
+                    Thanks for your payment!
+                @elseif($invoice->status === 'cancelled')
+                    This invoice has been cancelled.
+                @else
+                    Thanks for choosing {{ $shop->name }}!
+                @endif
+            </div>
+            <div class="thanks-sub">
+                @if($invoice->status === 'issued')
+                    Please pay AED {{ number_format((float)$invoice->total, 2) }} at your convenience.
+                @else
+                    Looking forward to seeing you again.
+                @endif
+            </div>
+        </div>
 
         <div class="footer">
             Generated by Rezzy · Booking {{ $booking->booking_reference }} · Invoice {{ $invoice->invoice_number }}
