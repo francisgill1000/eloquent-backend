@@ -4,14 +4,52 @@
     <meta charset="UTF-8">
     <title>{{ $invoice->invoice_number }}</title>
     <style>
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 400;
+            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-400-normal.woff) format('woff');
+        }
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 500;
+            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-500-normal.woff) format('woff');
+        }
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 600;
+            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-600-normal.woff) format('woff');
+        }
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 700;
+            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-700-normal.woff) format('woff');
+        }
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 800;
+            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-800-normal.woff) format('woff');
+        }
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 900;
+            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-900-normal.woff) format('woff');
+        }
+
         @page { margin: 0; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Helvetica', sans-serif;
+            font-family: 'Inter', 'Helvetica', sans-serif;
             color: #0f172a;
             font-size: 10.5pt;
             line-height: 1.5;
             background: #ffffff;
+            -webkit-font-smoothing: antialiased;
         }
 
         /* Top color band */

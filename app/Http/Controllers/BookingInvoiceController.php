@@ -34,6 +34,10 @@ class BookingInvoiceController extends Controller
             'shop'    => $booking->shop,
         ]);
 
+        // Allow @font-face to fetch fonts from CDN (Inter via JSDelivr)
+        $pdf->setOption('isRemoteEnabled', true);
+        $pdf->setOption('isFontSubsettingEnabled', true);
+
         return $pdf->stream("{$booking->invoice->invoice_number}.pdf");
     }
 
