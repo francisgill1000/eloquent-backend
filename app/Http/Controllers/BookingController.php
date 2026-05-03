@@ -105,7 +105,7 @@ class BookingController extends Controller
 
     public function show($id)
     {
-        $booking = Booking::with('shop')->find($id);
+        $booking = Booking::with(['shop', 'staff:id,name,is_active', 'invoice'])->find($id);
 
         if (!$booking) {
             return response()->json(['message' => 'Booking not found'], 404);
@@ -195,9 +195,27 @@ class BookingController extends Controller
             );
         }
 
+        // Invoice lifecycle
+        if ($newStatus === 'completed' && $previousStatus === 'booked') {
+            \App\Models\BookingInvoice::firstOrCreate(
+                ['booking_id' => $booking->id],
+                [
+                    'subtotal'  => $booking->charges ?? 0,
+                    'total'     => $booking->charges ?? 0,
+                    'status'    => 'issued',
+                    'issued_at' => now(),
+                ]
+            );
+        }
+
+        if ($newStatus === 'cancelled') {
+            $booking->load('invoice');
+            $booking->invoice?->update(['status' => 'cancelled']);
+        }
+
         return response()->json([
             'message' => 'Booking updated successfully',
-            'data' => $booking
+            'data' => $booking->fresh(['staff', 'invoice'])
         ]);
     }
 }
