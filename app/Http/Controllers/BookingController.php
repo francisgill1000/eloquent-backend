@@ -114,6 +114,19 @@ class BookingController extends Controller
         return response()->json($booking);
     }
 
+    public function markReminderSent($id)
+    {
+        $booking = Booking::find($id);
+
+        if (!$booking) {
+            return response()->json(['message' => 'Booking not found'], 404);
+        }
+
+        $booking->update(['reminder_sent_at' => now()]);
+
+        return response()->json(['data' => $booking->fresh()]);
+    }
+
     public function shopBookings(Request $request)
     {
         // 1. Validate the request

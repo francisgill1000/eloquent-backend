@@ -24,6 +24,7 @@ class Booking extends Model
         'booking_reference',
         'customer_name',
         'customer_whatsapp',
+        'reminder_sent_at',
     ];
 
     // Cast date fields
@@ -31,6 +32,7 @@ class Booking extends Model
         'start_time' => 'datetime:H:i',
         'end_time' => 'datetime:H:i',
         'services' => 'array',
+        'reminder_sent_at' => 'datetime',
     ];
 
     protected $appends = [
