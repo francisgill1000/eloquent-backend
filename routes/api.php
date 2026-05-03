@@ -124,6 +124,13 @@ Route::get('/booking/{booking}/invoice/pdf', [\App\Http\Controllers\BookingInvoi
 Route::post('/invoice/{invoice}/mark-paid', [\App\Http\Controllers\BookingInvoiceController::class, 'markPaid']);
 Route::get('/bookings', [BookingController::class, 'index']);
 
+// Reports
+Route::get('/shop/reports/revenue',       [\App\Http\Controllers\ReportsController::class, 'revenue']);
+Route::get('/shop/reports/staff',         [\App\Http\Controllers\ReportsController::class, 'staff']);
+Route::get('/shop/reports/services',      [\App\Http\Controllers\ReportsController::class, 'services']);
+Route::get('/shop/reports/time-patterns', [\App\Http\Controllers\ReportsController::class, 'timePatterns']);
+Route::get('/shop/reports/export',        [\App\Http\Controllers\ReportsController::class, 'export']);
+
 Route::post('/shops/login', [ShopController::class, 'login']);
 Route::post('/shops/reset-pin', [ShopController::class, 'resetPin']);
 Route::post('/shops/qr-login/request', [ShopQrLoginController::class, 'requestLogin']);
