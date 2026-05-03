@@ -118,6 +118,9 @@ Route::post('/shops/{shop}/favourite', [GuestFavouriteController::class, 'toggle
 Route::post('/shops/{shop}/book', [BookingController::class, 'bookSlot']);
 Route::get('/booking/{id}', [BookingController::class, 'show']);
 Route::put('/booking/{id}', [BookingController::class, 'update']);
+Route::get('/booking/{booking}/invoice', [\App\Http\Controllers\BookingInvoiceController::class, 'show']);
+Route::get('/booking/{booking}/invoice/pdf', [\App\Http\Controllers\BookingInvoiceController::class, 'pdf']);
+Route::post('/invoice/{invoice}/mark-paid', [\App\Http\Controllers\BookingInvoiceController::class, 'markPaid']);
 Route::get('/bookings', [BookingController::class, 'index']);
 
 Route::post('/shops/login', [ShopController::class, 'login']);

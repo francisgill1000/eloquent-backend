@@ -71,6 +71,11 @@ class Booking extends Model
         return $this->belongsTo(Staff::class);
     }
 
+    public function invoice()
+    {
+        return $this->hasOne(BookingInvoice::class);
+    }
+
     /**
      * Get slot as formatted string (09:00)
      */
