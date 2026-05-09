@@ -92,6 +92,77 @@ class BookingController extends Controller
         ]);
     }
 
+    /**
+     * List walk-in customers for a shop, aggregated from past bookings.
+     * One row per unique WhatsApp number (normalized) with totals.
+     */
+    public function shopCustomers(Request $request, Shop $shop)
+    {
+        $search  = trim((string) $request->query('search', ''));
+        $perPage = max(1, min(100, (int) $request->query('per_page', 20)));
+        $page    = max(1, (int) $request->query('page', 1));
+
+        $rows = Booking::where('shop_id', $shop->id)
+            ->whereNotNull('customer_whatsapp')
+            ->where('customer_whatsapp', '!=', '')
+            ->orderBy('id', 'desc')
+            ->get(['id', 'customer_name', 'customer_whatsapp', 'date', 'charges', 'status']);
+
+        $groups = [];
+        foreach ($rows as $b) {
+            $normalized = preg_replace('/\D+/', '', $b->customer_whatsapp ?? '');
+            if ($normalized === '') continue;
+            $key = strlen($normalized) > 7 ? substr($normalized, -9) : $normalized;
+
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'name'             => $b->customer_name,
+                    'whatsapp'         => $b->customer_whatsapp,
+                    'bookings_count'   => 0,
+                    'total_spent'      => 0.0,
+                    'last_visit_date'  => $b->date,
+                    'first_visit_date' => $b->date,
+                ];
+            }
+
+            $g = &$groups[$key];
+            $g['bookings_count']++;
+            if (strtolower((string) $b->status) !== 'cancelled') {
+                $g['total_spent'] += (float) ($b->charges ?? 0);
+            }
+            if ($b->date < $g['first_visit_date']) $g['first_visit_date'] = $b->date;
+            if ($b->date > $g['last_visit_date'])  $g['last_visit_date']  = $b->date;
+            unset($g);
+        }
+
+        $list = array_values($groups);
+
+        if ($search !== '') {
+            $needle      = strtolower($search);
+            $needleDigits = preg_replace('/\D+/', '', $search);
+            $list = array_values(array_filter($list, function ($c) use ($needle, $needleDigits) {
+                $nameMatch = $c['name'] && str_contains(strtolower($c['name']), $needle);
+                $whatsDigits = preg_replace('/\D+/', '', $c['whatsapp'] ?? '');
+                $whatsMatch = $needleDigits !== '' && str_contains($whatsDigits, $needleDigits);
+                return $nameMatch || $whatsMatch;
+            }));
+        }
+
+        usort($list, fn($a, $b) => strcmp($b['last_visit_date'], $a['last_visit_date']));
+
+        $total  = count($list);
+        $offset = ($page - 1) * $perPage;
+        $items  = array_slice($list, $offset, $perPage);
+
+        return response()->json([
+            'data'         => $items,
+            'current_page' => $page,
+            'per_page'     => $perPage,
+            'total'        => $total,
+            'last_page'    => max(1, (int) ceil($total / $perPage)),
+        ]);
+    }
+
     public function bookSlot(BookSlotRequest $request, Shop $shop)
     {
         try {
