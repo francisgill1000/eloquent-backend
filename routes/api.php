@@ -5,6 +5,7 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\GuestFavouriteController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\ShopCustomerController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\ShopQrLoginController;
@@ -46,8 +47,8 @@ Route::put('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController
 Route::delete('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'destroy']);
 Route::post('/booking/{booking}/reassign', [\App\Http\Controllers\StaffController::class, 'reassign']);
 Route::post('/shops/{shop}/favourite', [GuestFavouriteController::class, 'toggle']);
-Route::get('/shops/{shop}/customers/lookup', [BookingController::class, 'lookupCustomer']);
-Route::get('/shops/{shop}/customers', [BookingController::class, 'shopCustomers']);
+Route::get('/shops/{shop}/customers/lookup', [ShopCustomerController::class, 'lookup']);
+Route::get('/shops/{shop}/customers', [ShopCustomerController::class, 'index']);
 Route::post('/shops/{shop}/book', [BookingController::class, 'bookSlot']);
 Route::get('/booking/{id}', [BookingController::class, 'show']);
 Route::put('/booking/{id}', [BookingController::class, 'update']);
