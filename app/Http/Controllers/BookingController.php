@@ -49,6 +49,49 @@ class BookingController extends Controller
     }
 
 
+    /**
+     * Look up an existing walk-in customer for this shop by WhatsApp number.
+     * Matches on the last 7 digits to tolerate +country code / formatting variants.
+     */
+    public function lookupCustomer(Request $request, Shop $shop)
+    {
+        $request->validate([
+            'whatsapp' => ['required', 'string', 'min:4', 'max:32'],
+        ]);
+
+        $digits = preg_replace('/\D+/', '', $request->whatsapp);
+        if (strlen($digits) < 7) {
+            return response()->json(['found' => false]);
+        }
+
+        $tail = substr($digits, -7);
+
+        // Strip spaces, dashes, plus, parentheses from the stored number so a
+        // tail-match works regardless of how the shop typed it originally.
+        $normalized = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(customer_whatsapp,' ',''),'-',''),'+',''),'(',''),')','')";
+
+        $query = Booking::where('shop_id', $shop->id)
+            ->whereNotNull('customer_whatsapp')
+            ->whereRaw("$normalized LIKE ?", ['%' . $tail]);
+
+        $count = (clone $query)->count();
+        if ($count === 0) {
+            return response()->json(['found' => false]);
+        }
+
+        $latest = (clone $query)
+            ->orderBy('id', 'desc')
+            ->first(['id', 'customer_name', 'customer_whatsapp', 'date']);
+
+        return response()->json([
+            'found'           => true,
+            'name'            => $latest->customer_name,
+            'whatsapp'        => $latest->customer_whatsapp,
+            'bookings_count' => $count,
+            'last_visit_date' => $latest->date,
+        ]);
+    }
+
     public function bookSlot(BookSlotRequest $request, Shop $shop)
     {
         try {

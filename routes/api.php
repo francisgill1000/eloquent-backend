@@ -115,6 +115,7 @@ Route::put('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController
 Route::delete('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'destroy']);
 Route::post('/booking/{booking}/reassign', [\App\Http\Controllers\StaffController::class, 'reassign']);
 Route::post('/shops/{shop}/favourite', [GuestFavouriteController::class, 'toggle']);
+Route::get('/shops/{shop}/customers/lookup', [BookingController::class, 'lookupCustomer']);
 Route::post('/shops/{shop}/book', [BookingController::class, 'bookSlot']);
 Route::get('/booking/{id}', [BookingController::class, 'show']);
 Route::put('/booking/{id}', [BookingController::class, 'update']);
