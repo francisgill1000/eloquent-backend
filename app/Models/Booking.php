@@ -13,6 +13,7 @@ class Booking extends Model
 
     protected $fillable = [
         'shop_id',
+        'shop_customer_id',
         'staff_id',
         'date',
         'start_time',
@@ -71,6 +72,11 @@ class Booking extends Model
     public function staff()
     {
         return $this->belongsTo(Staff::class);
+    }
+
+    public function shopCustomer()
+    {
+        return $this->belongsTo(ShopCustomer::class);
     }
 
     public function invoice()
