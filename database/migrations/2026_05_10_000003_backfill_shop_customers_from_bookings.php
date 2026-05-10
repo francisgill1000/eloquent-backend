@@ -6,16 +6,24 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration {
     public function up(): void
     {
+        $validShopIds = DB::table('shops')->pluck('id')->all();
+        $validShopIdSet = array_flip($validShopIds);
+
         $rows = DB::table('bookings')
             ->whereNotNull('customer_whatsapp')
             ->where('customer_whatsapp', '!=', '')
             ->whereNull('shop_customer_id')
+            ->whereIn('shop_id', $validShopIds)
             ->orderBy('id')
             ->get(['id', 'shop_id', 'customer_name', 'customer_whatsapp']);
 
         $cache = []; // [ "{shop_id}:{normalized}" => shop_customer_id ]
 
         foreach ($rows as $b) {
+            // Defensive guard: even after the WHERE filter, skip if the shop
+            // disappeared mid-run (FK would reject the insert otherwise).
+            if (!isset($validShopIdSet[$b->shop_id])) continue;
+
             $normalized = preg_replace('/\D+/', '', (string) $b->customer_whatsapp);
             if ($normalized === '') continue;
 
