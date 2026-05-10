@@ -17,16 +17,21 @@ class ShopCustomerController extends Controller
         $perPage = max(1, min(100, (int) $request->query('per_page', 20)));
         $search  = trim((string) $request->query('search', ''));
 
+        $bookingsCountSql  = '(select count(*) from bookings where bookings.shop_customer_id = shop_customers.id)';
+        $totalSpentSql     = "(select coalesce(sum(case when lower(status) != 'cancelled' then charges else 0 end), 0) from bookings where bookings.shop_customer_id = shop_customers.id)";
+        $lastVisitSql      = '(select max(date) from bookings where bookings.shop_customer_id = shop_customers.id)';
+        $firstVisitSql     = '(select min(date) from bookings where bookings.shop_customer_id = shop_customers.id)';
+
         $query = ShopCustomer::where('shop_id', $shop->id)
             ->select([
                 'shop_customers.id',
                 'shop_customers.name',
                 'shop_customers.whatsapp',
                 'shop_customers.whatsapp_normalized',
-                DB::raw('(select count(*) from bookings where bookings.shop_customer_id = shop_customers.id) as bookings_count'),
-                DB::raw("(select coalesce(sum(case when lower(status) != 'cancelled' then charges else 0 end), 0) from bookings where bookings.shop_customer_id = shop_customers.id) as total_spent"),
-                DB::raw('(select max(date) from bookings where bookings.shop_customer_id = shop_customers.id) as last_visit_date'),
-                DB::raw('(select min(date) from bookings where bookings.shop_customer_id = shop_customers.id) as first_visit_date'),
+                DB::raw("$bookingsCountSql as bookings_count"),
+                DB::raw("$totalSpentSql as total_spent"),
+                DB::raw("$lastVisitSql as last_visit_date"),
+                DB::raw("$firstVisitSql as first_visit_date"),
             ]);
 
         if ($search !== '') {
@@ -39,7 +44,7 @@ class ShopCustomerController extends Controller
             });
         }
 
-        $query->orderByRaw('last_visit_date IS NULL, last_visit_date DESC')
+        $query->orderByRaw("$lastVisitSql DESC NULLS LAST")
             ->orderBy('shop_customers.id', 'desc');
 
         return response()->json($query->paginate($perPage));
