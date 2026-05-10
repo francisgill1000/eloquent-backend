@@ -26,6 +26,9 @@ class Booking extends Model
         'customer_name',
         'customer_whatsapp',
         'reminder_sent_at',
+        'promo_code_id',
+        'marketing_campaign_id',
+        'discount_amount',
     ];
 
     // Cast date fields
@@ -82,6 +85,16 @@ class Booking extends Model
     public function invoice()
     {
         return $this->hasOne(BookingInvoice::class);
+    }
+
+    public function promoCode()
+    {
+        return $this->belongsTo(PromoCode::class);
+    }
+
+    public function marketingCampaign()
+    {
+        return $this->belongsTo(MarketingCampaign::class);
     }
 
     /**

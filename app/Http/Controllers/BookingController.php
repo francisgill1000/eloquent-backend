@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\BookSlotRequest;
 use App\Models\Booking;
+use App\Models\CampaignRecipient;
+use App\Models\PromoCode;
 use App\Models\Shop;
 use App\Models\ShopCustomer;
 use App\Services\Notify;
@@ -71,23 +73,73 @@ class BookingController extends Controller
                     $request->customer_name
                 );
 
+                // Resolve promo code (if provided + redeemable for this shop) and
+                // attribute to the most recent campaign that messaged this customer
+                // in the last 30 days, if any.
+                $subtotal = (float) ($request->charges ?? 0);
+                $finalCharges = $subtotal;
+                $discountAmount = 0.0;
+                $promoCodeId = null;
+                $campaignId = null;
+                $recipientToAttribute = null;
+
+                $codeStr = strtoupper(preg_replace('/\s+/', '', (string) $request->input('promo_code', '')));
+                if ($codeStr !== '') {
+                    $promo = PromoCode::where('shop_id', $shop->id)->where('code', $codeStr)->first();
+                    if ($promo && $promo->isRedeemable()) {
+                        $applied = $promo->applyTo($subtotal);
+                        if ($applied) {
+                            $discountAmount = $applied['discount'];
+                            $finalCharges = $applied['total'];
+                            $promoCodeId = $promo->id;
+                        }
+                    }
+                }
+
+                if ($shopCustomer) {
+                    $recipientToAttribute = CampaignRecipient::whereHas('campaign', function ($q) use ($shop) {
+                            $q->where('shop_id', $shop->id);
+                        })
+                        ->where('shop_customer_id', $shopCustomer->id)
+                        ->whereNull('booking_id')
+                        ->where('sent_at', '>=', now()->subDays(30))
+                        ->orderByDesc('sent_at')
+                        ->first();
+                    if ($recipientToAttribute) {
+                        $campaignId = $recipientToAttribute->marketing_campaign_id;
+                    }
+                }
+
                 $booking = Booking::create([
-                    'status'            => $staff ? 'booked' : 'queued',
-                    'shop_id'           => $shop->id,
-                    'shop_customer_id'  => $shopCustomer?->id,
-                    'staff_id'          => $staff?->id,
-                    'date'              => $date,
-                    'start_time'        => $startTime,
-                    'end_time'          => $shop->getEndSlot(
+                    'status'                => $staff ? 'booked' : 'queued',
+                    'shop_id'               => $shop->id,
+                    'shop_customer_id'      => $shopCustomer?->id,
+                    'staff_id'              => $staff?->id,
+                    'date'                  => $date,
+                    'start_time'            => $startTime,
+                    'end_time'              => $shop->getEndSlot(
                         $startTime,
                         $workingHour->slot_duration
                     ),
-                    'device_id'         => $request->header('X-Device-Id'),
-                    'charges'           => $request->charges ?? 0,
-                    'services'          => $request->services ?? [],
-                    'customer_name'     => $request->customer_name,
-                    'customer_whatsapp' => $request->customer_whatsapp,
+                    'device_id'             => $request->header('X-Device-Id'),
+                    'charges'               => $finalCharges,
+                    'services'              => $request->services ?? [],
+                    'customer_name'         => $request->customer_name,
+                    'customer_whatsapp'     => $request->customer_whatsapp,
+                    'promo_code_id'         => $promoCodeId,
+                    'marketing_campaign_id' => $campaignId,
+                    'discount_amount'       => $discountAmount,
                 ]);
+
+                if ($promoCodeId) {
+                    PromoCode::where('id', $promoCodeId)->increment('uses_count');
+                }
+                if ($recipientToAttribute) {
+                    $recipientToAttribute->update([
+                        'booking_id' => $booking->id,
+                        'booked_at'  => now(),
+                    ]);
+                }
 
                 $payload = $booking->toArray();
                 $payload['notification_url'] = "https://eloquentservice.com/shop/bookings/action?id=" . $payload['id'];
