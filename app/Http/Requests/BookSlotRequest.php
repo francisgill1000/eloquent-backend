@@ -31,6 +31,7 @@ class BookSlotRequest extends FormRequest
             'services'          => ['nullable', 'array'],
             'customer_name'     => ['nullable', 'string', 'max:255'],
             'customer_whatsapp' => ['nullable', 'string', 'max:32'],
+            'promo_code'        => ['nullable', 'string', 'max:32'],
         ];
     }
 

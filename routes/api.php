@@ -65,6 +65,18 @@ Route::get('/shop/reports/services',      [\App\Http\Controllers\ReportsControll
 Route::get('/shop/reports/time-patterns', [\App\Http\Controllers\ReportsController::class, 'timePatterns']);
 Route::get('/shop/reports/export',        [\App\Http\Controllers\ReportsController::class, 'export']);
 
+// Marketing — campaigns + promo codes
+Route::get   ('/shop/marketing/campaigns',                [\App\Http\Controllers\MarketingCampaignController::class, 'index']);
+Route::post  ('/shop/marketing/campaigns',                [\App\Http\Controllers\MarketingCampaignController::class, 'store']);
+Route::get   ('/shop/marketing/campaigns/{campaign}',     [\App\Http\Controllers\MarketingCampaignController::class, 'show']);
+Route::get   ('/shop/marketing/segments',                 [\App\Http\Controllers\MarketingCampaignController::class, 'previewSegment']);
+
+Route::get   ('/shop/promo-codes',                        [\App\Http\Controllers\PromoCodeController::class, 'index']);
+Route::post  ('/shop/promo-codes',                        [\App\Http\Controllers\PromoCodeController::class, 'store']);
+Route::put   ('/shop/promo-codes/{promoCode}',            [\App\Http\Controllers\PromoCodeController::class, 'update']);
+Route::delete('/shop/promo-codes/{promoCode}',            [\App\Http\Controllers\PromoCodeController::class, 'destroy']);
+Route::get   ('/shops/{shop}/promo-codes/lookup',         [\App\Http\Controllers\PromoCodeController::class, 'lookup']);
+
 Route::post('/shops/login', [ShopController::class, 'login']);
 Route::post('/shops/reset-pin', [ShopController::class, 'resetPin']);
 Route::post('/shops/qr-login/request', [ShopQrLoginController::class, 'requestLogin']);
