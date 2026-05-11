@@ -6,6 +6,7 @@ use App\Http\Requests\StoreShopRequest;
 use App\Http\Requests\UpdateShopRequest;
 use App\Models\Booking;
 use App\Models\Shop;
+use App\Models\ShopLoginActivity;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -144,6 +145,8 @@ class ShopController extends Controller
         }
 
         $token = $shop->createToken('auth_token')->plainTextToken;
+
+        $shop->recordLogin($request, ShopLoginActivity::METHOD_PIN);
 
         return response()->json([
             'shop' => $shop,
@@ -292,6 +295,8 @@ class ShopController extends Controller
         if ($shop) {
             // Generate a new token for this session
             $token = $shop->createToken('auto_login_token')->plainTextToken;
+
+            $shop->recordLogin($request, ShopLoginActivity::METHOD_AUTO);
 
             return response()->json([
                 'authenticated' => true,

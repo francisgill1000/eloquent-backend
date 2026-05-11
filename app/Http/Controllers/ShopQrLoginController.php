@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Shop;
+use App\Models\ShopLoginActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -33,7 +34,7 @@ class ShopQrLoginController extends Controller
         ]);
     }
 
-    public function status(string $token)
+    public function status(Request $request, string $token)
     {
         $payload = Cache::get(self::CACHE_PREFIX . $token);
 
@@ -71,6 +72,8 @@ class ShopQrLoginController extends Controller
                 'message' => 'Shop not found for this login session.',
             ], 404);
         }
+
+        $shop->recordLogin($request, ShopLoginActivity::METHOD_QR);
 
         return response()->json([
             'status' => 'approved',
