@@ -79,6 +79,13 @@ Route::get   ('/shops/{shop}/promo-codes/lookup',         [\App\Http\Controllers
 
 Route::post('/shops/login', [ShopController::class, 'login']);
 Route::post('/shops/reset-pin', [ShopController::class, 'resetPin']);
+Route::post('/shops/auto-login', [ShopController::class, 'login_log']);
+
+// Shop login activity (requires either auth:sanctum or ?shop_id= fallback for non-authed clients)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/shop/login-activity',         [\App\Http\Controllers\ShopLoginActivityController::class, 'index']);
+    Route::get('/shop/login-activity/summary', [\App\Http\Controllers\ShopLoginActivityController::class, 'summary']);
+});
 Route::post('/shops/qr-login/request', [ShopQrLoginController::class, 'requestLogin']);
 Route::get('/shops/qr-login/status/{token}', [ShopQrLoginController::class, 'status']);
 Route::middleware('auth:sanctum')->post('/shops/qr-login/approve/{token}', [ShopQrLoginController::class, 'approve']);

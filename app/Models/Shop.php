@@ -22,6 +22,10 @@ class Shop extends Model
 
     protected $appends = ["registered_at", "year_of_experience", "total_bookings", "is_favourite", "is_open"];
 
+    protected $casts = [
+        'last_login_at' => 'datetime',
+    ];
+
     protected static function booted()
     {
         static::creating(function ($shop) {
@@ -373,5 +377,27 @@ class Shop extends Model
     public function catalogs()
     {
         return $this->hasMany(Catalog::class);
+    }
+
+    public function loginActivities()
+    {
+        return $this->hasMany(ShopLoginActivity::class);
+    }
+
+    public function recordLogin(\Illuminate\Http\Request $request, string $method = ShopLoginActivity::METHOD_PIN): ShopLoginActivity
+    {
+        $now = now();
+
+        $activity = $this->loginActivities()->create([
+            'login_method' => $method,
+            'ip_address'   => $request->ip(),
+            'device_id'    => $request->header('X-Device-Id'),
+            'user_agent'   => Str::limit((string) $request->userAgent(), 1000, ''),
+            'logged_in_at' => $now,
+        ]);
+
+        $this->forceFill(['last_login_at' => $now])->saveQuietly();
+
+        return $activity;
     }
 }
