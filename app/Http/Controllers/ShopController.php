@@ -119,6 +119,9 @@ class ShopController extends Controller
             $dataToStore['hero_image'] = Shop::saveBase64Image($dataToStore['hero_image'], "hero_images");
         }
 
+        // Category is chosen at registration and locked from then on.
+        $dataToStore['category_confirmed_at'] = now();
+
         $shop = Shop::create($dataToStore);
 
         $token = $shop->createToken('auth_token')->plainTextToken;
@@ -127,6 +130,36 @@ class ShopController extends Controller
             'shop' => $shop,
             'token' => $token
         ], 201);
+    }
+
+    /**
+     * One-time category selection for shops registered before the category
+     * dropdown existed. Once confirmed, the category is locked for good.
+     */
+    public function confirmCategory(Request $request)
+    {
+        $shop = $request->user();
+        if (!$shop || !($shop instanceof Shop)) {
+            return response()->json(['message' => 'Shop authentication required'], 403);
+        }
+
+        if ($shop->category_confirmed_at) {
+            return response()->json(['message' => 'Category is locked and cannot be changed.'], 422);
+        }
+
+        $data = $request->validate([
+            'category_id' => 'required|integer|in:' . implode(',', \App\Support\ServiceCategories::ids()),
+        ]);
+
+        $shop->update([
+            'category_id' => $data['category_id'],
+            'category_confirmed_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Category saved',
+            'shop' => $shop->fresh(),
+        ]);
     }
 
     public function login(Request $request)

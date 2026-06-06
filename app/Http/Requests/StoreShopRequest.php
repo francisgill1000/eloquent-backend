@@ -22,7 +22,7 @@ class StoreShopRequest extends FormRequest
             'lon'         => 'nullable|between:-180,180',
             'location'    => 'nullable|string|max:255',
             'is_verified' => 'boolean',
-            'category_id' => 'required|integer|min:1',
+            'category_id' => 'required|integer|in:' . implode(',', \App\Support\ServiceCategories::ids()),
             'status'      => 'required|string|in:active,inactive',
 
         ];
