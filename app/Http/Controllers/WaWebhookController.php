@@ -50,6 +50,39 @@ class WaWebhookController extends Controller
     }
 
     /**
+     * Tell the auto-reply bot who it's talking to: 'customer' if the sender
+     * is a known customer (has booked) of the shop owning this WhatsApp
+     * number, otherwise 'lead'. Drives the bot's persona on its own number.
+     */
+    public function persona(Request $request)
+    {
+        $secret = config('services.whatsapp.relay_secret');
+        abort_unless(
+            $secret && hash_equals($secret, (string) $request->header('X-Relay-Secret')),
+            403
+        );
+
+        $data = $request->validate([
+            'phone_number_id' => ['required', 'string'],
+            'number' => ['required', 'string'],
+        ]);
+
+        $account = \App\Models\WaAccount::where('phone_number_id', $data['phone_number_id'])->first();
+        $normalized = \App\Models\ShopCustomer::normalize($data['number']);
+
+        if (!$account || $normalized === '') {
+            return response()->json(['persona' => 'lead']);
+        }
+
+        $tail = strlen($normalized) > 9 ? substr($normalized, -9) : $normalized;
+        $isCustomer = \App\Models\ShopCustomer::where('shop_id', $account->shop_id)
+            ->where('whatsapp_normalized', 'LIKE', '%' . $tail)
+            ->exists();
+
+        return response()->json(['persona' => $isCustomer ? 'customer' : 'lead']);
+    }
+
+    /**
      * Record an outgoing message sent by the standalone auto-reply bot, so
      * bizrezzy chat threads show both sides. Secured by a shared secret.
      */

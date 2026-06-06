@@ -322,6 +322,38 @@ class WaChatTest extends TestCase
         ], ['X-Relay-Secret' => ''])->assertForbidden();
     }
 
+    public function test_persona_lookup_distinguishes_customers_from_leads(): void
+    {
+        config(['services.whatsapp.relay_secret' => 'relay-secret']);
+
+        $shop = Shop::factory()->create();
+        $this->makeAccount($shop);
+        \App\Models\ShopCustomer::create([
+            'shop_id' => $shop->id,
+            'name' => 'Ali',
+            'whatsapp' => '+971 50 111 2222',
+            'whatsapp_normalized' => '971501112222',
+        ]);
+
+        $headers = ['X-Relay-Secret' => 'relay-secret'];
+
+        // no secret → forbidden
+        $this->getJson('/api/wa/persona?phone_number_id=pn_123&number=971501112222')
+            ->assertForbidden();
+
+        // known customer (matched on last 9 digits even with different prefix)
+        $this->getJson('/api/wa/persona?phone_number_id=pn_123&number=00971501112222', $headers)
+            ->assertOk()->assertJson(['persona' => 'customer']);
+
+        // unknown sender → lead
+        $this->getJson('/api/wa/persona?phone_number_id=pn_123&number=971509998888', $headers)
+            ->assertOk()->assertJson(['persona' => 'lead']);
+
+        // unknown phone_number_id → lead
+        $this->getJson('/api/wa/persona?phone_number_id=pn_nope&number=971501112222', $headers)
+            ->assertOk()->assertJson(['persona' => 'lead']);
+    }
+
     public function test_chat_endpoints_require_auth(): void
     {
         $this->getJson('/api/shop/wa/account')->assertUnauthorized();
