@@ -49,6 +49,44 @@ class WaWebhookController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
+    /**
+     * Record an outgoing message sent by the standalone auto-reply bot, so
+     * bizrezzy chat threads show both sides. Secured by a shared secret.
+     */
+    public function relayOut(Request $request)
+    {
+        $secret = config('services.whatsapp.relay_secret');
+        abort_unless(
+            $secret && hash_equals($secret, (string) $request->header('X-Relay-Secret')),
+            403
+        );
+
+        $data = $request->validate([
+            'phone_number_id' => ['required', 'string'],
+            'to' => ['required', 'string'],
+            'text' => ['required', 'string'],
+            'wa_message_id' => ['nullable', 'string'],
+        ]);
+
+        $account = WaAccount::where('phone_number_id', $data['phone_number_id'])->first();
+        if (!$account) {
+            return response()->json(['status' => 'ignored']);
+        }
+
+        $waMessageId = $data['wa_message_id'] ?? null;
+        if ($waMessageId && WaMessage::where('wa_message_id', $waMessageId)->exists()) {
+            return response()->json(['status' => 'duplicate']);
+        }
+
+        $contact = WaContact::firstOrCreate([
+            'wa_account_id' => $account->id,
+            'wa_number' => preg_replace('/\D+/', '', $data['to']),
+        ]);
+        $contact->recordMessage('out', $data['text'], 'text', $waMessageId, 'sent');
+
+        return response()->json(['status' => 'ok']);
+    }
+
     private function handleChange(array $value): void
     {
         $phoneNumberId = $value['metadata']['phone_number_id'] ?? null;

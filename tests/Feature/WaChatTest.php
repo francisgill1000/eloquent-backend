@@ -237,6 +237,56 @@ class WaChatTest extends TestCase
         $this->assertSame('two', $since[0]['body']);
     }
 
+    public function test_relay_out_records_bot_reply(): void
+    {
+        config(['services.whatsapp.relay_secret' => 'relay-secret']);
+
+        $shop = Shop::factory()->create();
+        $account = $this->makeAccount($shop);
+
+        // wrong/missing secret rejected
+        $this->postJson('/api/wa/relay-out', [
+            'phone_number_id' => 'pn_123', 'to' => '971501112222', 'text' => 'hi',
+        ])->assertForbidden();
+
+        $headers = ['X-Relay-Secret' => 'relay-secret'];
+
+        $this->postJson('/api/wa/relay-out', [
+            'phone_number_id' => 'pn_123',
+            'to' => '971501112222',
+            'text' => 'Auto reply from bot',
+            'wa_message_id' => 'wamid.bot1',
+        ], $headers)->assertOk()->assertJson(['status' => 'ok']);
+
+        $contact = $account->contacts()->where('wa_number', '971501112222')->first();
+        $this->assertNotNull($contact);
+        $this->assertSame('out', $contact->last_message_direction);
+        $this->assertSame('Auto reply from bot', $contact->last_message_preview);
+        $this->assertSame(0, $contact->unread_count);
+
+        // duplicate wa_message_id ignored
+        $this->postJson('/api/wa/relay-out', [
+            'phone_number_id' => 'pn_123',
+            'to' => '971501112222',
+            'text' => 'Auto reply from bot',
+            'wa_message_id' => 'wamid.bot1',
+        ], $headers)->assertOk()->assertJson(['status' => 'duplicate']);
+        $this->assertSame(1, $contact->messages()->count());
+
+        // unknown phone_number_id ignored quietly
+        $this->postJson('/api/wa/relay-out', [
+            'phone_number_id' => 'pn_other', 'to' => '97150', 'text' => 'x',
+        ], $headers)->assertOk()->assertJson(['status' => 'ignored']);
+    }
+
+    public function test_relay_out_disabled_when_secret_unset(): void
+    {
+        config(['services.whatsapp.relay_secret' => null]);
+        $this->postJson('/api/wa/relay-out', [
+            'phone_number_id' => 'pn_123', 'to' => '97150', 'text' => 'x',
+        ], ['X-Relay-Secret' => ''])->assertForbidden();
+    }
+
     public function test_chat_endpoints_require_auth(): void
     {
         $this->getJson('/api/shop/wa/account')->assertUnauthorized();
