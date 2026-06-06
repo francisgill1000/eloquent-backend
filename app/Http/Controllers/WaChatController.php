@@ -39,14 +39,21 @@ class WaChatController extends Controller
             return response()->json(['connected' => false]);
         }
 
-        return response()->json([
+        return response()->json($this->accountPayload($account));
+    }
+
+    /** Connected-account response shape shared by account() and saveAccount(). */
+    private function accountPayload(WaAccount $account): array
+    {
+        return [
             'connected' => true,
             'phone_number' => $account->phone_number,
             'phone_number_id' => $account->phone_number_id,
             'waba_id' => $account->waba_id,
             'status' => $account->status,
-            'token_preview' => '••••' . substr($account->token, -4),
-        ]);
+            // 'shared' = no own token, sends use the platform's default token
+            'token_preview' => $account->token ? '••••' . substr($account->token, -4) : 'shared',
+        ];
     }
 
     public function saveAccount(Request $request)
@@ -69,12 +76,6 @@ class WaChatController extends Controller
             ], 422);
         }
 
-        $account = WaAccount::where('shop_id', $shop->id)->first();
-
-        if (!$account && empty($data['token'])) {
-            return response()->json(['message' => 'Access token is required.'], 422);
-        }
-
         $attributes = [
             'phone_number' => $data['phone_number'] ?? null,
             'phone_number_id' => $data['phone_number_id'],
@@ -89,12 +90,7 @@ class WaChatController extends Controller
 
         return response()->json([
             'message' => 'WhatsApp connected successfully',
-            'connected' => true,
-            'phone_number' => $account->phone_number,
-            'phone_number_id' => $account->phone_number_id,
-            'waba_id' => $account->waba_id,
-            'status' => $account->status,
-            'token_preview' => '••••' . substr($account->token, -4),
+            ...$this->accountPayload($account),
         ]);
     }
 

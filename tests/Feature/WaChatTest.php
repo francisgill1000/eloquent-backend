@@ -99,11 +99,21 @@ class WaChatTest extends TestCase
 
         $this->getJson('/api/shop/wa/account')->assertOk()->assertJson(['connected' => false]);
 
+        // minimal connect: just the phone number id — token falls back to the shared one
         $this->postJson('/api/shop/wa/account', [
             'phone_number' => '+971500000001',
             'phone_number_id' => 'pn_555',
+        ])->assertOk()->assertJson([
+            'connected' => true,
+            'phone_number_id' => 'pn_555',
+            'token_preview' => 'shared',
+        ]);
+
+        // own token override
+        $this->postJson('/api/shop/wa/account', [
+            'phone_number_id' => 'pn_555',
             'token' => 'tok-xyz-9876',
-        ])->assertOk()->assertJson(['connected' => true, 'phone_number_id' => 'pn_555']);
+        ])->assertOk();
 
         $response = $this->getJson('/api/shop/wa/account')->assertOk();
         $response->assertJson(['connected' => true]);
@@ -116,6 +126,31 @@ class WaChatTest extends TestCase
             'phone_number' => '+971500000002',
         ])->assertOk();
         $this->assertSame('tok-xyz-9876', WaAccount::where('shop_id', $shop->id)->first()->token);
+    }
+
+    public function test_send_uses_shared_default_token_when_account_has_none(): void
+    {
+        config(['services.whatsapp.default_token' => 'shared-token-1234']);
+        Http::fake([
+            'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.out9']]], 200),
+        ]);
+
+        $shop = Shop::factory()->create();
+        $account = WaAccount::create([
+            'shop_id' => $shop->id,
+            'phone_number_id' => 'pn_shared',
+            'token' => null,
+        ]);
+        $contact = WaContact::create([
+            'wa_account_id' => $account->id,
+            'wa_number' => '971501112222',
+        ]);
+
+        $this->authed($shop);
+        $this->postJson("/api/shop/wa/contacts/{$contact->id}/messages", ['text' => 'hi'])
+            ->assertCreated();
+
+        Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer shared-token-1234'));
     }
 
     public function test_phone_number_id_cannot_be_claimed_by_two_shops(): void
