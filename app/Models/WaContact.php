@@ -25,7 +25,7 @@ class WaContact extends Model
     /**
      * Record a new message on this contact's thread and refresh list metadata.
      */
-    public function recordMessage(string $direction, string $body, string $type = 'text', ?string $waMessageId = null, ?string $status = null): WaMessage
+    public function recordMessage(string $direction, string $body, string $type = 'text', ?string $waMessageId = null, ?string $status = null, array $media = []): WaMessage
     {
         $message = $this->messages()->create([
             'wa_account_id' => $this->wa_account_id,
@@ -34,6 +34,9 @@ class WaContact extends Model
             'body' => $body,
             'wa_message_id' => $waMessageId,
             'status' => $status,
+            'media_id' => $media['media_id'] ?? null,
+            'media_mime' => $media['media_mime'] ?? null,
+            'media_path' => $media['media_path'] ?? null,
         ]);
 
         $this->forceFill([
