@@ -39,4 +39,34 @@ class WhatsAppCloud
 
         return $response->json() ?? [];
     }
+
+    /**
+     * Download a media object (voice note, image, ...) from the Cloud API.
+     * Returns ['data' => binary, 'mime' => string] or null when unavailable.
+     */
+    public function downloadMedia(WaAccount $account, string $mediaId): ?array
+    {
+        $token = $account->token ?: config('services.whatsapp.default_token');
+        if (!$token) {
+            return null;
+        }
+
+        $version = config('services.whatsapp.graph_version', 'v25.0');
+
+        $meta = Http::withToken($token)->get("https://graph.facebook.com/{$version}/{$mediaId}");
+        $url = $meta->json('url');
+        if (!$meta->successful() || !$url) {
+            return null;
+        }
+
+        $binary = Http::withToken($token)->timeout(30)->get($url);
+        if (!$binary->successful()) {
+            return null;
+        }
+
+        return [
+            'data' => $binary->body(),
+            'mime' => $meta->json('mime_type') ?: ($binary->header('Content-Type') ?: 'application/octet-stream'),
+        ];
+    }
 }

@@ -93,6 +93,38 @@ class WaWebhookController extends Controller
     }
 
     /**
+     * Attach a voice-note transcript (from the bot's Whisper pass) to an
+     * already-stored inbound message, so chats show what was said.
+     */
+    public function relayTranscript(Request $request)
+    {
+        $secret = config('services.whatsapp.relay_secret');
+        abort_unless(
+            $secret && hash_equals($secret, (string) $request->header('X-Relay-Secret')),
+            403
+        );
+
+        $data = $request->validate([
+            'wa_message_id' => ['required', 'string'],
+            'transcript' => ['required', 'string', 'max:10000'],
+        ]);
+
+        $message = WaMessage::where('wa_message_id', $data['wa_message_id'])->first();
+        if (!$message) {
+            return response()->json(['status' => 'ignored']);
+        }
+
+        $message->update(['body' => '🎤 ' . $data['transcript']]);
+
+        $contact = $message->waContact;
+        if ($contact && $contact->messages()->max('id') === $message->id) {
+            $contact->update(['last_message_preview' => mb_substr($message->body, 0, 500)]);
+        }
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    /**
      * Record an outgoing message sent by the standalone auto-reply bot, so
      * bizrezzy chat threads show both sides. Secured by a shared secret.
      */
@@ -168,6 +200,16 @@ class WaWebhookController extends Controller
                 ? ($msg['text']['body'] ?? '')
                 : "[{$type} message]";
 
+            // Media messages (voice notes, images, ...) carry a media id we
+            // can download and keep, so chats can play them later.
+            $media = [];
+            $mediaObject = is_array($msg[$type] ?? null) ? $msg[$type] : null;
+            if ($mediaObject && !empty($mediaObject['id'])) {
+                $media['media_id'] = $mediaObject['id'];
+                $media['media_mime'] = $mediaObject['mime_type'] ?? null;
+                $media['media_path'] = $this->storeMedia($account, $mediaObject['id'], $media['media_mime']);
+            }
+
             $contact = WaContact::firstOrCreate(
                 ['wa_account_id' => $account->id, 'wa_number' => $from],
                 ['name' => $profileNames[$from] ?? null]
@@ -178,7 +220,40 @@ class WaWebhookController extends Controller
                 $contact->update(['name' => $profileName]);
             }
 
-            $contact->recordMessage('in', $body, $type, $waMessageId);
+            $contact->recordMessage('in', $body, $type, $waMessageId, null, $media);
+        }
+    }
+
+    /** Download and persist a media object; returns the public-disk path or null. */
+    private function storeMedia(WaAccount $account, string $mediaId, ?string $mime): ?string
+    {
+        try {
+            $download = (new \App\Services\WhatsAppCloud())->downloadMedia($account, $mediaId);
+            if (!$download) {
+                return null;
+            }
+
+            $mime = $download['mime'] ?: $mime ?: '';
+            $ext = match (true) {
+                str_contains($mime, 'ogg') => 'ogg',
+                str_contains($mime, 'mpeg') => 'mp3',
+                str_contains($mime, 'mp4') => 'mp4',
+                str_contains($mime, 'aac') => 'aac',
+                str_contains($mime, 'amr') => 'amr',
+                str_contains($mime, 'jpeg') => 'jpg',
+                str_contains($mime, 'png') => 'png',
+                str_contains($mime, 'webp') => 'webp',
+                str_contains($mime, 'pdf') => 'pdf',
+                default => 'bin',
+            };
+
+            $path = "wa-media/{$account->id}/{$mediaId}.{$ext}";
+            \Illuminate\Support\Facades\Storage::disk('public')->put($path, $download['data']);
+
+            return $path;
+        } catch (\Throwable $e) {
+            Log::warning("WA media download failed for {$mediaId}: " . $e->getMessage());
+            return null;
         }
     }
 }

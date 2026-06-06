@@ -360,6 +360,83 @@ class WaChatTest extends TestCase
             ->assertOk()->assertJson(['persona' => 'lead']);
     }
 
+    public function test_audio_message_is_downloaded_and_exposed_with_media_url(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        config(['services.whatsapp.default_token' => 'shared-tok']);
+        Http::fake([
+            'graph.facebook.com/*/media_99' => Http::response([
+                'url' => 'https://lookaside.fbsbx.com/whatsapp/media_99',
+                'mime_type' => 'audio/ogg; codecs=opus',
+            ], 200),
+            'lookaside.fbsbx.com/*' => Http::response('OGGDATA', 200, ['Content-Type' => 'audio/ogg']),
+        ]);
+
+        $shop = Shop::factory()->create();
+        $account = $this->makeAccount($shop);
+
+        $payload = [
+            'entry' => [[
+                'changes' => [[
+                    'value' => [
+                        'metadata' => ['phone_number_id' => 'pn_123'],
+                        'contacts' => [['wa_id' => '971501112222', 'profile' => ['name' => 'Ali']]],
+                        'messages' => [[
+                            'from' => '971501112222',
+                            'id' => 'wamid.audio1',
+                            'type' => 'audio',
+                            'audio' => ['id' => 'media_99', 'mime_type' => 'audio/ogg; codecs=opus', 'voice' => true],
+                        ]],
+                    ],
+                ]],
+            ]],
+        ];
+
+        $this->postJson('/api/wa/webhook', $payload)->assertOk();
+
+        $message = \App\Models\WaMessage::where('wa_message_id', 'wamid.audio1')->first();
+        $this->assertNotNull($message);
+        $this->assertSame('audio', $message->type);
+        $this->assertSame('media_99', $message->media_id);
+        $this->assertSame("wa-media/{$account->id}/media_99.ogg", $message->media_path);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($message->media_path);
+
+        // thread API exposes a playable URL
+        $this->authed($shop);
+        $contact = $account->contacts()->first();
+        $list = $this->getJson("/api/shop/wa/contacts/{$contact->id}/messages")->json('data');
+        $this->assertNotEmpty($list[0]['media_url']);
+    }
+
+    public function test_relay_transcript_updates_message_body(): void
+    {
+        config(['services.whatsapp.relay_secret' => 'relay-secret']);
+
+        $shop = Shop::factory()->create();
+        $account = $this->makeAccount($shop);
+        $contact = WaContact::create(['wa_account_id' => $account->id, 'wa_number' => '971501112222']);
+        $contact->recordMessage('in', '[audio message]', 'audio', 'wamid.audio2');
+
+        $this->postJson('/api/wa/relay-transcript', [
+            'wa_message_id' => 'wamid.audio2',
+            'transcript' => 'I want to book a haircut tomorrow',
+        ], ['X-Relay-Secret' => 'relay-secret'])->assertOk()->assertJson(['status' => 'ok']);
+
+        $this->assertSame(
+            '🎤 I want to book a haircut tomorrow',
+            \App\Models\WaMessage::where('wa_message_id', 'wamid.audio2')->first()->body
+        );
+        $this->assertSame('🎤 I want to book a haircut tomorrow', $contact->fresh()->last_message_preview);
+
+        // unknown message ignored quietly; missing secret rejected
+        $this->postJson('/api/wa/relay-transcript', [
+            'wa_message_id' => 'wamid.nope', 'transcript' => 'x',
+        ], ['X-Relay-Secret' => 'relay-secret'])->assertOk()->assertJson(['status' => 'ignored']);
+        $this->postJson('/api/wa/relay-transcript', [
+            'wa_message_id' => 'wamid.audio2', 'transcript' => 'x',
+        ])->assertForbidden();
+    }
+
     public function test_chat_endpoints_require_auth(): void
     {
         $this->getJson('/api/shop/wa/account')->assertUnauthorized();
