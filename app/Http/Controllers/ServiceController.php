@@ -8,17 +8,8 @@ class ServiceController extends Controller
 {
     public function index(Request $request)
     {
-        // Hardcoded service_type
-        $service_type = [
-            ['id' => 1, 'code' => '0001', 'name' => 'Barber',       'icon' => "Scissors"],
-            ['id' => 2, 'code' => '0002', 'name' => 'Plumbing',     'icon' => 'Pickaxe'],
-            ['id' => 3, 'code' => '0003', 'name' => 'AC Repair',    'icon' => 'Wind'],
-            ['id' => 4, 'code' => '0004', 'name' => 'Electrician',  'icon' => 'Zap'],
-            ['id' => 5, 'code' => '0005', 'name' => 'Car Wash',     'icon' => 'Car'],
-            ['id' => 6, 'code' => '0006', 'name' => 'Painting',     'icon' => 'Paintbrush'],
-            ['id' => 7, 'code' => '0007', 'name' => 'Cleaning',     'icon' => 'Home'],
-            ['id' => 8, 'code' => '0008', 'name' => 'Pest Control', 'icon' => 'ShieldCheck'],
-        ];
+        // Single source of truth shared with shop registration + bot personas.
+        $service_type = \App\Support\ServiceCategories::all();
 
         return $service_type;
 

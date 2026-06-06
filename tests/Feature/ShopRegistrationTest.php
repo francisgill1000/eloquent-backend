@@ -27,6 +27,35 @@ class ShopRegistrationTest extends TestCase
         $shop = Shop::where('name', 'Shakaina Salon')->first();
         $this->assertNotNull($shop);
         $this->assertSame('0554501483', $shop->phone);
+        $this->assertNotNull($shop->category_confirmed_at); // locked at registration
+    }
+
+    public function test_rejects_unknown_category(): void
+    {
+        $this->postJson('/api/shops', [
+            'name' => 'Bad Cat Shop',
+            'phone' => '0550000001',
+            'category_id' => 99,
+            'is_verified' => true,
+        ])->assertStatus(422);
+    }
+
+    public function test_old_shop_confirms_category_once_then_locked(): void
+    {
+        $shop = Shop::factory()->create(['category_id' => 1, 'category_confirmed_at' => null]);
+        $token = $shop->createToken('test')->plainTextToken;
+        $headers = ['Authorization' => "Bearer {$token}"];
+
+        // first confirmation works
+        $this->postJson('/api/shop/category', ['category_id' => 9], $headers)
+            ->assertOk()
+            ->assertJsonPath('shop.category_id', 9);
+        $this->assertNotNull($shop->fresh()->category_confirmed_at);
+
+        // second attempt is rejected — locked
+        $this->postJson('/api/shop/category', ['category_id' => 2], $headers)
+            ->assertStatus(422);
+        $this->assertSame(9, (int) $shop->fresh()->category_id);
     }
 
     public function test_phone_can_be_updated_via_shop_update(): void

@@ -79,7 +79,17 @@ class WaWebhookController extends Controller
             ->where('whatsapp_normalized', 'LIKE', '%' . $tail)
             ->exists();
 
-        return response()->json(['persona' => $isCustomer ? 'customer' : 'lead']);
+        if (!$isCustomer) {
+            return response()->json(['persona' => 'lead']);
+        }
+
+        $shop = $account->shop;
+
+        return response()->json([
+            'persona' => 'customer',
+            'shop_name' => $shop?->name,
+            'category' => \App\Support\ServiceCategories::name($shop?->category_id),
+        ]);
     }
 
     /**

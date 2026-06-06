@@ -101,6 +101,7 @@ Route::get('/wa/persona', [\App\Http\Controllers\WaWebhookController::class, 'pe
 
 // WhatsApp chats — shop-authenticated
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/shop/category', [ShopController::class, 'confirmCategory']);
     Route::get('/shop/wa/account', [\App\Http\Controllers\WaChatController::class, 'account']);
     Route::post('/shop/wa/account', [\App\Http\Controllers\WaChatController::class, 'saveAccount']);
     Route::get('/shop/wa/contacts', [\App\Http\Controllers\WaChatController::class, 'contacts']);

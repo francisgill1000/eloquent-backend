@@ -342,8 +342,14 @@ class WaChatTest extends TestCase
             ->assertForbidden();
 
         // known customer (matched on last 9 digits even with different prefix)
+        // → includes the shop's locked category so the bot can speak in role
+        $shop->update(['category_id' => 9]);
         $this->getJson('/api/wa/persona?phone_number_id=pn_123&number=00971501112222', $headers)
-            ->assertOk()->assertJson(['persona' => 'customer']);
+            ->assertOk()->assertJson([
+                'persona' => 'customer',
+                'shop_name' => $shop->name,
+                'category' => 'Salon',
+            ]);
 
         // unknown sender → lead
         $this->getJson('/api/wa/persona?phone_number_id=pn_123&number=971509998888', $headers)
