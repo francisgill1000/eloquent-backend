@@ -15,6 +15,7 @@ class StoreShopRequest extends FormRequest
     {
         return [
             'name'        => 'required|string|max:255|unique:shops,name',
+            'phone'       => 'nullable|string|max:32',
             'logo'        => 'nullable',
             'hero_image'  => 'nullable',
             'lat'         => 'nullable|between:-90,90',
