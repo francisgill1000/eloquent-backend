@@ -141,6 +141,8 @@ class WaWebhookController extends Controller
             'to' => ['required', 'string'],
             'text' => ['required', 'string'],
             'wa_message_id' => ['nullable', 'string'],
+            'type' => ['nullable', 'string', 'max:20'],
+            'media_id' => ['nullable', 'string'],
         ]);
 
         $account = WaAccount::where('phone_number_id', $data['phone_number_id'])->first();
@@ -153,11 +155,19 @@ class WaWebhookController extends Controller
             return response()->json(['status' => 'duplicate']);
         }
 
+        // Bot voice replies carry the uploaded audio's media id — download and
+        // keep it so the chat thread can play the bot's voice note too.
+        $media = [];
+        if (!empty($data['media_id'])) {
+            $media['media_id'] = $data['media_id'];
+            $media['media_path'] = $this->storeMedia($account, $data['media_id'], null);
+        }
+
         $contact = WaContact::firstOrCreate([
             'wa_account_id' => $account->id,
             'wa_number' => preg_replace('/\D+/', '', $data['to']),
         ]);
-        $contact->recordMessage('out', $data['text'], 'text', $waMessageId, 'sent');
+        $contact->recordMessage('out', $data['text'], $data['type'] ?? 'text', $waMessageId, 'sent', $media);
 
         return response()->json(['status' => 'ok']);
     }
