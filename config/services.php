@@ -42,6 +42,7 @@ return [
     'whatsapp' => [
         'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),
         'graph_version' => env('GRAPH_API_VERSION', 'v25.0'),
+        'relay_secret' => env('WA_RELAY_SECRET'),
     ],
 
 ];

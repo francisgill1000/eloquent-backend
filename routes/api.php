@@ -96,6 +96,7 @@ Route::get('/shop/bookings', [BookingController::class, 'shopBookings']);
 // WhatsApp Cloud API — public webhook (routed per shop by phone_number_id)
 Route::get('/wa/webhook', [\App\Http\Controllers\WaWebhookController::class, 'verify']);
 Route::post('/wa/webhook', [\App\Http\Controllers\WaWebhookController::class, 'receive']);
+Route::post('/wa/relay-out', [\App\Http\Controllers\WaWebhookController::class, 'relayOut']);
 
 // WhatsApp chats — shop-authenticated
 Route::middleware('auth:sanctum')->group(function () {

@@ -40,7 +40,8 @@ class WaContact extends Model
             'last_message_preview' => mb_substr($body, 0, 500),
             'last_message_direction' => $direction,
             'last_message_at' => now(),
-            'unread_count' => $direction === 'in' ? $this->unread_count + 1 : $this->unread_count,
+            // ?? 0: a just-created model hasn't hydrated the DB default yet
+            'unread_count' => ($this->unread_count ?? 0) + ($direction === 'in' ? 1 : 0),
         ])->save();
 
         return $message;
