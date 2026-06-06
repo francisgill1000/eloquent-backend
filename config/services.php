@@ -39,4 +39,9 @@ return [
         'key' => env('GOOGLE_MAPS_KEY'),
     ],
 
+    'whatsapp' => [
+        'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),
+        'graph_version' => env('GRAPH_API_VERSION', 'v25.0'),
+    ],
+
 ];

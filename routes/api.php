@@ -93,6 +93,20 @@ Route::middleware('auth:sanctum')->post('/shops/qr-login/approve/{token}', [Shop
 Route::get('/shop/all-bookings', [ShopController::class, 'bookings']);
 Route::get('/shop/bookings', [BookingController::class, 'shopBookings']);
 
+// WhatsApp Cloud API — public webhook (routed per shop by phone_number_id)
+Route::get('/wa/webhook', [\App\Http\Controllers\WaWebhookController::class, 'verify']);
+Route::post('/wa/webhook', [\App\Http\Controllers\WaWebhookController::class, 'receive']);
+
+// WhatsApp chats — shop-authenticated
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/shop/wa/account', [\App\Http\Controllers\WaChatController::class, 'account']);
+    Route::post('/shop/wa/account', [\App\Http\Controllers\WaChatController::class, 'saveAccount']);
+    Route::get('/shop/wa/contacts', [\App\Http\Controllers\WaChatController::class, 'contacts']);
+    Route::get('/shop/wa/contacts/{contact}/messages', [\App\Http\Controllers\WaChatController::class, 'messages']);
+    Route::post('/shop/wa/contacts/{contact}/messages', [\App\Http\Controllers\WaChatController::class, 'send']);
+    Route::post('/shop/wa/contacts/{contact}/read', [\App\Http\Controllers\WaChatController::class, 'markRead']);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('shop/catalogs', CatalogController::class)->only([
         'index',
