@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Shop;
 use App\Models\WaAccount;
 use App\Models\WaContact;
+use App\Models\WaMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -312,6 +313,36 @@ class WaChatTest extends TestCase
         $this->postJson('/api/wa/relay-out', [
             'phone_number_id' => 'pn_other', 'to' => '97150', 'text' => 'x',
         ], $headers)->assertOk()->assertJson(['status' => 'ignored']);
+    }
+
+    public function test_relay_out_stores_bot_voice_reply_audio(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        config(['services.whatsapp.relay_secret' => 'relay-secret']);
+        Http::fake([
+            'graph.facebook.com/*/media_out1' => Http::response([
+                'url' => 'https://lookaside.fbsbx.com/whatsapp/media_out1',
+                'mime_type' => 'audio/ogg',
+            ], 200),
+            'lookaside.fbsbx.com/*' => Http::response('OGGDATA', 200, ['Content-Type' => 'audio/ogg']),
+        ]);
+
+        $shop = Shop::factory()->create();
+        $account = $this->makeAccount($shop);
+
+        $this->postJson('/api/wa/relay-out', [
+            'phone_number_id' => 'pn_123',
+            'to' => '971501112222',
+            'text' => '🔊 Salam! Booking confirmed.',
+            'wa_message_id' => 'wamid.voiceout1',
+            'type' => 'audio',
+            'media_id' => 'media_out1',
+        ], ['X-Relay-Secret' => 'relay-secret'])->assertOk()->assertJson(['status' => 'ok']);
+
+        $message = WaMessage::where('wa_message_id', 'wamid.voiceout1')->first();
+        $this->assertSame('audio', $message->type);
+        $this->assertSame("wa-media/{$account->id}/media_out1.ogg", $message->media_path);
+        $this->assertNotEmpty($message->media_url);
     }
 
     public function test_relay_out_disabled_when_secret_unset(): void
