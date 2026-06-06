@@ -43,6 +43,9 @@ return [
         'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),
         'graph_version' => env('GRAPH_API_VERSION', 'v25.0'),
         'relay_secret' => env('WA_RELAY_SECRET'),
+        // Shared system-user token for all numbers under our own WABA.
+        // Per-account tokens (wa_accounts.token) override this when set.
+        'default_token' => env('WHATSAPP_DEFAULT_TOKEN'),
     ],
 
 ];

@@ -16,7 +16,14 @@ class WhatsAppCloud
     {
         $version = config('services.whatsapp.graph_version', 'v25.0');
 
-        $response = Http::withToken($account->token)
+        // Per-account token (tenant brought their own Meta business) falls
+        // back to our shared system-user token for numbers under our WABA.
+        $token = $account->token ?: config('services.whatsapp.default_token');
+        if (!$token) {
+            throw new \RuntimeException('WhatsApp send failed: no access token configured');
+        }
+
+        $response = Http::withToken($token)
             ->acceptJson()
             ->post("https://graph.facebook.com/{$version}/{$account->phone_number_id}/messages", [
                 'messaging_product' => 'whatsapp',
