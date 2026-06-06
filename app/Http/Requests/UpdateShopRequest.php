@@ -36,6 +36,7 @@ class UpdateShopRequest extends FormRequest
     {
         return [
             'name'          => 'nullable|string|max:255',
+            'phone'         => 'nullable|string|max:32',
             'logo'          => 'nullable|string',
             'pin'           => 'nullable|string',
             'lat'           => 'nullable|between:-90,90',
