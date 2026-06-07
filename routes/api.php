@@ -101,10 +101,16 @@ Route::get('/wa/persona', [\App\Http\Controllers\WaWebhookController::class, 'pe
 Route::post('/wa/relay-transcript', [\App\Http\Controllers\WaWebhookController::class, 'relayTranscript']);
 Route::get('/wa/shop-by-phone', [\App\Http\Controllers\WaWebhookController::class, 'shopByPhone']);
 Route::get('/wa/shop-context', [\App\Http\Controllers\WaWebhookController::class, 'shopContext']);
+Route::get('/wa/sales-prompt', [\App\Http\Controllers\WaWebhookController::class, 'salesPrompt']);
 
 // WhatsApp chats — shop-authenticated
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/master/shops', [\App\Http\Controllers\MasterController::class, 'shops']);
+    Route::get('/master/bot-prompts', [\App\Http\Controllers\MasterController::class, 'botPrompts']);
+    Route::post('/master/bot-prompts', [\App\Http\Controllers\MasterController::class, 'storeBotPrompt']);
+    Route::put('/master/bot-prompts/{botPrompt}', [\App\Http\Controllers\MasterController::class, 'updateBotPrompt']);
+    Route::delete('/master/bot-prompts/{botPrompt}', [\App\Http\Controllers\MasterController::class, 'deleteBotPrompt']);
+    Route::post('/master/bot-prompts/{botPrompt}/activate', [\App\Http\Controllers\MasterController::class, 'activateBotPrompt']);
     Route::post('/shop/category', [ShopController::class, 'confirmCategory']);
     Route::get('/shop/wa/account', [\App\Http\Controllers\WaChatController::class, 'account']);
     Route::post('/shop/wa/account', [\App\Http\Controllers\WaChatController::class, 'saveAccount']);
