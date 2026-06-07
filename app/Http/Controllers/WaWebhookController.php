@@ -130,6 +130,40 @@ class WaWebhookController extends Controller
     }
 
     /**
+     * Hand the auto-reply bot a shop's send context by phone_number_id:
+     * shop name, category, and the decrypted access token (falling back to
+     * the shared system token). Lets the bot reply as any tenant shop.
+     * Secured by the shared relay secret.
+     */
+    public function shopContext(Request $request)
+    {
+        $secret = config('services.whatsapp.relay_secret');
+        abort_unless(
+            $secret && hash_equals($secret, (string) $request->header('X-Relay-Secret')),
+            403
+        );
+
+        $data = $request->validate([
+            'phone_number_id' => ['required', 'string'],
+        ]);
+
+        $account = WaAccount::where('phone_number_id', $data['phone_number_id'])->first();
+        if (!$account) {
+            return response()->json(['found' => false]);
+        }
+
+        $shop = $account->shop;
+
+        return response()->json([
+            'found' => true,
+            'shop_name' => $shop?->name,
+            'category' => \App\Support\ServiceCategories::name($shop?->category_id),
+            'phone_number_id' => $account->phone_number_id,
+            'token' => $account->token ?: config('services.whatsapp.default_token'),
+        ]);
+    }
+
+    /**
      * Attach a voice-note transcript (from the bot's Whisper pass) to an
      * already-stored inbound message, so chats show what was said.
      */
