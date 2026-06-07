@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BotPrompt;
 use App\Models\Shop;
 use App\Models\WaAccount;
 use App\Support\ServiceCategories;
@@ -56,5 +57,83 @@ class MasterController extends Controller
             });
 
         return response()->json(['data' => $shops]);
+    }
+
+    /**
+     * Bot prompt presets for the sales/test number. The default ("Sales Bot")
+     * is the normal behaviour; activating a custom one makes the bot reply with
+     * that persona for everyone on the sales number — a live test switch.
+     */
+    public function botPrompts(Request $request)
+    {
+        $this->requireMaster($request);
+
+        $prompts = BotPrompt::orderByDesc('is_default')->orderBy('id')->get();
+
+        return response()->json(['data' => $prompts]);
+    }
+
+    public function storeBotPrompt(Request $request)
+    {
+        $this->requireMaster($request);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+            'body' => ['required', 'string', 'max:20000'],
+        ]);
+
+        $prompt = BotPrompt::create([
+            'name' => $data['name'],
+            'body' => $data['body'],
+            'is_default' => false,
+            'is_active' => false,
+        ]);
+
+        return response()->json(['data' => $prompt], 201);
+    }
+
+    public function updateBotPrompt(Request $request, BotPrompt $botPrompt)
+    {
+        $this->requireMaster($request);
+
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:80'],
+            'body' => ['sometimes', 'string', 'max:20000'],
+        ]);
+
+        // is_default / is_active are never edited directly here — activation has
+        // its own endpoint and the default flag is fixed at seed time.
+        $botPrompt->update($data);
+
+        return response()->json(['data' => $botPrompt]);
+    }
+
+    public function activateBotPrompt(Request $request, BotPrompt $botPrompt)
+    {
+        $this->requireMaster($request);
+
+        BotPrompt::where('is_active', true)->update(['is_active' => false]);
+        $botPrompt->update(['is_active' => true]);
+
+        return response()->json(['data' => $botPrompt->fresh()]);
+    }
+
+    public function deleteBotPrompt(Request $request, BotPrompt $botPrompt)
+    {
+        $this->requireMaster($request);
+
+        if ($botPrompt->is_default) {
+            return response()->json(['message' => 'The default prompt cannot be deleted.'], 422);
+        }
+
+        $wasActive = $botPrompt->is_active;
+        $botPrompt->delete();
+
+        // Never leave the bot without an active prompt — fall back to default.
+        if ($wasActive) {
+            BotPrompt::where('is_default', true)->update(['is_active' => true]);
+        }
+
+        return response()->json(['ok' => true]);
     }
 }

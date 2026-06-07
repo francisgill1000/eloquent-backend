@@ -164,6 +164,35 @@ class WaWebhookController extends Controller
     }
 
     /**
+     * Hand the auto-reply bot the active sales-number prompt. Returns
+     * override=false when the default ("Sales Bot") is active — the bot then
+     * uses its own local sales prompt and normal persona logic. Returns
+     * override=true + the body when a custom prompt is active, so the bot
+     * replies with that persona for everyone on the sales number.
+     * Secured by the shared relay secret.
+     */
+    public function salesPrompt(Request $request)
+    {
+        $secret = config('services.whatsapp.relay_secret');
+        abort_unless(
+            $secret && hash_equals($secret, (string) $request->header('X-Relay-Secret')),
+            403
+        );
+
+        $active = \App\Models\BotPrompt::where('is_active', true)->first();
+
+        if (!$active || $active->is_default) {
+            return response()->json(['override' => false]);
+        }
+
+        return response()->json([
+            'override' => true,
+            'name' => $active->name,
+            'body' => $active->body,
+        ]);
+    }
+
+    /**
      * Attach a voice-note transcript (from the bot's Whisper pass) to an
      * already-stored inbound message, so chats show what was said.
      */
