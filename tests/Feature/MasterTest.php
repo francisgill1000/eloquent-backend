@@ -25,7 +25,9 @@ class MasterTest extends TestCase
         $response = $this->getJson('/api/master/shops', $this->authed($master))->assertOk();
         $list = $response->json('data');
 
-        $this->assertCount(3, $list);
+        // the master's own account is excluded
+        $this->assertCount(2, $list);
+        $this->assertNull(collect($list)->firstWhere('id', $master->id));
         $rowA = collect($list)->firstWhere('id', $shopA->id);
         $this->assertSame($shopA->shop_code, $rowA['shop_code']);
         $this->assertSame($shopA->pin, $rowA['pin']);

@@ -27,11 +27,12 @@ class MasterController extends Controller
      */
     public function shops(Request $request)
     {
-        $this->requireMaster($request);
+        $master = $this->requireMaster($request);
 
         $waShopIds = WaAccount::pluck('phone_number', 'shop_id');
 
         $shops = Shop::query()
+            ->where('id', '!=', $master->id) // the master's own account isn't a business
             ->withCount('bookings')
             ->orderByDesc('id')
             ->get()
