@@ -30,6 +30,23 @@ class BotPromptTest extends TestCase
         $this->assertTrue($default['is_active'], 'the default is active out of the box');
     }
 
+    public function test_a_prompt_is_seeded_for_every_category_inactive(): void
+    {
+        foreach (\App\Support\ServiceCategories::all() as $cat) {
+            $this->assertDatabaseHas('bot_prompts', [
+                'name' => $cat['name'],
+                'is_default' => false,
+                'is_active' => false,
+            ]);
+            $prompt = BotPrompt::where('name', $cat['name'])->where('is_default', false)->first();
+            $this->assertNotEmpty($prompt->body, "{$cat['name']} prompt should have a body");
+        }
+
+        // The default is still the only thing active out of the box.
+        $this->assertSame(1, BotPrompt::where('is_active', true)->count());
+        $this->assertTrue(BotPrompt::where('is_default', true)->first()->is_active);
+    }
+
     public function test_master_creates_a_non_default_inactive_prompt(): void
     {
         $master = Shop::factory()->create(['is_master' => true]);
