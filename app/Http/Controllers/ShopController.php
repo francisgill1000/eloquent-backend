@@ -143,8 +143,15 @@ class ShopController extends Controller
             return response()->json(['message' => 'Shop authentication required'], 403);
         }
 
+        // The category is chosen once (at registration) and then fixed. If it is
+        // already set, treat this as a no-op success and return the shop as-is —
+        // a new account that already has a category should never be blocked here
+        // (the previous 422 surfaced as a confusing "category is locked" error).
         if ($shop->category_confirmed_at) {
-            return response()->json(['message' => 'Category is locked and cannot be changed.'], 422);
+            return response()->json([
+                'message' => 'Category already set',
+                'shop' => $shop->fresh(),
+            ]);
         }
 
         $data = $request->validate([
