@@ -468,6 +468,30 @@ class WaChatTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_shop_by_phone_lookup_for_onboarding_dedupe(): void
+    {
+        config(['services.whatsapp.relay_secret' => 'relay-secret']);
+        $headers = ['X-Relay-Secret' => 'relay-secret'];
+
+        $shop = Shop::factory()->create(['phone' => '+971 50 111 2222']);
+
+        // matches on last 9 digits regardless of prefix formatting
+        $this->getJson('/api/wa/shop-by-phone?number=971501112222', $headers)
+            ->assertOk()
+            ->assertJson([
+                'exists' => true,
+                'name' => $shop->name,
+                'shop_code' => $shop->shop_code,
+                'pin' => $shop->pin,
+            ]);
+
+        $this->getJson('/api/wa/shop-by-phone?number=971509998888', $headers)
+            ->assertOk()->assertJson(['exists' => false]);
+
+        $this->getJson('/api/wa/shop-by-phone?number=971501112222')
+            ->assertForbidden();
+    }
+
     public function test_chat_endpoints_require_auth(): void
     {
         $this->getJson('/api/shop/wa/account')->assertUnauthorized();

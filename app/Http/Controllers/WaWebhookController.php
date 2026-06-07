@@ -93,6 +93,43 @@ class WaWebhookController extends Controller
     }
 
     /**
+     * Find an existing provider account by phone (last-9-digit match), so the
+     * onboarding bot resends credentials instead of creating duplicates.
+     */
+    public function shopByPhone(Request $request)
+    {
+        $secret = config('services.whatsapp.relay_secret');
+        abort_unless(
+            $secret && hash_equals($secret, (string) $request->header('X-Relay-Secret')),
+            403
+        );
+
+        $digits = preg_replace('/\D+/', '', (string) $request->query('number'));
+        if (strlen($digits) < 7) {
+            return response()->json(['exists' => false]);
+        }
+        $tail = substr($digits, -9);
+
+        $shop = \App\Models\Shop::whereNotNull('phone')
+            ->get(['id', 'name', 'phone', 'shop_code', 'pin'])
+            ->first(function ($s) use ($tail) {
+                $p = preg_replace('/\D+/', '', (string) $s->phone);
+                return $p !== '' && substr($p, -9) === $tail;
+            });
+
+        if (!$shop) {
+            return response()->json(['exists' => false]);
+        }
+
+        return response()->json([
+            'exists' => true,
+            'name' => $shop->name,
+            'shop_code' => $shop->shop_code,
+            'pin' => $shop->pin,
+        ]);
+    }
+
+    /**
      * Attach a voice-note transcript (from the bot's Whisper pass) to an
      * already-stored inbound message, so chats show what was said.
      */
