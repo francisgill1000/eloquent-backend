@@ -65,6 +65,30 @@ class WaShopContextTest extends TestCase
             ->assertJson(['found' => false]);
     }
 
+    public function test_returns_shop_persona_when_set(): void
+    {
+        config(['services.whatsapp.relay_secret' => 'relay-secret']);
+        $shop = Shop::factory()->create(['persona' => 'You are Glow Salon. Keep it short.']);
+        $this->makeAccount($shop, 'pn_ctx_persona');
+
+        $this->withHeader('X-Relay-Secret', 'relay-secret')
+            ->getJson('/api/wa/shop-context?phone_number_id=pn_ctx_persona')
+            ->assertOk()
+            ->assertJson(['found' => true, 'persona' => 'You are Glow Salon. Keep it short.']);
+    }
+
+    public function test_persona_is_null_when_unset(): void
+    {
+        config(['services.whatsapp.relay_secret' => 'relay-secret']);
+        $shop = Shop::factory()->create();
+        $this->makeAccount($shop, 'pn_ctx_nopersona');
+
+        $this->withHeader('X-Relay-Secret', 'relay-secret')
+            ->getJson('/api/wa/shop-context?phone_number_id=pn_ctx_nopersona')
+            ->assertOk()
+            ->assertJson(['found' => true, 'persona' => null]);
+    }
+
     public function test_rejects_missing_or_wrong_secret(): void
     {
         config(['services.whatsapp.relay_secret' => 'relay-secret']);

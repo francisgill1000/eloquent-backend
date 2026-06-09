@@ -158,6 +158,7 @@ class WaWebhookController extends Controller
             'found' => true,
             'shop_name' => $shop?->name,
             'category' => \App\Support\ServiceCategories::name($shop?->category_id),
+            'persona' => $shop?->persona,
             'phone_number_id' => $account->phone_number_id,
             'token' => $account->token ?: config('services.whatsapp.default_token'),
         ]);
