@@ -106,6 +106,7 @@ Route::get('/wa/sales-prompt', [\App\Http\Controllers\WaWebhookController::class
 // WhatsApp chats — shop-authenticated
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/master/shops', [\App\Http\Controllers\MasterController::class, 'shops']);
+    Route::patch('/master/shops/{shop}', [\App\Http\Controllers\MasterController::class, 'updateShop']);
     Route::get('/master/bot-prompts', [\App\Http\Controllers\MasterController::class, 'botPrompts']);
     Route::post('/master/bot-prompts', [\App\Http\Controllers\MasterController::class, 'storeBotPrompt']);
     Route::put('/master/bot-prompts/{botPrompt}', [\App\Http\Controllers\MasterController::class, 'updateBotPrompt']);
