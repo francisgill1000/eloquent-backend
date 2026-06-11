@@ -25,8 +25,10 @@ class WaChatController extends Controller
     private function requireOwnedContact(Request $request, WaContact $contact): Shop
     {
         $shop = $this->requireShop($request);
-        $account = $contact->waAccount;
-        abort_unless($account && (int) $account->shop_id === (int) $shop->id, 404);
+        $owned = $contact->isApp()
+            ? (int) $contact->shop_id === (int) $shop->id
+            : ($contact->waAccount && (int) $contact->waAccount->shop_id === (int) $shop->id);
+        abort_unless($owned, 404);
         return $shop;
     }
 
@@ -99,16 +101,21 @@ class WaChatController extends Controller
         $shop = $this->requireShop($request);
         $account = WaAccount::where('shop_id', $shop->id)->first();
 
-        if (!$account) {
-            return response()->json(['connected' => false, 'data' => []]);
-        }
-
-        $contacts = $account->contacts()
+        // One inbox: WhatsApp threads (via the account) + in-app Live Chat
+        // threads (owned by shop_id directly). Live Chat works without a
+        // connected WA number; `connected` keeps meaning "WA connected".
+        $contacts = WaContact::query()
+            ->where(function ($q) use ($shop, $account) {
+                $q->where(fn ($w) => $w->where('channel', 'app')->where('shop_id', $shop->id));
+                if ($account) {
+                    $q->orWhere('wa_account_id', $account->id);
+                }
+            })
             ->orderByDesc('last_message_at')
             ->limit(500)
             ->get();
 
-        return response()->json(['connected' => true, 'data' => $contacts]);
+        return response()->json(['connected' => (bool) $account, 'data' => $contacts]);
     }
 
     public function messages(Request $request, WaContact $contact)
@@ -136,6 +143,14 @@ class WaChatController extends Controller
         $data = $request->validate([
             'text' => ['required', 'string', 'max:4096'],
         ]);
+
+        // Live Chat: storing the row delivers it (the customer app polls).
+        // No Graph call, no 24h window.
+        if ($contact->isApp()) {
+            $message = $contact->recordMessage('out', $data['text'], 'text', null, 'sent');
+
+            return response()->json(['data' => $message], 201);
+        }
 
         $account = $contact->waAccount;
 

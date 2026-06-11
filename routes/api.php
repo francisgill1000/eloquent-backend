@@ -93,6 +93,13 @@ Route::middleware('auth:sanctum')->post('/shops/qr-login/approve/{token}', [Shop
 Route::get('/shop/all-bookings', [ShopController::class, 'bookings']);
 Route::get('/shop/bookings', [BookingController::class, 'shopBookings']);
 
+// In-app Live Chat — customer side, keyed by X-Device-Id (no login needed).
+// Throttled: every send can trigger a Claude call.
+Route::get('/chat/shops/{shop}/messages', [\App\Http\Controllers\ChatController::class, 'messages'])
+    ->middleware('throttle:120,1');
+Route::post('/chat/shops/{shop}/messages', [\App\Http\Controllers\ChatController::class, 'send'])
+    ->middleware('throttle:20,1');
+
 // WhatsApp Cloud API — public webhook (routed per shop by phone_number_id).
 // Auto-replies are generated in-app by the ProcessWaReply job.
 Route::get('/wa/webhook', [\App\Http\Controllers\WaWebhookController::class, 'verify']);

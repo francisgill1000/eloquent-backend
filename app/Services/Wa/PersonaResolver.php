@@ -23,12 +23,7 @@ class PersonaResolver
         if (!$this->isSalesNumber($account)) {
             // Tenant number: custom persona if the master set one, else the
             // category-based default. Never the onboarding tool.
-            $shop = $account->shop;
-            $prompt = ($shop?->persona && trim($shop->persona) !== '')
-                ? $shop->persona
-                : Prompts::provider($shop?->name ?? 'this business', ServiceCategories::name($shop?->category_id));
-
-            return ['prompt' => $prompt, 'offerTools' => false];
+            return ['prompt' => $this->promptForShop($account->shop), 'offerTools' => false];
         }
 
         // Sales number: an active master-panel override wins for everyone —
@@ -47,6 +42,18 @@ class PersonaResolver
 
         // Lead → the default Rezzy sales assistant (the only path that may onboard).
         return ['prompt' => Prompts::REZZY_SALES, 'offerTools' => true];
+    }
+
+    /**
+     * The assistant prompt for a shop regardless of channel: the master-set
+     * persona when present, else the category-based default. Used by the
+     * tenant-WA branch above and by in-app Live Chat (which has no WaAccount).
+     */
+    public function promptForShop(?Shop $shop): string
+    {
+        return ($shop?->persona && trim($shop->persona) !== '')
+            ? $shop->persona
+            : Prompts::provider($shop?->name ?? 'this business', ServiceCategories::name($shop?->category_id));
     }
 
     public function isSalesNumber(WaAccount $account): bool
