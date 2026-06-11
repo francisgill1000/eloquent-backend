@@ -119,38 +119,4 @@ class BotPromptTest extends TestCase
         $this->getJson('/api/master/bot-prompts')->assertUnauthorized();
     }
 
-    public function test_relay_returns_override_when_a_custom_prompt_is_active(): void
-    {
-        config(['services.whatsapp.relay_secret' => 'relay-secret']);
-        $salon = BotPrompt::create(['name' => 'Salon', 'body' => 'You are a salon assistant.', 'is_active' => true]);
-        BotPrompt::where('is_default', true)->update(['is_active' => false]);
-
-        $this->withHeader('X-Relay-Secret', 'relay-secret')
-            ->getJson('/api/wa/sales-prompt')
-            ->assertOk()
-            ->assertJson([
-                'override' => true,
-                'name' => 'Salon',
-                'body' => 'You are a salon assistant.',
-            ]);
-    }
-
-    public function test_relay_returns_no_override_when_the_default_is_active(): void
-    {
-        config(['services.whatsapp.relay_secret' => 'relay-secret']);
-
-        $this->withHeader('X-Relay-Secret', 'relay-secret')
-            ->getJson('/api/wa/sales-prompt')
-            ->assertOk()
-            ->assertJson(['override' => false]);
-    }
-
-    public function test_relay_rejects_a_missing_or_wrong_secret(): void
-    {
-        config(['services.whatsapp.relay_secret' => 'relay-secret']);
-
-        $this->getJson('/api/wa/sales-prompt')->assertForbidden();
-        $this->withHeader('X-Relay-Secret', 'nope')
-            ->getJson('/api/wa/sales-prompt')->assertForbidden();
-    }
 }

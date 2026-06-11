@@ -93,15 +93,10 @@ Route::middleware('auth:sanctum')->post('/shops/qr-login/approve/{token}', [Shop
 Route::get('/shop/all-bookings', [ShopController::class, 'bookings']);
 Route::get('/shop/bookings', [BookingController::class, 'shopBookings']);
 
-// WhatsApp Cloud API — public webhook (routed per shop by phone_number_id)
+// WhatsApp Cloud API — public webhook (routed per shop by phone_number_id).
+// Auto-replies are generated in-app by the ProcessWaReply job.
 Route::get('/wa/webhook', [\App\Http\Controllers\WaWebhookController::class, 'verify']);
 Route::post('/wa/webhook', [\App\Http\Controllers\WaWebhookController::class, 'receive']);
-Route::post('/wa/relay-out', [\App\Http\Controllers\WaWebhookController::class, 'relayOut']);
-Route::get('/wa/persona', [\App\Http\Controllers\WaWebhookController::class, 'persona']);
-Route::post('/wa/relay-transcript', [\App\Http\Controllers\WaWebhookController::class, 'relayTranscript']);
-Route::get('/wa/shop-by-phone', [\App\Http\Controllers\WaWebhookController::class, 'shopByPhone']);
-Route::get('/wa/shop-context', [\App\Http\Controllers\WaWebhookController::class, 'shopContext']);
-Route::get('/wa/sales-prompt', [\App\Http\Controllers\WaWebhookController::class, 'salesPrompt']);
 
 // WhatsApp chats — shop-authenticated
 Route::middleware('auth:sanctum')->group(function () {
