@@ -34,6 +34,17 @@ class WaWebhookController extends Controller
      */
     public function receive(Request $request)
     {
+        // Verify Meta's webhook signature when an app secret is configured
+        // (no-op when unset — parity with the retired Node service).
+        $secret = config('services.whatsapp.app_secret');
+        if ($secret) {
+            $expected = 'sha256=' . hash_hmac('sha256', $request->getContent(), $secret);
+            $signature = (string) $request->header('X-Hub-Signature-256');
+            if (!hash_equals($expected, $signature)) {
+                return response('Forbidden', 403);
+            }
+        }
+
         $payload = $request->all();
 
         try {
@@ -331,7 +342,12 @@ class WaWebhookController extends Controller
                 $contact->update(['name' => $profileName]);
             }
 
-            $contact->recordMessage('in', $body, $type, $waMessageId, null, $media);
+            $stored = $contact->recordMessage('in', $body, $type, $waMessageId, null, $media);
+
+            // Auto-reply runs in the background — the webhook ACKs instantly.
+            // Meta retries never reach here (wa_message_id dedupe above), so
+            // a message is dispatched exactly once.
+            \App\Jobs\ProcessWaReply::dispatch($stored->id);
         }
     }
 
