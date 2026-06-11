@@ -14,23 +14,64 @@ class WhatsAppCloud
      */
     public function sendText(WaAccount $account, string $to, string $text): array
     {
-        $version = config('services.whatsapp.graph_version', 'v25.0');
+        return $this->postMessage($account, [
+            'to' => preg_replace('/\D+/', '', $to),
+            'type' => 'text',
+            'text' => ['body' => $text],
+        ]);
+    }
 
-        // Per-account token (tenant brought their own Meta business) falls
-        // back to our shared system-user token for numbers under our WABA.
-        $token = $account->token ?: config('services.whatsapp.default_token');
-        if (!$token) {
-            throw new \RuntimeException('WhatsApp send failed: no access token configured');
+    /**
+     * Send a previously-uploaded audio object. OGG/Opus uploads render as a
+     * proper voice note in WhatsApp.
+     */
+    public function sendVoice(WaAccount $account, string $to, string $mediaId): array
+    {
+        return $this->postMessage($account, [
+            'to' => preg_replace('/\D+/', '', $to),
+            'type' => 'audio',
+            'audio' => ['id' => $mediaId],
+        ]);
+    }
+
+    /**
+     * Upload media bytes to the Cloud API; returns the media id.
+     *
+     * @throws \RuntimeException when the upload fails
+     */
+    public function uploadMedia(WaAccount $account, string $bytes, string $mime, string $filename = 'voice.ogg'): string
+    {
+        $version = config('services.whatsapp.graph_version', 'v25.0');
+        $token = $this->token($account);
+
+        $response = Http::withToken($token)
+            ->timeout(30)
+            ->attach('file', $bytes, $filename, ['Content-Type' => $mime])
+            ->post("https://graph.facebook.com/{$version}/{$account->phone_number_id}/media", [
+                'messaging_product' => 'whatsapp',
+            ]);
+
+        $id = $response->json('id');
+        if (!$response->successful() || !$id) {
+            $error = $response->json('error.message') ?: "HTTP {$response->status()}";
+            throw new \RuntimeException("WhatsApp media upload failed: {$error}");
         }
+
+        return $id;
+    }
+
+    /** Shared POST to the Cloud API messages endpoint. */
+    private function postMessage(WaAccount $account, array $payload): array
+    {
+        $version = config('services.whatsapp.graph_version', 'v25.0');
+        $token = $this->token($account);
 
         $response = Http::withToken($token)
             ->acceptJson()
-            ->post("https://graph.facebook.com/{$version}/{$account->phone_number_id}/messages", [
-                'messaging_product' => 'whatsapp',
-                'to' => preg_replace('/\D+/', '', $to),
-                'type' => 'text',
-                'text' => ['body' => $text],
-            ]);
+            ->post(
+                "https://graph.facebook.com/{$version}/{$account->phone_number_id}/messages",
+                ['messaging_product' => 'whatsapp', ...$payload]
+            );
 
         if (!$response->successful()) {
             $error = $response->json('error.message') ?: "HTTP {$response->status()}";
@@ -38,6 +79,20 @@ class WhatsAppCloud
         }
 
         return $response->json() ?? [];
+    }
+
+    /**
+     * Per-account token (tenant brought their own Meta business) falls back
+     * to our shared system-user token for numbers under our WABA.
+     */
+    private function token(WaAccount $account): string
+    {
+        $token = $account->token ?: config('services.whatsapp.default_token');
+        if (!$token) {
+            throw new \RuntimeException('WhatsApp send failed: no access token configured');
+        }
+
+        return $token;
     }
 
     /**
