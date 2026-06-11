@@ -55,6 +55,8 @@ class WaPersonaResolverTest extends TestCase
     public function test_sales_override_wins_for_everyone_and_disables_tools(): void
     {
         config(['services.whatsapp.sales_phone_number_id' => 'pn_sales']);
+        // Mirror the master panel: only one prompt is active at a time.
+        BotPrompt::where('is_active', true)->update(['is_active' => false]);
         BotPrompt::create(['name' => 'Salon Test', 'body' => 'You are a test salon bot.', 'is_active' => true, 'is_default' => false]);
 
         $result = (new PersonaResolver())->resolve($this->account('pn_sales'), '971555000111');
@@ -66,7 +68,8 @@ class WaPersonaResolverTest extends TestCase
     public function test_default_bot_prompt_is_not_an_override(): void
     {
         config(['services.whatsapp.sales_phone_number_id' => 'pn_sales']);
-        BotPrompt::create(['name' => 'Sales Bot', 'body' => 'default body', 'is_active' => true, 'is_default' => true]);
+        // The migration seeds the default "Sales Bot" prompt as the active one.
+        $this->assertTrue(BotPrompt::where('is_active', true)->where('is_default', true)->exists());
 
         $result = (new PersonaResolver())->resolve($this->account('pn_sales'), '971555000111');
 
