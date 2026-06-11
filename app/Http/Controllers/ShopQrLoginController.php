@@ -77,7 +77,7 @@ class ShopQrLoginController extends Controller
 
         return response()->json([
             'status' => 'approved',
-            'shop' => $shop,
+            'shop' => $shop->makeVisible('pin'), // owner's own creds
             'token' => $authToken,
         ]);
     }
