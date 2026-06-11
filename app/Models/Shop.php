@@ -20,6 +20,11 @@ class Shop extends Model
 
     protected $guarded = [];
 
+    // Login credentials must never leak through public endpoints (shops
+    // index/show/nearby). Owner-authenticated responses that legitimately
+    // show the PIN (login, register, QR login) call makeVisible('pin').
+    protected $hidden = ['pin', 'device_id'];
+
     protected $appends = ["registered_at", "year_of_experience", "total_bookings", "is_favourite", "is_open"];
 
     protected $casts = [

@@ -127,7 +127,7 @@ class ShopController extends Controller
         $token = $shop->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'shop' => $shop,
+            'shop' => $shop->makeVisible('pin'), // shown once on the credentials screen
             'token' => $token
         ], 201);
     }
@@ -150,7 +150,8 @@ class ShopController extends Controller
         if ($shop->category_confirmed_at) {
             return response()->json([
                 'message' => 'Category already set',
-                'shop' => $shop->fresh(),
+                // bizrezzy replaces its stored shop with this — keep pin visible
+                'shop' => $shop->fresh()->makeVisible('pin'),
             ]);
         }
 
@@ -165,7 +166,8 @@ class ShopController extends Controller
 
         return response()->json([
             'message' => 'Category saved',
-            'shop' => $shop->fresh(),
+            // bizrezzy replaces its stored shop with this — keep pin visible
+            'shop' => $shop->fresh()->makeVisible('pin'),
         ]);
     }
 
@@ -189,7 +191,7 @@ class ShopController extends Controller
         $shop->recordLogin($request, ShopLoginActivity::METHOD_PIN);
 
         return response()->json([
-            'shop' => $shop,
+            'shop' => $shop->makeVisible('pin'), // owner's own creds (Profile screen)
             'token' => $token
         ], 201);
     }
@@ -341,7 +343,7 @@ class ShopController extends Controller
             return response()->json([
                 'authenticated' => true,
                 'token' => $token,
-                'shop' => $shop
+                'shop' => $shop->makeVisible('pin'), // owner's own creds
             ]);
         }
 
