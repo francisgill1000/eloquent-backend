@@ -52,9 +52,10 @@ class ShopRegistrationTest extends TestCase
             ->assertJsonPath('shop.category_id', 9);
         $this->assertNotNull($shop->fresh()->category_confirmed_at);
 
-        // second attempt is rejected — locked
+        // second attempt is an idempotent no-op — category stays locked
         $this->postJson('/api/shop/category', ['category_id' => 2], $headers)
-            ->assertStatus(422);
+            ->assertOk()
+            ->assertJsonPath('message', 'Category already set');
         $this->assertSame(9, (int) $shop->fresh()->category_id);
     }
 
