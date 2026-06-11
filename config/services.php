@@ -46,6 +46,27 @@ return [
         // Shared system-user token for all numbers under our own WABA.
         // Per-account tokens (wa_accounts.token) override this when set.
         'default_token' => env('WHATSAPP_DEFAULT_TOKEN'),
+        // Meta app secret — verifies X-Hub-Signature-256 on webhooks (no-op when unset).
+        'app_secret' => env('WHATSAPP_APP_SECRET'),
+        // phone_number_id of our own Rezzy sales line (runs the sales persona + onboarding).
+        'sales_phone_number_id' => env('WHATSAPP_SALES_PHONE_NUMBER_ID'),
+    ],
+
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('CLAUDE_MODEL', 'claude-haiku-4-5'),
+    ],
+
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'), // Whisper + TTS; absent → voice features off
+        'tts_model' => env('TTS_MODEL', 'gpt-4o-mini-tts'),
+        'tts_voice' => env('TTS_VOICE', 'nova'),
+    ],
+
+    'webpush' => [
+        'public_key' => env('VAPID_PUBLIC_KEY'),
+        'private_key' => env('VAPID_PRIVATE_KEY'),
+        'subject' => env('VAPID_SUBJECT', 'mailto:admin@eloquentservice.com'),
     ],
 
 ];
