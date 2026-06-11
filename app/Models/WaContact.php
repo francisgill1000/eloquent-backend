@@ -17,6 +17,23 @@ class WaContact extends Model
         return $this->belongsTo(WaAccount::class);
     }
 
+    public function shop()
+    {
+        return $this->belongsTo(Shop::class);
+    }
+
+    /** App-channel (in-app Live Chat) contacts have no WaAccount. */
+    public function isApp(): bool
+    {
+        return $this->channel === 'app';
+    }
+
+    /** The shop this thread belongs to, whichever channel it came in on. */
+    public function ownerShop(): ?Shop
+    {
+        return $this->shop_id ? $this->shop : $this->waAccount?->shop;
+    }
+
     public function messages()
     {
         return $this->hasMany(WaMessage::class);

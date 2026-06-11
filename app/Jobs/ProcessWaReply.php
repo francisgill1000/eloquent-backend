@@ -58,7 +58,10 @@ class ProcessWaReply implements ShouldQueue
 
         $contact = $message->waContact;
         $account = $contact?->waAccount;
-        if (!$contact || !$account) {
+        // App-channel (in-app Live Chat) threads have no WaAccount — replies
+        // are stored rows the customer app polls, never Graph API sends.
+        $isApp = $contact?->isApp() ?? false;
+        if (!$contact || (!$account && !$isApp)) {
             return;
         }
 
@@ -72,8 +75,8 @@ class ProcessWaReply implements ShouldQueue
             return;
         }
 
-        $from = $contact->wa_number;
-        $name = $contact->name ?: ('+' . $from);
+        $from = $contact->wa_number ?: ('app-' . $contact->id);
+        $name = $contact->name ?: ($contact->wa_number ? '+' . $contact->wa_number : 'Live chat customer');
 
         // Emoji-like signals (reactions 👍, stickers) — store-only, never reply.
         if (in_array($message->type, ['reaction', 'sticker'], true)) {
@@ -87,7 +90,7 @@ class ProcessWaReply implements ShouldQueue
             return;
         }
 
-        $salesNumber = $personas->isSalesNumber($account);
+        $salesNumber = $account !== null && $personas->isSalesNumber($account);
         // When an override is active we're in a live persona test — the canned
         // greeting must NOT fire; every message goes through the override prompt.
         $overrideActive = $salesNumber && $personas->salesOverride() !== null;
@@ -96,7 +99,7 @@ class ProcessWaReply implements ShouldQueue
         if ($message->type === 'text' && !$overrideActive && Greetings::isBare($message->body)) {
             $welcome = $salesNumber
                 ? "Hi! 😊 Welcome to Rezzy — we help businesses get more bookings on WhatsApp, 24/7. What kind of business do you run?"
-                : 'Hi! 😊 Welcome to ' . ($account->shop?->name ?? 'our shop') . '. How can I help you today?';
+                : 'Hi! 😊 Welcome to ' . ($contact->ownerShop()?->name ?? 'our shop') . '. How can I help you today?';
             $push->notify($name, (string) $message->body, $from);
             $this->sendText($wa, $account, $contact, $welcome);
             return;
@@ -104,7 +107,7 @@ class ProcessWaReply implements ShouldQueue
 
         // Voice notes: transcribe, then answer them like normal text.
         $isVoice = false;
-        if (in_array($message->type, ['audio', 'voice'], true) && $transcriber->available()) {
+        if ($account && in_array($message->type, ['audio', 'voice'], true) && $transcriber->available()) {
             $transcript = $this->transcribe($wa, $transcriber, $account, $message);
             if ($transcript) {
                 $isVoice = true;
@@ -125,7 +128,9 @@ class ProcessWaReply implements ShouldQueue
 
         $push->notify($name, (string) $message->body, $from);
 
-        ['prompt' => $prompt, 'offerTools' => $offerTools] = $personas->resolve($account, $from);
+        ['prompt' => $prompt, 'offerTools' => $offerTools] = $isApp
+            ? ['prompt' => $personas->promptForShop($contact->ownerShop()), 'offerTools' => false]
+            : $personas->resolve($account, $from);
         $history = ConversationHistory::for($contact);
         if (!$history) {
             return;
@@ -167,8 +172,14 @@ class ProcessWaReply implements ShouldQueue
         }
     }
 
-    private function sendText(WhatsAppCloud $wa, WaAccount $account, WaContact $contact, string $text): void
+    private function sendText(WhatsAppCloud $wa, ?WaAccount $account, WaContact $contact, string $text): void
     {
+        // Live Chat: the stored row IS the delivery — the customer app polls it.
+        if ($contact->isApp() || !$account) {
+            $contact->recordMessage('out', $text, 'text', null, 'sent');
+            return;
+        }
+
         try {
             $sent = $wa->sendText($account, $contact->wa_number, $text);
             $contact->recordMessage('out', $text, 'text', $sent['messages'][0]['id'] ?? null, 'sent');
