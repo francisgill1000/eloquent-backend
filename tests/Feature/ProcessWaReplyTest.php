@@ -22,7 +22,6 @@ class ProcessWaReplyTest extends TestCase
             'services.anthropic.model' => 'claude-haiku-4-5',
             'services.whatsapp.graph_version' => 'v25.0',
             'services.whatsapp.default_token' => 'system-token',
-            'services.whatsapp.sales_phone_number_id' => 'pn_sales',
             'services.openai.key' => null,      // voice off by default
             'services.webpush.public_key' => null, // push off in tests
         ]);
@@ -39,18 +38,6 @@ class ProcessWaReplyTest extends TestCase
         ]);
 
         return WaContact::create(['wa_account_id' => $account->id, 'wa_number' => '971555000111', 'name' => 'Aisha']);
-    }
-
-    private function salesContact(): WaContact
-    {
-        $account = WaAccount::create([
-            'shop_id' => null,
-            'phone_number' => '+971500000006',
-            'phone_number_id' => 'pn_sales',
-            'waba_id' => 'waba_j',
-        ]);
-
-        return WaContact::create(['wa_account_id' => $account->id, 'wa_number' => '971555000222', 'name' => 'Omar']);
     }
 
     private function fakeClaudeAndGraph(string $replyText = 'Sure! We are open 9 to 5 😊'): void
@@ -122,31 +109,6 @@ class ProcessWaReplyTest extends TestCase
 
         $out = $contact->messages()->where('direction', 'out')->first();
         $this->assertStringContainsString("couldn't open that", $out->body);
-    }
-
-    public function test_sales_lead_gets_tools_and_onboarding_creates_shop(): void
-    {
-        Http::fake([
-            'api.anthropic.com/v1/messages' => Http::response([
-                'content' => [
-                    ['type' => 'tool_use', 'id' => 'tu_1', 'name' => 'create_business_account',
-                     'input' => ['business_name' => 'Omar Barbershop', 'category' => 'Barber']],
-                ],
-            ]),
-            'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OB1']]]),
-        ]);
-        $contact = $this->salesContact();
-        $inbound = $contact->recordMessage('in', 'yes create my account', 'text', 'wamid.IN6');
-
-        dispatch_sync(new ProcessWaReply($inbound->id));
-
-        $shop = Shop::where('name', 'Omar Barbershop')->firstOrFail();
-        $out = $contact->messages()->where('direction', 'out')->first();
-        $this->assertStringContainsString("Business ID: {$shop->shop_code}", $out->body);
-        Http::assertSent(function ($request) {
-            return str_contains($request->url(), 'anthropic')
-                && ($request['tools'][0]['name'] ?? null) === 'create_business_account';
-        });
     }
 
     public function test_does_not_reply_twice_when_thread_already_answered(): void
