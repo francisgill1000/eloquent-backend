@@ -113,6 +113,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/wa/push/subscribe', [\App\Http\Controllers\WaPushController::class, 'subscribe']);
     Route::post('/wa/push/unsubscribe', [\App\Http\Controllers\WaPushController::class, 'unsubscribe']);
     Route::post('/shop/category', [ShopController::class, 'confirmCategory']);
+    Route::get('/shop/persona', [\App\Http\Controllers\ShopPersonaController::class, 'show']);
+    Route::put('/shop/persona', [\App\Http\Controllers\ShopPersonaController::class, 'update']);
     Route::get('/shop/wa/account', [\App\Http\Controllers\WaChatController::class, 'account']);
     Route::post('/shop/wa/account', [\App\Http\Controllers\WaChatController::class, 'saveAccount']);
     Route::get('/shop/wa/contacts', [\App\Http\Controllers\WaChatController::class, 'contacts']);
