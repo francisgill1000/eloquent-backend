@@ -48,6 +48,9 @@ class ShopPersonaController extends Controller
             'default_prompt' => $default,
             'effective_prompt' => $personas->promptForShop($shop),
             'using_custom' => (bool) ($shop->persona && trim($shop->persona) !== ''),
+            // Appended automatically to every reply; shown read-only in the
+            // editor so it never gets frozen into a saved custom persona.
+            'business_facts' => \App\Support\Wa\ShopFacts::for($shop),
         ];
     }
 
