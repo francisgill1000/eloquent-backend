@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\WaAccount;
 use App\Models\WaContact;
 use App\Models\WaMessage;
+use App\Services\Wa\BookingTools;
 use App\Services\Wa\ClaudeClient;
 use App\Services\Wa\PersonaResolver;
 use App\Services\Wa\Speech;
@@ -131,7 +132,17 @@ class ProcessWaReply implements ShouldQueue
         }
 
         try {
-            $reply = $claude->reply($prompt, $history);
+            // With an owner shop the assistant gets booking tools: it can read
+            // real free slots and create bookings (registering the customer).
+            $reply = $shop
+                ? $claude->toolLoop(
+                    $prompt,
+                    $history,
+                    BookingTools::defs(),
+                    fn (string $tool, array $input) => app(BookingTools::class)->execute($shop, $contact, $tool, $input),
+                )
+                : $claude->reply($prompt, $history);
+            $reply = $reply !== '' ? $reply : 'One moment…';
 
             // Voice in → voice out. Any TTS hiccup falls back to plain text.
             if ($isVoice && $speech->available()) {
