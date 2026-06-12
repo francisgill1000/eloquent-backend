@@ -32,7 +32,9 @@ class ShopFacts
         $lines[] = self::hoursBlock($shop);
 
         $lines[] = 'Rules: only offer services from the list above, always with their exact AED price. '
-            . 'If a customer asks for anything not listed, say the team will confirm it shortly.';
+            . 'If a customer asks for anything not listed, say the team will confirm it shortly. '
+            . 'Being closed at this moment does NOT prevent booking — any future free slot today or later can be booked. '
+            . 'Never suggest a day marked "closed" in the opening hours; when asked about one, say it is closed and offer the next open day.';
 
         $lines[] = 'Booking flow (follow strictly, one step per message): '
             . '1) When the customer wants to book, call check_availability for the requested date and only ever offer times from its free_slots. '
