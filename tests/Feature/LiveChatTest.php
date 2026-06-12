@@ -194,7 +194,7 @@ class LiveChatTest extends TestCase
         $this->assertSame('We are open till 9pm 😊', $out->body);
         Http::assertSent(fn ($request) => str_contains($request->url(), 'anthropic')
             && str_contains($request['system'][0]['text'], 'Glow Salon')
-            && !array_key_exists('tools', $request->data()));
+            && in_array('create_booking', array_column($request['tools'] ?? [], 'name'), true));
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'graph.facebook.com'));
     }
 

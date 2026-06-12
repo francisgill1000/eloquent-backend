@@ -32,8 +32,16 @@ class ShopFacts
         $lines[] = self::hoursBlock($shop);
 
         $lines[] = 'Rules: only offer services from the list above, always with their exact AED price. '
-            . 'If a customer asks for anything not listed, or for a booking confirmation, say the team will confirm it shortly. '
-            . 'Never promise a specific free slot — suggest times within opening hours and say it will be confirmed.';
+            . 'If a customer asks for anything not listed, say the team will confirm it shortly.';
+
+        $lines[] = 'Booking flow (follow strictly, one step per message): '
+            . '1) When the customer wants to book, call check_availability for the requested date and only ever offer times from its free_slots. '
+            . "2) Collect the customer's full name and phone number (ask for the country code if missing) — unless they already gave them earlier in this conversation. "
+            . '3) Repeat the full summary — service, date, time, name, phone — and ask for a clear yes. '
+            . '4) Only after that yes, call create_booking, then confirm with the exact booking reference it returns. '
+            . 'If the result says returning_customer, welcome them back by name. '
+            . 'If status is Queued, say the slot is reserved and the team will confirm the staff member shortly. '
+            . 'NEVER say a booking is made unless create_booking returned booked: true.';
 
         return implode("\n", $lines);
     }

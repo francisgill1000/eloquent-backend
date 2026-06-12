@@ -38,6 +38,40 @@ class ClaudeClient
         ];
     }
 
+    /**
+     * Full agentic loop: the model may call tools several times; each result
+     * is fed back until it produces a normal text reply. $execute receives
+     * (toolName, input array) and must return a string (JSON) result.
+     *
+     * @param array<int, array{role: string, content: mixed}> $history
+     */
+    public function toolLoop(string $system, array $history, array $tools, callable $execute, int $maxTurns = 5): string
+    {
+        $messages = $history;
+
+        for ($turn = 0; $turn < $maxTurns; $turn++) {
+            $res = $this->request($system, $messages, $tools);
+
+            $toolBlocks = collect($res['content'] ?? [])->where('type', 'tool_use')->values();
+            if ($toolBlocks->isEmpty()) {
+                return $this->text($res);
+            }
+
+            $messages[] = ['role' => 'assistant', 'content' => $res['content']];
+            $messages[] = [
+                'role' => 'user',
+                'content' => $toolBlocks->map(fn ($t) => [
+                    'type' => 'tool_result',
+                    'tool_use_id' => $t['id'],
+                    'content' => $execute($t['name'], (array) ($t['input'] ?? [])),
+                ])->all(),
+            ];
+        }
+
+        // Loop budget exhausted mid-tool-call — let the caller fall back.
+        return '';
+    }
+
     private function request(string $system, array $history, array $tools = []): array
     {
         $payload = [

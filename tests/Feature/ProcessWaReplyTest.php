@@ -63,12 +63,13 @@ class ProcessWaReplyTest extends TestCase
         $this->assertSame('Sure! We are open 9 to 5 😊', $out->body);
         $this->assertSame('wamid.REPLY1', $out->wa_message_id);
         // Claude got the tenant provider prompt (no custom persona set)
+        // along with the booking tools every shop reply now carries.
         Http::assertSent(function ($request) {
             if (!str_contains($request->url(), 'anthropic')) {
                 return false;
             }
             return str_contains($request['system'][0]['text'], 'Glow Salon, a salon business')
-                && !array_key_exists('tools', $request->data());
+                && in_array('check_availability', array_column($request['tools'] ?? [], 'name'), true);
         });
     }
 
