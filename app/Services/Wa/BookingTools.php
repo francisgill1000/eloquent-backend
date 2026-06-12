@@ -36,7 +36,7 @@ class BookingTools
             ],
             [
                 'name' => 'create_booking',
-                'description' => 'Create the booking for the customer. Call ONLY after the customer has explicitly confirmed the full summary: service, date, time, their full name and their phone number.',
+                'description' => 'Create the booking for the customer. Call ONLY after BOTH happened, in order: (1) you sent one message repeating the full summary (service, date, time, name, phone) and asked "shall I confirm?", and (2) the customer replied yes to that exact message. The customer giving their name and phone is NOT confirmation — you must still send the summary and wait for the yes.',
                 'input_schema' => [
                     'type' => 'object',
                     'properties' => [
