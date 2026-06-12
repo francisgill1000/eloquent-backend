@@ -122,9 +122,9 @@ class ProcessWaReply implements ShouldQueue
 
         $push->notify($name, (string) $message->body, $from, $shopId);
 
-        // Every number speaks as its shop (persona or category default) —
-        // no special sales persona, no in-chat onboarding.
-        $prompt = $personas->promptForShop($shop);
+        // Every number speaks as its shop (persona or category default),
+        // grounded in the shop's live services/prices/hours.
+        $prompt = $personas->systemPrompt($shop);
         $history = ConversationHistory::for($contact);
         if (!$history) {
             return;
