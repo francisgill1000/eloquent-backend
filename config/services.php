@@ -47,8 +47,6 @@ return [
         'default_token' => env('WHATSAPP_DEFAULT_TOKEN'),
         // Meta app secret — verifies X-Hub-Signature-256 on webhooks (no-op when unset).
         'app_secret' => env('WHATSAPP_APP_SECRET'),
-        // phone_number_id of our own Rezzy sales line (runs the sales persona + onboarding).
-        'sales_phone_number_id' => env('WHATSAPP_SALES_PHONE_NUMBER_ID'),
     ],
 
     'anthropic' => [

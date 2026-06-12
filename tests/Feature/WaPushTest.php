@@ -37,9 +37,9 @@ class WaPushTest extends TestCase
         $this->getJson('/api/wa/push/vapid-key')->assertOk()->assertJson(['key' => 'pubkey123']);
     }
 
-    public function test_subscribe_stores_subscription_once(): void
+    public function test_subscribe_stores_subscription_once_scoped_to_the_shop(): void
     {
-        $this->actingShop();
+        $shop = $this->actingShop();
         $sub = [
             'endpoint' => 'https://fcm.googleapis.com/fcm/send/abc123',
             'keys' => ['p256dh' => 'p256value', 'auth' => 'authvalue'],
@@ -50,6 +50,8 @@ class WaPushTest extends TestCase
 
         $this->assertSame(1, WaPushSubscription::count());
         $this->assertSame('p256value', WaPushSubscription::first()->p256dh);
+        // Per-shop scoping: the subscription belongs to the shop that registered it.
+        $this->assertSame($shop->id, (int) WaPushSubscription::first()->shop_id);
     }
 
     public function test_unsubscribe_removes_subscription(): void

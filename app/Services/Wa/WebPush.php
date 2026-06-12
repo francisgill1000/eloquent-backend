@@ -8,9 +8,9 @@ use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush as PushClient;
 
 /**
- * Browser push notifications for new WhatsApp messages (single-tenant: all
- * subscriptions are Francis's). Fire-and-forget; dead endpoints are pruned.
- * Ported from the push logic in whatsapp-autoreply/server.js.
+ * Browser push notifications for new chat messages, scoped per shop: a
+ * message only notifies the browsers subscribed by the shop that owns the
+ * thread. Fire-and-forget; dead endpoints are pruned.
  */
 class WebPush
 {
@@ -19,13 +19,19 @@ class WebPush
         return (bool) (config('services.webpush.public_key') && config('services.webpush.private_key'));
     }
 
-    public function notify(string $title, string $body, ?string $tag = null): void
+    public function notify(string $title, string $body, ?string $tag = null, ?int $shopId = null): void
     {
         if (!$this->enabled()) {
             return;
         }
 
-        $subscriptions = WaPushSubscription::all();
+        // No owner shop (e.g. a WA number not linked to any shop) → notify
+        // nobody rather than everybody. Notifications are strictly per shop.
+        if (!$shopId) {
+            return;
+        }
+
+        $subscriptions = WaPushSubscription::where('shop_id', $shopId)->get();
         if ($subscriptions->isEmpty()) {
             return;
         }

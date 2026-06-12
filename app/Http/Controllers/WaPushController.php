@@ -25,9 +25,15 @@ class WaPushController extends Controller
             'keys.auth' => ['required', 'string', 'max:255'],
         ]);
 
+        $shop = $request->user();
+        if (!$shop || !($shop instanceof \App\Models\Shop)) {
+            return response()->json(['message' => 'Shop authentication required'], 403);
+        }
+
+        // The subscription belongs to this shop: only its own threads notify it.
         WaPushSubscription::updateOrCreate(
             ['endpoint' => $data['endpoint']],
-            ['p256dh' => $data['keys']['p256dh'], 'auth' => $data['keys']['auth']]
+            ['shop_id' => $shop->id, 'p256dh' => $data['keys']['p256dh'], 'auth' => $data['keys']['auth']]
         );
 
         return response()->json(['ok' => true]);

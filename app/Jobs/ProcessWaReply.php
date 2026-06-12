@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Actions\Wa\OnboardBusiness;
 use App\Models\WaAccount;
 use App\Models\WaContact;
 use App\Models\WaMessage;
@@ -22,10 +21,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Generate and send the auto-reply for one stored inbound WhatsApp message.
- * Ports the pipeline of the retired whatsapp-autoreply Node service:
- * skip reactions → canned greeting → transcribe voice → resolve persona →
- * Claude (tool-enabled for sales leads) → voice-out → send → record.
+ * Generate and send the auto-reply for one stored inbound message (WhatsApp
+ * or in-app Live Chat): skip reactions → canned greeting → transcribe voice →
+ * shop persona → Claude → voice-out → send → record. Every number speaks as
+ * its shop; push notifications go only to that shop's subscriptions.
  *
  * Fail-quiet: any error logs and stops. The inbound is already stored, so
  * the shop can always answer manually in bizrezzy. Never retried ($tries=1)
@@ -49,7 +48,6 @@ class ProcessWaReply implements ShouldQueue
         Transcriber $transcriber,
         Speech $speech,
         WebPush $push,
-        OnboardBusiness $onboard,
     ): void {
         $message = WaMessage::with('waContact.waAccount.shop')->find($this->waMessageId);
         if (!$message || $message->direction !== 'in') {
@@ -77,30 +75,26 @@ class ProcessWaReply implements ShouldQueue
 
         $from = $contact->wa_number ?: ('app-' . $contact->id);
         $name = $contact->name ?: ($contact->wa_number ? '+' . $contact->wa_number : 'Live chat customer');
+        // Notifications are strictly per shop: only the owner shop's browsers.
+        $shop = $contact->ownerShop();
+        $shopId = $shop?->id;
 
         // Emoji-like signals (reactions 👍, stickers) — store-only, never reply.
         if (in_array($message->type, ['reaction', 'sticker'], true)) {
-            $push->notify($name, "[{$message->type}]", $from);
+            $push->notify($name, "[{$message->type}]", $from, $shopId);
             return;
         }
 
         // Emoji-only / symbol-only texts ("👍", "❤️🙏") — store-only, never reply.
         if ($message->type === 'text' && !preg_match('/[\p{L}\p{N}]/u', (string) $message->body)) {
-            $push->notify($name, (string) $message->body, $from);
+            $push->notify($name, (string) $message->body, $from, $shopId);
             return;
         }
 
-        $salesNumber = $account !== null && $personas->isSalesNumber($account);
-        // When an override is active we're in a live persona test — the canned
-        // greeting must NOT fire; every message goes through the override prompt.
-        $overrideActive = $salesNumber && $personas->salesOverride() !== null;
-
         // Bare greetings: instant canned welcome — no Claude call, no API cost.
-        if ($message->type === 'text' && !$overrideActive && Greetings::isBare($message->body)) {
-            $welcome = $salesNumber
-                ? "Hi! 😊 Welcome to Rezzy — we help businesses get more bookings on WhatsApp, 24/7. What kind of business do you run?"
-                : 'Hi! 😊 Welcome to ' . ($contact->ownerShop()?->name ?? 'our shop') . '. How can I help you today?';
-            $push->notify($name, (string) $message->body, $from);
+        if ($message->type === 'text' && Greetings::isBare($message->body)) {
+            $welcome = 'Hi! 😊 Welcome to ' . ($shop?->name ?? 'our shop') . '. How can I help you today?';
+            $push->notify($name, (string) $message->body, $from, $shopId);
             $this->sendText($wa, $account, $contact, $welcome);
             return;
         }
@@ -118,7 +112,7 @@ class ProcessWaReply implements ShouldQueue
 
         // Remaining non-text (images, files, unheard voice) — polite fallback.
         if ($message->type !== 'text' && !$isVoice) {
-            $push->notify($name, "Sent a {$message->type} message", $from);
+            $push->notify($name, "Sent a {$message->type} message", $from, $shopId);
             $this->sendText(
                 $wa, $account, $contact,
                 "Hi! 😊 I couldn't open that — could you please type your message? I'll help you right away!"
@@ -126,34 +120,21 @@ class ProcessWaReply implements ShouldQueue
             return;
         }
 
-        $push->notify($name, (string) $message->body, $from);
+        $push->notify($name, (string) $message->body, $from, $shopId);
 
-        ['prompt' => $prompt, 'offerTools' => $offerTools] = $isApp
-            ? ['prompt' => $personas->promptForShop($contact->ownerShop()), 'offerTools' => false]
-            : $personas->resolve($account, $from);
+        // Every number speaks as its shop (persona or category default) —
+        // no special sales persona, no in-chat onboarding.
+        $prompt = $personas->promptForShop($shop);
         $history = ConversationHistory::for($contact);
         if (!$history) {
             return;
         }
 
         try {
-            $onboarded = false;
-            if ($offerTools) {
-                $agent = $claude->agentReply($prompt, $history, [OnboardBusiness::TOOL]);
-                $reply = $agent['text'];
-                if (($agent['toolUse']['name'] ?? null) === 'create_business_account') {
-                    // Deterministic credentials message — the model never types IDs/PINs.
-                    $reply = $onboard->run($agent['toolUse']['input'], $from);
-                    $onboarded = true;
-                }
-                $reply = $reply !== '' ? $reply : 'One moment…';
-            } else {
-                $reply = $claude->reply($prompt, $history);
-            }
+            $reply = $claude->reply($prompt, $history);
 
-            // Voice in → voice out. Credential messages always go as TEXT so
-            // they can be copied. Any TTS hiccup falls back to plain text.
-            if ($isVoice && !$onboarded && $speech->available()) {
+            // Voice in → voice out. Any TTS hiccup falls back to plain text.
+            if ($isVoice && $speech->available()) {
                 try {
                     $audio = $speech->synthesize($reply);
                     $mediaId = $wa->uploadMedia($account, $audio, 'audio/ogg');
