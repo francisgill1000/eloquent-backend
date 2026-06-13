@@ -57,7 +57,17 @@ class ClaudeClient
                 return $this->text($res);
             }
 
-            $messages[] = ['role' => 'assistant', 'content' => $res['content']];
+            // Echo the assistant turn back verbatim, but force each tool_use
+            // input to a JSON object: an empty input arrives as {} → PHP [] →
+            // would re-encode as [] (array), which the API rejects.
+            $assistantContent = array_map(function ($block) {
+                if (($block['type'] ?? null) === 'tool_use') {
+                    $block['input'] = (object) ($block['input'] ?? []);
+                }
+                return $block;
+            }, $res['content']);
+
+            $messages[] = ['role' => 'assistant', 'content' => $assistantContent];
             $messages[] = [
                 'role' => 'user',
                 'content' => $toolBlocks->map(fn ($t) => [

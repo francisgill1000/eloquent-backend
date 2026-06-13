@@ -55,6 +55,46 @@ class WaClaudeClientTest extends TestCase
         Http::assertSent(fn ($request) => $request['tools'] === $tools);
     }
 
+    public function test_tool_loop_feeds_results_back_until_text(): void
+    {
+        config(['services.anthropic.key' => 'sk-test']);
+        Http::fake([
+            'api.anthropic.com/v1/messages' => Http::sequence()
+                ->push(['content' => [
+                    ['type' => 'tool_use', 'id' => 'tu_1', 'name' => 'get_time', 'input' => []],
+                ]])
+                ->push(['content' => [['type' => 'text', 'text' => 'It is 3pm.']]]),
+        ]);
+
+        $calls = [];
+        $reply = (new ClaudeClient())->toolLoop(
+            'You are a bot.',
+            [['role' => 'user', 'content' => 'what time is it?']],
+            [['name' => 'get_time', 'input_schema' => ['type' => 'object', 'properties' => (object) []]]],
+            function (string $name, array $input) use (&$calls) {
+                $calls[] = $name;
+                return json_encode(['time' => '15:00']);
+            },
+        );
+
+        $this->assertSame('It is 3pm.', $reply);
+        $this->assertSame(['get_time'], $calls);
+
+        // The second request must echo the tool_use with input as an OBJECT
+        // ({}), not a JSON array ([]) — the empty-input encoding bug.
+        Http::assertSent(function ($request) {
+            if (!is_array($request['messages'][1]['content'] ?? null)) {
+                return false; // the first request (plain history) — ignore
+            }
+            $assistant = $request['messages'][1]['content'][0] ?? [];
+            if (($assistant['type'] ?? null) !== 'tool_use') {
+                return false;
+            }
+            // Re-encode just this block and confirm the empty input is "{}".
+            return str_contains(json_encode($assistant), '"input":{}');
+        });
+    }
+
     public function test_throws_on_api_error(): void
     {
         config(['services.anthropic.key' => 'sk-test']);
