@@ -106,7 +106,10 @@ class BookingTools
             $result = ['error' => 'Something went wrong — tell the customer the team will confirm shortly.'];
         }
 
-        return json_encode($result, JSON_UNESCAPED_UNICODE);
+        $json = json_encode($result, JSON_UNESCAPED_UNICODE);
+        Log::info("WA tool {$name} (shop {$shop->id}, contact {$contact->id})", ['in' => $input, 'out' => $result]);
+
+        return $json;
     }
 
     private function checkAvailability(Shop $shop, array $input): array
