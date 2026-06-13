@@ -22,6 +22,7 @@ class Transcriber
         }
 
         $ext = match (true) {
+            str_contains($mime, 'webm') => 'webm',
             str_contains($mime, 'ogg') => 'ogg',
             str_contains($mime, 'mpeg') => 'mp3',
             str_contains($mime, 'mp4'), str_contains($mime, 'm4a') => 'm4a',

@@ -104,9 +104,10 @@ class ProcessWaReply implements ShouldQueue
             return;
         }
 
-        // Voice notes: transcribe, then answer them like normal text.
+        // Voice notes (WhatsApp or in-app Live Chat): transcribe, then answer
+        // them like normal text — Whisper handles any language.
         $isVoice = false;
-        if ($account && in_array($message->type, ['audio', 'voice'], true) && $transcriber->available()) {
+        if (in_array($message->type, ['audio', 'voice'], true) && $transcriber->available()) {
             $transcript = $this->transcribe($wa, $transcriber, $account, $message);
             if ($transcript) {
                 $isVoice = true;
@@ -152,9 +153,17 @@ class ProcessWaReply implements ShouldQueue
             if ($isVoice && $speech->available()) {
                 try {
                     $audio = $speech->synthesize($reply);
-                    $mediaId = $wa->uploadMedia($account, $audio, 'audio/ogg');
-                    $sent = $wa->sendVoice($account, $from, $mediaId);
-                    $contact->recordMessage('out', '🔊 ' . $reply, 'audio', $sent['messages'][0]['id'] ?? null, 'sent', ['media_id' => $mediaId]);
+                    if ($isApp) {
+                        // Live Chat: store the audio; the customer app plays the
+                        // media_url and shows the text caption beside it.
+                        $path = "wa-media/app/{$contact->id}/reply-" . uniqid() . '.ogg';
+                        Storage::disk('public')->put($path, $audio);
+                        $contact->recordMessage('out', '🔊 ' . $reply, 'audio', null, 'sent', ['media_path' => $path, 'media_mime' => 'audio/ogg']);
+                    } else {
+                        $mediaId = $wa->uploadMedia($account, $audio, 'audio/ogg');
+                        $sent = $wa->sendVoice($account, $from, $mediaId);
+                        $contact->recordMessage('out', '🔊 ' . $reply, 'audio', $sent['messages'][0]['id'] ?? null, 'sent', ['media_id' => $mediaId]);
+                    }
                     return;
                 } catch (\Throwable $e) {
                     Log::warning("WA voice reply failed for {$from}: " . $e->getMessage());
@@ -184,15 +193,18 @@ class ProcessWaReply implements ShouldQueue
         }
     }
 
-    /** Audio bytes come from the already-downloaded media file, else Graph. */
-    private function transcribe(WhatsAppCloud $wa, Transcriber $transcriber, WaAccount $account, WaMessage $message): ?string
+    /**
+     * Audio bytes come from the stored file (app Live Chat uploads, or already
+     * downloaded WhatsApp media), else the Graph API (WhatsApp only).
+     */
+    private function transcribe(WhatsAppCloud $wa, Transcriber $transcriber, ?WaAccount $account, WaMessage $message): ?string
     {
         try {
             $bytes = null;
             $mime = $message->media_mime ?: 'audio/ogg';
             if ($message->media_path && Storage::disk('public')->exists($message->media_path)) {
                 $bytes = Storage::disk('public')->get($message->media_path);
-            } elseif ($message->media_id) {
+            } elseif ($account && $message->media_id) {
                 $download = $wa->downloadMedia($account, $message->media_id);
                 if ($download) {
                     $bytes = $download['data'];
