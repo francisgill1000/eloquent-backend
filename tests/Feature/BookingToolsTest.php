@@ -146,6 +146,91 @@ class BookingToolsTest extends TestCase
         $this->assertSame(0, Booking::count());
     }
 
+    private function bookedCustomer(Shop $shop, WaContact $contact, string $time = '10:00'): array
+    {
+        $res = $this->tool($shop, $contact, 'create_booking', [
+            'date' => $this->nextMonday(), 'time' => $time,
+            'customer_name' => 'Aisha Khan', 'customer_phone' => '+971550001111',
+            'service_title' => 'Haircut',
+        ]);
+
+        return [ShopCustomer::where('shop_id', $shop->id)->firstOrFail(), $res['reference']];
+    }
+
+    public function test_my_bookings_lists_upcoming_for_recognised_customer(): void
+    {
+        [$shop, $contact] = $this->salon();
+        [, $ref] = $this->bookedCustomer($shop, $contact);
+
+        // Recognised via the device that booked — no phone needed.
+        $res = $this->tool($shop, $contact, 'my_bookings', []);
+
+        $this->assertSame('Aisha Khan', $res['customer']);
+        $this->assertCount(1, $res['upcoming_bookings']);
+        $this->assertStringContainsString($ref, $res['upcoming_bookings'][0]);
+        $this->assertStringContainsString('Haircut', $res['upcoming_bookings'][0]);
+    }
+
+    public function test_cancel_requires_ownership_and_cancels(): void
+    {
+        [$shop, $contact] = $this->salon();
+        [, $ref] = $this->bookedCustomer($shop, $contact);
+
+        // A stranger thread (different device, no phone) cannot touch it.
+        $stranger = WaContact::create(['channel' => 'app', 'shop_id' => $shop->id, 'device_id' => 'dev-stranger']);
+        $denied = $this->tool($shop, $stranger, 'cancel_booking', ['reference' => $ref]);
+        $this->assertArrayHasKey('error', $denied);
+
+        // The owner thread can.
+        $res = $this->tool($shop, $contact, 'cancel_booking', ['reference' => $ref]);
+        $this->assertTrue($res['cancelled']);
+
+        $booking = Booking::where('booking_reference', $ref)->firstOrFail();
+        $this->assertSame('Cancelled', $booking->status);
+        $this->assertNull($booking->staff_id);
+
+        // And it cannot be cancelled twice.
+        $again = $this->tool($shop, $contact, 'cancel_booking', ['reference' => $ref]);
+        $this->assertArrayHasKey('error', $again);
+    }
+
+    public function test_cancel_frees_the_slot_and_promotes_a_queued_booking(): void
+    {
+        [$shop, $contact] = $this->salon();
+        [, $ref] = $this->bookedCustomer($shop, $contact); // takes Maya at 10:00
+        $queued = Booking::create([
+            'shop_id' => $shop->id, 'status' => 'queued', 'date' => $this->nextMonday(),
+            'start_time' => '10:00', 'end_time' => '10:30', 'customer_name' => 'Walk In',
+        ]);
+
+        $this->tool($shop, $contact, 'cancel_booking', ['reference' => $ref]);
+
+        $this->assertSame('Booked', $queued->fresh()->status);
+        $this->assertNotNull($queued->fresh()->staff_id);
+    }
+
+    public function test_reschedule_moves_to_a_free_slot_and_rejects_taken_ones(): void
+    {
+        [$shop, $contact] = $this->salon();
+        [, $ref] = $this->bookedCustomer($shop, $contact, '10:00');
+        Booking::create(['shop_id' => $shop->id, 'status' => 'booked', 'date' => $this->nextMonday(), 'start_time' => '11:00', 'end_time' => '11:30']);
+
+        $taken = $this->tool($shop, $contact, 'reschedule_booking', [
+            'reference' => $ref, 'new_date' => $this->nextMonday(), 'new_time' => '11:00',
+        ]);
+        $this->assertArrayHasKey('error', $taken);
+
+        $res = $this->tool($shop, $contact, 'reschedule_booking', [
+            'reference' => $ref, 'new_date' => $this->nextMonday(), 'new_time' => '12:00',
+        ]);
+        $this->assertTrue($res['rescheduled']);
+        $this->assertSame('12:00', $res['time']);
+
+        $booking = Booking::where('booking_reference', $ref)->firstOrFail();
+        $this->assertSame('12:00', $booking->slot);
+        $this->assertNull($booking->reminder_sent_at);
+    }
+
     public function test_full_pipeline_books_via_tool_loop(): void
     {
         [$shop, $contact] = $this->salon();
