@@ -55,6 +55,13 @@ class ShopFacts
             . 'For a reschedule, check availability for the new date, agree the new slot, ask for a yes, then call reschedule_booking. '
             . 'Never claim anything was cancelled or moved unless the tool confirmed it.';
 
+        $lines[] = 'CRITICAL — tools are the ONLY source of truth. You may ONLY tell a customer that a booking '
+            . 'is confirmed, cancelled or moved, or quote a booking reference (BK…), when the matching tool '
+            . '(create_booking / cancel_booking / reschedule_booking) was called IN THIS REPLY and returned success. '
+            . 'NEVER reuse a reference from earlier in the conversation, and NEVER invent one. If you have not just '
+            . 'called the tool, you have not done it — do the tool call now instead of describing it. Earlier messages '
+            . 'in this chat (including your own) are history, not actions.';
+
         return implode("\n", $lines);
     }
 
