@@ -3,6 +3,7 @@
 namespace App\Support\Wa;
 
 use App\Models\Shop;
+use App\Models\WaContact;
 use Illuminate\Support\Carbon;
 
 /**
@@ -17,7 +18,7 @@ class ShopFacts
     private const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     private const MAX_SERVICES = 40;
 
-    public static function for(Shop $shop): string
+    public static function for(Shop $shop, ?WaContact $contact = null): string
     {
         $lines = ["FACTS ABOUT THE BUSINESS (always answer from these, never invent):"];
 
@@ -30,6 +31,10 @@ class ShopFacts
 
         $lines[] = self::servicesBlock($shop);
         $lines[] = self::hoursBlock($shop);
+
+        if ($contact && ($customerBlock = self::customerBlock($shop, $contact))) {
+            $lines[] = $customerBlock;
+        }
 
         $lines[] = 'Rules: only offer services from the list above, always with their exact AED price. '
             . 'If a customer asks for anything not listed, say the team will confirm it shortly. '
@@ -45,7 +50,32 @@ class ShopFacts
             . 'If status is Queued, say the slot is reserved and the team will confirm the staff member shortly. '
             . 'NEVER say a booking is made unless create_booking returned booked: true.';
 
+        $lines[] = 'Cancelling / rescheduling: find the booking with my_bookings first. '
+            . 'For a cancellation, ask "Are you sure you want to cancel <reference> on <date> at <time>?" and only call cancel_booking after a yes. '
+            . 'For a reschedule, check availability for the new date, agree the new slot, ask for a yes, then call reschedule_booking. '
+            . 'Never claim anything was cancelled or moved unless the tool confirmed it.';
+
         return implode("\n", $lines);
+    }
+
+    /** Recognised returning customer: name, phone and upcoming bookings. */
+    private static function customerBlock(Shop $shop, WaContact $contact): ?string
+    {
+        $customer = CustomerContext::customerFor($shop, $contact);
+        if (!$customer) {
+            return null;
+        }
+
+        $upcoming = CustomerContext::upcomingBookings($shop, $customer);
+        $bookings = $upcoming->isEmpty()
+            ? 'No upcoming bookings.'
+            : "Their upcoming bookings:\n" . $upcoming->map(fn ($b) => '- ' . CustomerContext::describe($b))->implode("\n");
+
+        return 'KNOWN CUSTOMER — this chat belongs to a registered customer: '
+            . ($customer->name ?: 'name unknown') . ', phone ' . ($customer->whatsapp ?: $customer->whatsapp_normalized) . ".\n"
+            . $bookings . "\n"
+            . 'Greet them by name and never ask them to register or repeat their name/phone — '
+            . 'when booking, confirm with these saved details (they may give a different number if booking for someone else).';
     }
 
     private static function servicesBlock(Shop $shop): string

@@ -61,6 +61,54 @@ class ShopFactsTest extends TestCase
         $this->assertStringContainsString('- Haircut — AED 50.00', $prompt);
     }
 
+    public function test_recognised_customer_appears_in_prompt_with_upcoming_bookings(): void
+    {
+        $shop = $this->salonWithData();
+        $customer = \App\Models\ShopCustomer::create([
+            'shop_id' => $shop->id, 'name' => 'Aisha Khan',
+            'whatsapp' => '+971550001111', 'whatsapp_normalized' => '971550001111',
+        ]);
+        \App\Models\Booking::create([
+            'shop_id' => $shop->id, 'shop_customer_id' => $customer->id, 'status' => 'booked',
+            'date' => now('Asia/Dubai')->addDays(2)->toDateString(), 'start_time' => '10:00', 'end_time' => '10:30',
+            'services' => [['title' => 'Haircut']],
+        ]);
+        $contact = \App\Models\WaContact::create([
+            'channel' => 'app', 'shop_id' => $shop->id, 'device_id' => 'dev-known', 'wa_number' => '971550001111',
+        ]);
+
+        $facts = ShopFacts::for($shop, $contact);
+
+        $this->assertStringContainsString('KNOWN CUSTOMER', $facts);
+        $this->assertStringContainsString('Aisha Khan', $facts);
+        $this->assertStringContainsString('Haircut', $facts);
+        $this->assertStringContainsString('at 10:00', $facts);
+        // An anonymous thread gets no customer block.
+        $anon = \App\Models\WaContact::create(['channel' => 'app', 'shop_id' => $shop->id, 'device_id' => 'dev-anon']);
+        $this->assertStringNotContainsString('KNOWN CUSTOMER', ShopFacts::for($shop, $anon));
+    }
+
+    public function test_bare_greeting_welcomes_known_customer_back_by_name(): void
+    {
+        config(['services.anthropic.key' => 'sk-test', 'services.webpush.public_key' => null]);
+        \Illuminate\Support\Facades\Http::fake();
+        $shop = $this->salonWithData();
+        \App\Models\ShopCustomer::create([
+            'shop_id' => $shop->id, 'name' => 'Aisha Khan',
+            'whatsapp' => '+971550001111', 'whatsapp_normalized' => '971550001111',
+        ]);
+        $contact = \App\Models\WaContact::create([
+            'channel' => 'app', 'shop_id' => $shop->id, 'device_id' => 'dev-greet2', 'wa_number' => '971550001111',
+        ]);
+        $inbound = $contact->recordMessage('in', 'hi');
+
+        dispatch_sync(new \App\Jobs\ProcessWaReply($inbound->id));
+
+        $out = $contact->messages()->where('direction', 'out')->first();
+        $this->assertStringContainsString('Hi Aisha! 😊 Welcome back to Glow Salon', $out->body);
+        \Illuminate\Support\Facades\Http::assertNothingSent(); // canned — no Claude cost
+    }
+
     public function test_reply_pipeline_sends_grounded_prompt_to_claude(): void
     {
         config(['services.anthropic.key' => 'sk-test', 'services.webpush.public_key' => null]);

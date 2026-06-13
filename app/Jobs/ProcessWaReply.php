@@ -93,8 +93,12 @@ class ProcessWaReply implements ShouldQueue
         }
 
         // Bare greetings: instant canned welcome — no Claude call, no API cost.
+        // Recognised returning customers are welcomed back by name.
         if ($message->type === 'text' && Greetings::isBare($message->body)) {
-            $welcome = 'Hi! 😊 Welcome to ' . ($shop?->name ?? 'our shop') . '. How can I help you today?';
+            $known = $shop ? \App\Support\Wa\CustomerContext::customerFor($shop, $contact) : null;
+            $welcome = $known?->name
+                ? 'Hi ' . strtok(trim($known->name), ' ') . '! 😊 Welcome back to ' . ($shop?->name ?? 'our shop') . '. How can I help you today?'
+                : 'Hi! 😊 Welcome to ' . ($shop?->name ?? 'our shop') . '. How can I help you today?';
             $push->notify($name, (string) $message->body, $from, $shopId);
             $this->sendText($wa, $account, $contact, $welcome);
             return;
@@ -124,8 +128,8 @@ class ProcessWaReply implements ShouldQueue
         $push->notify($name, (string) $message->body, $from, $shopId);
 
         // Every number speaks as its shop (persona or category default),
-        // grounded in the shop's live services/prices/hours.
-        $prompt = $personas->systemPrompt($shop);
+        // grounded in live services/prices/hours and the customer's identity.
+        $prompt = $personas->systemPrompt($shop, $contact);
         $history = ConversationHistory::for($contact);
         if (!$history) {
             return;

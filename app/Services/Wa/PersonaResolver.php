@@ -23,13 +23,14 @@ class PersonaResolver
 
     /**
      * The full system prompt sent to Claude: the persona plus the shop's live
-     * business facts (services, prices, hours, current Dubai time) so the
-     * assistant answers from real data instead of guessing.
+     * business facts (services, prices, hours, current Dubai time) and — when
+     * the thread belongs to a recognised customer — their identity and
+     * upcoming bookings, so returning customers are greeted by name.
      */
-    public function systemPrompt(?Shop $shop): string
+    public function systemPrompt(?Shop $shop, ?\App\Models\WaContact $contact = null): string
     {
         $prompt = $this->promptForShop($shop);
 
-        return $shop ? $prompt . "\n\n" . ShopFacts::for($shop) : $prompt;
+        return $shop ? $prompt . "\n\n" . ShopFacts::for($shop, $contact) : $prompt;
     }
 }
