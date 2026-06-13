@@ -99,6 +99,8 @@ Route::get('/chat/shops/{shop}/messages', [\App\Http\Controllers\ChatController:
     ->middleware('throttle:120,1');
 Route::post('/chat/shops/{shop}/messages', [\App\Http\Controllers\ChatController::class, 'send'])
     ->middleware('throttle:20,1');
+Route::post('/chat/shops/{shop}/voice', [\App\Http\Controllers\ChatController::class, 'voice'])
+    ->middleware('throttle:20,1');
 
 // WhatsApp Cloud API — public webhook (routed per shop by phone_number_id).
 // Auto-replies are generated in-app by the ProcessWaReply job.

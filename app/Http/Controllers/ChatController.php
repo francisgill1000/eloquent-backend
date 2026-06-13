@@ -7,6 +7,8 @@ use App\Models\Shop;
 use App\Models\User;
 use App\Models\WaContact;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * Customer-facing in-app Live Chat with a shop. Same guest-first identity as
@@ -47,10 +49,55 @@ class ChatController extends Controller
             'text' => ['required', 'string', 'max:4096'],
         ]);
 
-        $deviceId = $this->deviceId($request);
+        $contact = $this->contactFor($request, $shop);
+        $message = $contact->recordMessage('in', $data['text']);
 
+        ProcessWaReply::dispatch($message->id);
+
+        return response()->json(['data' => $message], 201);
+    }
+
+    /**
+     * Customer records a voice note in any language. We store the audio, the
+     * reply pipeline transcribes it (Whisper) and answers — in voice and text.
+     */
+    public function voice(Request $request, Shop $shop)
+    {
+        $request->validate([
+            'audio' => ['required', 'file', 'mimetypes:audio/webm,audio/ogg,audio/mp4,audio/mpeg,audio/m4a,audio/wav,video/webm', 'max:15360'],
+        ]);
+
+        $contact = $this->contactFor($request, $shop);
+
+        $file = $request->file('audio');
+        $ext = match (true) {
+            str_contains((string) $file->getMimeType(), 'webm') => 'webm',
+            str_contains((string) $file->getMimeType(), 'ogg') => 'ogg',
+            str_contains((string) $file->getMimeType(), 'mp4'), str_contains((string) $file->getMimeType(), 'm4a') => 'm4a',
+            str_contains((string) $file->getMimeType(), 'mpeg') => 'mp3',
+            str_contains((string) $file->getMimeType(), 'wav') => 'wav',
+            default => 'webm',
+        };
+
+        $path = "wa-media/app/{$contact->id}/" . Str::uuid() . ".{$ext}";
+        Storage::disk('public')->put($path, file_get_contents($file->getRealPath()));
+
+        // Stored as a voice message; ProcessWaReply transcribes from the file.
+        $message = $contact->recordMessage('in', '🎤 …', 'audio', null, null, [
+            'media_path' => $path,
+            'media_mime' => $file->getMimeType(),
+        ]);
+
+        ProcessWaReply::dispatch($message->id);
+
+        return response()->json(['data' => $message], 201);
+    }
+
+    /** Resolve (or create) the app-channel contact for this device, attaching customer identity. */
+    private function contactFor(Request $request, Shop $shop): WaContact
+    {
         $contact = WaContact::firstOrCreate(
-            ['shop_id' => $shop->id, 'device_id' => $deviceId],
+            ['shop_id' => $shop->id, 'device_id' => $this->deviceId($request)],
             ['channel' => 'app']
         );
 
@@ -69,11 +116,7 @@ class ChatController extends Controller
             }
         }
 
-        $message = $contact->recordMessage('in', $data['text']);
-
-        ProcessWaReply::dispatch($message->id);
-
-        return response()->json(['data' => $message], 201);
+        return $contact;
     }
 
     private function deviceId(Request $request): string
