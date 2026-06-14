@@ -69,4 +69,21 @@ class WaPushTest extends TestCase
         $this->getJson('/api/wa/push/vapid-key')->assertStatus(401);
         $this->postJson('/api/wa/push/subscribe', [])->assertStatus(401);
     }
+
+    public function test_master_account_receives_every_shops_notifications(): void
+    {
+        $master = Shop::factory()->create(['is_master' => true]);
+        $shopA = Shop::factory()->create();
+        $shopB = Shop::factory()->create();
+
+        WaPushSubscription::create(['shop_id' => $master->id, 'endpoint' => 'https://e/master', 'p256dh' => 'k', 'auth' => 'a']);
+        WaPushSubscription::create(['shop_id' => $shopA->id, 'endpoint' => 'https://e/a', 'p256dh' => 'k', 'auth' => 'a']);
+        WaPushSubscription::create(['shop_id' => $shopB->id, 'endpoint' => 'https://e/b', 'p256dh' => 'k', 'auth' => 'a']);
+
+        // A lead on shop A notifies shop A's browser AND the master — never shop B.
+        $recipients = (new \App\Services\Wa\WebPush())->recipientsFor($shopA->id)
+            ->pluck('endpoint')->sort()->values()->all();
+
+        $this->assertSame(['https://e/a', 'https://e/master'], $recipients);
+    }
 }

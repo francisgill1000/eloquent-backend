@@ -2,15 +2,17 @@
 
 namespace App\Services\Wa;
 
+use App\Models\Shop;
 use App\Models\WaPushSubscription;
 use Illuminate\Support\Facades\Log;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush as PushClient;
 
 /**
- * Browser push notifications for new chat messages, scoped per shop: a
- * message only notifies the browsers subscribed by the shop that owns the
- * thread. Fire-and-forget; dead endpoints are pruned.
+ * Browser push notifications for new chat messages. A message notifies the
+ * owning shop's browsers AND the master account (the platform owner, who
+ * watches every shop's leads). Non-master shops never see each other's
+ * notifications. Fire-and-forget; dead endpoints are pruned.
  */
 class WebPush
 {
@@ -26,12 +28,12 @@ class WebPush
         }
 
         // No owner shop (e.g. a WA number not linked to any shop) → notify
-        // nobody rather than everybody. Notifications are strictly per shop.
+        // nobody rather than everybody.
         if (!$shopId) {
             return;
         }
 
-        $subscriptions = WaPushSubscription::where('shop_id', $shopId)->get();
+        $subscriptions = $this->recipientsFor($shopId);
         if ($subscriptions->isEmpty()) {
             return;
         }
@@ -62,5 +64,18 @@ class WebPush
             // Push must never break the reply pipeline.
             Log::warning('WA web push failed: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Browsers to notify for a message owned by $shopId: that shop's own
+     * subscribers plus the master account (the platform owner sees every
+     * shop's leads). Non-master shops never receive each other's messages.
+     */
+    public function recipientsFor(int $shopId): \Illuminate\Support\Collection
+    {
+        $masterId = Shop::where('is_master', true)->value('id');
+        $shopIds = array_values(array_unique(array_filter([$shopId, $masterId])));
+
+        return WaPushSubscription::whereIn('shop_id', $shopIds)->get();
     }
 }
