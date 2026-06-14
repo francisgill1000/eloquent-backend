@@ -7,7 +7,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-/** Shop owners can view and edit their AI assistant's system prompt. */
+/** Shop owners control their assistant prompt; it is used verbatim. */
 class ShopPersonaTest extends TestCase
 {
     use RefreshDatabase;
@@ -21,7 +21,7 @@ class ShopPersonaTest extends TestCase
         return $shop;
     }
 
-    public function test_show_returns_category_default_when_no_custom_persona(): void
+    public function test_show_returns_generated_default_when_no_custom_prompt(): void
     {
         $this->authedShop();
 
@@ -29,11 +29,12 @@ class ShopPersonaTest extends TestCase
 
         $this->assertNull($res['persona']);
         $this->assertFalse($res['using_custom']);
-        $this->assertStringContainsString('Glow Salon, a salon business', $res['default_prompt']);
-        $this->assertSame($res['default_prompt'], $res['effective_prompt']);
+        // The default that runs is the profile-generated prompt.
+        $this->assertStringContainsString('Glow Salon, a salon business', $res['effective_prompt']);
+        $this->assertStringContainsString('OPENING HOURS', $res['effective_prompt']);
     }
 
-    public function test_update_sets_custom_persona(): void
+    public function test_custom_prompt_is_used_verbatim(): void
     {
         $shop = $this->authedShop();
 
@@ -41,13 +42,12 @@ class ShopPersonaTest extends TestCase
             ->assertOk()->json();
 
         $this->assertTrue($res['using_custom']);
+        // Exactly the saved text — no services/hours/rules appended.
         $this->assertSame('You are Bella, the salon receptionist.', $res['effective_prompt']);
-        // The default stays available for the "reset" UI even while custom is active.
-        $this->assertStringContainsString('Glow Salon', $res['default_prompt']);
         $this->assertSame('You are Bella, the salon receptionist.', $shop->fresh()->persona);
     }
 
-    public function test_blank_persona_resets_to_default(): void
+    public function test_blank_prompt_resets_to_generated_default(): void
     {
         $shop = $this->authedShop('Old custom persona');
 
@@ -56,6 +56,19 @@ class ShopPersonaTest extends TestCase
         $this->assertFalse($res['using_custom']);
         $this->assertNull($shop->fresh()->persona);
         $this->assertStringContainsString('Glow Salon, a salon business', $res['effective_prompt']);
+    }
+
+    public function test_generate_builds_a_prompt_from_the_profile_without_saving(): void
+    {
+        $shop = $this->authedShop();
+        $shop->catalogs()->create(['title' => 'Haircut', 'price' => 50]);
+
+        $res = $this->getJson('/api/shop/persona/generate')->assertOk()->json();
+
+        $this->assertStringContainsString('- Haircut — AED 50.00', $res['prompt']);
+        $this->assertStringContainsString('OPENING HOURS', $res['prompt']);
+        // Not persisted — only saved when the owner saves it.
+        $this->assertNull($shop->fresh()->persona);
     }
 
     public function test_requires_shop_auth(): void

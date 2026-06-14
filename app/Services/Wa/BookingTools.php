@@ -37,7 +37,7 @@ class BookingTools
             ],
             [
                 'name' => 'create_booking',
-                'description' => 'Create the booking for the customer. Call ONLY after BOTH happened, in order: (1) you sent one message repeating the full summary (service, date, time, name, phone) and asked "shall I confirm?", and (2) the customer replied yes to that exact message. The customer giving their name and phone is NOT confirmation — you must still send the summary and wait for the yes.',
+                'description' => 'Create a real booking and register the customer. Call ONLY after BOTH happened, in order: (1) you sent one message repeating the full summary (service, date, time, name, phone) and asked "shall I confirm?", and (2) the customer replied yes to that exact message. The customer giving their name and phone is NOT confirmation — you must still send the summary and wait for the yes. Never tell a customer a booking is confirmed, or quote a booking reference, unless this tool returned booked:true in the current reply.',
                 'input_schema' => [
                     'type' => 'object',
                     'properties' => [
