@@ -54,12 +54,20 @@ class WebPush
                 ]), $payload);
             }
 
+            $sent = 0;
+            $failed = 0;
             foreach ($client->flush() as $report) {
                 $status = $report->getResponse()?->getStatusCode();
-                if (!$report->isSuccess() && in_array($status, [404, 410], true)) {
-                    WaPushSubscription::where('endpoint', $report->getEndpoint())->delete();
+                if ($report->isSuccess()) {
+                    $sent++;
+                } else {
+                    $failed++;
+                    if (in_array($status, [404, 410], true)) {
+                        WaPushSubscription::where('endpoint', $report->getEndpoint())->delete();
+                    }
                 }
             }
+            Log::info("WA push '{$title}' (shop {$shopId}): {$subscriptions->count()} recipient(s), {$sent} delivered, {$failed} failed");
         } catch (\Throwable $e) {
             // Push must never break the reply pipeline.
             Log::warning('WA web push failed: ' . $e->getMessage());
