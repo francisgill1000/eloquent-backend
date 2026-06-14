@@ -4,13 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Shop;
 use App\Services\Wa\PersonaResolver;
+use App\Support\Wa\PromptGenerator;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
- * The shop owner's window into their AI assistant: see the effective system
- * prompt (custom persona or category default) and edit it. The same persona
- * drives WhatsApp and in-app Live Chat replies.
+ * The shop owner's control over their AI assistant. The saved prompt is the
+ * single source of truth — it is sent to the model exactly as written. The
+ * owner can write it manually or fill it with "Generate from profile", which
+ * builds a complete prompt from their services, hours, staff and location.
  */
 class ShopPersonaController extends Controller
 {
@@ -29,7 +31,7 @@ class ShopPersonaController extends Controller
             'persona' => ['nullable', 'string', 'max:20000'],
         ]);
 
-        // Blank persona = back to the category default.
+        // Blank prompt = fall back to the profile-generated default.
         $persona = trim((string) ($data['persona'] ?? ''));
         $shop->update(['persona' => $persona !== '' ? $persona : null]);
 
@@ -39,18 +41,23 @@ class ShopPersonaController extends Controller
         ]);
     }
 
+    /** Build a fresh prompt from the current profile (not saved until the owner saves it). */
+    public function generate(Request $request)
+    {
+        $shop = $this->requireShop($request);
+
+        return response()->json(['prompt' => PromptGenerator::generate($shop)]);
+    }
+
     private function payload(Shop $shop, PersonaResolver $personas): array
     {
-        $default = $personas->promptForShop(tap(clone $shop)->setAttribute('persona', null));
+        $usingCustom = (bool) ($shop->persona && trim($shop->persona) !== '');
 
         return [
             'persona' => $shop->persona,
-            'default_prompt' => $default,
+            'using_custom' => $usingCustom,
+            // What actually runs: the saved prompt, or the generated default.
             'effective_prompt' => $personas->promptForShop($shop),
-            'using_custom' => (bool) ($shop->persona && trim($shop->persona) !== ''),
-            // Appended automatically to every reply; shown read-only in the
-            // editor so it never gets frozen into a saved custom persona.
-            'business_facts' => \App\Support\Wa\ShopFacts::for($shop),
         ];
     }
 

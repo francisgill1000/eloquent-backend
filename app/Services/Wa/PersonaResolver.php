@@ -3,46 +3,35 @@
 namespace App\Services\Wa;
 
 use App\Models\Shop;
-use App\Support\ServiceCategories;
-use App\Support\Wa\Prompts;
-use App\Support\Wa\ShopFacts;
+use App\Support\Wa\PromptGenerator;
 
 /**
- * Every number speaks as its shop — the master-set persona when present,
- * else the category-based default. There is no special sales persona and no
- * in-chat onboarding: personas are managed per shop (the "shop flow").
+ * The system prompt is controlled entirely by the shop owner: whatever they
+ * saved in the persona field is used verbatim — no services, hours or rules
+ * are appended behind the scenes. Owners bake those in (if they want) via the
+ * "Generate from profile" button. When no custom prompt is saved yet, a fresh
+ * profile-generated prompt is used as the sensible default.
  */
 class PersonaResolver
 {
     public function promptForShop(?Shop $shop): string
     {
-        return ($shop?->persona && trim($shop->persona) !== '')
+        if (!$shop) {
+            return 'You are a friendly, professional assistant. Reply briefly and helpfully.';
+        }
+
+        return ($shop->persona && trim($shop->persona) !== '')
             ? $shop->persona
-            : Prompts::provider($shop?->name ?? 'this business', ServiceCategories::name($shop?->category_id));
+            : PromptGenerator::generate($shop);
     }
 
     /**
-     * The full system prompt sent to Claude: the persona plus the shop's live
-     * business facts (services, prices, hours, current Dubai time) and — when
-     * the thread belongs to a recognised customer — their identity and
-     * upcoming bookings, so returning customers are greeted by name.
+     * The full system prompt sent to Claude. Intentionally identical to the
+     * owner's saved prompt (no hidden additions); the $contact argument is
+     * kept for call-site compatibility.
      */
     public function systemPrompt(?Shop $shop, ?\App\Models\WaContact $contact = null): string
     {
-        $prompt = $this->promptForShop($shop);
-
-        if (!$shop) {
-            return $prompt;
-        }
-
-        // The owner can change the persona mid-conversation. Make the system
-        // prompt authoritative so the assistant adopts the new identity/rules
-        // immediately, instead of mimicking the style of its earlier replies
-        // still visible in the chat history.
-        $override = "\n\nThese instructions are current and authoritative. If earlier assistant replies "
-            . "in this conversation used a different persona, tone, or rules, disregard that completely "
-            . "and follow ONLY the instructions above for every reply from now on.";
-
-        return $prompt . "\n\n" . ShopFacts::for($shop, $contact) . $override;
+        return $this->promptForShop($shop);
     }
 }

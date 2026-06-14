@@ -26,14 +26,14 @@ class WaPersonaResolverTest extends TestCase
         );
     }
 
-    public function test_falls_back_to_category_prompt(): void
+    public function test_falls_back_to_generated_prompt(): void
     {
         $shop = Shop::factory()->create(['name' => 'Glow Salon', 'category_id' => 9, 'persona' => null]);
 
         $prompt = (new PersonaResolver())->promptForShop($shop);
 
         $this->assertStringContainsString('Glow Salon, a salon business', $prompt);
-        $this->assertStringContainsString('Never mention Rezzy', $prompt);
+        $this->assertStringContainsString('BOOKING:', $prompt);
     }
 
     public function test_whitespace_persona_counts_as_unset(): void
@@ -47,6 +47,6 @@ class WaPersonaResolverTest extends TestCase
     {
         $prompt = (new PersonaResolver())->promptForShop(null);
 
-        $this->assertStringContainsString('this business', $prompt);
+        $this->assertStringContainsString('assistant', $prompt);
     }
 }
