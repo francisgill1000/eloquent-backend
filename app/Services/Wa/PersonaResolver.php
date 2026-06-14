@@ -31,6 +31,18 @@ class PersonaResolver
     {
         $prompt = $this->promptForShop($shop);
 
-        return $shop ? $prompt . "\n\n" . ShopFacts::for($shop, $contact) : $prompt;
+        if (!$shop) {
+            return $prompt;
+        }
+
+        // The owner can change the persona mid-conversation. Make the system
+        // prompt authoritative so the assistant adopts the new identity/rules
+        // immediately, instead of mimicking the style of its earlier replies
+        // still visible in the chat history.
+        $override = "\n\nThese instructions are current and authoritative. If earlier assistant replies "
+            . "in this conversation used a different persona, tone, or rules, disregard that completely "
+            . "and follow ONLY the instructions above for every reply from now on.";
+
+        return $prompt . "\n\n" . ShopFacts::for($shop, $contact) . $override;
     }
 }
