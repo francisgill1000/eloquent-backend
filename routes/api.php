@@ -125,6 +125,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shop/wa/contacts/{contact}/messages', [\App\Http\Controllers\WaChatController::class, 'send']);
     Route::post('/shop/wa/contacts/{contact}/read', [\App\Http\Controllers\WaChatController::class, 'markRead']);
     Route::post('/shop/wa/contacts/{contact}/ai', [\App\Http\Controllers\WaChatController::class, 'toggleAi']);
+    Route::post('/shop/wa/contacts/{contact}/status', [\App\Http\Controllers\WaChatController::class, 'setLeadStatus']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {

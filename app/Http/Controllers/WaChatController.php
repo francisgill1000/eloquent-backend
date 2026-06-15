@@ -194,4 +194,21 @@ class WaChatController extends Controller
 
         return response()->json(['data' => $contact->fresh()]);
     }
+
+    /**
+     * Lead triage: tag a conversation so staff know who to follow up. Staff-only
+     * and tenant-scoped. An empty/absent status clears it back to "New" (null).
+     */
+    public function setLeadStatus(Request $request, WaContact $contact)
+    {
+        $this->requireOwnedContact($request, $contact);
+
+        $data = $request->validate([
+            'status' => ['nullable', 'in:hot,warm,cold,follow_up,not_interested'],
+        ]);
+
+        $contact->update(['lead_status' => $data['status'] ?? null]);
+
+        return response()->json(['data' => $contact->fresh()]);
+    }
 }
