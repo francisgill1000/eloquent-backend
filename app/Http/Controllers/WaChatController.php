@@ -144,10 +144,12 @@ class WaChatController extends Controller
             'text' => ['required', 'string', 'max:4096'],
         ]);
 
+        // A human is replying: stamp sender_type 'staff' so recordMessage()
+        // auto-pauses the AI (agent takeover) for this thread.
         // Live Chat: storing the row delivers it (the customer app polls).
         // No Graph call, no 24h window.
         if ($contact->isApp()) {
-            $message = $contact->recordMessage('out', $data['text'], 'text', null, 'sent');
+            $message = $contact->recordMessage('out', $data['text'], 'text', null, 'sent', [], 'staff');
 
             return response()->json(['data' => $message], 201);
         }
@@ -161,9 +163,27 @@ class WaChatController extends Controller
         }
 
         $waMessageId = $result['messages'][0]['id'] ?? null;
-        $message = $contact->recordMessage('out', $data['text'], 'text', $waMessageId, 'sent');
+        $message = $contact->recordMessage('out', $data['text'], 'text', $waMessageId, 'sent', [], 'staff');
 
         return response()->json(['data' => $message], 201);
+    }
+
+    /**
+     * Agent takeover toggle: flip the AI concierge on/off for one thread.
+     * Staff-only and tenant-scoped. There is no auto-resume — the only way the
+     * AI comes back after a human takes over is staff setting enabled = true.
+     */
+    public function toggleAi(Request $request, WaContact $contact)
+    {
+        $this->requireOwnedContact($request, $contact);
+
+        $data = $request->validate([
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        $contact->update(['ai_enabled' => $data['enabled']]);
+
+        return response()->json(['data' => $contact->fresh()]);
     }
 
     public function markRead(Request $request, WaContact $contact)

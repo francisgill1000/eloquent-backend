@@ -80,6 +80,14 @@ class ProcessWaReply implements ShouldQueue
         $shop = $contact->ownerShop();
         $shopId = $shop?->id;
 
+        // Agent takeover: a human staff member is handling this thread. Still
+        // alert the shop to the new inbound, but never auto-reply — the AI only
+        // resumes when staff manually flip ai_enabled back on.
+        if (! $contact->ai_enabled) {
+            $push->notify($name, (string) $message->body, $from, $shopId);
+            return;
+        }
+
         // Emoji-like signals (reactions 👍, stickers) — store-only, never reply.
         if (in_array($message->type, ['reaction', 'sticker'], true)) {
             $push->notify($name, "[{$message->type}]", $from, $shopId);

@@ -136,6 +136,27 @@ class ProcessWaReplyTest extends TestCase
         $this->assertSame(0, $contact->messages()->where('direction', 'out')->count());
     }
 
+    public function test_staff_reply_pauses_ai_and_next_customer_message_gets_no_reply(): void
+    {
+        Http::fake();
+        $contact = $this->tenantContact();
+
+        // A human staff member (Jennifer) steps in → the AI auto-pauses.
+        $contact->recordMessage('out', 'Hi, this is Jennifer — I’ll take it from here.', 'text', 'wamid.STAFF1', 'sent', [], 'staff');
+        $this->assertFalse($contact->fresh()->ai_enabled, 'a staff reply must pause the AI for this thread');
+
+        // The customer messages again afterwards. The AI must stay silent.
+        $inbound = $contact->recordMessage('in', 'great, what time can I come in?', 'text', 'wamid.INLATER');
+
+        dispatch_sync(new ProcessWaReply($inbound->id));
+
+        // Nothing left the system and no AI message was recorded — only the one
+        // human staff reply remains on the outbound side.
+        Http::assertNothingSent();
+        $this->assertSame(1, $contact->messages()->where('direction', 'out')->count());
+        $this->assertNull($contact->messages()->where('sender_type', 'ai')->first());
+    }
+
     public function test_voice_note_is_transcribed_and_answered_with_voice(): void
     {
         config(['services.openai.key' => 'sk-oai']);
