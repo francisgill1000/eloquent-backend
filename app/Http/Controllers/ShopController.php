@@ -28,6 +28,7 @@ class ShopController extends Controller
         $search = request("search");
 
         $shops = Shop::where('status', Shop::ACTIVE)
+            ->where('is_master', false)
             // ->whereHas('working_hours')
             ->withCount([
                 'guest_favourites as is_favourite' => function ($q) use ($deviceId) {
@@ -73,6 +74,7 @@ class ShopController extends Controller
 
         $shops = Shop::query()
             ->where('status', Shop::ACTIVE)
+            ->where('is_master', false)
             ->whereNotNull('lat')
             ->whereNotNull('lon')
             ->select('shops.*')
