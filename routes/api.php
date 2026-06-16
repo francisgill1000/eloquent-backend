@@ -136,4 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
         'update',
         'destroy',
     ]);
+
+    Route::get('/shop/parent-categories', [\App\Http\Controllers\ParentCategoryController::class, 'index']);
+    Route::post('/shop/parent-categories', [\App\Http\Controllers\ParentCategoryController::class, 'store']);
 });
