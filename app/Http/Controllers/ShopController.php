@@ -223,7 +223,7 @@ class ShopController extends Controller
 
     public function show(Request $request, Shop $shop)
     {
-        $shop->load(['working_hours', 'catalogs']);
+        $shop->load(['working_hours', 'catalogs.parentCategory']);
         $date = $request->query('date', now()->toDateString());
 
         // Resolve working hours for the requested date (not just today)

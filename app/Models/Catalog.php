@@ -20,6 +20,11 @@ class Catalog extends Model
         return $this->belongsTo(Shop::class);
     }
 
+    public function parentCategory()
+    {
+        return $this->belongsTo(ParentCategory::class);
+    }
+
     // Default catalog titles to create for a new shop
     // Default catalog data to create for a new shop
     public static function defaultServices(): array

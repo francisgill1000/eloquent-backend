@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Catalog;
 use App\Models\Shop;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class CatalogController extends Controller
@@ -25,7 +26,7 @@ class CatalogController extends Controller
         $shop = $this->requireShop($request);
 
         return response()->json(
-            $shop->catalogs()->orderByDesc('id')->get()
+            $shop->catalogs()->with('parentCategory')->orderByDesc('id')->get()
         );
     }
 
@@ -38,6 +39,10 @@ class CatalogController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'price' => ['required', 'numeric', 'min:0'],
             'image' => ['nullable'],
+            'parent_category_id' => [
+                'sometimes', 'nullable', 'integer',
+                Rule::exists('parent_categories', 'id')->where('shop_id', $shop->id),
+            ],
         ]);
 
         if (array_key_exists('image', $data) && empty($data['image'])) {
@@ -52,7 +57,7 @@ class CatalogController extends Controller
 
         return response()->json([
             'message' => 'Catalog created successfully',
-            'data' => $catalog,
+            'data' => $catalog->load('parentCategory'),
         ], 201);
     }
 
@@ -80,6 +85,10 @@ class CatalogController extends Controller
             'description' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'price' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'image' => ['sometimes', 'nullable'],
+            'parent_category_id' => [
+                'sometimes', 'nullable', 'integer',
+                Rule::exists('parent_categories', 'id')->where('shop_id', $shop->id),
+            ],
         ]);
 
         if (array_key_exists('image', $data)) {
@@ -94,7 +103,7 @@ class CatalogController extends Controller
 
         return response()->json([
             'message' => 'Catalog updated successfully',
-            'data' => $catalog->fresh(),
+            'data' => $catalog->fresh('parentCategory'),
         ]);
     }
 

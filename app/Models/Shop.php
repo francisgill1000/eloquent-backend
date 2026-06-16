@@ -384,6 +384,11 @@ class Shop extends Model
         return $this->hasMany(Catalog::class);
     }
 
+    public function parentCategories()
+    {
+        return $this->hasMany(ParentCategory::class);
+    }
+
     public function loginActivities()
     {
         return $this->hasMany(ShopLoginActivity::class);
