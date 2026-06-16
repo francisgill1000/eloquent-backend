@@ -139,4 +139,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/shop/parent-categories', [\App\Http\Controllers\ParentCategoryController::class, 'index']);
     Route::post('/shop/parent-categories', [\App\Http\Controllers\ParentCategoryController::class, 'store']);
+    Route::put('/shop/parent-categories/{parentCategory}', [\App\Http\Controllers\ParentCategoryController::class, 'update']);
+    Route::delete('/shop/parent-categories/{parentCategory}', [\App\Http\Controllers\ParentCategoryController::class, 'destroy']);
 });
