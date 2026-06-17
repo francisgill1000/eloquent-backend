@@ -55,7 +55,11 @@ Route::put('/booking/{id}', [BookingController::class, 'update']);
 Route::post('/booking/{id}/mark-reminder-sent', [BookingController::class, 'markReminderSent']);
 Route::get('/booking/{booking}/invoice', [\App\Http\Controllers\BookingInvoiceController::class, 'show']);
 Route::get('/booking/{booking}/invoice/pdf', [\App\Http\Controllers\BookingInvoiceController::class, 'pdf']);
+Route::post('/booking/{booking}/invoice/pay', [\App\Http\Controllers\BookingInvoiceController::class, 'pay']);
 Route::post('/invoice/{invoice}/mark-paid', [\App\Http\Controllers\BookingInvoiceController::class, 'markPaid']);
+
+// Ziina payments — public webhook (account-wide; verified by X-Hmac-Signature).
+Route::post('/ziina/webhook', [\App\Http\Controllers\ZiinaWebhookController::class, 'handle']);
 Route::get('/bookings', [BookingController::class, 'index']);
 
 // Reports
