@@ -66,4 +66,16 @@ return [
         'subject' => env('VAPID_SUBJECT', 'mailto:admin@eloquentservice.com'),
     ],
 
+    'ziina' => [
+        // Bearer token from https://ziina.com/business/connect
+        'api_key'        => env('ZIINA_API_KEY'),
+        // Shared secret used to sign webhooks (X-Hmac-Signature). Optional but recommended.
+        'webhook_secret' => env('ZIINA_WEBHOOK_SECRET'),
+        'base_url'       => env('ZIINA_BASE_URL', 'https://api-v2.ziina.com/api'),
+        // true → test transactions, no real charge. Flip to false to go live.
+        'test'           => env('ZIINA_TEST', true),
+        // Where Ziina sends customers back; falls back to APP_URL when unset.
+        'return_base'    => env('ZIINA_RETURN_BASE', env('CUSTOMER_APP_URL')),
+    ],
+
 ];

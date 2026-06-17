@@ -13,7 +13,23 @@ class BookingInvoice extends Model
         'booking_id', 'invoice_number',
         'subtotal', 'total', 'status',
         'issued_at', 'paid_at',
+        'ziina_intent_id', 'ziina_operation_id',
     ];
+
+    /** Idempotently mark this invoice paid. Returns true if it transitioned. */
+    public function markPaid(): bool
+    {
+        if ($this->status === 'paid') {
+            return false;
+        }
+        if ($this->status !== 'issued') {
+            return false;
+        }
+
+        $this->update(['status' => 'paid', 'paid_at' => now()]);
+
+        return true;
+    }
 
     protected $casts = [
         'subtotal'  => 'decimal:2',
