@@ -64,11 +64,21 @@ class BookingInvoiceController extends Controller
     public function pay($bookingId, Ziina $ziina)
     {
         $booking = Booking::with('invoice')->findOrFail($bookingId);
-        $invoice = $booking->invoice;
 
-        if (!$invoice) {
-            return response()->json(['message' => 'No invoice for this booking.'], 404);
+        if ($booking->status === 'cancelled') {
+            return response()->json(['message' => 'Booking is cancelled.'], 409);
         }
+
+        // Pay-first flow: a freshly-made booking has no invoice yet. Create an
+        // issued invoice on demand from the booking total so the customer can
+        // pay immediately (it confirms the booking once Ziina settles).
+        $invoice = $booking->invoice ?: BookingInvoice::create([
+            'booking_id' => $booking->id,
+            'subtotal'   => $booking->charges ?? 0,
+            'total'      => $booking->charges ?? 0,
+            'status'     => 'issued',
+            'issued_at'  => now(),
+        ]);
 
         if ($invoice->status === 'paid') {
             return response()->json(['message' => 'Invoice is already paid.'], 409);
