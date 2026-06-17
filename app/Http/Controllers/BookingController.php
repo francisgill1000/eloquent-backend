@@ -206,10 +206,10 @@ class BookingController extends Controller
             ->get();
 
         // 3. Aggregate data efficiently
-        // Revenue excludes cancelled bookings; cancelled_count is reported separately.
+        // Total bookings and revenue both exclude cancelled bookings; cancelled_count is reported separately.
         $stats = Booking::where('shop_id', $shopId)
             ->selectRaw("
-                count(*) as total_count,
+                sum(case when lower(status) = 'cancelled' then 0 else 1 end) as total_count,
                 sum(case when lower(status) = 'cancelled' then 1 else 0 end) as cancelled_count,
                 sum(case when lower(status) = 'cancelled' then 0 else charges end) as total_rev
             ")
