@@ -160,10 +160,15 @@ class ProcessWaReply implements ShouldQueue
             // Voice in → voice out. Any TTS hiccup falls back to plain text.
             if ($isVoice && $speech->available()) {
                 try {
-                    $audio = $speech->synthesize($reply);
+                    // Never read a URL (e.g. a Ziina pay link) aloud — speak the
+                    // guidance only, and deliver the link as tappable text.
+                    $hasLink = (bool) preg_match('~https?://~', $reply);
+                    $spoken = $hasLink ? $this->speechText($reply) : $reply;
+                    $audio = $speech->synthesize($spoken);
                     if ($isApp) {
                         // Live Chat: store the audio; the customer app plays the
-                        // media_url and shows the text caption beside it.
+                        // media_url and shows the full-text caption (with the
+                        // tappable link) beside it.
                         $path = "wa-media/app/{$contact->id}/reply-" . uniqid() . '.ogg';
                         Storage::disk('public')->put($path, $audio);
                         $contact->recordMessage('out', '🔊 ' . $reply, 'audio', null, 'sent', ['media_path' => $path, 'media_mime' => 'audio/ogg']);
@@ -171,6 +176,11 @@ class ProcessWaReply implements ShouldQueue
                         $mediaId = $wa->uploadMedia($account, $audio, 'audio/ogg');
                         $sent = $wa->sendVoice($account, $from, $mediaId);
                         $contact->recordMessage('out', '🔊 ' . $reply, 'audio', $sent['messages'][0]['id'] ?? null, 'sent', ['media_id' => $mediaId]);
+                        // WhatsApp voice notes carry no caption — send the link
+                        // (with its guidance) as a follow-up text so it's tappable.
+                        if ($hasLink) {
+                            $this->sendText($wa, $account, $contact, $reply);
+                        }
                     }
                     return;
                 } catch (\Throwable $e) {
@@ -183,6 +193,21 @@ class ProcessWaReply implements ShouldQueue
             // Fail quiet: the inbound is stored; the shop can answer manually.
             Log::error("WA auto-reply failed for {$from}: " . $e->getMessage());
         }
+    }
+
+    /**
+     * Speech-friendly version of a reply: drop URLs (so TTS never reads a link
+     * aloud) and tidy the punctuation/whitespace they leave behind. Falls back
+     * to the original text if stripping leaves nothing.
+     */
+    private function speechText(string $text): string
+    {
+        $stripped = preg_replace('~https?://\S+~', '', $text);
+        $stripped = preg_replace('/[ \t]*\n[ \t]*\n+/', "\n", (string) $stripped); // collapse blank lines
+        $stripped = preg_replace('/[ \t]{2,}/', ' ', (string) $stripped);
+        $stripped = trim((string) $stripped);
+
+        return $stripped !== '' ? $stripped : $text;
     }
 
     private function sendText(WhatsAppCloud $wa, ?WaAccount $account, WaContact $contact, string $text): void
