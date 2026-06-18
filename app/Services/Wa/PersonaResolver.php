@@ -26,12 +26,18 @@ class PersonaResolver
     }
 
     /**
-     * The full system prompt sent to Claude. Intentionally identical to the
-     * owner's saved prompt (no hidden additions); the $contact argument is
-     * kept for call-site compatibility.
+     * The full system prompt sent to Claude: the owner's persona, grounded with
+     * the current date so the model resolves dates correctly (the model has no
+     * inherent sense of "today" and would otherwise guess a past year). The
+     * $contact argument is kept for call-site compatibility.
      */
     public function systemPrompt(?Shop $shop, ?\App\Models\WaContact $contact = null): string
     {
-        return $this->promptForShop($shop);
+        $today = \Illuminate\Support\Carbon::now('Asia/Dubai');
+        $dateContext = "Today is {$today->format('l, j F Y')} (Asia/Dubai timezone), so the current year is {$today->year}. "
+            . "Whenever the customer mentions a date — 'today', 'tomorrow', 'this Friday', '18 June', 'the 25th' — work out the exact YYYY-MM-DD yourself using today's date, always in {$today->year} or later, never a past year. "
+            . "Never ask the customer to type a date in a specific format; understand whatever they say naturally.\n\n";
+
+        return $dateContext . $this->promptForShop($shop);
     }
 }
