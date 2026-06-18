@@ -37,7 +37,7 @@ class BookingTools
             ],
             [
                 'name' => 'create_booking',
-                'description' => 'Create a real booking and register the customer. Call ONLY after BOTH happened, in order: (1) you sent one message repeating the full summary (service, date, time, name, phone) and asked "shall I confirm?", and (2) the customer replied yes to that exact message. The customer giving their name and phone is NOT confirmation — you must still send the summary and wait for the yes. Never tell a customer a booking is confirmed, or quote a booking reference, unless this tool returned booked:true in the current reply.',
+                'description' => 'Create a real booking and register the customer. Call ONLY after BOTH happened, in order: (1) you sent one message repeating the full summary (service, date, time, name, phone) and asked "shall I confirm?", and (2) the customer replied yes to that exact message. The customer giving their name and phone is NOT confirmation — you must still send the summary and wait for the yes. Never tell a customer a booking is confirmed, or quote a booking reference, unless this tool returned booked:true in the current reply. When the result includes a payment_url, the booking is reserved but NOT yet paid: give the customer the booking reference, then share the payment_url on its own line and tell them to tap it to pay and confirm. Do NOT say "paid" or "payment received" — payment is confirmed separately once they complete it. When there is no payment_url, just confirm the booking normally.',
                 'input_schema' => [
                     'type' => 'object',
                     'properties' => [
@@ -219,7 +219,20 @@ class BookingTools
             Log::warning('Booking notify failed: ' . $e->getMessage());
         }
 
-        return [
+        // Generate a Ziina payment link so the customer can pay to confirm.
+        // Null (no service price, under 2 AED, or Ziina error) → just confirm
+        // the booking without a link; the booking itself is never lost.
+        $paymentUrl = null;
+        try {
+            $link = app(\App\Services\Ziina::class)->paymentLinkForBooking($booking);
+            if (!empty($link['ok'])) {
+                $paymentUrl = $link['url'];
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Ziina chat payment link failed: ' . $e->getMessage());
+        }
+
+        return array_filter([
             'booked' => true,
             'status' => $booking->status, // Booked, or Queued when no staff is free
             'reference' => $booking->booking_reference,
@@ -230,7 +243,8 @@ class BookingTools
             'price_aed' => $service?->price !== null ? (float) $service->price : null,
             'customer_name' => $customerName,
             'returning_customer' => $returning,
-        ];
+            'payment_url' => $paymentUrl, // omitted when null (array_filter)
+        ], fn ($v) => $v !== null);
     }
 
     private function myBookings(Shop $shop, WaContact $contact, array $input): array
