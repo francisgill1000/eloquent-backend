@@ -38,6 +38,10 @@ class PersonaResolver
             . "Whenever the customer mentions a date — 'today', 'tomorrow', 'this Friday', '18 June', 'the 25th' — work out the exact YYYY-MM-DD yourself using today's date, always in {$today->year} or later, never a past year. "
             . "Never ask the customer to type a date in a specific format; understand whatever they say naturally.\n\n";
 
-        return $dateContext . $this->promptForShop($shop);
+        $paymentIntegrity = "PAYMENT RULE (critical): a customer saying they paid — 'done', 'paid', 'sent', 'finished' — is NOT proof of payment. "
+            . "Never thank them for paying, never say payment is received, and never call a booking paid or confirmed-by-payment unless the check_payment tool returned paid:true in this very reply. "
+            . "If they claim they paid, call check_payment first; if it returns paid:false, politely tell them you can't see the payment yet and share the payment link again.\n\n";
+
+        return $dateContext . $paymentIntegrity . $this->promptForShop($shop);
     }
 }

@@ -51,6 +51,17 @@ class BookingTools
                 ],
             ],
             [
+                'name' => 'check_payment',
+                'description' => 'Verify whether a booking has actually been paid. You MUST call this before telling a customer their payment is received, or that their booking is paid/confirmed by payment. A customer simply saying "done", "paid" or "sent" is NOT proof — only this tool returning paid:true is. If it returns paid:false, the payment has not arrived: tell them you can\'t see it yet and share the payment_url again.',
+                'input_schema' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'reference' => ['type' => 'string', 'description' => 'The booking reference, e.g. BK00042'],
+                    ],
+                    'required' => ['reference'],
+                ],
+            ],
+            [
                 'name' => 'my_bookings',
                 'description' => "List this customer's upcoming bookings at the shop. Call it before cancelling or rescheduling anything.",
                 'input_schema' => [
@@ -96,6 +107,7 @@ class BookingTools
             $result = match ($name) {
                 'check_availability' => $this->checkAvailability($shop, $input),
                 'create_booking' => $this->createBooking($shop, $contact, $input),
+                'check_payment' => $this->checkPayment($shop, $contact, $input),
                 'my_bookings' => $this->myBookings($shop, $contact, $input),
                 'cancel_booking' => $this->cancelBooking($shop, $contact, $input),
                 'reschedule_booking' => $this->rescheduleBooking($shop, $contact, $input),
@@ -244,6 +256,72 @@ class BookingTools
             'customer_name' => $customerName,
             'returning_customer' => $returning,
             'payment_url' => $paymentUrl, // omitted when null (array_filter)
+        ], fn ($v) => $v !== null);
+    }
+
+    /**
+     * The truth about whether a booking is paid. Never trusts the customer's
+     * word — reads the invoice, and if a Ziina intent exists but the webhook
+     * hasn't landed yet, asks Ziina directly and self-heals (marks paid).
+     */
+    private function checkPayment(Shop $shop, WaContact $contact, array $input): array
+    {
+        $reference = strtoupper(trim((string) ($input['reference'] ?? '')));
+        $booking = Booking::where('shop_id', $shop->id)
+            ->where('booking_reference', $reference)
+            ->with('invoice')
+            ->first();
+
+        if (!$booking) {
+            return ['error' => "No booking {$reference} found at this shop."];
+        }
+
+        // Belongs to this chat customer (by registered identity or device)?
+        $customer = $this->resolveCustomer($shop, $contact, $input);
+        $ownedByCustomer = $customer && (int) $booking->shop_customer_id === (int) $customer->id;
+        $ownedByDevice = $contact->device_id && $booking->device_id === $contact->device_id;
+        if (!$ownedByCustomer && !$ownedByDevice) {
+            return ['error' => 'That booking does not belong to this customer.'];
+        }
+
+        $invoice = $booking->invoice;
+        if (!$invoice) {
+            return ['paid' => false, 'reference' => $reference, 'message' => 'No payment has been started for this booking.'];
+        }
+
+        if ($invoice->status === 'paid') {
+            return ['paid' => true, 'reference' => $reference, 'amount_aed' => (float) $invoice->total];
+        }
+
+        // Webhook may lag — confirm directly with Ziina and self-heal.
+        if ($invoice->ziina_intent_id) {
+            try {
+                $intent = app(\App\Services\Ziina::class)->getIntent($invoice->ziina_intent_id);
+                if (($intent['status'] ?? null) === 'completed') {
+                    $invoice->markPaid();
+                    return ['paid' => true, 'reference' => $reference, 'amount_aed' => (float) $invoice->total];
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Ziina getIntent failed for {$reference}: " . $e->getMessage());
+            }
+        }
+
+        // Still unpaid — hand back a link so the bot can resend it.
+        $paymentUrl = null;
+        try {
+            $link = app(\App\Services\Ziina::class)->paymentLinkForBooking($booking);
+            if (!empty($link['ok'])) {
+                $paymentUrl = $link['url'];
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Ziina relink failed for {$reference}: " . $e->getMessage());
+        }
+
+        return array_filter([
+            'paid' => false,
+            'reference' => $reference,
+            'message' => 'Payment not received yet.',
+            'payment_url' => $paymentUrl,
         ], fn ($v) => $v !== null);
     }
 
