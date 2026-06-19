@@ -12,7 +12,7 @@ class WaPromptsTest extends TestCase
         $prompt = Prompts::provider('Glow Salon', 'Salon');
 
         $this->assertStringContainsString('Glow Salon, a salon business', $prompt);
-        $this->assertStringContainsString('Never mention Rezzy', $prompt);
+        $this->assertStringContainsString('Never mention Eloquent Bookings', $prompt);
     }
 
     public function test_provider_prompt_without_category(): void
