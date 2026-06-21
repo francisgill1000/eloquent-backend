@@ -146,3 +146,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/shop/parent-categories/{parentCategory}', [\App\Http\Controllers\ParentCategoryController::class, 'update']);
     Route::delete('/shop/parent-categories/{parentCategory}', [\App\Http\Controllers\ParentCategoryController::class, 'destroy']);
 });
+
+// Video Assistant (LiveAvatar FULL mode) — isolated from Live Chat. Public,
+// keyed by X-Device-Id like the in-app chat.
+Route::post('/avatar/shops/{shop}/session', [\App\Http\Controllers\AvatarController::class, 'session'])
+    ->middleware('throttle:20,1');
