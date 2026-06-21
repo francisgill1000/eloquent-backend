@@ -138,7 +138,9 @@ class ProcessWaReply implements ShouldQueue
 
         // Every number speaks as its shop (persona or category default),
         // grounded in live services/prices/hours and the customer's identity.
-        $prompt = $personas->systemPrompt($shop, $contact);
+        // Only the in-app Live Chat can render the [[services]] card, so the
+        // marker rule is enabled for the app channel only (WhatsApp lists in text).
+        $prompt = $personas->systemPrompt($shop, $contact, $isApp);
         $history = ConversationHistory::for($contact);
         if (!$history) {
             return;
@@ -160,10 +162,12 @@ class ProcessWaReply implements ShouldQueue
             // Voice in → voice out. Any TTS hiccup falls back to plain text.
             if ($isVoice && $speech->available()) {
                 try {
-                    // Never read a URL (e.g. a Ziina pay link) aloud — speak the
-                    // guidance only, and deliver the link as tappable text.
+                    // Speak a clean version: never read a URL (e.g. a Ziina pay
+                    // link) or an app-only marker like [[services]] aloud. The
+                    // link is delivered as tappable text; the marker renders the
+                    // services list in the app.
                     $hasLink = (bool) preg_match('~https?://~', $reply);
-                    $spoken = $hasLink ? $this->speechText($reply) : $reply;
+                    $spoken = $this->speechText($reply);
                     $audio = $speech->synthesize($spoken);
                     if ($isApp) {
                         // Live Chat: store the audio; the customer app plays the
@@ -197,12 +201,14 @@ class ProcessWaReply implements ShouldQueue
 
     /**
      * Speech-friendly version of a reply: drop URLs (so TTS never reads a link
-     * aloud) and tidy the punctuation/whitespace they leave behind. Falls back
-     * to the original text if stripping leaves nothing.
+     * aloud) and app-only markers like [[services]] (the app renders those),
+     * then tidy the punctuation/whitespace they leave behind. Falls back to the
+     * original text if stripping leaves nothing.
      */
     private function speechText(string $text): string
     {
         $stripped = preg_replace('~https?://\S+~', '', $text);
+        $stripped = preg_replace('/\[\[[^\]]+\]\]/', '', (string) $stripped); // app-only markers, e.g. [[services]]
         $stripped = preg_replace('/[ \t]*\n[ \t]*\n+/', "\n", (string) $stripped); // collapse blank lines
         $stripped = preg_replace('/[ \t]{2,}/', ' ', (string) $stripped);
         $stripped = trim((string) $stripped);
