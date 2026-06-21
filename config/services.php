@@ -78,12 +78,4 @@ return [
         'return_base'    => env('ZIINA_RETURN_BASE', env('CUSTOMER_APP_URL')),
     ],
 
-    // ElevenLabs text-to-speech for the in-app assistant's voice. The key stays
-    // server-side; the browser only receives the audio stream.
-    'elevenlabs' => [
-        'api_key'  => env('ELEVENLABS_API_KEY'),
-        'voice_id' => env('ELEVENLABS_VOICE_ID', 'EXAVITQu4vr4xnSDxMaL'), // "Sarah"
-        'model_id' => env('ELEVENLABS_MODEL_ID', 'eleven_turbo_v2_5'),
-    ],
-
 ];

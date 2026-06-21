@@ -10,28 +10,28 @@ class TtsControllerTest extends TestCase
 {
     public function test_requires_text(): void
     {
-        config(['services.elevenlabs.api_key' => 'k']);
+        config(['services.openai.key' => 'k']);
 
         $this->postJson('/api/tts', ['text' => ''])->assertStatus(422);
     }
 
     public function test_returns_503_when_not_configured(): void
     {
-        config(['services.elevenlabs.api_key' => null]);
+        config(['services.openai.key' => null]);
 
         $this->postJson('/api/tts', ['text' => 'hello'])->assertStatus(503);
     }
 
-    public function test_streams_audio_from_elevenlabs(): void
+    public function test_streams_audio_from_openai(): void
     {
         config([
-            'services.elevenlabs.api_key'  => 'k',
-            'services.elevenlabs.voice_id' => 'VOICE',
-            'services.elevenlabs.model_id' => 'eleven_turbo_v2_5',
+            'services.openai.key'       => 'k',
+            'services.openai.tts_model' => 'gpt-4o-mini-tts',
+            'services.openai.tts_voice' => 'nova',
         ]);
         Cache::flush();
         Http::fake([
-            'api.elevenlabs.io/*' => Http::response('AUDIOBYTES', 200, ['Content-Type' => 'audio/mpeg']),
+            'api.openai.com/*' => Http::response('AUDIOBYTES', 200, ['Content-Type' => 'audio/mpeg']),
         ]);
 
         $res = $this->postJson('/api/tts', ['text' => 'We open at 9am tomorrow.']);
@@ -39,20 +39,22 @@ class TtsControllerTest extends TestCase
         $res->assertOk();
         $this->assertSame('audio/mpeg', $res->headers->get('Content-Type'));
         $this->assertSame('AUDIOBYTES', $res->getContent());
-        Http::assertSent(fn ($req) => str_contains($req->url(), '/text-to-speech/VOICE')
-            && $req['text'] === 'We open at 9am tomorrow.');
+        Http::assertSent(fn ($req) => str_contains($req->url(), '/v1/audio/speech')
+            && $req['voice'] === 'nova'
+            && $req['response_format'] === 'mp3'
+            && $req['input'] === 'We open at 9am tomorrow.');
     }
 
     public function test_caches_repeated_text(): void
     {
-        config(['services.elevenlabs.api_key' => 'k', 'services.elevenlabs.voice_id' => 'VOICE']);
+        config(['services.openai.key' => 'k']);
         Cache::flush();
-        Http::fake(['api.elevenlabs.io/*' => Http::response('BYTES', 200, ['Content-Type' => 'audio/mpeg'])]);
+        Http::fake(['api.openai.com/*' => Http::response('BYTES', 200, ['Content-Type' => 'audio/mpeg'])]);
 
         $this->postJson('/api/tts', ['text' => 'same text'])->assertOk();
         $this->postJson('/api/tts', ['text' => 'same text'])->assertOk();
 
-        // Second request served from cache — ElevenLabs hit only once.
+        // Second request served from cache — OpenAI hit only once.
         Http::assertSentCount(1);
     }
 }

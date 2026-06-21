@@ -7,9 +7,10 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 /**
- * Text-to-speech for the in-app assistant. Proxies ElevenLabs so the API key
- * never reaches the browser, and returns an MP3 stream. Identical text is
- * cached for a day so repeated greetings/replies aren't re-billed.
+ * Text-to-speech for the in-app assistant. Reuses the OpenAI TTS the chat
+ * already uses (voice "nova"), returning MP3 for broad browser support. The
+ * API key stays server-side; identical text is cached for a day so repeated
+ * greetings/replies aren't re-billed.
  */
 class TtsController extends Controller
 {
@@ -22,26 +23,26 @@ class TtsController extends Controller
         // Guard cost/abuse — replies are short; cap the spoken length.
         $text = mb_substr($text, 0, 800);
 
-        $key = config('services.elevenlabs.api_key');
+        $key = config('services.openai.key');
         if (empty($key)) {
             return response()->json(['message' => 'TTS not configured'], 503);
         }
 
-        $voice = (string) config('services.elevenlabs.voice_id');
-        $model = (string) config('services.elevenlabs.model_id');
+        $model = (string) config('services.openai.tts_model', 'gpt-4o-mini-tts');
+        $voice = (string) config('services.openai.tts_voice', 'nova');
 
-        $cacheKey = 'tts:' . md5($voice . '|' . $model . '|' . $text);
+        $cacheKey = 'tts:' . md5($model . '|' . $voice . '|' . $text);
         $audio = Cache::get($cacheKey);
 
         if ($audio === null) {
-            $resp = Http::withHeaders([
-                'xi-api-key' => $key,
-                'Accept'     => 'audio/mpeg',
-            ])->timeout(30)->post("https://api.elevenlabs.io/v1/text-to-speech/{$voice}", [
-                'text'           => $text,
-                'model_id'       => $model,
-                'voice_settings' => ['stability' => 0.5, 'similarity_boost' => 0.8],
-            ]);
+            $resp = Http::withToken($key)
+                ->timeout(60)
+                ->post('https://api.openai.com/v1/audio/speech', [
+                    'model'           => $model,
+                    'voice'           => $voice,
+                    'input'           => $text,
+                    'response_format' => 'mp3',
+                ]);
 
             if (! $resp->successful()) {
                 return response()->json(['message' => 'TTS failed'], 502);
