@@ -12,32 +12,39 @@ class LiveAvatarClientTest extends TestCase
     {
         parent::setUp();
         config([
-            'services.liveavatar.api_key'      => 'la-test',
-            'services.liveavatar.base_url'     => 'https://api.liveavatar.com',
-            'services.liveavatar.llm_config_id' => 'llm-cfg-1',
+            'services.liveavatar.api_key'       => 'la-test',
+            'services.liveavatar.base_url'       => 'https://api.liveavatar.com',
+            'services.liveavatar.llm_config_id'  => 'llm-cfg-1',
         ]);
     }
 
-    public function test_create_session_sends_avatar_voice_and_llm_config(): void
+    public function test_create_session_posts_full_mode_token_request(): void
     {
         Http::fake([
-            '*/v1/sessions/token' => Http::response(['token' => 'sess-tok'], 200),
-            '*/v1/sessions/start' => Http::response(['session_id' => 'sid', 'livekit' => ['url' => 'wss://x']], 200),
+            '*/v1/sessions/token' => Http::response([
+                'code' => 1000,
+                'data' => ['session_id' => 'sid', 'session_token' => 'sess-tok'],
+            ], 200),
         ]);
 
         $out = app(LiveAvatarClient::class)->createSession([
             'avatar_id'     => 'av_1',
             'voice_id'      => 'vo_1',
-            'system_prompt' => 'be nice',
+            'context_id'    => 'ctx_1',
+            'session_token' => 'signed-token',
         ]);
 
-        $this->assertSame('sid', $out['session_id']);
+        $this->assertSame('sess-tok', $out['session_token']);
         Http::assertSent(function ($req) {
-            return str_contains($req->url(), '/v1/sessions/start')
+            return str_contains($req->url(), '/v1/sessions/token')
+                && $req->hasHeader('X-API-KEY', 'la-test')
+                && $req['mode'] === 'FULL'
                 && $req['avatar_id'] === 'av_1'
-                && $req['voice_id'] === 'vo_1'
+                && $req['avatar_persona']['voice_id'] === 'vo_1'
+                && $req['avatar_persona']['context_id'] === 'ctx_1'
                 && $req['llm_configuration_id'] === 'llm-cfg-1'
-                && str_contains($req['system_prompt'], 'be nice');
+                && $req['interactivity_type'] === 'CONVERSATIONAL'
+                && $req['dynamic_variables']['session'] === 'signed-token';
         });
     }
 
@@ -45,6 +52,8 @@ class LiveAvatarClientTest extends TestCase
     {
         config(['services.liveavatar.api_key' => null]);
         $this->expectException(\RuntimeException::class);
-        app(LiveAvatarClient::class)->createSession(['avatar_id' => 'a', 'voice_id' => 'v', 'system_prompt' => 'x']);
+        app(LiveAvatarClient::class)->createSession([
+            'avatar_id' => 'a', 'voice_id' => 'v', 'context_id' => 'c', 'session_token' => 't',
+        ]);
     }
 }

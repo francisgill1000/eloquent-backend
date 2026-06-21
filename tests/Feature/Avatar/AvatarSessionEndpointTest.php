@@ -16,12 +16,13 @@ class AvatarSessionEndpointTest extends TestCase
     {
         parent::setUp();
         config([
-            'services.liveavatar.api_key'          => 'la-test',
-            'services.liveavatar.llm_config_id'     => 'cfg',
-            'services.liveavatar.session_secret'    => 'sek',
-            'services.liveavatar.default_avatar_id' => 'av_default',
-            'services.liveavatar.default_voice_id'  => 'vo_default',
-            'services.anthropic.key'                => 'sk-test',
+            'services.liveavatar.api_key'           => 'la-test',
+            'services.liveavatar.llm_config_id'      => 'cfg',
+            'services.liveavatar.session_secret'     => 'sek',
+            'services.liveavatar.default_avatar_id'  => 'av_default',
+            'services.liveavatar.default_voice_id'   => 'vo_default',
+            'services.liveavatar.default_context_id' => 'ctx_default',
+            'services.anthropic.key'                 => 'sk-test',
         ]);
     }
 
@@ -35,8 +36,10 @@ class AvatarSessionEndpointTest extends TestCase
             ->andReturnUsing(function (array $opts) {
                 $this->assertSame('av_shop', $opts['avatar_id']);
                 $this->assertSame('vo_shop', $opts['voice_id']);
-                $this->assertStringContainsString('[[avatar-session:', $opts['system_prompt']);
-                return ['session_id' => 'sid', 'livekit' => ['url' => 'wss://x']];
+                $this->assertSame('ctx_default', $opts['context_id']);
+                // session_token is the signed shop+device token (opaque, non-empty)
+                $this->assertNotEmpty($opts['session_token']);
+                return ['session_id' => 'sid', 'session_token' => 'sess-tok'];
             });
         $this->app->instance(LiveAvatarClient::class, $mock);
 
@@ -56,7 +59,8 @@ class AvatarSessionEndpointTest extends TestCase
             ->andReturnUsing(function (array $opts) {
                 $this->assertSame('av_default', $opts['avatar_id']);
                 $this->assertSame('vo_default', $opts['voice_id']);
-                return ['session_id' => 'sid2'];
+                $this->assertSame('ctx_default', $opts['context_id']);
+                return ['session_id' => 'sid2', 'session_token' => 'sess-tok2'];
             });
         $this->app->instance(LiveAvatarClient::class, $mock);
 

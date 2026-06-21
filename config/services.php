@@ -88,9 +88,12 @@ return [
         'llm_config_id'     => env('LIVEAVATAR_LLM_CONFIG_ID'),
         // HMAC secret for the signed per-session context token.
         'session_secret'    => env('LIVEAVATAR_SESSION_SECRET'),
-        // Fallback avatar/voice when a shop has none set.
-        'default_avatar_id' => env('LIVEAVATAR_DEFAULT_AVATAR_ID'),
-        'default_voice_id'  => env('LIVEAVATAR_DEFAULT_VOICE_ID'),
+        // Fallback avatar/voice/context when a shop has none set. The Context
+        // (context_id) carries the {{session}} placeholder LiveAvatar substitutes
+        // with our signed token so the custom-LLM bridge can identify the shop.
+        'default_avatar_id'  => env('LIVEAVATAR_DEFAULT_AVATAR_ID'),
+        'default_voice_id'   => env('LIVEAVATAR_DEFAULT_VOICE_ID'),
+        'default_context_id' => env('LIVEAVATAR_DEFAULT_CONTEXT_ID'),
     ],
 
 ];
