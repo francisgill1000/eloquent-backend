@@ -151,3 +151,6 @@ Route::middleware('auth:sanctum')->group(function () {
 // keyed by X-Device-Id like the in-app chat.
 Route::post('/avatar/shops/{shop}/session', [\App\Http\Controllers\AvatarController::class, 'session'])
     ->middleware('throttle:20,1');
+// OpenAI-compatible custom-LLM bridge LiveAvatar calls server-to-server.
+Route::post('/avatar/llm/chat/completions', [\App\Http\Controllers\AvatarLlmController::class, 'completions'])
+    ->middleware('throttle:60,1');
