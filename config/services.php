@@ -78,22 +78,4 @@ return [
         'return_base'    => env('ZIINA_RETURN_BASE', env('CUSTOMER_APP_URL')),
     ],
 
-    // LiveAvatar (HeyGen) FULL-mode talking avatar — "Video Assistant".
-    // The API key/session secret never reach the browser; the backend brokers
-    // the session and runs the existing Rezzy brain via a custom-LLM bridge.
-    'liveavatar' => [
-        'api_key'           => env('LIVEAVATAR_API_KEY'),
-        'base_url'          => env('LIVEAVATAR_BASE_URL', 'https://api.liveavatar.com'),
-        // One global custom-LLM configuration id (created once in the dashboard).
-        'llm_config_id'     => env('LIVEAVATAR_LLM_CONFIG_ID'),
-        // HMAC secret for the signed per-session context token.
-        'session_secret'    => env('LIVEAVATAR_SESSION_SECRET'),
-        // Fallback avatar/voice/context when a shop has none set. The Context
-        // (context_id) carries the {{session}} placeholder LiveAvatar substitutes
-        // with our signed token so the custom-LLM bridge can identify the shop.
-        'default_avatar_id'  => env('LIVEAVATAR_DEFAULT_AVATAR_ID'),
-        'default_voice_id'   => env('LIVEAVATAR_DEFAULT_VOICE_ID'),
-        'default_context_id' => env('LIVEAVATAR_DEFAULT_CONTEXT_ID'),
-    ],
-
 ];
