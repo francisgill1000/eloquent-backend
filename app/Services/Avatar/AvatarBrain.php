@@ -3,6 +3,8 @@
 namespace App\Services\Avatar;
 
 use App\Models\Shop;
+use App\Models\WaContact;
+use App\Services\Wa\BookingTools;
 use App\Services\Wa\ClaudeClient;
 use App\Services\Wa\PersonaResolver;
 use InvalidArgumentException;
@@ -51,6 +53,23 @@ class AvatarBrain
 
         $prompt = $this->persona->systemPrompt($shop);
 
-        return $this->claude->reply($prompt, $history);
+        // Booking tools run against an isolated avatar-channel contact so avatar
+        // turns never merge into the live-chat ('app') thread for this device.
+        $contact = WaContact::firstOrCreate([
+            'shop_id'   => $shop->id,
+            'device_id' => $ctx['device_id'],
+            'channel'   => 'avatar',
+        ]);
+
+        $reply = $this->claude->toolLoop(
+            $prompt,
+            $history,
+            BookingTools::defs(),
+            fn (string $tool, array $input) => app(BookingTools::class)->execute($shop, $contact, $tool, $input),
+        );
+
+        // toolLoop returns '' if its turn budget is exhausted mid-tool-call;
+        // fall back to a plain reply so the avatar always says something.
+        return $reply !== '' ? $reply : $this->claude->reply($prompt, $history);
     }
 }
