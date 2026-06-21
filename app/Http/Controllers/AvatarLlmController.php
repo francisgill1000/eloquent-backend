@@ -16,6 +16,10 @@ class AvatarLlmController extends Controller
 {
     public function completions(Request $request, AvatarBrain $brain): StreamedResponse
     {
+        // TEMP DEBUG: capture exactly what LiveAvatar sends so we can locate the
+        // per-session token. Remove once token routing is confirmed.
+        \Log::info('avatar.llm.request', ['body' => $request->all()]);
+
         try {
             $text = $brain->answer((array) $request->input('messages', []));
         } catch (\InvalidArgumentException $e) {
