@@ -7,34 +7,35 @@ use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 /**
- * Thin client for the LiveAvatar REST API. Brokers a FULL-mode session so the
- * browser never sees our API key. Custom-LLM routing is fixed at the (global)
- * llm_configuration_id; per-session context travels via the system prompt.
+ * Thin client for the LiveAvatar REST API. Brokers a FULL-mode session token so
+ * the browser never sees our API key; the Web SDK performs the actual start with
+ * the returned session_token.
  *
- * NOTE: endpoint paths/field names follow the documented FULL-mode token+start
- * flow and are reconciled against the live service during manual e2e. Keep all
- * LiveAvatar-specific shapes inside this class so adjustments stay localized.
+ * The avatar's "brain" is our custom-LLM bridge (llm_configuration_id). Per-session
+ * shop/device identity rides in dynamic_variables.session, which LiveAvatar
+ * substitutes into the Context's {{session}} placeholder so the bridge can read
+ * it back out of the system message.
  */
 class LiveAvatarClient
 {
     /**
-     * @param array{avatar_id: string, voice_id: string, system_prompt: string} $opts
-     * @return array<string, mixed> raw LiveAvatar session credentials
+     * @param array{avatar_id: string, voice_id: string, context_id: string, session_token: string, language?: string} $opts
+     * @return array<string, mixed> the `data` object: { session_id, session_token }
      */
     public function createSession(array $opts): array
     {
-        $token = $this->request()->post('/v1/sessions/token', [
-            'mode' => 'FULL',
-        ])->throw()->json('token');
-
-        return $this->request()->post('/v1/sessions/start', [
-            'token'                => $token,
-            'avatar_id'            => $opts['avatar_id'],
-            'voice_id'             => $opts['voice_id'],
+        return $this->request()->post('/v1/sessions/token', [
+            'mode'       => 'FULL',
+            'avatar_id'  => $opts['avatar_id'],
+            'avatar_persona' => [
+                'voice_id'   => $opts['voice_id'],
+                'context_id' => $opts['context_id'],
+                'language'   => $opts['language'] ?? 'en',
+            ],
             'llm_configuration_id' => config('services.liveavatar.llm_config_id'),
-            'system_prompt'        => $opts['system_prompt'],
-            'interactivity'        => 'conversational',
-        ])->throw()->json();
+            'interactivity_type'   => 'CONVERSATIONAL',
+            'dynamic_variables'    => ['session' => $opts['session_token']],
+        ])->throw()->json('data') ?? [];
     }
 
     private function request(): PendingRequest
@@ -44,7 +45,7 @@ class LiveAvatarClient
             throw new RuntimeException('LiveAvatar is not configured (LIVEAVATAR_API_KEY missing).');
         }
 
-        return Http::withToken($key)
+        return Http::withHeaders(['X-API-KEY' => $key])
             ->baseUrl(rtrim((string) config('services.liveavatar.base_url'), '/'))
             ->acceptJson()
             ->timeout(30);
