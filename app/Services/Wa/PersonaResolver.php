@@ -31,7 +31,7 @@ class PersonaResolver
      * inherent sense of "today" and would otherwise guess a past year). The
      * $contact argument is kept for call-site compatibility.
      */
-    public function systemPrompt(?Shop $shop, ?\App\Models\WaContact $contact = null): string
+    public function systemPrompt(?Shop $shop, ?\App\Models\WaContact $contact = null, bool $isApp = false): string
     {
         $today = \Illuminate\Support\Carbon::now('Asia/Dubai');
         $dateContext = "Today is {$today->format('l, j F Y')} (Asia/Dubai timezone), so the current year is {$today->year}. "
@@ -42,9 +42,13 @@ class PersonaResolver
             . "Never thank them for paying, never say payment is received, and never call a booking paid or confirmed-by-payment unless the check_payment tool returned paid:true in this very reply. "
             . "If they claim they paid, call check_payment first; if it returns paid:false, politely tell them you can't see the payment yet and share the payment link again.\n\n";
 
-        $servicesDisplay = "SERVICES LIST: when the customer asks what services, treatments or prices you offer (e.g. 'what do you offer?', 'show me your services', 'price list', 'menu'), reply with one short friendly sentence and then put the token [[services]] on its own line. "
-            . "The app renders the full list of services with their prices in place of that token, so do NOT type the services or prices out yourself. "
-            . "Use the token only for that general request — not when the customer is asking about one specific service.\n\n";
+        // Only the in-app Live Chat can render the [[services]] card; on WhatsApp
+        // the assistant must list services as text (the token would show raw).
+        $servicesDisplay = $isApp
+            ? "SERVICES LIST: when the customer asks what services, treatments or prices you offer (e.g. 'what do you offer?', 'show me your services', 'price list', 'menu'), reply with one short friendly sentence and then put the token [[services]] on its own line. "
+                . "The app renders the full list of services with their prices in place of that token, so do NOT type the services or prices out yourself. "
+                . "Use the token only for that general request — not when the customer is asking about one specific service.\n\n"
+            : '';
 
         return $dateContext . $paymentIntegrity . $servicesDisplay . $this->promptForShop($shop);
     }
