@@ -114,6 +114,10 @@ Route::post('/tts', [\App\Http\Controllers\TtsController::class, 'speak'])
 // Throttled: every search triggers a Claude call.
 Route::post('/ai/search', [\App\Http\Controllers\AiController::class, 'search'])
     ->middleware('throttle:30,1');
+// Available service categories (with shop counts) for the "what can I search?"
+// chips. Pure DB query — no Claude call, so a looser throttle.
+Route::get('/ai/categories', [\App\Http\Controllers\AiController::class, 'categories'])
+    ->middleware('throttle:120,1');
 
 // WhatsApp Cloud API — public webhook (routed per shop by phone_number_id).
 // Auto-replies are generated in-app by the ProcessWaReply job.
