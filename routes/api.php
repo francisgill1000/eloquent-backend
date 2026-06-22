@@ -110,6 +110,11 @@ Route::post('/chat/shops/{shop}/voice', [\App\Http\Controllers\ChatController::c
 Route::post('/tts', [\App\Http\Controllers\TtsController::class, 'speak'])
     ->middleware('throttle:60,1');
 
+// AI service finder — customer side, keyed by X-Device-Id (no login).
+// Throttled: every search triggers a Claude call.
+Route::post('/ai/search', [\App\Http\Controllers\AiController::class, 'search'])
+    ->middleware('throttle:30,1');
+
 // WhatsApp Cloud API — public webhook (routed per shop by phone_number_id).
 // Auto-replies are generated in-app by the ProcessWaReply job.
 Route::get('/wa/webhook', [\App\Http\Controllers\WaWebhookController::class, 'verify']);
