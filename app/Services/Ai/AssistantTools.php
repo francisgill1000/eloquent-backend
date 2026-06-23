@@ -114,7 +114,19 @@ class AssistantTools
         }
         if (!empty($input['query'])) {
             $q = trim((string) $input['query']);
-            $query->where(fn ($w) => $w->where('name', 'LIKE', "%{$q}%")->orWhere('location', 'LIKE', "%{$q}%"));
+            // Match the full phrase OR any individual word (>=3 chars), so a
+            // voice mis-spelling ("Hina Salon" → "Heena Salon") still surfaces
+            // the shop via a matching word like "Salon"; the model then picks it.
+            $tokens = array_values(array_filter(
+                preg_split('/\s+/', $q) ?: [],
+                fn ($t) => mb_strlen($t) >= 3,
+            ));
+            $query->where(function ($w) use ($q, $tokens) {
+                $w->where('name', 'LIKE', "%{$q}%")->orWhere('location', 'LIKE', "%{$q}%");
+                foreach ($tokens as $t) {
+                    $w->orWhere('name', 'LIKE', "%{$t}%");
+                }
+            });
         }
 
         $near = !empty($input['near']) && $this->lat !== null && $this->lon !== null;

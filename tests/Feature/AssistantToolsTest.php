@@ -86,6 +86,19 @@ class AssistantToolsTest extends TestCase
         $this->assertSame('Sharp Cuts', $tools->collectedShops()->first()->name);
     }
 
+    public function test_search_shops_matches_on_individual_words(): void
+    {
+        // Voice gave "Hina Salon"; the real shop is "Heena Salon" — the word
+        // "Salon" must still surface it.
+        Shop::factory()->create(['status' => Shop::ACTIVE, 'is_master' => false, 'category_id' => 9, 'name' => 'Heena Salon']);
+
+        $tools = $this->tools();
+        $data = json_decode($tools->executeRead('search_shops', ['query' => 'Hina Salon']), true);
+
+        $names = array_column($data['shops'], 'name');
+        $this->assertContains('Heena Salon', $names);
+    }
+
     public function test_defs_include_read_and_action_tools(): void
     {
         $names = array_column(AssistantTools::defs(), 'name');
