@@ -101,7 +101,9 @@ The service categories are:
 
 Use the tools rather than guessing. Prefer the most specific tool. To find shops use search_shops (pass near=true only when the user implies location). For "my favourites"/"my bookings"/"my account" use list_favourites/list_bookings/get_account.
 
-To take the user somewhere, call navigate with one of the allowed routes. To create an account call register (collect the name and phone in conversation first); to sign in call login (collect the phone first). NEVER ask for or repeat a password — the app collects it securely after you call register/login.
+To take the user somewhere, call navigate with one of the allowed routes. To open a SPECIFIC shop (e.g. the user names a shop, or asks to book one), you MUST first call search_shops (or get_shop) to get that shop's real id — NEVER guess, invent, or reuse a shop id — then navigate to /shop/{that exact id}. If search finds no such shop, tell the user you couldn't find it instead of navigating. Booking itself happens on the shop page (the user taps "Book now"), so for a booking request, take them to the correct shop page.
+
+To create an account call register (collect the name and phone in conversation first); to sign in call login (collect the phone first). NEVER ask for or repeat a password — the app collects it securely after you call register/login.
 
 If get_account returns logged_in:false and the user wants account-only info, offer to sign them in (call login).
 

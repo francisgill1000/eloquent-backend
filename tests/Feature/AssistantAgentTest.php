@@ -92,6 +92,31 @@ class AssistantAgentTest extends TestCase
         $this->assertSame(['name' => 'Aisha', 'phone' => '0501234567'], $out['action']['fields']);
     }
 
+    public function test_navigate_to_existing_shop_short_circuits(): void
+    {
+        $shop = Shop::factory()->create(['status' => Shop::ACTIVE, 'is_master' => false, 'name' => 'Hina Salon']);
+
+        $this->fakeTurns([$this->toolTurn('Opening Hina Salon!', 'navigate', ['route' => "/shop/{$shop->id}"])]);
+
+        $out = $this->agent()->run('sys', [['role' => 'user', 'content' => 'book hina salon']], new AssistantTools('dev-1'));
+
+        $this->assertSame(['type' => 'navigate', 'route' => "/shop/{$shop->id}"], $out['action']);
+    }
+
+    public function test_navigate_to_nonexistent_shop_feeds_error_and_model_recovers(): void
+    {
+        // Model guesses a bad id first; after the error it searches and replies.
+        $this->fakeTurns([
+            $this->toolTurn('', 'navigate', ['route' => '/shop/9999']),
+            $this->textTurn("I couldn't find that shop — try searching by name."),
+        ]);
+
+        $out = $this->agent()->run('sys', [['role' => 'user', 'content' => 'book hina salon']], new AssistantTools('dev-1'));
+
+        $this->assertNull($out['action']);
+        $this->assertSame("I couldn't find that shop — try searching by name.", $out['reply']);
+    }
+
     public function test_invalid_navigate_route_is_ignored(): void
     {
         $this->fakeTurns([

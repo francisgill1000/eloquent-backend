@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai;
 
+use App\Models\Shop;
 use App\Services\Wa\ClaudeClient;
 use Illuminate\Support\Collection;
 
@@ -36,16 +37,27 @@ class AssistantAgent
                 return ['reply' => $text, 'action' => null, 'shops' => $tools->collectedShops()];
             }
 
-            // An action tool ends the turn with a client directive.
-            $action = $toolBlocks
-                ->map(fn ($b) => $this->actionFor($b['name'], (array) ($b['input'] ?? [])))
-                ->first(fn ($a) => $a !== null);
+            // Build a tool_result per block. A VALID action tool short-circuits the
+            // loop; an INVALID one (e.g. navigate to a shop that doesn't exist) and
+            // every read tool feed a result back so the model can recover/continue.
+            $toolResults = [];
+            foreach ($toolBlocks as $t) {
+                $name = $t['name'];
+                $input = (array) ($t['input'] ?? []);
 
-            if ($action !== null) {
-                return ['reply' => $text, 'action' => $action, 'shops' => $tools->collectedShops()];
+                if (in_array($name, AssistantTools::ACTION_TOOLS, true)) {
+                    $error = $this->actionError($name, $input);
+                    if ($error === null) {
+                        return ['reply' => $text, 'action' => $this->actionFor($name, $input), 'shops' => $tools->collectedShops()];
+                    }
+                    $toolResults[] = ['type' => 'tool_result', 'tool_use_id' => $t['id'], 'content' => $error];
+                    continue;
+                }
+
+                $toolResults[] = ['type' => 'tool_result', 'tool_use_id' => $t['id'], 'content' => $tools->executeRead($name, $input)];
             }
 
-            // Read tools: echo the assistant turn, append one tool_result each, continue.
+            // Echo the assistant turn, append the tool_results, continue.
             $messages[] = ['role' => 'assistant', 'content' => array_map(function ($b) {
                 if (($b['type'] ?? null) === 'tool_use') {
                     $b['input'] = (object) ($b['input'] ?? []);
@@ -53,15 +65,38 @@ class AssistantAgent
                 return $b;
             }, $content)];
 
-            $messages[] = ['role' => 'user', 'content' => $toolBlocks->map(fn ($t) => [
-                'type' => 'tool_result',
-                'tool_use_id' => $t['id'],
-                'content' => $tools->executeRead($t['name'], (array) ($t['input'] ?? [])),
-            ])->all()];
+            $messages[] = ['role' => 'user', 'content' => $toolResults];
         }
 
         // Loop exhausted mid-tool-call — return whatever text we have, no action.
         return ['reply' => '', 'action' => null, 'shops' => $tools->collectedShops()];
+    }
+
+    /**
+     * Validate an action tool call. Returns null when it's actionable (the loop
+     * may short-circuit), or a JSON error string to feed back so the model can
+     * recover — e.g. it guessed a shop id that doesn't exist.
+     */
+    private function actionError(string $name, array $input): ?string
+    {
+        if ($name !== 'navigate') {
+            return null; // register / login are always actionable
+        }
+
+        $route = trim((string) ($input['route'] ?? ''));
+        if (in_array($route, self::STATIC_ROUTES, true)) {
+            return null;
+        }
+        if (preg_match('#^/shop/(\d+)$#', $route, $m)) {
+            $exists = Shop::where('status', Shop::ACTIVE)->whereKey((int) $m[1])->exists();
+            return $exists ? null : json_encode([
+                'error' => "No shop with id {$m[1]} exists. Call search_shops to find the shop the user means and navigate using its real id — do not guess ids.",
+            ]);
+        }
+
+        return json_encode([
+            'error' => "Route '{$route}' is not allowed. Use one of: /, /explore, /near-me, /ai, /favourites, /bookings, /account, /login, /register, or /shop/{id} for a shop that exists.",
+        ]);
     }
 
     /** Build a client directive for an action tool, or null for read tools / invalid input. */
