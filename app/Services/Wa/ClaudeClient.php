@@ -82,6 +82,19 @@ class ClaudeClient
         return '';
     }
 
+    /**
+     * One raw Anthropic turn — full decoded response (text + tool_use blocks
+     * with ids). The assistant agent drives its own loop over this.
+     *
+     * @param array<int, array{role: string, content: mixed}> $messages
+     * @param array<int, array<string, mixed>> $tools
+     * @return array<string, mixed>
+     */
+    public function raw(string $system, array $messages, array $tools = []): array
+    {
+        return $this->request($system, $messages, $tools);
+    }
+
     private function request(string $system, array $history, array $tools = []): array
     {
         $payload = [
