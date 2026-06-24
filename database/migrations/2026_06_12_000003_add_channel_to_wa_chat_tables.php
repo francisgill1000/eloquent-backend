@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * In-app "Live Chat" channel alongside WhatsApp. App-channel contacts belong
  * to a shop directly (no WaAccount) and are identified by the customer
- * device id that rezzy-customer already sends on every request.
+ * device id that eloquent-bookings already sends on every request.
  */
 return new class extends Migration
 {
