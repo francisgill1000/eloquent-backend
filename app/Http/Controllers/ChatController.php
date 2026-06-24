@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 
 /**
  * Customer-facing in-app Live Chat with a shop. Same guest-first identity as
- * favourites/bookings: the rezzy-customer device id (X-Device-Id header) keys
+ * favourites/bookings: the eloquent-bookings device id (X-Device-Id header) keys
  * the thread, no login required. Replies come from the shared AI pipeline
  * (ProcessWaReply) and land as stored rows this controller serves back.
  */
