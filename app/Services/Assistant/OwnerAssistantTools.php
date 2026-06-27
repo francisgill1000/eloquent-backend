@@ -173,11 +173,21 @@ class OwnerAssistantTools
 
     protected function updateHours(Shop $shop, array $input): array
     {
-        DB::table('shop_working_hours')->updateOrInsert(
-            ['shop_id' => $shop->id, 'day_of_week' => (int) $input['day_of_week']],
-            ['start_time' => $input['start_time'] . ':00', 'end_time' => $input['end_time'] . ':00', 'slot_duration' => 30, 'updated_at' => now(), 'created_at' => now()]
-        );
-        return ['updated' => true, 'day_of_week' => (int) $input['day_of_week']];
+        $day = (int) $input['day_of_week'];
+        $base = DB::table('shop_working_hours')->where('shop_id', $shop->id)->where('day_of_week', $day);
+        $payload = [
+            'start_time' => $input['start_time'] . ':00',
+            'end_time'   => $input['end_time'] . ':00',
+            'updated_at' => now(),
+        ];
+        if ($base->exists()) {
+            (clone $base)->update($payload);
+        } else {
+            DB::table('shop_working_hours')->insert(array_merge($payload, [
+                'shop_id' => $shop->id, 'day_of_week' => $day, 'slot_duration' => 30, 'created_at' => now(),
+            ]));
+        }
+        return ['updated' => true, 'day_of_week' => $day];
     }
 
     protected function updatePrice(Shop $shop, array $input): array
