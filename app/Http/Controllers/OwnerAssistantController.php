@@ -9,7 +9,6 @@ use App\Services\Wa\Transcriber;
 use App\Support\Assistant\AssistantPrompt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Owner voice/text assistant. Synchronous: one request = one turn. Scoped to
@@ -81,13 +80,14 @@ class OwnerAssistantController extends Controller
         }
         $replyText = $replyText !== '' ? $replyText : "Sorry, I couldn't work that out — please try again.";
 
+        // Return the spoken reply inline as a base64 data URI. This plays
+        // directly in the browser with no storage symlink, no CORS, and no
+        // file accumulation — identical behaviour on local dev and prod.
         $audioUrl = null;
         if ($this->speech->available()) {
             try {
                 $bytes = $this->speech->synthesize($replyText);
-                $path = "assistant/{$shop->id}/reply-" . uniqid() . '.ogg';
-                Storage::disk('public')->put($path, $bytes);
-                $audioUrl = Storage::disk('public')->url($path);
+                $audioUrl = 'data:audio/ogg;base64,' . base64_encode($bytes);
             } catch (\Throwable $e) {
                 Log::warning('assistant tts failed: ' . $e->getMessage());
             }
