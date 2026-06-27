@@ -54,6 +54,39 @@ class OwnerAssistantTools
                     'status' => ['type' => 'string', 'enum' => ['booked', 'completed', 'cancelled', 'queued']],
                 ]],
             ],
+            [
+                'name' => 'cancel_booking',
+                'description' => 'Cancel one booking by reference. Only call after the owner has confirmed in their previous message.',
+                'input_schema' => ['type' => 'object', 'properties' => [
+                    'reference' => ['type' => 'string', 'description' => 'Booking reference, e.g. BK00001'],
+                ], 'required' => ['reference']],
+            ],
+            [
+                'name' => 'update_booking_status',
+                'description' => 'Set a booking status. Only call after the owner has confirmed.',
+                'input_schema' => ['type' => 'object', 'properties' => [
+                    'reference' => ['type' => 'string'],
+                    'status' => ['type' => 'string', 'enum' => ['booked', 'completed', 'cancelled', 'queued']],
+                ], 'required' => ['reference', 'status']],
+            ],
+            [
+                'name' => 'update_hours',
+                'description' => 'Set opening hours for one weekday (0=Sunday..6=Saturday). Only call after the owner has confirmed.',
+                'input_schema' => ['type' => 'object', 'properties' => [
+                    'day_of_week' => ['type' => 'integer', 'description' => '0=Sunday .. 6=Saturday'],
+                    'start_time' => ['type' => 'string', 'description' => 'HH:MM 24h'],
+                    'end_time' => ['type' => 'string', 'description' => 'HH:MM 24h'],
+                ], 'required' => ['day_of_week', 'start_time', 'end_time']],
+            ],
+            [
+                'name' => 'update_service_price',
+                'description' => 'Change a service price. Identify the service by catalog_id (preferred) or service_title. Only call after the owner has confirmed.',
+                'input_schema' => ['type' => 'object', 'properties' => [
+                    'catalog_id' => ['type' => 'integer'],
+                    'service_title' => ['type' => 'string'],
+                    'price' => ['type' => 'number'],
+                ], 'required' => ['price']],
+            ],
         ];
     }
 
@@ -65,6 +98,10 @@ class OwnerAssistantTools
             'get_staff_performance' => $this->aggregatorFor($shop, $input, 'staffSummary'),
             'get_busy_times'        => $this->aggregatorFor($shop, $input, 'timePatternsSummary'),
             'get_bookings'          => $this->bookings($shop, $input),
+            'cancel_booking'        => $this->cancelBooking($shop, $input),
+            'update_booking_status' => $this->updateStatus($shop, $input),
+            'update_hours'          => $this->updateHours($shop, $input),
+            'update_service_price'  => $this->updatePrice($shop, $input),
             default                 => ['error' => "unknown tool {$tool}"],
         };
 
@@ -112,5 +149,49 @@ class OwnerAssistantTools
                 'charges' => (float) $b->charges,
             ])->all(),
         ];
+    }
+
+    protected function cancelBooking(Shop $shop, array $input): array
+    {
+        $n = DB::table('bookings')
+            ->where('shop_id', $shop->id)
+            ->where('booking_reference', $input['reference'] ?? '')
+            ->update(['status' => 'cancelled', 'updated_at' => now()]);
+        return $n ? ['cancelled' => true, 'reference' => $input['reference']]
+                  : ['error' => 'No booking with that reference in your shop.'];
+    }
+
+    protected function updateStatus(Shop $shop, array $input): array
+    {
+        $n = DB::table('bookings')
+            ->where('shop_id', $shop->id)
+            ->where('booking_reference', $input['reference'] ?? '')
+            ->update(['status' => $input['status'], 'updated_at' => now()]);
+        return $n ? ['updated' => true, 'reference' => $input['reference'], 'status' => $input['status']]
+                  : ['error' => 'No booking with that reference in your shop.'];
+    }
+
+    protected function updateHours(Shop $shop, array $input): array
+    {
+        DB::table('shop_working_hours')->updateOrInsert(
+            ['shop_id' => $shop->id, 'day_of_week' => (int) $input['day_of_week']],
+            ['start_time' => $input['start_time'] . ':00', 'end_time' => $input['end_time'] . ':00', 'slot_duration' => 30, 'updated_at' => now(), 'created_at' => now()]
+        );
+        return ['updated' => true, 'day_of_week' => (int) $input['day_of_week']];
+    }
+
+    protected function updatePrice(Shop $shop, array $input): array
+    {
+        $q = DB::table('catalogs')->where('shop_id', $shop->id);
+        if (!empty($input['catalog_id'])) {
+            $q->where('id', (int) $input['catalog_id']);
+        } elseif (!empty($input['service_title'])) {
+            $q->where('title', $input['service_title']);
+        } else {
+            return ['error' => 'Tell me which service to reprice.'];
+        }
+        $n = $q->update(['price' => $input['price'], 'updated_at' => now()]);
+        return $n ? ['updated' => true, 'price' => $input['price']]
+                  : ['error' => 'No matching service in your shop.'];
     }
 }
