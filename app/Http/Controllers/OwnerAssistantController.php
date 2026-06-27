@@ -44,15 +44,8 @@ class OwnerAssistantController extends Controller
         $file = $request->file('audio');
         $transcript = null;
         try {
-            // file_get_contents returns '' for zero-byte files (e.g. test fakes).
-            // Guzzle's multipart body builder requires non-empty 'contents', so
-            // we substitute a null byte as a safe placeholder; Http::fake()
-            // intercepts before the byte string is inspected by the real API.
             $bytes = (string) file_get_contents($file->getRealPath());
-            $transcript = $this->transcriber->transcribe(
-                $bytes !== '' ? $bytes : "\x00",
-                $file->getMimeType() ?: 'audio/webm'
-            );
+            $transcript = $this->transcriber->transcribe($bytes, $file->getMimeType() ?: 'audio/webm');
         } catch (\Throwable $e) {
             Log::warning('assistant transcription failed: ' . $e->getMessage());
         }
@@ -71,7 +64,7 @@ class OwnerAssistantController extends Controller
     }
 
     /** @param array<int, array{role:string, content:string}> $history */
-    protected function respond(Shop $shop, string $userText, array $history, ?string $transcript = null)
+    protected function respond(Shop $shop, string $userText, array $history, ?string $transcript = null): \Illuminate\Http\JsonResponse
     {
         $messages = array_merge($history, [['role' => 'user', 'content' => $userText]]);
 
@@ -102,12 +95,15 @@ class OwnerAssistantController extends Controller
 
         $newHistory = array_merge($messages, [['role' => 'assistant', 'content' => $replyText]]);
 
-        return response()->json([
-            'transcript' => $transcript ?? $userText,
+        $payload = [
             'reply_text' => $replyText,
             'reply_audio_url' => $audioUrl,
             'history' => $newHistory,
-        ], 201);
+        ];
+        if ($transcript !== null) {
+            $payload['transcript'] = $transcript;
+        }
+        return response()->json($payload, 201);
     }
 
     /** Accepts a JSON string or an array; returns a clean role/content list. */

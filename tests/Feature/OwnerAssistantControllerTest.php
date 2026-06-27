@@ -33,7 +33,8 @@ class OwnerAssistantControllerTest extends TestCase
 
         $res->assertCreated()
             ->assertJsonPath('reply_text', 'You made 50 dirhams today.')
-            ->assertJsonStructure(['reply_text', 'reply_audio_url', 'history']);
+            ->assertJsonStructure(['reply_text', 'reply_audio_url', 'history'])
+            ->assertJsonMissingPath('transcript');
         $this->assertNotNull($res->json('reply_audio_url'));
     }
 
@@ -53,11 +54,50 @@ class OwnerAssistantControllerTest extends TestCase
             'api.openai.com/v1/audio/speech' => Http::response('FAKE_OGG_BYTES', 200),
         ]);
 
-        $audio = UploadedFile::fake()->create('voice.webm', 10, 'audio/webm');
+        $audio = UploadedFile::fake()->createWithContent('voice.webm', 'FAKE-AUDIO-BYTES', 'audio/webm');
         $res = $this->post('/api/shop/assistant/voice', ['audio' => $audio, 'history' => '[]']);
 
         $res->assertCreated()
             ->assertJsonPath('transcript', 'how much today')
             ->assertJsonPath('reply_text', 'Fifty dirhams.');
+    }
+
+    public function test_claude_failure_degrades_gracefully(): void
+    {
+        Storage::fake('public');
+        $this->authShop();
+        Http::fake([
+            'api.anthropic.com/*' => Http::response(['error' => 'boom'], 500),
+            'api.openai.com/v1/audio/speech' => Http::response('OGG', 200),
+        ]);
+
+        $res = $this->postJson('/api/shop/assistant/text', ['text' => 'how much today', 'history' => []]);
+
+        $res->assertCreated();
+        $this->assertNotEmpty($res->json('reply_text'));
+    }
+
+    public function test_transcription_failure_returns_graceful_message(): void
+    {
+        Storage::fake('public');
+        $this->authShop();
+        Http::fake([
+            'api.openai.com/v1/audio/transcriptions' => Http::response('', 500),
+        ]);
+
+        $audio = UploadedFile::fake()->createWithContent('voice.webm', 'FAKE-AUDIO-BYTES', 'audio/webm');
+        $res = $this->post('/api/shop/assistant/voice', ['audio' => $audio, 'history' => '[]']);
+
+        $res->assertCreated()
+            ->assertJsonPath('transcript', '');
+        $this->assertStringContainsStringIgnoringCase("didn't catch", $res->json('reply_text'));
+    }
+
+    public function test_voice_endpoint_requires_auth(): void
+    {
+        $audio = UploadedFile::fake()->createWithContent('voice.webm', 'FAKE-AUDIO-BYTES', 'audio/webm');
+        $res = $this->postJson('/api/shop/assistant/voice', ['audio' => $audio, 'history' => '[]']);
+
+        $res->assertUnauthorized();
     }
 }
