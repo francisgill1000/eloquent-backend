@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Services\Wa\ClaudeClient;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -103,5 +104,25 @@ class WaClaudeClientTest extends TestCase
         $this->expectException(\RuntimeException::class);
 
         (new ClaudeClient())->reply('sys', [['role' => 'user', 'content' => 'hi']]);
+    }
+
+    public function test_retries_transient_connection_reset_then_succeeds(): void
+    {
+        config(['services.anthropic.key' => 'sk-test']);
+
+        // First call drops the connection (cURL 35 reset); the retry succeeds.
+        $attempts = 0;
+        Http::fake(function () use (&$attempts) {
+            $attempts++;
+            if ($attempts === 1) {
+                throw new ConnectionException('cURL error 35: Connection was reset');
+            }
+            return Http::response(['content' => [['type' => 'text', 'text' => 'Recovered!']]]);
+        });
+
+        $reply = (new ClaudeClient())->reply('sys', [['role' => 'user', 'content' => 'hi']]);
+
+        $this->assertSame('Recovered!', $reply);
+        $this->assertSame(2, $attempts); // one failure + one successful retry
     }
 }
