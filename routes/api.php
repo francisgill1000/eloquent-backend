@@ -146,6 +146,11 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/shop/assistant/text',  [\App\Http\Controllers\OwnerAssistantController::class, 'text']);
+    Route::post('/shop/assistant/voice', [\App\Http\Controllers\OwnerAssistantController::class, 'voice']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('shop/catalogs', CatalogController::class)->only([
         'index',
         'store',
