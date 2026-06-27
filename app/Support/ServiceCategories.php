@@ -20,6 +20,7 @@ class ServiceCategories
         ['id' => 8, 'code' => '0008', 'name' => 'Pest Control', 'icon' => 'ShieldCheck'],
         ['id' => 9, 'code' => '0009', 'name' => 'Salon',        'icon' => 'Sparkles'],
         ['id' => 10, 'code' => '0010', 'name' => 'Professional Services', 'icon' => 'Briefcase'],
+        ['id' => 11, 'code' => '0011', 'name' => 'Laundry',      'icon' => 'Shirt'],
     ];
 
     public static function all(): array
