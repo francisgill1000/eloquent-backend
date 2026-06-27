@@ -2,6 +2,7 @@
 
 namespace App\Services\Wa;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -116,6 +117,16 @@ class ClaudeClient
                 'anthropic-version' => '2023-06-01',
             ])
             ->timeout(60)
+            // Retry ONLY transient connection-level failures (cURL 35
+            // "Connection was reset", timeouts, DNS hiccups). These mean no
+            // response was received — so no tool ran and a retry can never
+            // double-send or double-book. HTTP error statuses are NOT retried:
+            // they return a response (not an exception) and fall through to the
+            // !successful() check below. Backoff: 300ms, 600ms, 900ms.
+            // throw: false so an HTTP error response is returned (not thrown by
+            // retry) and handled by the !successful() check below; an exhausted
+            // ConnectionException still propagates and is logged by the caller.
+            ->retry(4, fn (int $attempt) => $attempt * 300, fn (\Throwable $e) => $e instanceof ConnectionException, throw: false)
             ->post(self::URL, $payload);
 
         if (!$response->successful()) {
