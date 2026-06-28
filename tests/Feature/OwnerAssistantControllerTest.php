@@ -35,7 +35,8 @@ class OwnerAssistantControllerTest extends TestCase
             ->assertJsonPath('reply_text', 'You made 50 dirhams today.')
             ->assertJsonStructure(['reply_text', 'reply_audio_url', 'history'])
             ->assertJsonMissingPath('transcript');
-        $this->assertNotNull($res->json('reply_audio_url'));
+        // Typed question → text reply, no spoken audio.
+        $this->assertNull($res->json('reply_audio_url'));
     }
 
     public function test_text_endpoint_requires_auth(): void
@@ -60,6 +61,8 @@ class OwnerAssistantControllerTest extends TestCase
         $res->assertCreated()
             ->assertJsonPath('transcript', 'how much today')
             ->assertJsonPath('reply_text', 'Fifty dirhams.');
+        // Spoken question → spoken reply.
+        $this->assertNotNull($res->json('reply_audio_url'));
     }
 
     public function test_claude_failure_degrades_gracefully(): void
