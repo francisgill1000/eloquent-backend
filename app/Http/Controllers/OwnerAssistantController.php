@@ -31,7 +31,8 @@ class OwnerAssistantController extends Controller
             'history' => ['sometimes'],
         ]);
         $history = $this->parseHistory($data['history'] ?? []);
-        return $this->respond($request->user(), $data['text'], $history);
+        // Typed question → text reply (no spoken audio).
+        return $this->respond($request->user(), $data['text'], $history, null, false);
     }
 
     public function voice(Request $request)
@@ -59,11 +60,12 @@ class OwnerAssistantController extends Controller
         }
 
         $history = $this->parseHistory($request->input('history', []));
-        return $this->respond($request->user(), $transcript, $history, $transcript);
+        // Spoken question → spoken reply.
+        return $this->respond($request->user(), $transcript, $history, $transcript, true);
     }
 
     /** @param array<int, array{role:string, content:string}> $history */
-    protected function respond(Shop $shop, string $userText, array $history, ?string $transcript = null): \Illuminate\Http\JsonResponse
+    protected function respond(Shop $shop, string $userText, array $history, ?string $transcript = null, bool $speak = true): \Illuminate\Http\JsonResponse
     {
         $messages = array_merge($history, [['role' => 'user', 'content' => $userText]]);
 
@@ -84,7 +86,7 @@ class OwnerAssistantController extends Controller
         // directly in the browser with no storage symlink, no CORS, and no
         // file accumulation — identical behaviour on local dev and prod.
         $audioUrl = null;
-        if ($this->speech->available()) {
+        if ($speak && $this->speech->available()) {
             try {
                 $bytes = $this->speech->synthesize($replyText);
                 $audioUrl = 'data:audio/ogg;base64,' . base64_encode($bytes);
