@@ -1,0 +1,120 @@
+/* Admin customer — design tokens (dark + mint), ported from salesagent */
+:root {
+  --bg-0: #05070a;
+  --bg-1: #0a0e0c;
+  --bg-2: #0f1411;
+  /* Translucent so the animated background shows through cards/sections.
+     Bars and modals use their own opaque values and stay solid. */
+  --surface-1: rgba(19, 24, 22, 0.5);
+  --surface-2: rgba(26, 32, 29, 0.55);
+  --surface-3: #232b27;
+
+  --border-1: rgba(255, 255, 255, 0.06);
+  --border-2: rgba(255, 255, 255, 0.09);
+  --border-3: rgba(255, 255, 255, 0.14);
+  --border-mint: rgba(0, 255, 204, 0.24);
+
+  --text-1: #f3f5f4;
+  --text-2: #c5cbc8;
+  --text-3: #8a938f;
+  --text-4: #5d6661;
+  --text-5: #3d4541;
+
+  --mint-50:  #e6fffa;
+  --mint-100: #b6fae6;
+  --mint-200: #6ff5cf;
+  --mint-300: #00d4aa;
+  --mint-400: #00e6b8;
+  --mint-500: #00ffcc;
+  --mint-600: #00b894;
+  --mint-700: #00876d;
+
+  --mint-glow: rgba(0, 255, 204, 0.22);
+  --mint-soft: rgba(0, 255, 204, 0.08);
+
+  --warn: #f4b860;
+  --warn-soft: rgba(244, 184, 96, 0.12);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --info: #60a5fa;
+  --info-soft: rgba(96, 165, 250, 0.12);
+  --neutral-soft: rgba(255, 255, 255, 0.06);
+
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-pill: 999px;
+
+  --shadow-1: 0 1px 0 rgba(255,255,255,0.03) inset, 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-2: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px -8px rgba(0,0,0,0.6);
+  --shadow-glow: 0 0 0 1px rgba(0,255,204,0.35), 0 12px 40px -10px rgba(0,255,204,0.35);
+
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ambient animated background — ported from the AI Coordinator app.
+   A soft teal glow near the top plus a masked, slowly drifting grid. Both are
+   fixed, non-interactive layers behind the app (#root sits above at z-index 1);
+   app screens are transparent so this shows through. */
+body::before {
+  content: "";
+  position: fixed;
+  top: -25vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 130vw;
+  height: 90vh;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse at center, rgba(0, 255, 204, 0.14), transparent 62%);
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.9;
+  background-image:
+    linear-gradient(rgba(0, 255, 204, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 204, 0.06) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000, transparent 78%);
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000, transparent 78%);
+  animation: gridDrift 22s linear infinite;
+}
+@keyframes gridDrift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 48px 48px, 48px 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body::after { animation: none; }
+}
+#root { position: relative; z-index: 1; }
+
+/* Particle-constellation canvas (ParticleField). Fixed and non-interactive;
+   z-index below the app content but above the glow/grid layers. */
+.fx-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+  display: block;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
