@@ -42,7 +42,7 @@ export default function Settings() {
           onClick={() => { if (!push.busy) void push.toggle(); }}
           onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !push.busy) { e.preventDefault(); void push.toggle(); } }}
         >
-          <span className="c-set-ic" style={push.on ? { color: '#22c55e' } : undefined}><Icons.Bell size={18} /></span>
+          <span className="c-set-ic"><Icons.Bell size={18} /></span>
           <span className="c-set-body">
             <span className="c-set-label">Notifications</span>
             <span className="c-set-sub">{push.busy ? 'Updating…' : push.on ? 'On — you’ll be alerted to new chats' : 'Off — tap to get alerts for new leads'}</span>
