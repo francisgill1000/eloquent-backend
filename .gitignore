@@ -26,5 +26,5 @@ php
 # Frontend app moved into this monorepo
 /admin/node_modules
 /admin/dist
-/eloquent-bookings/node_modules
-/eloquent-bookings/dist
+/customer/node_modules
+/customer/dist
