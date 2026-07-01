@@ -30,6 +30,35 @@ class ShopRegistrationTest extends TestCase
         $this->assertNotNull($shop->category_confirmed_at); // locked at registration
     }
 
+    public function test_registers_with_custom_other_category(): void
+    {
+        $response = $this->postJson('/api/shops', [
+            'name' => 'Falcon Tours',
+            'phone' => '0554500000',
+            'category_id' => 0, // "Other"
+            'custom_category' => 'Desert Safari Tours',
+            'is_verified' => true,
+        ]);
+
+        $response->assertCreated();
+
+        $shop = Shop::where('name', 'Falcon Tours')->first();
+        $this->assertNotNull($shop);
+        $this->assertSame(0, (int) $shop->category_id);
+        $this->assertSame('Desert Safari Tours', $shop->custom_category);
+        $this->assertSame('Desert Safari Tours', $shop->categoryLabel());
+    }
+
+    public function test_other_category_requires_custom_name(): void
+    {
+        $this->postJson('/api/shops', [
+            'name' => 'Nameless Other Shop',
+            'phone' => '0550000002',
+            'category_id' => 0, // "Other" but no custom_category
+            'is_verified' => true,
+        ])->assertStatus(422)->assertJsonValidationErrors('custom_category');
+    }
+
     public function test_rejects_unknown_category(): void
     {
         $this->postJson('/api/shops', [

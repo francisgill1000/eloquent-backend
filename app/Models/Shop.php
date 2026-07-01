@@ -246,6 +246,15 @@ class Shop extends Authenticatable
         return array_values($filtered); // return as indexed array
     }
 
+    /**
+     * The shop's category label: the owner's free-text name when they chose
+     * "Other" (category_id = 0), otherwise the fixed ServiceCategories name.
+     */
+    public function categoryLabel(): ?string
+    {
+        return $this->custom_category ?: \App\Support\ServiceCategories::name($this->category_id);
+    }
+
     public function getRegisteredAtAttribute()
     {
         return date('D j, Y', strtotime($this->created_at));

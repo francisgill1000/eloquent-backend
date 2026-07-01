@@ -22,7 +22,12 @@ class StoreShopRequest extends FormRequest
             'lon'         => 'nullable|between:-180,180',
             'location'    => 'nullable|string|max:255',
             'is_verified' => 'boolean',
-            'category_id' => 'required|integer|in:' . implode(',', \App\Support\ServiceCategories::ids()),
+            // OTHER_ID (0) means the owner chose "Other" and typed a custom_category.
+            'category_id' => 'required|integer|in:' . implode(',', array_merge(
+                [\App\Support\ServiceCategories::OTHER_ID],
+                \App\Support\ServiceCategories::ids(),
+            )),
+            'custom_category' => 'nullable|string|max:255|required_if:category_id,' . \App\Support\ServiceCategories::OTHER_ID,
             'status'      => 'required|string|in:active,inactive',
 
         ];
