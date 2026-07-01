@@ -1,0 +1,108 @@
+/* Eloquent Bookings — design tokens (dark + mint), ported from salesagent */
+:root {
+  --bg-0: #05070a;
+  --bg-1: #0a0e0c;
+  --bg-2: #0f1411;
+  --surface-1: #131816;
+  --surface-2: #1a201d;
+  --surface-3: #232b27;
+
+  --border-1: rgba(255, 255, 255, 0.06);
+  --border-2: rgba(255, 255, 255, 0.09);
+  --border-3: rgba(255, 255, 255, 0.14);
+  --border-mint: rgba(0, 255, 204, 0.24);
+
+  --text-1: #f3f5f4;
+  --text-2: #c5cbc8;
+  --text-3: #8a938f;
+  --text-4: #5d6661;
+  --text-5: #3d4541;
+
+  --mint-50:  #e6fffa;
+  --mint-100: #b6fae6;
+  --mint-200: #6ff5cf;
+  --mint-300: #00d4aa;
+  --mint-400: #00e6b8;
+  --mint-500: #00ffcc;
+  --mint-600: #00b894;
+  --mint-700: #00876d;
+
+  --mint-glow: rgba(0, 255, 204, 0.22);
+  --mint-soft: rgba(0, 255, 204, 0.08);
+
+  --warn: #f4b860;
+  --warn-soft: rgba(244, 184, 96, 0.12);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --info: #60a5fa;
+  --info-soft: rgba(96, 165, 250, 0.12);
+  --neutral-soft: rgba(255, 255, 255, 0.06);
+
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-pill: 999px;
+
+  --shadow-1: 0 1px 0 rgba(255,255,255,0.03) inset, 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-2: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px -8px rgba(0,0,0,0.6);
+  --shadow-glow: 0 0 0 1px rgba(0,255,204,0.35), 0 12px 40px -10px rgba(0,255,204,0.35);
+
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+/* Light theme — overrides applied when <html data-theme="light"> */
+:root[data-theme='light'] {
+  --bg-0: #f1f4f3;
+  --bg-1: #ffffff;
+  --bg-2: #eaeeec;
+  --surface-1: #ffffff;
+  --surface-2: #f3f6f5;
+  --surface-3: #e6ebe9;
+
+  --border-1: rgba(0, 0, 0, 0.08);
+  --border-2: rgba(0, 0, 0, 0.12);
+  --border-3: rgba(0, 0, 0, 0.18);
+  --border-mint: rgba(0, 160, 132, 0.32);
+
+  --text-1: #0e1714;
+  --text-2: #36413d;
+  --text-3: #69736e;
+  --text-4: #99a19c;
+  --text-5: #c4c9c6;
+
+  /* Brand mint stays usable as a button fill (mint-500 + dark text),
+     but text/icon usages are darkened so they stay legible on white. */
+  --mint-300: #00735c;
+  --mint-400: #009a7c;
+
+  --mint-glow: rgba(0, 160, 132, 0.20);
+  --mint-soft: rgba(0, 160, 132, 0.10);
+
+  --warn: #b9750c;
+  --warn-soft: rgba(244, 184, 96, 0.18);
+  --danger: #dc2626;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --info: #2563eb;
+  --info-soft: rgba(96, 165, 250, 0.16);
+  --neutral-soft: rgba(0, 0, 0, 0.05);
+
+  --shadow-1: 0 1px 2px rgba(16, 24, 20, 0.08);
+  --shadow-2: 0 8px 24px -8px rgba(16, 24, 20, 0.18);
+  --shadow-glow: 0 0 0 1px rgba(0, 160, 132, 0.35), 0 12px 40px -10px rgba(0, 160, 132, 0.25);
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }

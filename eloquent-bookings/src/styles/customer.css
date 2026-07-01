@@ -1,0 +1,518 @@
+/* Responsive shell: full-bleed on phones, centered ~480px column on desktop */
+.mobile-app {
+  max-width: 480px;
+  margin: 0 auto;
+  border-left: 1px solid var(--border-1);
+  border-right: 1px solid var(--border-1);
+}
+@media (max-width: 480px) {
+  .mobile-app { border-left: none; border-right: none; }
+}
+
+/* Pin the bottom nav to the viewport, constrained to the app column.
+   Centered with auto margins (not transform) — a transformed fixed element
+   combined with backdrop-filter corrupts the GPU layer on Android/Samsung. */
+.m-tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 480px;
+}
+/* Reserve space so scroll content isn't hidden behind the fixed tab bar */
+.m-scroll {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Generic page scaffold reuse */
+.c-page { display: flex; flex-direction: column; height: 100%; }
+
+/* Search bar (reuses m-history-search look) */
+.c-search {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface-1); border: 1px solid var(--border-1);
+  border-radius: var(--r-lg); padding: 0 14px; height: 48px;
+  margin: 4px 16px 12px; color: var(--text-3);
+}
+.c-search input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text-1); font-size: 15px; height: 100%;
+}
+
+/* Shop card */
+.c-shop-card {
+  display: flex; gap: 14px; background: var(--surface-1);
+  border: 1px solid var(--border-1); border-radius: var(--r-lg);
+  padding: 14px; margin: 0 0 12px; cursor: pointer; text-align: left;
+  width: 100%; box-sizing: border-box;
+}
+.c-shop-card .thumb {
+  width: 90px; height: 90px; border-radius: var(--r-md);
+  background: var(--surface-3); object-fit: cover; flex-shrink: 0;
+}
+.c-shop-card .body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.c-shop-card .top { display: flex; justify-content: space-between; align-items: center; }
+.c-open { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mint-400); }
+.c-open.closed { color: var(--warn); }
+.c-fav { background: none; border: none; cursor: pointer; color: var(--text-4); display: inline-flex; }
+.c-fav.on { color: var(--mint-400); }
+.c-shop-name { font-size: 16px; font-weight: 700; color: var(--text-1); margin-top: 2px; }
+.c-code-pill {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 3px;
+  background: var(--mint-soft); border: 1px solid var(--border-mint);
+  color: var(--mint-300); font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: var(--r-xs); margin-top: 4px;
+}
+.c-shop-meta { font-size: 11px; color: var(--text-3); font-weight: 600; margin-top: 4px; display: flex; gap: 8px; }
+.c-shop-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+.c-hours { font-size: 12px; color: var(--text-2); }
+
+/* Buttons */
+.c-btn {
+  background: var(--mint-500); color: #04140f; border: none;
+  font-weight: 700; border-radius: var(--r-pill); padding: 8px 16px;
+  font-size: 12px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.03em;
+}
+.c-btn-block {
+  width: 100%; height: 54px; border-radius: var(--r-lg); font-size: 15px;
+  text-transform: none; letter-spacing: 0; display: inline-flex;
+  align-items: center; justify-content: center; gap: 8px;
+}
+.c-btn:disabled { opacity: 0.6; cursor: default; }
+.c-btn-ghost {
+  background: var(--surface-1); border: 1px solid var(--border-1);
+  color: var(--text-2); border-radius: var(--r-lg); padding: 12px 20px;
+  font-weight: 600; cursor: pointer;
+}
+
+/* Status pill */
+.c-status { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 10px; border-radius: var(--r-pill); }
+.c-status.booked { color: var(--info); background: var(--info-soft); }
+.c-status.completed { color: var(--mint-300); background: var(--mint-soft); }
+.c-status.cancelled { color: var(--text-3); background: var(--neutral-soft); }
+
+/* Forms */
+.c-field-label { font-size: 10px; color: var(--text-3); font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; margin: 0 0 8px 4px; }
+.c-input-row {
+  display: flex; align-items: center; gap: 10px; background: var(--surface-1);
+  border: 1px solid var(--border-1); border-radius: var(--r-lg);
+  height: 54px; padding: 0 16px; margin-bottom: 18px;
+}
+.c-input-row input { flex: 1; background: none; border: none; outline: none; color: var(--text-1); font-size: 15px; height: 100%; }
+.c-error-box { background: var(--danger-soft); border: 1px solid rgba(248,113,113,0.25); border-radius: var(--r-md); padding: 12px; margin-bottom: 16px; color: var(--danger); font-size: 13px; text-align: center; }
+.c-auth { padding: 24px; max-width: 480px; margin: 0 auto; }
+.c-auth-title { font-size: 26px; font-weight: 800; text-align: center; margin: 8px 0; }
+.c-auth-sub { font-size: 14px; color: var(--text-3); text-align: center; margin-bottom: 28px; }
+.c-link { color: var(--mint-300); }
+.c-muted-center { text-align: center; color: var(--text-3); font-size: 14px; margin-top: 22px; }
+
+/* Date strip + slots (ShopDetail) */
+.c-date-strip { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 12px; }
+.c-date-strip::-webkit-scrollbar { display: none; }
+.c-date-cell {
+  flex: 0 0 auto; width: 54px; padding: 8px 0; border-radius: var(--r-md);
+  background: var(--surface-1); border: 1px solid var(--border-1);
+  text-align: center; cursor: pointer; color: var(--text-2);
+}
+.c-date-cell.active { background: var(--mint-500); color: #04140f; border-color: transparent; }
+.c-date-cell .dow { font-size: 10px; font-weight: 700; text-transform: uppercase; opacity: 0.8; }
+.c-date-cell .dnum { font-size: 17px; font-weight: 800; }
+.c-slot-grid { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 12px; }
+.c-slot-grid::-webkit-scrollbar { display: none; }
+.c-slot {
+  flex: 0 0 auto; padding: 9px 16px; border-radius: var(--r-md);
+  background: var(--surface-1); border: 1px solid var(--border-1);
+  color: var(--text-2); font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer;
+}
+.c-slot.active { background: var(--mint-500); color: #04140f; border-color: transparent; }
+
+/* Service cards */
+.c-service-list { display: flex; flex-direction: column; gap: 10px; padding: 8px 16px 4px; }
+.c-service-card {
+  display: flex; gap: 12px; align-items: center; padding: 12px;
+  background: var(--surface-1); border: 1px solid var(--border-1);
+  border-radius: var(--r-lg); cursor: pointer; transition: border-color .2s, background .2s;
+}
+.c-service-card.on { border-color: var(--border-mint); background: var(--mint-soft); }
+.c-service-card .thumb {
+  width: 64px; height: 64px; flex: 0 0 auto; border-radius: var(--r-md);
+  overflow: hidden; background: var(--surface-2, var(--bg-1)); border: 1px solid var(--border-1);
+}
+.c-service-card .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.c-service-card .thumb .ph { width: 100%; height: 100%; display: grid; place-items: center; color: var(--text-3); }
+.c-service-card .info { flex: 1; min-width: 0; }
+.c-service-card .info h4 { margin: 0; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-service-card .info p { margin: 2px 0 0; font-size: 12px; color: var(--text-3); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.c-service-card .info .price { display: block; margin-top: 6px; color: var(--mint-300); font-weight: 800; font-size: 15px; }
+.c-service-card .add {
+  width: 38px; height: 38px; flex: 0 0 auto; border-radius: 999px; cursor: pointer;
+  display: grid; place-items: center; background: var(--surface-2, var(--bg-1));
+  border: 1px solid var(--border-1); color: var(--text-2); transition: all .2s;
+}
+.c-service-card .add.on { background: var(--mint-500); border-color: transparent; color: #04140f; }
+
+/* Grouped category cards: one bordered card per parent category, with an
+   image-strip header and its services as rows inside. */
+.c-cat-card {
+  background: var(--surface-1); border: 1px solid var(--border-1);
+  border-radius: var(--r-lg); overflow: hidden; margin: 8px 16px 14px;
+}
+.c-cat-head { position: relative; height: 88px; }
+.c-cat-head img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.c-cat-head::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0) 72%);
+}
+.c-cat-head .c-cat-name {
+  position: absolute; left: 14px; bottom: 10px; z-index: 1;
+  color: #fff; font-size: 17px; font-weight: 800; text-shadow: 0 1px 5px rgba(0,0,0,0.65);
+}
+.c-cat-head-plain {
+  padding: 12px 14px; background: var(--surface-2); border-bottom: 1px solid var(--border-1);
+}
+.c-cat-head-plain .c-cat-name { color: var(--text-1); font-size: 15px; font-weight: 800; }
+.c-cat-items { display: flex; flex-direction: column; }
+.c-cat-item {
+  display: flex; gap: 12px; align-items: center; padding: 12px 14px;
+  cursor: pointer; border-top: 1px solid var(--border-1); transition: background .2s;
+}
+.c-cat-items .c-cat-item:first-child { border-top: none; }
+.c-cat-item.on { background: var(--mint-soft); }
+.c-cat-item .thumb {
+  width: 48px; height: 48px; flex: 0 0 auto; border-radius: var(--r-md);
+  overflow: hidden; border: 1px solid var(--border-1);
+}
+.c-cat-item .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.c-cat-item .info { flex: 1; min-width: 0; }
+.c-cat-item .info h4 { margin: 0; font-size: 15px; font-weight: 700; }
+.c-cat-item .info p { margin: 2px 0 0; font-size: 12px; color: var(--text-3); line-height: 1.4; }
+.c-cat-item .info .price { display: block; margin-top: 4px; color: var(--mint-300); font-weight: 800; font-size: 14px; }
+.c-cat-item .add {
+  width: 36px; height: 36px; flex: 0 0 auto; border-radius: 999px; cursor: pointer;
+  display: grid; place-items: center; background: var(--surface-2, var(--bg-1));
+  border: 1px solid var(--border-1); color: var(--text-2); transition: all .2s;
+}
+.c-cat-item .add.on { background: var(--mint-500); border-color: transparent; color: #04140f; }
+
+/* Detail card */
+.c-card { background: var(--surface-1); border: 1px solid var(--border-1); border-radius: var(--r-lg); padding: 16px; margin: 0 16px 12px; }
+.c-row { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--border-1); }
+.c-row:first-of-type { border-top: none; }
+.c-row .k { color: var(--text-3); font-size: 13px; }
+.c-row .v { color: var(--text-1); font-size: 13px; font-weight: 600; text-align: right; }
+
+/* Sticky booking footer */
+.c-book-bar {
+  position: sticky; bottom: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(0deg, var(--bg-1) 70%, transparent);
+  display: flex; align-items: center; gap: 12px;
+}
+.c-book-bar .total { font-size: 18px; font-weight: 800; }
+
+/* Avatar (account) */
+.c-avatar { width: 84px; height: 84px; border-radius: 26px; background: var(--mint-soft); border: 2px solid var(--border-mint); color: var(--mint-300); display: grid; place-items: center; font-size: 26px; font-weight: 800; margin: 24px auto 12px; }
+
+/* WhatsApp button */
+.c-wa { width: 36px; height: 36px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border-1); display: grid; place-items: center; color: var(--mint-400); cursor: pointer; }
+
+/* Floating account/back actions */
+.c-back { display: inline-flex; align-items: center; gap: 4px; color: var(--text-3); background: none; border: none; font-size: 14px; cursor: pointer; padding: 8px 0; }
+
+/* ── Live Chat (in-app thread with a shop) ── */
+.c-thread-screen { height: 100dvh; }
+.c-thread-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
+  border-bottom: 1px solid var(--border-1);
+  background: var(--bg-1); flex: 0 0 auto;
+}
+.c-icon-btn {
+  width: 34px; height: 34px; padding: 0; flex: 0 0 auto;
+  display: grid; place-items: center; border-radius: 12px;
+  background: var(--surface-1); border: 1px solid var(--border-1);
+  color: var(--text-2); cursor: pointer;
+}
+.c-thread-avatar {
+  width: 38px; height: 38px; flex: 0 0 auto; display: grid; place-items: center;
+  border-radius: 38%; font-size: 15px; font-weight: 800; color: #04140f;
+  background: radial-gradient(circle at 30% 25%, var(--mint-200), var(--mint-300) 55%, var(--mint-700));
+  overflow: hidden;
+}
+.c-thread-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.c-thread-head-text { display: flex; flex-direction: column; min-width: 0; }
+.c-thread-title { font-size: 14.5px; font-weight: 700; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-thread-sub { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.c-live-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--mint-400); box-shadow: 0 0 8px var(--mint-glow); flex: 0 0 auto; }
+.c-thread-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 10px; }
+.c-thread-scroll::-webkit-scrollbar { display: none; }
+.c-thread-empty { text-align: center; color: var(--text-3); font-size: 13px; margin-top: 24px; }
+@keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.c-bubble { max-width: 82%; border-radius: 18px; padding: 10px 13px; display: flex; flex-direction: column; gap: 3px; animation: msgIn .25s ease-out; }
+.c-bubble.in { align-self: flex-start; border-bottom-left-radius: 6px; background: var(--surface-2); border: 1px solid var(--border-1); }
+.c-bubble.out { align-self: flex-end; border-bottom-right-radius: 6px; background: var(--mint-500); border: none; }
+.c-bubble-text { font-size: 13.5px; line-height: 1.45; color: var(--text-1); white-space: pre-wrap; word-break: break-word; }
+.c-bubble.out .c-bubble-text { color: #04140f; font-weight: 500; }
+/* Links (e.g. the Ziina pay link) must stay readable on both bubble colours —
+   inherit the high-contrast bubble text colour and underline so it reads as tappable. */
+.c-bubble-text a { color: inherit; text-decoration: underline; text-underline-offset: 2px; font-weight: 700; overflow-wrap: anywhere; }
+.c-bubble-time { font-size: 10px; color: var(--text-4); align-self: flex-end; }
+.c-bubble.out .c-bubble-time { color: rgba(4,20,15,0.55); }
+
+/* AI finder: a reply bubble plus its inline shop results stacked full-width. */
+.c-ai-turn { display: flex; flex-direction: column; gap: 10px; }
+.c-ai-results { display: flex; flex-direction: column; gap: 10px; }
+
+/* Empty AI screen: just a faint mic glyph (the live mic is the nav centre). */
+.c-ai-empty { margin: auto; display: grid; place-items: center; color: var(--text-5); opacity: .55; }
+
+/* Live transcript bar shown above the nav while listening. */
+.c-ai-listening {
+  flex: 0 0 auto; margin: 0 16px 16px; padding: 11px 16px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--surface-1); border: 1px solid var(--border-mint); border-radius: 16px;
+  color: var(--text-1); font-size: 14px; line-height: 1.3; text-align: center;
+}
+.c-ai-listening-dot {
+  width: 8px; height: 8px; border-radius: 99px; flex: 0 0 auto;
+  background: var(--mint-400); box-shadow: 0 0 8px var(--mint-glow);
+  animation: micBreathe 1.2s ease-in-out infinite;
+}
+
+/* Tappable service chips (greeting + "what can I search?" reply). */
+.c-ai-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.c-ai-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 99px; cursor: pointer;
+  background: var(--surface-1); border: 1px solid var(--border-2);
+  color: var(--text-1); font-size: 13px; font-weight: 600;
+}
+.c-ai-chip:active { transform: scale(0.96); }
+.c-ai-chip:disabled { opacity: 0.5; cursor: default; }
+.c-ai-chip-count {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 99px; background: var(--mint-500); color: #04140f;
+  font-size: 11px; font-weight: 800;
+}
+
+/* Inline conversational auth (sign in / create account) under an AI reply —
+   styled as a clear, full-width card so it reads as an actionable panel. */
+.c-ai-auth {
+  display: flex; flex-direction: column; gap: 10px; margin: 8px 0 4px; width: 100%;
+  padding: 14px; background: var(--surface-2); border: 1px solid var(--border-1);
+  border-radius: 16px; box-shadow: var(--shadow-2);
+}
+.c-ai-auth-input {
+  padding: 12px 14px; border: 1px solid var(--border-2); border-radius: 12px;
+  background: var(--surface-1); color: var(--text-1); font-size: 16px;
+}
+.c-ai-auth-input:focus { outline: none; border-color: var(--mint-400); }
+.c-ai-auth-error { color: #e05656; font-size: 13px; }
+.c-ai-auth-submit {
+  padding: 13px 12px; border: 0; border-radius: 12px;
+  background: var(--mint-500); color: #04140f; font-weight: 800; font-size: 15px; cursor: pointer;
+}
+.c-ai-auth-submit:active { transform: scale(0.98); }
+.c-ai-auth-submit:disabled { opacity: .6; cursor: default; }
+
+/* Fill the layout's main area but STOP at the top of the fixed bottom nav, so
+   the thread and composer never slide underneath it. The centre mic orb (in the
+   nav) still pokes ~28px into the bottom of this area — the thread's extra
+   bottom padding below keeps content clear of it. */
+.ai-screen { position: absolute; top: 0; left: 0; right: 0; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+/* Clear the mic orb that protrudes above the nav into the bottom of the screen. */
+.ai-screen .c-thread-scroll { padding-bottom: 40px; }
+.ai-screen .c-composer { margin-bottom: 10px; }
+
+/* ── Voice-first dock: glowing mic with radar rings ── */
+.c-voice-dock {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px 16px 30px;
+  border-top: 1px solid var(--border-1);
+  background: var(--bg-1);
+}
+.c-voice-status {
+  font-size: 12.5px; color: var(--text-3); text-align: center;
+  min-height: 16px; max-width: 88%; line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.c-voice-status.heard { color: var(--text-1); font-weight: 600; }
+.c-voice-toggle { background: none; border: none; color: var(--text-3); font-size: 12px; cursor: pointer; padding: 2px 6px; }
+.c-voice-toggle:active { color: var(--mint-300); }
+
+.c-mic {
+  position: relative; width: 72px; height: 72px;
+  display: grid; place-items: center; padding: 0;
+  border: none; background: transparent; cursor: pointer;
+}
+.c-mic-core {
+  position: relative; z-index: 2;
+  width: 56px; height: 56px; border-radius: 99px;
+  display: grid; place-items: center; color: #04140f;
+  background: radial-gradient(circle at 30% 25%, var(--mint-200), var(--mint-400) 58%, var(--mint-600));
+  box-shadow: 0 8px 20px -8px var(--mint-glow), inset 0 1px 0 rgba(255,255,255,0.4);
+  transition: transform .15s ease, background .2s ease, color .2s ease;
+}
+.c-mic:active .c-mic-core { transform: scale(0.94); }
+.c-mic-ring {
+  position: absolute; inset: 0; margin: auto;
+  width: 56px; height: 56px; border-radius: 99px;
+  border: 1.5px solid var(--mint-400); opacity: 0; pointer-events: none;
+}
+
+/* Idle — one calm outline + a gently breathing core. */
+.c-mic.state-idle .c-mic-ring.r1 { opacity: .45; border-color: var(--border-mint); animation: micBreathe 3.2s ease-in-out infinite; }
+.c-mic.state-idle .c-mic-core { animation: micCoreBreathe 3.2s ease-in-out infinite; }
+
+/* Listening — expanding radar pulses + a mint halo on the core. */
+.c-mic.state-listening .c-mic-core { box-shadow: 0 0 0 5px var(--mint-soft), 0 10px 30px -6px var(--mint-glow), inset 0 1px 0 rgba(255,255,255,0.4); }
+.c-mic.state-listening .c-mic-ring { animation: micPulse 1.8s ease-out infinite; }
+.c-mic.state-listening .c-mic-ring.r2 { animation-delay: .6s; }
+.c-mic.state-listening .c-mic-ring.r3 { animation-delay: 1.2s; }
+
+/* Thinking — quiet the core, show a spinner. */
+.c-mic.state-thinking .c-mic-core { background: var(--surface-2); color: var(--mint-300); box-shadow: inset 0 0 0 1px var(--border-2); }
+.c-mic-spin {
+  width: 26px; height: 26px; border-radius: 99px;
+  border: 2.5px solid var(--surface-3); border-top-color: var(--mint-400);
+  animation: micSpin .8s linear infinite;
+}
+
+@keyframes micPulse { 0% { opacity: .5; transform: scale(1); } 100% { opacity: 0; transform: scale(1.85); } }
+@keyframes micBreathe { 0%,100% { transform: scale(1); opacity: .45; } 50% { transform: scale(1.14); opacity: .2; } }
+@keyframes micCoreBreathe {
+  0%,100% { box-shadow: 0 10px 26px -8px var(--mint-glow), inset 0 1px 0 rgba(255,255,255,0.4); }
+  50% { box-shadow: 0 10px 34px -4px var(--mint-glow), inset 0 1px 0 rgba(255,255,255,0.5); }
+}
+@keyframes micSpin { to { transform: rotate(360deg); } }
+
+/* Switch-to-voice button inside the typed-input fallback composer. */
+.c-composer-mic {
+  width: 38px; height: 38px; padding: 0; flex: 0 0 auto; display: grid; place-items: center;
+  border-radius: 99px; border: 1px solid var(--border-2); background: var(--surface-2);
+  color: var(--mint-300); cursor: pointer;
+}
+
+/* Services list — compact name + price, grouped by category. Used inline in an
+   assistant bubble and inside the services sheet. */
+.c-svc-list { display: flex; flex-direction: column; gap: 14px; }
+/* Inside a chat bubble it reads as a distinct menu card sitting under the reply. */
+.c-bubble .c-svc-list { margin-top: 10px; min-width: 236px; gap: 14px; background: var(--surface-1); border: 1px solid var(--border-1); border-radius: 14px; padding: 10px 13px; }
+.c-svc-group { display: flex; flex-direction: column; }
+.c-svc-group-name { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--mint-300); padding-bottom: 5px; }
+.c-svc-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 8px 0; }
+.c-svc-row + .c-svc-row { border-top: 1px solid var(--border-1); }
+.c-svc-name { font-size: 13.5px; line-height: 1.3; color: var(--text-1); }
+.c-svc-price { font-size: 13px; font-weight: 800; white-space: nowrap; color: var(--mint-300); }
+
+/* Services bottom sheet (opened from the header button). */
+.c-sheet-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; animation: fadeIn .18s ease-out; }
+.c-sheet { width: 100%; max-height: 72vh; display: flex; flex-direction: column; background: var(--surface-1); border-top-left-radius: 18px; border-top-right-radius: 18px; border-top: 1px solid var(--border-1); animation: sheetUp .24s ease-out; }
+.c-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px; }
+.c-sheet-title { font-size: 16px; font-weight: 800; color: var(--text-1); }
+.c-sheet-body { padding: 4px 16px 24px; overflow-y: auto; color: var(--text-1); }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: none; } }
+.c-composer {
+  display: flex; align-items: center; gap: 8px;
+  margin: 8px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 8px 8px 16px;
+  background: var(--surface-1); border: 1px solid var(--border-2);
+  border-radius: 22px; flex: 0 0 auto; box-shadow: var(--shadow-2);
+}
+.c-composer input { flex: 1; background: transparent; border: none; outline: none; color: var(--text-1); font-size: 16px; padding: 8px 0; min-width: 0; }
+.c-composer input::placeholder { color: var(--text-4); }
+.c-composer-send {
+  width: 38px; height: 38px; padding: 0; flex: 0 0 auto; display: grid; place-items: center;
+  border-radius: 99px; border: none; background: var(--mint-500); color: #04140f; cursor: pointer;
+}
+.c-composer-send:disabled { background: var(--surface-3); color: var(--text-4); cursor: default; }
+
+/* Chat entry buttons on the shop page */
+.c-chat-row { display: flex; gap: 10px; margin: 0 16px 16px; }
+.c-chat-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; border-radius: var(--r-lg); font-size: 13px; font-weight: 700; cursor: pointer;
+  background: var(--mint-soft); border: 1px solid var(--border-mint); color: var(--mint-300);
+}
+.c-chat-btn.wa { background: var(--surface-1); border: 1px solid var(--border-1); color: var(--text-2); }
+
+.c-rec-dot { width: 10px; height: 10px; border-radius: 99px; background: var(--danger); box-shadow: 0 0 10px var(--danger); animation: c-pulse 1s ease-in-out infinite; flex: 0 0 auto; margin-left: 4px; }
+.c-rec-label { flex: 1; color: var(--text-2); font-size: 14px; }
+@keyframes c-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+.c-mini-spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(4,20,15,0.3); border-top-color: #04140f; animation: c-spin 0.7s linear infinite; display: inline-block; }
+@keyframes c-spin { to { transform: rotate(360deg); } }
+
+/* ===== AI Core hero orb (chat) ===== */
+.c-core-hero{display:flex;flex-direction:column;align-items:center;padding:16px 16px 4px;gap:8px;flex-shrink:0}
+.c-core-sub{font-family:var(--font-mono);font-size:10.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.4px}
+
+.c-core{position:relative;width:148px;height:148px;flex-shrink:0}
+.c-core-glow{position:absolute;inset:-26px;border-radius:50%;background:radial-gradient(circle,var(--mint-glow),transparent 65%);filter:blur(6px);animation:core-breathe 4.5s ease-in-out infinite}
+.c-core-ring{position:absolute;border-radius:50%;border:1px solid var(--border-mint)}
+.c-core-ring.r1{inset:7px}
+.c-core-ring.r2{inset:22px;border-color:rgba(0,255,204,0.14)}
+.c-core-rotor{position:absolute;inset:0;border-radius:50%;border:1.5px solid transparent;border-top-color:var(--mint-500);border-right-color:rgba(0,255,204,0.3);animation:core-spin 5.5s linear infinite}
+.c-core-disc{position:absolute;inset:26px;border-radius:50%;overflow:hidden;background:var(--surface-2);display:flex;align-items:center;justify-content:center;box-shadow:0 0 40px -6px var(--mint-glow),0 0 0 1px rgba(0,255,204,0.45) inset}
+.c-core-letter{font-family:var(--font-sans);font-weight:700;font-size:40px;color:var(--mint-400);animation:core-letter 7s ease-in-out infinite}
+.c-core-img{width:100%;height:100%;object-fit:cover;display:block;transform-origin:50% 42%;animation:core-letter 7s ease-in-out infinite}
+.c-core.state-talking .c-core-img{animation:core-letter 3.4s ease-in-out infinite}
+.c-core-rimlight{position:absolute;inset:26px;border-radius:50%;pointer-events:none;box-shadow:0 0 0 2px rgba(0,255,204,0.16) inset;background:radial-gradient(120% 90% at 78% 8%,rgba(0,255,204,0.20),transparent 46%)}
+.c-core-ping{position:absolute;inset:7px;border-radius:50%;border:1px solid var(--mint-500);opacity:0}
+.c-core-wave{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;height:26px;padding:0 12px;background:rgba(5,7,10,0.82);border:1px solid var(--border-mint);border-radius:var(--r-pill);opacity:0;transition:.3s;box-shadow:0 8px 24px -8px var(--mint-glow)}
+.c-core-wave span{width:3px;height:7px;border-radius:4px;background:var(--mint-500);box-shadow:0 0 8px var(--mint-glow)}
+.c-core-wave span:nth-child(1){animation:core-wave 1s 0s infinite ease-in-out}
+.c-core-wave span:nth-child(2){animation:core-wave 1s -.2s infinite ease-in-out}
+.c-core-wave span:nth-child(3){animation:core-wave 1s -.4s infinite ease-in-out}
+.c-core-wave span:nth-child(4){animation:core-wave 1s -.1s infinite ease-in-out}
+.c-core-wave span:nth-child(5){animation:core-wave 1s -.3s infinite ease-in-out}
+
+.c-core.state-listening .c-core-glow{animation:core-breathe 1.4s ease-in-out infinite}
+.c-core.state-listening .c-core-wave{opacity:1}
+.c-core.state-listening .c-core-ping{animation:core-ping 1.6s ease-out infinite}
+.c-core.state-thinking .c-core-rotor{animation:core-spin 1.1s linear infinite}
+.c-core.state-thinking .c-core-rimlight{animation:core-scan 1.1s ease-in-out infinite}
+.c-core.state-talking .c-core-wave{opacity:1}
+.c-core.state-talking .c-core-glow{animation:core-breathe 1.6s ease-in-out infinite}
+.c-core.state-talking{animation:core-bob 1.7s ease-in-out infinite}
+
+@keyframes core-breathe{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.06);opacity:.92}}
+@keyframes core-spin{to{transform:rotate(360deg)}}
+@keyframes core-wave{0%,100%{height:7px}50%{height:26px}}
+@keyframes core-ping{0%{transform:scale(.9);opacity:.7}100%{transform:scale(1.6);opacity:0}}
+@keyframes core-scan{0%,100%{opacity:.55}50%{opacity:1}}
+@keyframes core-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes core-letter{0%,100%{transform:scale(1.02)}50%{transform:scale(1.06)}}
+
+/* light theme: soften the dark-glass bits so the orb reads on white */
+:root[data-theme='light'] .c-core-disc{background:var(--surface-3)}
+:root[data-theme='light'] .c-core-letter{color:var(--mint-300)}
+:root[data-theme='light'] .c-core-wave{background:rgba(255,255,255,0.9)}
+
+/* ===== voice message player (chat) ===== */
+.c-vm{display:flex;align-items:center;gap:10px;min-width:196px;max-width:min(260px,64vw)}
+.c-vm-btn{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;border:none;cursor:pointer;background:var(--mint-500);color:#04140f;box-shadow:0 0 0 1px var(--border-mint),0 0 14px -5px var(--mint-glow)}
+.c-vm-btn:active{transform:scale(.95)}
+.c-vm-wave{flex:1;display:flex;align-items:center;gap:2px;height:26px}
+.c-vm-wave span{flex:1;min-width:2px;border-radius:2px;background:var(--text-4);opacity:.45;transition:background .12s,opacity .12s}
+.c-vm-wave span.on{background:var(--mint-400);opacity:1}
+.c-vm-time{font-family:var(--font-mono);font-size:10.5px;color:var(--text-3);flex-shrink:0;min-width:28px;text-align:right}
+
+/* on the customer's mint bubble: dark ink so it reads on mint */
+.c-bubble.out .c-vm-btn{background:#04140f;color:var(--mint-400);box-shadow:none}
+.c-bubble.out .c-vm-wave span{background:rgba(4,20,15,0.3)}
+.c-bubble.out .c-vm-wave span.on{background:#04140f;opacity:1}
+.c-bubble.out .c-vm-time{color:rgba(4,20,15,0.6)}
+
+/* Assistant — full-screen modal: shop logo that pulses while it speaks. */
+.c-avatar-modal{position:fixed;inset:0;z-index:50;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.c-avatar-logo-wrap{width:168px;height:168px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.12)}
+.c-avatar-logo-wrap.talking{animation:avatarPulse 1.2s ease-in-out infinite}
+@keyframes avatarPulse{0%,100%{box-shadow:0 0 0 0 rgba(110,231,183,.5)}50%{box-shadow:0 0 0 20px rgba(110,231,183,0)}}
+.c-avatar-logo{width:124px;height:124px;object-fit:contain;border-radius:26px}
+.c-avatar-logo-fallback{font-size:60px}
+.c-avatar-caption{color:#fff;text-align:center;max-width:520px;margin-top:24px;font-size:15px;line-height:1.5}
+.c-avatar-replay{position:absolute;bottom:86px;left:50%;transform:translateX(-50%);height:40px;padding:0 22px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:transparent;color:#fff;font-size:13px;font-weight:700;cursor:pointer}
+.c-avatar-close{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);height:48px;padding:0 28px;border-radius:999px;border:none;background:rgba(255,255,255,.14);color:#fff;font-weight:700;font-size:14px;cursor:pointer}
