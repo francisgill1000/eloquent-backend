@@ -4,7 +4,6 @@ namespace App\Support\Wa;
 
 use App\Models\Shop;
 use App\Models\Staff;
-use App\Support\ServiceCategories;
 
 /**
  * Builds a complete, ready-to-edit system prompt from a shop's profile —
@@ -20,7 +19,7 @@ class PromptGenerator
     public static function generate(Shop $shop): string
     {
         $name = $shop->name ?: 'our business';
-        $category = ServiceCategories::name($shop->category_id);
+        $category = $shop->categoryLabel();
         $business = $category ? "{$name}, a " . mb_strtolower($category) . ' business' : $name;
 
         $lines = [];

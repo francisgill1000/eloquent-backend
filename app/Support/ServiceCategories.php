@@ -9,6 +9,13 @@ namespace App\Support;
  */
 class ServiceCategories
 {
+    /**
+     * Sentinel category_id for shops that chose "Other" and typed their own
+     * category name (stored in shops.custom_category). Not a real category, so
+     * it is excluded from the LIST and from ids().
+     */
+    public const OTHER_ID = 0;
+
     public const LIST = [
         ['id' => 1, 'code' => '0001', 'name' => 'Barber',       'icon' => 'Scissors'],
         ['id' => 2, 'code' => '0002', 'name' => 'Plumbing',     'icon' => 'Pickaxe'],
