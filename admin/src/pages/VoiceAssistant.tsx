@@ -1,21 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { postText, postVoice, type AssistantTurn } from '@/lib/assistant';
 import { useRecorder } from '@/hooks/useRecorder';
+import { storage } from '@/lib/storage';
 
 type Msg = { role: 'user' | 'assistant'; content: string; audioUrl?: string | null };
 
-const STORAGE_KEY = 'va-conversation';
+// The conversation is stored per shop, never under one global key — otherwise
+// on a shared device the next shop to log in would see the previous shop's chat.
+const STORAGE_PREFIX = 'va-conversation';
+
+/** The storage key for the currently logged-in shop's conversation. */
+function conversationKey(): string {
+  const id = storage.getJSON<{ id?: number }>('shop_data')?.id;
+  return `${STORAGE_PREFIX}:${id ?? 'anon'}`;
+}
 
 /**
- * Restore the saved conversation. Blob URLs from a previous session (the owner's
- * own recorded notes) are revoked once the page unloads, so we drop them on load
- * while keeping the transcript text — the player would otherwise be dead.
+ * Restore the saved conversation for this shop. Blob URLs from a previous
+ * session (the owner's own recorded notes) are revoked once the page unloads,
+ * so we drop them on load while keeping the transcript text — the player would
+ * otherwise be dead.
  */
-function loadSaved(): Msg[] {
+function loadSaved(key: string): Msg[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return [];
     const arr = JSON.parse(raw) as Msg[];
     return Array.isArray(arr)
@@ -116,7 +126,10 @@ function AudioBubble({ src, autoPlay = false }: { src: string; autoPlay?: boolea
 
 export default function VoiceAssistant() {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<Msg[]>(loadSaved);
+  // Scoped to the logged-in shop; stable for this mount (a shop switch goes
+  // through logout, which unmounts and remounts this page).
+  const storageKey = useMemo(conversationKey, []);
+  const [messages, setMessages] = useState<Msg[]>(() => loadSaved(storageKey));
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
@@ -136,11 +149,11 @@ export default function VoiceAssistant() {
   useEffect(() => {
     try {
       const saved = messages.map((m) => (m.audioUrl?.startsWith('blob:') ? { ...m, audioUrl: null } : m));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+      localStorage.setItem(storageKey, JSON.stringify(saved));
     } catch {
       /* storage full or unavailable — the conversation just won't persist */
     }
-  }, [messages]);
+  }, [messages, storageKey]);
 
   function clearConversation() {
     setMessages([]); // the persist effect then writes an empty conversation
