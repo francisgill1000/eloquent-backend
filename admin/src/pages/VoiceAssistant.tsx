@@ -26,6 +26,35 @@ function loadSaved(): Msg[] {
   }
 }
 
+// Rotating status words shown while the assistant is working, so the wait
+// feels alive instead of a dead row of dots. Business-flavoured on purpose.
+const THINKING_WORDS = [
+  'Thinking',
+  'Crunching the numbers',
+  'Checking your books',
+  'Looking into it',
+  'Consulting your data',
+  'Working it out',
+  'Almost there',
+];
+
+/** The "assistant is thinking" bubble: a phrase that rotates every ~1.5s plus
+ *  a trio of bouncing dots. Replaces the old static ellipsis. */
+function ThinkingBubble() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setI((n) => (n + 1) % THINKING_WORDS.length), 1500);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div className="va-bubble va-ai va-thinking">
+      {/* key re-mounts the span each change so the fade-in animation replays */}
+      <span key={i} className="va-thinking-word">{THINKING_WORDS[i]}</span>
+      <span className="va-dots" aria-hidden="true"><i /><i /><i /></span>
+    </div>
+  );
+}
+
 function fmtTime(s: number): string {
   if (!isFinite(s) || s < 0) return '0:00';
   const m = Math.floor(s / 60);
@@ -194,7 +223,7 @@ export default function VoiceAssistant() {
             {m.content && <div className="va-text">{m.content}</div>}
           </div>
         ))}
-        {busy && <div className="va-bubble va-ai va-typing">…</div>}
+        {busy && <ThinkingBubble />}
         {error && <div className="c-error-box">{error}</div>}
       </div>
 
