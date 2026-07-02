@@ -32,6 +32,9 @@ export default function App() {
   return (
     <ShopProvider>
       <ParticleField />
+      {/* On a desktop browser this becomes a centered tablet-sized window (see
+          .app-frame in mobile.css); on phones/tablets it's a passthrough. */}
+      <div className="app-frame">
       <Routes>
         {/* Public / full-screen */}
         <Route path="/login" element={<Login />} />
@@ -69,6 +72,7 @@ export default function App() {
           </Route>
         </Route>
       </Routes>
+      </div>
     </ShopProvider>
   );
 }
