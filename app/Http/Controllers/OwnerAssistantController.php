@@ -1,7 +1,9 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\AssistantMessage;
 use App\Models\Shop;
+use App\Services\Assistant\ConversationStore;
 use App\Services\Assistant\OwnerAssistantTools;
 use App\Services\Wa\ClaudeClient;
 use App\Services\Wa\Speech;
@@ -9,11 +11,11 @@ use App\Services\Wa\Transcriber;
 use App\Support\Assistant\AssistantPrompt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
- * Owner voice/text assistant. Synchronous: one request = one turn. Scoped to
- * the authenticated shop ($request->user()). History is client-held and echoed
- * back each turn (stateless server).
+ * Owner voice/text assistant. One rolling conversation per shop, stored
+ * server-side (ConversationStore). Scoped to the authenticated shop.
  */
 class OwnerAssistantController extends Controller
 {
@@ -22,52 +24,66 @@ class OwnerAssistantController extends Controller
         protected ClaudeClient $claude,
         protected Speech $speech,
         protected Transcriber $transcriber,
+        protected ConversationStore $store,
     ) {}
+
+    public function history(Request $request)
+    {
+        $messages = AssistantMessage::where('shop_id', $request->user()->id)
+            ->orderBy('id')
+            ->get()
+            ->map(fn (AssistantMessage $m) => $this->store->toApi($m))
+            ->all();
+
+        return response()->json(['messages' => $messages]);
+    }
+
+    public function clear(Request $request)
+    {
+        $this->store->clear($request->user());
+        return response()->json(['ok' => true]);
+    }
 
     public function text(Request $request)
     {
-        $data = $request->validate([
-            'text' => ['required', 'string', 'max:2000'],
-            'history' => ['sometimes'],
-        ]);
-        $history = $this->parseHistory($data['history'] ?? []);
-        // Typed question → text reply (no spoken audio).
-        return $this->respond($request->user(), $data['text'], $history, null, false);
+        $data = $request->validate(['text' => ['required', 'string', 'max:2000']]);
+        return $this->respond($request->user(), $data['text'], null, null, false);
     }
 
     public function voice(Request $request)
     {
-        $request->validate([
-            'audio' => ['required', 'file', 'max:25600'], // 25MB
-            'history' => ['sometimes'],
-        ]);
+        $request->validate(['audio' => ['required', 'file', 'max:25600']]); // 25MB
         $file = $request->file('audio');
+        $bytes = (string) file_get_contents($file->getRealPath());
+        $mime = $file->getMimeType() ?: 'audio/webm';
+
         $transcript = null;
         try {
-            $bytes = (string) file_get_contents($file->getRealPath());
-            $transcript = $this->transcriber->transcribe($bytes, $file->getMimeType() ?: 'audio/webm');
+            $transcript = $this->transcriber->transcribe($bytes, $mime);
         } catch (\Throwable $e) {
             Log::warning('assistant transcription failed: ' . $e->getMessage());
         }
 
-        if (!$transcript) {
+        if (! $transcript) {
             return response()->json([
                 'transcript' => '',
                 'reply_text' => "Sorry, I didn't catch that — please try again.",
                 'reply_audio_url' => null,
-                'history' => $this->parseHistory($request->input('history', [])),
             ], 201);
         }
 
-        $history = $this->parseHistory($request->input('history', []));
-        // Spoken question → spoken reply.
-        return $this->respond($request->user(), $transcript, $history, $transcript, true);
+        return $this->respond($request->user(), $transcript, [$bytes, $mime], $transcript, true);
     }
 
-    /** @param array<int, array{role:string, content:string}> $history */
-    protected function respond(Shop $shop, string $userText, array $history, ?string $transcript = null, bool $speak = true): \Illuminate\Http\JsonResponse
+    /**
+     * Run one turn. Persists the (question, answer) pair ONLY on success.
+     *
+     * @param array{0:string,1:string}|null $userAudio [bytes, mime] for a voice turn
+     */
+    protected function respond(Shop $shop, string $userText, ?array $userAudio, ?string $transcript, bool $speak): \Illuminate\Http\JsonResponse
     {
-        $messages = array_merge($history, [['role' => 'user', 'content' => $userText]]);
+        $context = $this->store->contextFor($shop);
+        $messages = array_merge($context, [['role' => 'user', 'content' => $userText]]);
 
         $replyText = '';
         try {
@@ -80,27 +96,35 @@ class OwnerAssistantController extends Controller
         } catch (\Throwable $e) {
             Log::error('assistant reply failed: ' . $e->getMessage());
         }
-        $replyText = $replyText !== '' ? $replyText : "Sorry, I couldn't work that out — please try again.";
 
-        // Return the spoken reply inline as a base64 data URI. This plays
-        // directly in the browser with no storage symlink, no CORS, and no
-        // file accumulation — identical behaviour on local dev and prod.
-        $audioUrl = null;
+        // Failure → persist nothing, return a graceful fallback the client shows
+        // transiently. Keeps stored history clean and strictly alternating.
+        if ($replyText === '') {
+            $payload = ['reply_text' => "Sorry, I couldn't work that out — please try again.", 'reply_audio_url' => null];
+            if ($transcript !== null) {
+                $payload['transcript'] = $transcript;
+            }
+            return response()->json($payload, 201);
+        }
+
+        // Success → persist the user turn (with its voice audio) then the reply.
+        $this->store->append($shop, 'user', $userText, $userAudio[0] ?? null, $userAudio[1] ?? null);
+
+        $replyAudioBytes = null;
+        $replyMime = null;
         if ($speak && $this->speech->available()) {
             try {
-                $bytes = $this->speech->synthesize($replyText);
-                $audioUrl = 'data:audio/ogg;base64,' . base64_encode($bytes);
+                $replyAudioBytes = $this->speech->synthesize($replyText);
+                $replyMime = 'audio/ogg';
             } catch (\Throwable $e) {
                 Log::warning('assistant tts failed: ' . $e->getMessage());
             }
         }
-
-        $newHistory = array_merge($messages, [['role' => 'assistant', 'content' => $replyText]]);
+        $assistantMsg = $this->store->append($shop, 'assistant', $replyText, $replyAudioBytes, $replyMime);
 
         $payload = [
             'reply_text' => $replyText,
-            'reply_audio_url' => $audioUrl,
-            'history' => $newHistory,
+            'reply_audio_url' => $this->store->signedUrl($assistantMsg),
         ];
         if ($transcript !== null) {
             $payload['transcript'] = $transcript;
@@ -108,17 +132,14 @@ class OwnerAssistantController extends Controller
         return response()->json($payload, 201);
     }
 
-    /** Accepts a JSON string or an array; returns a clean role/content list. */
-    protected function parseHistory(mixed $raw): array
+    public function audio(AssistantMessage $message)
     {
-        $arr = is_string($raw) ? (json_decode($raw, true) ?: []) : (is_array($raw) ? $raw : []);
-        // Drop blank-content turns: a failed voice transcription leaves an
-        // empty-content user message in the client's history, and Anthropic
-        // rejects any empty-content message (400), poisoning every later turn.
-        return collect($arr)
-            ->filter(fn ($m) => isset($m['role'], $m['content']) && in_array($m['role'], ['user', 'assistant'], true))
-            ->map(fn ($m) => ['role' => $m['role'], 'content' => (string) $m['content']])
-            ->filter(fn ($m) => trim($m['content']) !== '')
-            ->values()->all();
+        abort_unless($message->audio_path && Storage::disk('local')->exists($message->audio_path), 404);
+
+        return Storage::disk('local')->response(
+            $message->audio_path,
+            null,
+            ['Content-Type' => $message->audio_mime ?: 'application/octet-stream'],
+        );
     }
 }

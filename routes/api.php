@@ -146,9 +146,17 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/shop/assistant/text',  [\App\Http\Controllers\OwnerAssistantController::class, 'text']);
-    Route::post('/shop/assistant/voice', [\App\Http\Controllers\OwnerAssistantController::class, 'voice']);
+    Route::get('/shop/assistant/history',    [\App\Http\Controllers\OwnerAssistantController::class, 'history']);
+    Route::delete('/shop/assistant/history', [\App\Http\Controllers\OwnerAssistantController::class, 'clear']);
+    Route::post('/shop/assistant/text',      [\App\Http\Controllers\OwnerAssistantController::class, 'text']);
+    Route::post('/shop/assistant/voice',     [\App\Http\Controllers\OwnerAssistantController::class, 'voice']);
 });
+
+// Signed (not token-authed) so an <audio> element can load it directly; the
+// signature both authorizes and prevents one shop forging another's URL.
+Route::get('/shop/assistant/audio/{message}', [\App\Http\Controllers\OwnerAssistantController::class, 'audio'])
+    ->name('assistant.audio')
+    ->middleware('signed');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('shop/catalogs', CatalogController::class)->only([
