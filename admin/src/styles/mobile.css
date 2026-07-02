@@ -1,38 +1,5 @@
 /* Pulse Mobile — single-column agent PWA layout */
 
-/* On phones/tablets the frame is a no-op (display:contents removes its box, so
-   pages lay out exactly as if it weren't there). On a desktop browser it turns
-   into a centered, classic-iPad-sized (768×1024) window floating on the ambient
-   background — see the min-width media query below. */
-.app-frame { display: contents; }
-
-@media (min-width: 840px) {
-  #root {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    min-height: 100dvh;
-  }
-  .app-frame {
-    display: flex;
-    flex-direction: column;
-    width: 768px;
-    max-width: 100%;
-    height: 1024px;
-    max-height: calc(100dvh - 48px);
-    overflow: hidden;                 /* clip pages to the rounded frame */
-    background: var(--bg-1);          /* solid device backdrop; ambient shows outside */
-    border: 1px solid var(--border-1);
-    border-radius: 24px;
-    box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.6);
-  }
-  /* Pages must fill the frame, not the whole viewport. .mobile-app's base
-     min-height:100dvh would otherwise overflow the fixed-height window. */
-  .app-frame > .m-screen,
-  .app-frame > .mobile-app { height: 100%; min-height: 0; }
-}
-
 .mobile-app {
   display: flex;
   flex-direction: column;
