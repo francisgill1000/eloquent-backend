@@ -1,23 +1,26 @@
 import api from './api';
 
-export type AssistantTurn = { role: 'user' | 'assistant'; content: string };
-export type AssistantReply = {
-  transcript: string;
-  reply_text: string;
-  reply_audio_url: string | null;
-  history: AssistantTurn[];
-};
+export type AssistantMsg = { id: number; role: 'user' | 'assistant'; content: string; audio_url: string | null };
+export type AssistantReply = { transcript?: string; reply_text: string; reply_audio_url: string | null };
 
-export async function postText(text: string, history: AssistantTurn[]): Promise<AssistantReply> {
-  const { data } = await api.post('/shop/assistant/text', { text, history });
+export async function getHistory(): Promise<AssistantMsg[]> {
+  const { data } = await api.get('/shop/assistant/history');
+  return data.messages as AssistantMsg[];
+}
+
+export async function clearHistory(): Promise<void> {
+  await api.delete('/shop/assistant/history');
+}
+
+export async function postText(text: string): Promise<AssistantReply> {
+  const { data } = await api.post('/shop/assistant/text', { text });
   return data;
 }
 
-export async function postVoice(audio: Blob, history: AssistantTurn[]): Promise<AssistantReply> {
+export async function postVoice(audio: Blob): Promise<AssistantReply> {
   const form = new FormData();
   const ext = audio.type.split('/')[1]?.split(';')[0] || 'webm';
   form.append('audio', audio, `voice.${ext}`);
-  form.append('history', JSON.stringify(history));
   // The shared api instance defaults to application/json; override it so the
   // FormData is sent as multipart. axios appends the boundary for FormData
   // bodies (same pattern as the customer app's chat voice upload).
