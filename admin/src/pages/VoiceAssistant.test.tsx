@@ -83,6 +83,21 @@ describe('VoiceAssistant page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /clear conversation/i }));
     expect(screen.queryByText('You made 50 dirhams.')).not.toBeInTheDocument();
-    expect(localStorage.getItem('va-conversation')).toBe('[]');
+    expect(localStorage.getItem('va-conversation:anon')).toBe('[]');
+  });
+
+  it('keeps each shop\'s conversation separate (no cross-shop leak)', async () => {
+    // Shop A logs in and chats.
+    localStorage.setItem('shop_data', JSON.stringify({ id: 1, name: 'Shop A' }));
+    const a = render(<VoiceAssistant />);
+    fireEvent.change(screen.getByPlaceholderText(/type/i), { target: { value: 'how much' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(screen.getByText('You made 50 dirhams.')).toBeInTheDocument());
+    a.unmount();
+
+    // A different shop logs in on the same device — it must NOT see Shop A's chat.
+    localStorage.setItem('shop_data', JSON.stringify({ id: 2, name: 'Shop B' }));
+    render(<VoiceAssistant />);
+    expect(screen.queryByText('You made 50 dirhams.')).not.toBeInTheDocument();
   });
 });
