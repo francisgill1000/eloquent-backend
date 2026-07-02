@@ -1,40 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
-import { postText, postVoice, type AssistantTurn } from '@/lib/assistant';
+import { getHistory, clearHistory, postText, postVoice } from '@/lib/assistant';
 import { useRecorder } from '@/hooks/useRecorder';
-import { storage } from '@/lib/storage';
 
 type Msg = { role: 'user' | 'assistant'; content: string; audioUrl?: string | null };
-
-// The conversation is stored per shop, never under one global key — otherwise
-// on a shared device the next shop to log in would see the previous shop's chat.
-const STORAGE_PREFIX = 'va-conversation';
-
-/** The storage key for the currently logged-in shop's conversation. */
-function conversationKey(): string {
-  const id = storage.getJSON<{ id?: number }>('shop_data')?.id;
-  return `${STORAGE_PREFIX}:${id ?? 'anon'}`;
-}
-
-/**
- * Restore the saved conversation for this shop. Blob URLs from a previous
- * session (the owner's own recorded notes) are revoked once the page unloads,
- * so we drop them on load while keeping the transcript text — the player would
- * otherwise be dead.
- */
-function loadSaved(key: string): Msg[] {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return [];
-    const arr = JSON.parse(raw) as Msg[];
-    return Array.isArray(arr)
-      ? arr.map((m) => (m.audioUrl?.startsWith('blob:') ? { ...m, audioUrl: null } : m))
-      : [];
-  } catch {
-    return [];
-  }
-}
 
 // Rotating status words shown while the assistant is working, so the wait
 // feels alive instead of a dead row of dots. Business-flavoured on purpose.
@@ -126,56 +96,52 @@ function AudioBubble({ src, autoPlay = false }: { src: string; autoPlay?: boolea
 
 export default function VoiceAssistant() {
   const navigate = useNavigate();
-  // Scoped to the logged-in shop; stable for this mount (a shop switch goes
-  // through logout, which unmounts and remounts this page).
-  const storageKey = useMemo(conversationKey, []);
-  const [messages, setMessages] = useState<Msg[]>(() => loadSaved(storageKey));
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
   const { recording, start, stop, supported } = useRecorder();
   const threadRef = useRef<HTMLDivElement>(null);
-  // Messages restored from storage should not auto-play their audio on mount;
-  // only notes added during this session do. This is the count present at load.
-  const restoredCount = useRef(messages.length);
+  // Messages loaded from the server on open should not auto-play their audio;
+  // only notes added during this session do. Updated once history loads.
+  const restoredCount = useRef(0);
+
+  // Load this shop's conversation from the server on open. The server scopes by
+  // auth token, so there is no cross-shop leak and no local persistence.
+  useEffect(() => {
+    let alive = true;
+    getHistory()
+      .then((history) => {
+        if (!alive) return;
+        const msgs: Msg[] = history.map((m) => ({ role: m.role, content: m.content, audioUrl: m.audio_url }));
+        restoredCount.current = msgs.length;
+        setMessages(msgs);
+      })
+      .catch(() => { if (alive) setError('Could not load your conversation.'); })
+      .finally(() => { if (alive) setLoadingHistory(false); });
+    return () => { alive = false; };
+  }, []);
 
   // Keep the latest message in view as the conversation grows.
   useEffect(() => {
     threadRef.current?.scrollTo?.({ top: threadRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, busy]);
 
-  // Persist the conversation so it survives navigation and reloads. Blob URLs
-  // are session-local, so we strip them before saving and keep the transcript.
-  useEffect(() => {
-    try {
-      const saved = messages.map((m) => (m.audioUrl?.startsWith('blob:') ? { ...m, audioUrl: null } : m));
-      localStorage.setItem(storageKey, JSON.stringify(saved));
-    } catch {
-      /* storage full or unavailable — the conversation just won't persist */
-    }
-  }, [messages, storageKey]);
-
-  function clearConversation() {
-    setMessages([]); // the persist effect then writes an empty conversation
+  async function clearConversation() {
     setError('');
+    try { await clearHistory(); } catch { setError('Could not clear the conversation.'); return; }
+    setMessages([]);
     restoredCount.current = 0;
   }
-
-  // Text-only view of the conversation to send as context (the server appends
-  // the new user message itself, so we send the prior turns only). Blank-content
-  // turns — left behind by a failed voice transcription — are dropped: Anthropic
-  // rejects empty-content messages (400), which would poison every later turn.
-  const historyToSend = (): AssistantTurn[] =>
-    messages.filter((m) => m.content.trim() !== '').map((m) => ({ role: m.role, content: m.content }));
 
   async function send(text: string) {
     if (!text.trim() || busy) return;
     setBusy(true); setError('');
-    const hist = historyToSend();
     setMessages((m) => [...m, { role: 'user', content: text }]);
     setDraft('');
     try {
-      const res = await postText(text, hist);
+      const res = await postText(text);
       setMessages((m) => [...m, { role: 'assistant', content: res.reply_text, audioUrl: res.reply_audio_url }]);
     } catch { setError('Could not reach the assistant.'); }
     finally { setBusy(false); }
@@ -187,9 +153,8 @@ export default function VoiceAssistant() {
       const blob = await stop();
       if (!blob) { setBusy(false); return; }
       const voiceUrl = URL.createObjectURL(blob); // play back the owner's own note
-      const hist = historyToSend();
       try {
-        const res = await postVoice(blob, hist);
+        const res = await postVoice(blob);
         setMessages((m) => [
           ...m,
           { role: 'user', content: res.transcript ?? '', audioUrl: voiceUrl },
@@ -222,7 +187,8 @@ export default function VoiceAssistant() {
       </div>
 
       <div className="va-thread" ref={threadRef}>
-        {messages.length === 0 && !busy && (
+        {loadingHistory && <div className="va-bubble va-ai va-typing">…</div>}
+        {!loadingHistory && messages.length === 0 && !busy && (
           <div className="va-empty">
             <div className="va-empty-mic"><Icons.Mic size={26} /></div>
             <p className="va-hint">Tap the mic and ask, e.g.<br />"How much did I make this month?"</p>
