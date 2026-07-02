@@ -112,9 +112,13 @@ class OwnerAssistantController extends Controller
     protected function parseHistory(mixed $raw): array
     {
         $arr = is_string($raw) ? (json_decode($raw, true) ?: []) : (is_array($raw) ? $raw : []);
+        // Drop blank-content turns: a failed voice transcription leaves an
+        // empty-content user message in the client's history, and Anthropic
+        // rejects any empty-content message (400), poisoning every later turn.
         return collect($arr)
             ->filter(fn ($m) => isset($m['role'], $m['content']) && in_array($m['role'], ['user', 'assistant'], true))
             ->map(fn ($m) => ['role' => $m['role'], 'content' => (string) $m['content']])
+            ->filter(fn ($m) => trim($m['content']) !== '')
             ->values()->all();
     }
 }
