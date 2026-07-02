@@ -53,12 +53,15 @@ export default function Dashboard() {
       navigate('/category-setup');
       return;
     }
-    if (storage.get('wa_setup_prompted')) return;
+    // Per-shop so the nudge is judged for THIS shop, not once per device —
+    // otherwise a second shop on the same device would never be prompted.
+    const waPromptKey = `wa_setup_prompted:${shop.id}`;
+    if (storage.get(waPromptKey)) return;
     let alive = true;
     getWaAccount()
       .then((acc) => {
         if (!alive) return;
-        storage.set('wa_setup_prompted', '1');
+        storage.set(waPromptKey, '1');
         if (!acc.connected) navigate('/chats/setup');
       })
       .catch(() => undefined);
