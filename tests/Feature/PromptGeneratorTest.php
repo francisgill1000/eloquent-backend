@@ -45,13 +45,15 @@ class PromptGeneratorTest extends TestCase
         $this->assertStringContainsString('not published yet', $prompt);
     }
 
-    public function test_system_prompt_uses_custom_persona_verbatim(): void
+    public function test_custom_persona_is_used_verbatim(): void
     {
         $shop = $this->salon();
         $shop->update(['persona' => 'You are Bella. Be brief.']);
 
-        // Exactly the saved text — nothing injected.
-        $this->assertSame('You are Bella. Be brief.', (new PersonaResolver())->systemPrompt($shop->fresh()));
+        // promptForShop() is the verbatim contract — no services/hours/facts injected.
+        $this->assertSame('You are Bella. Be brief.', (new PersonaResolver())->promptForShop($shop->fresh()));
+        // systemPrompt() grounds it with date + payment rules, but still contains it verbatim.
+        $this->assertStringContainsString('You are Bella. Be brief.', (new PersonaResolver())->systemPrompt($shop->fresh()));
     }
 
     public function test_system_prompt_falls_back_to_generated_when_empty(): void
