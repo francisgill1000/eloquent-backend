@@ -120,8 +120,11 @@ export default function VoiceAssistant() {
   }
 
   // Text-only view of the conversation to send as context (the server appends
-  // the new user message itself, so we send the prior turns only).
-  const historyToSend = (): AssistantTurn[] => messages.map((m) => ({ role: m.role, content: m.content }));
+  // the new user message itself, so we send the prior turns only). Blank-content
+  // turns — left behind by a failed voice transcription — are dropped: Anthropic
+  // rejects empty-content messages (400), which would poison every later turn.
+  const historyToSend = (): AssistantTurn[] =>
+    messages.filter((m) => m.content.trim() !== '').map((m) => ({ role: m.role, content: m.content }));
 
   async function send(text: string) {
     if (!text.trim() || busy) return;
