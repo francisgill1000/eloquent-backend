@@ -6,7 +6,7 @@ Status: Approved (Francis: "i trust you. just do it")
 ## Goal
 
 Port the chat functionality from the standalone `whatsapp-autoreply` Node app into the
-AI Business Manager stack: Laravel backend (`AI Business Manager/backend`) + admin PWA. Multi-account: each shop
+Business Lens stack: Laravel backend (`Business Lens/backend`) + admin PWA. Multi-account: each shop
 connects its own WhatsApp Business number. Chat only — no Claude auto-reply for now.
 
 ## Architecture

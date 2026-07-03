@@ -328,7 +328,7 @@ const LP_HTML = `
       <div class="sec-head">
         <div class="sec-eyebrow">Who it's for</div>
         <h2>Any small service business that takes bookings.</h2>
-        <p>If people book your time, Eloquent AI Business Manager runs it for you.</p>
+        <p>If people book your time, Eloquent Business Lens runs it for you.</p>
       </div>
       <div class="chips">
         <span class="chip"><span class="d"></span>Home services</span>
@@ -362,7 +362,7 @@ const LP_HTML = `
 
 <footer>
   <div class="wrap foot">
-    <small>Eloquent AI Business Manager — a product of Eloquent FZE LLC · Sharjah, UAE</small>
+    <small>Eloquent Business Lens — a product of Eloquent FZE LLC · Sharjah, UAE</small>
     <div class="links">
       <a href="https://admin.eloquentservice.com">Log in</a>
       <a href="https://wa.me/971557369629">WhatsApp</a>
@@ -382,7 +382,7 @@ export default function Web() {
     style.textContent = LP_CSS;
     document.head.appendChild(style);
     const prevTitle = document.title;
-    document.title = 'Eloquent AI Business Manager — Take bookings by QR. Let AI handle them.';
+    document.title = 'Eloquent Business Lens — Take bookings by QR. Let AI handle them.';
     return () => {
       style.remove();
       document.title = prevTitle;

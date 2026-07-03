@@ -101,9 +101,9 @@ export default function Profile() {
 
   const shareQr = async () => {
     if (!qrTarget) return;
-    const text = `Book ${shop?.name || 'us'} on AI Business Manager: ${qrTarget}`;
+    const text = `Book ${shop?.name || 'us'} on Business Lens: ${qrTarget}`;
     if (navigator.share) {
-      try { await navigator.share({ title: shop?.name || 'AI Business Manager', text, url: qrTarget }); } catch { /* dismissed */ }
+      try { await navigator.share({ title: shop?.name || 'Business Lens', text, url: qrTarget }); } catch { /* dismissed */ }
     } else {
       void copyLink();
     }
@@ -130,10 +130,10 @@ export default function Profile() {
     ctx.textAlign = 'center';
     ctx.fillStyle = '#0e1714';
     ctx.font = `700 ${Math.round(qr * 0.07)}px Geist, system-ui, -apple-system, sans-serif`;
-    ctx.fillText(shop?.name || 'AI Business Manager', W / 2, qr + pad * 2 + Math.round(footer * 0.42));
+    ctx.fillText(shop?.name || 'Business Lens', W / 2, qr + pad * 2 + Math.round(footer * 0.42));
     ctx.fillStyle = '#00735c';
     ctx.font = `600 ${Math.round(qr * 0.045)}px Geist, system-ui, -apple-system, sans-serif`;
-    ctx.fillText('Scan to book on AI Business Manager', W / 2, qr + pad * 2 + Math.round(footer * 0.78));
+    ctx.fillText('Scan to book on Business Lens', W / 2, qr + pad * 2 + Math.round(footer * 0.78));
     const link = document.createElement('a');
     link.href = c.toDataURL('image/png');
     link.download = `${shopCode || shop?.name || 'admin'}-qr.png`.replace(/\s+/g, '-').toLowerCase();
