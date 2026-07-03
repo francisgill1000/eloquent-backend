@@ -57,7 +57,7 @@ export default function WhatsAppSetup() {
       <div className="c-page-head">
         <h1 className="c-page-title">WhatsApp Setup</h1>
         <p className="c-page-sub">
-          Connect your WhatsApp Business number so customer chats appear in Booking Manager.
+          Connect your WhatsApp Business number so customer chats appear in AI Business Manager.
           Not sure about these values? We can set this up for you — just reach out.
         </p>
       </div>
@@ -97,7 +97,7 @@ export default function WhatsAppSetup() {
             <label className="c-field-label" htmlFor="wa-token">Access token override</label>
             <div className="c-input-row">
               <input id="wa-token" type="password"
-                placeholder="Leave empty to use the Booking Manager platform token"
+                placeholder="Leave empty to use the AI Business Manager platform token"
                 value={token} onChange={(e) => setToken(e.target.value)} />
             </div>
           </>

@@ -47,7 +47,7 @@ export default function ForgotPin() {
       <div className="c-auth">
         <div className="c-auth-brand">
           <div className="c-auth-orb"><img src="/favicon.svg" alt="" /></div>
-          <div className="c-auth-wordmark">Booking Manager</div>
+          <div className="c-auth-wordmark">AI Business Manager</div>
         </div>
 
         <div className="c-auth-card">

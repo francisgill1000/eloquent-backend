@@ -1,6 +1,6 @@
-# Booking Manager — Service Provider Web App
+# AI Business Manager — Service Provider Web App
 
-Provider-facing PWA for Booking Manager shops. Vite + React + TypeScript, talking to the Booking Manager
+Provider-facing PWA for AI Business Manager shops. Vite + React + TypeScript, talking to the AI Business Manager
 Laravel API. Mirrors the `eloquent-bookings` stack/design; functionality is ported from the
 `mobile-app/` shop screens.
 
