@@ -159,7 +159,7 @@ export default function ChatThread() {
           <span className="c-thread-sub">
             <span className="c-live-dot" />
             {contact?.channel === 'app'
-              ? 'Live Chat — in the Admin app'
+              ? 'Live Chat — in the Booking Manager app'
               : contact?.name ? contact.wa_number : 'Live on WhatsApp'}
           </span>
         </div>

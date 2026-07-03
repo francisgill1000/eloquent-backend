@@ -1,7 +1,7 @@
 import { Icons } from './Icons';
 
 const SUPPORT_NUMBER = '971557369629';
-const SUPPORT_MESSAGE = 'Hi Admin team, I need some help.';
+const SUPPORT_MESSAGE = 'Hi Booking Manager team, I need some help.';
 
 export function WhatsAppButton() {
   const href = `https://wa.me/${SUPPORT_NUMBER}?text=${encodeURIComponent(SUPPORT_MESSAGE)}`;

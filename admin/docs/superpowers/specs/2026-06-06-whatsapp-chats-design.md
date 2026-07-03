@@ -6,7 +6,7 @@ Status: Approved (Francis: "i trust you. just do it")
 ## Goal
 
 Port the chat functionality from the standalone `whatsapp-autoreply` Node app into the
-Admin stack: Laravel backend (`Admin/backend`) + admin PWA. Multi-account: each shop
+Booking Manager stack: Laravel backend (`Booking Manager/backend`) + admin PWA. Multi-account: each shop
 connects its own WhatsApp Business number. Chat only — no Claude auto-reply for now.
 
 ## Architecture

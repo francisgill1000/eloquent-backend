@@ -1,6 +1,6 @@
-# Admin — Service Provider Web App
+# Booking Manager — Service Provider Web App
 
-Provider-facing PWA for Admin shops. Vite + React + TypeScript, talking to the Admin
+Provider-facing PWA for Booking Manager shops. Vite + React + TypeScript, talking to the Booking Manager
 Laravel API. Mirrors the `eloquent-bookings` stack/design; functionality is ported from the
 `mobile-app/` shop screens.
 

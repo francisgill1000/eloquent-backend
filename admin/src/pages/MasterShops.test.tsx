@@ -7,7 +7,7 @@ import * as shopsLib from '@/lib/shops';
 import MasterShops from './MasterShops';
 
 function setup() {
-  storage.setJSON('shop_data', { id: 1, name: 'Admin HQ', is_master: true });
+  storage.setJSON('shop_data', { id: 1, name: 'Booking Manager HQ', is_master: true });
   storage.set('shop_token', 'tok');
   return render(<MemoryRouter><ShopProvider><MasterShops /></ShopProvider></MemoryRouter>);
 }

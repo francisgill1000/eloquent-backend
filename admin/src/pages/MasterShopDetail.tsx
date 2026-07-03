@@ -100,7 +100,7 @@ export default function MasterShopDetail() {
   const inactive = shop.status !== 'active';
   const waHref = shop.phone
     ? `https://wa.me/${shop.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
-        `Your Admin login\nBusiness ID: ${shop.shop_code}\nPIN: ${shop.pin}`)}`
+        `Your Booking Manager login\nBusiness ID: ${shop.shop_code}\nPIN: ${shop.pin}`)}`
     : null;
 
   return (

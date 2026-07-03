@@ -72,7 +72,7 @@ export default function Chats() {
         const unread = res.data.reduce((sum, c) => sum + (c.unread_count || 0), 0);
         if (prevUnread.current !== null && unread > prevUnread.current) chime();
         prevUnread.current = unread;
-        document.title = unread > 0 ? `(${unread}) Admin` : 'Admin';
+        document.title = unread > 0 ? `(${unread}) Booking Manager` : 'Booking Manager';
       } catch {
         if (alive && first) setError('Could not load chats.');
       } finally {
@@ -84,7 +84,7 @@ export default function Chats() {
     return () => {
       alive = false;
       if (timer.current) clearInterval(timer.current);
-      document.title = 'Admin';
+      document.title = 'Booking Manager';
     };
   }, []);
 

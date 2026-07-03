@@ -1,7 +1,7 @@
 {
-  "name": "Admin",
-  "short_name": "Admin",
-  "description": "Admin for service providers — manage bookings, staff, and services.",
+  "name": "Eloquent Booking Manager",
+  "short_name": "Booking Manager",
+  "description": "Booking manager for service providers — manage bookings, staff, and services.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0e0c",
