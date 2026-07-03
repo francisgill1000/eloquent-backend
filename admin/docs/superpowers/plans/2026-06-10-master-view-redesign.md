@@ -4,7 +4,7 @@
 
 **Goal:** Redesign the admin "All Businesses" master view into a clean eloquent-bookings-style card list + per-business detail screen, and add per-shop WhatsApp persona and an active/inactive visibility toggle end-to-end (backend → master UI → live bot, bot change strictly additive).
 
-**Architecture:** Three repos in rollout order. (1) Laravel backend `Booking Manager/backend` gains a nullable `shops.persona` column, a master-guarded `PATCH /master/shops/{shop}` endpoint, and returns `persona` from the master list + `shop-context`. (2) admin master UI gets a `MasterShopCard`, a new `MasterShopDetail` page at `/master/:id`, and an `updateMasterShop` lib call. (3) The live Node bot `whatsapp-autoreply` uses a shop's persona only when present, otherwise unchanged behavior.
+**Architecture:** Three repos in rollout order. (1) Laravel backend `AI Business Manager/backend` gains a nullable `shops.persona` column, a master-guarded `PATCH /master/shops/{shop}` endpoint, and returns `persona` from the master list + `shop-context`. (2) admin master UI gets a `MasterShopCard`, a new `MasterShopDetail` page at `/master/:id`, and an `updateMasterShop` lib call. (3) The live Node bot `whatsapp-autoreply` uses a shop's persona only when present, otherwise unchanged behavior.
 
 **Tech Stack:** Laravel 12 / PHPUnit + RefreshDatabase; React 18 + TypeScript + Vite + Vitest + Testing Library; Node ESM (whatsapp-autoreply).
 
@@ -14,14 +14,14 @@
 
 ## File Structure
 
-**Backend (`D:/Francis/projects/2026/Eloquent/Solutions/Booking Manager/backend`)**
+**Backend (`D:/Francis/projects/2026/Eloquent/Solutions/AI Business Manager/backend`)**
 - Create: `database/migrations/2026_06_10_000001_add_persona_to_shops_table.php`
 - Modify: `app/Http/Controllers/MasterController.php` — extract `presentShop()`, add `updateShop()`, add `persona` to payload
 - Modify: `app/Http/Controllers/WaWebhookController.php` — add `persona` to `shopContext()` JSON
 - Modify: `routes/api.php` — register `PATCH /master/shops/{shop}`
 - Test: `tests/Feature/MasterTest.php` (extend), `tests/Feature/WaShopContextTest.php` (extend)
 
-**Frontend (`D:/Francis/projects/2026/Eloquent/Solutions/Booking Manager/admin`)**
+**Frontend (`D:/Francis/projects/2026/Eloquent/Solutions/AI Business Manager/admin`)**
 - Create: `src/lib/format.ts` — shared `shortDate`
 - Modify: `src/types.ts` — `MasterShop.persona`
 - Modify: `src/lib/shops.ts` — `updateMasterShop()`
@@ -75,7 +75,7 @@ return new class extends Migration
 
 - [ ] **Step 2: Run the migration against the test DB to confirm it applies**
 
-Run: `cd D:/Francis/projects/2026/Eloquent/Solutions/Booking Manager/backend && php artisan migrate --env=testing` (if the project uses an in-memory sqlite test DB via `RefreshDatabase`, this is implicitly exercised by Task 2's tests; running it here just confirms the file is valid)
+Run: `cd D:/Francis/projects/2026/Eloquent/Solutions/AI Business Manager/backend && php artisan migrate --env=testing` (if the project uses an in-memory sqlite test DB via `RefreshDatabase`, this is implicitly exercised by Task 2's tests; running it here just confirms the file is valid)
 Expected: migration runs without error (or "Nothing to migrate" if testing uses RefreshDatabase). No SQL errors.
 
 - [ ] **Step 3: Commit**
@@ -149,7 +149,7 @@ git commit -m "feat(backend): add nullable persona column to shops"
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd D:/Francis/projects/2026/Eloquent/Solutions/Booking Manager/backend && php artisan test --filter=MasterTest`
+Run: `cd D:/Francis/projects/2026/Eloquent/Solutions/AI Business Manager/backend && php artisan test --filter=MasterTest`
 Expected: FAIL — the new tests fail (404/route-not-found for the PATCH, and persona key missing in the list).
 
 - [ ] **Step 3: Refactor `MasterController::shops()` to use a shared presenter and add `updateShop()`**
@@ -221,7 +221,7 @@ Then add these two methods directly after `shops()` (after line 60):
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `cd D:/Francis/projects/2026/Eloquent/Solutions/Booking Manager/backend && php artisan test --filter=MasterTest`
+Run: `cd D:/Francis/projects/2026/Eloquent/Solutions/AI Business Manager/backend && php artisan test --filter=MasterTest`
 Expected: PASS — all MasterTest cases green (including the 3 pre-existing ones).
 
 - [ ] **Step 6: Commit**
@@ -269,7 +269,7 @@ git commit -m "feat(backend): master can update shop status and persona; expose 
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd D:/Francis/projects/2026/Eloquent/Solutions/Booking Manager/backend && php artisan test --filter=WaShopContextTest`
+Run: `cd D:/Francis/projects/2026/Eloquent/Solutions/AI Business Manager/backend && php artisan test --filter=WaShopContextTest`
 Expected: FAIL — `persona` key absent from the response.
 
 - [ ] **Step 3: Add `persona` to the response** — in `WaWebhookController::shopContext()`, change the returned array (lines 157-163) to include persona:
@@ -287,7 +287,7 @@ Expected: FAIL — `persona` key absent from the response.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd D:/Francis/projects/2026/Eloquent/Solutions/Booking Manager/backend && php artisan test --filter=WaShopContextTest`
+Run: `cd D:/Francis/projects/2026/Eloquent/Solutions/AI Business Manager/backend && php artisan test --filter=WaShopContextTest`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -301,7 +301,7 @@ git commit -m "feat(backend): expose per-shop persona from wa/shop-context"
 
 ## PHASE 2 — FRONTEND (admin)
 
-> All frontend commands run from `D:/Francis/projects/2026/Eloquent/Solutions/Booking Manager/admin`.
+> All frontend commands run from `D:/Francis/projects/2026/Eloquent/Solutions/AI Business Manager/admin`.
 
 ### Task 4: Types + `updateMasterShop` lib call + shared `shortDate`
 
@@ -509,7 +509,7 @@ const shop: MasterShop = {
 };
 
 function setup(state: { shop: MasterShop } = { shop }) {
-  storage.setJSON('shop_data', { id: 1, name: 'Booking Manager HQ', is_master: true });
+  storage.setJSON('shop_data', { id: 1, name: 'AI Business Manager HQ', is_master: true });
   storage.set('shop_token', 'tok');
   return render(
     <MemoryRouter initialEntries={[{ pathname: '/master/7', state }]}>
@@ -661,7 +661,7 @@ export default function MasterShopDetail() {
   const inactive = shop.status !== 'active';
   const waHref = shop.phone
     ? `https://wa.me/${shop.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
-        `Your Booking Manager login\nBusiness ID: ${shop.shop_code}\nPIN: ${shop.pin}`)}`
+        `Your AI Business Manager login\nBusiness ID: ${shop.shop_code}\nPIN: ${shop.pin}`)}`
     : null;
 
   return (

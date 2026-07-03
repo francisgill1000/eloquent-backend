@@ -1,6 +1,6 @@
 {
-  "name": "Eloquent Booking Manager",
-  "short_name": "Booking Manager",
+  "name": "Eloquent AI Business Manager",
+  "short_name": "AI Business Manager",
   "description": "Booking manager for service providers — manage bookings, staff, and services.",
   "start_url": "/",
   "display": "standalone",

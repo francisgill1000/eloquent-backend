@@ -30,7 +30,7 @@ describe('Settings', () => {
   });
 
   it('shows the master option for master accounts', async () => {
-    setup({ id: 1, name: 'Booking Manager HQ', is_master: true });
+    setup({ id: 1, name: 'AI Business Manager HQ', is_master: true });
     expect(await screen.findByRole('link', { name: /all businesses/i })).toHaveAttribute('href', '/master');
   });
 });

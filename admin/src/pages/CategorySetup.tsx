@@ -45,7 +45,7 @@ export default function CategorySetup() {
       <div className="c-auth">
         <h1 className="c-auth-title">One last thing</h1>
         <p className="c-auth-sub">
-          What kind of business is {shop?.name || 'your business'}? This helps Booking Manager serve your
+          What kind of business is {shop?.name || 'your business'}? This helps AI Business Manager serve your
           customers correctly.
         </p>
 
