@@ -1,6 +1,6 @@
-# AI Business Manager — Service Provider Web App
+# Business Lens — Service Provider Web App
 
-Provider-facing PWA for AI Business Manager shops. Vite + React + TypeScript, talking to the AI Business Manager
+Provider-facing PWA for Business Lens shops. Vite + React + TypeScript, talking to the Business Lens
 Laravel API. Mirrors the `eloquent-bookings` stack/design; functionality is ported from the
 `mobile-app/` shop screens.
 

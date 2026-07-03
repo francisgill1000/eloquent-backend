@@ -1,6 +1,6 @@
 {
-  "name": "Eloquent AI Business Manager",
-  "short_name": "AI Business Manager",
+  "name": "Eloquent Business Lens",
+  "short_name": "Business Lens",
   "description": "Booking manager for service providers — manage bookings, staff, and services.",
   "start_url": "/",
   "display": "standalone",

@@ -42,8 +42,8 @@ Two capabilities are also missing from the master view:
 
 | Repo | Path | Changes |
 |------|------|---------|
-| admin (master UI) | `AI Business Manager/admin` | New card component, new detail page, route, lib calls, CSS |
-| backend (Laravel API) | `AI Business Manager/backend` | Migration, master update endpoint, payload additions |
+| admin (master UI) | `Business Lens/admin` | New card component, new detail page, route, lib calls, CSS |
+| backend (Laravel API) | `Business Lens/backend` | Migration, master update endpoint, payload additions |
 | whatsapp-autoreply (Node bot, **live**) | `Solutions/whatsapp-autoreply` | Additive: use persona when present |
 
 ---
@@ -125,7 +125,7 @@ shares the same mint token palette (`tokens.css`), so colours carry over directl
 
 ---
 
-## C. Backend — `AI Business Manager/backend` (Laravel)
+## C. Backend — `Business Lens/backend` (Laravel)
 
 1. **Migration** — add nullable `persona` (`text`) column to `shops`. `null` = use the
    auto-generated category prompt. (`status` string column already exists with
