@@ -6,6 +6,7 @@ import { RequireShop } from '@/layout/RequireShop';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPin from '@/pages/ForgotPin';
+import Web from '@/pages/Web';
 import ScanApprove from '@/pages/ScanApprove';
 import Dashboard from '@/pages/Dashboard';
 import Bookings from '@/pages/Bookings';
@@ -34,6 +35,7 @@ export default function App() {
       <ParticleField />
       <Routes>
         {/* Public / full-screen */}
+        <Route path="/web" element={<Web />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-pin" element={<ForgotPin />} />

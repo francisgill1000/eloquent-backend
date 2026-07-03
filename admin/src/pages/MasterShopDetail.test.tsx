@@ -15,7 +15,7 @@ const shop: MasterShop = {
 };
 
 function setup(state: { shop: MasterShop } = { shop }) {
-  storage.setJSON('shop_data', { id: 1, name: 'Admin HQ', is_master: true });
+  storage.setJSON('shop_data', { id: 1, name: 'Booking Manager HQ', is_master: true });
   storage.set('shop_token', 'tok');
   return render(
     <MemoryRouter initialEntries={[{ pathname: '/master/7', state }]}>

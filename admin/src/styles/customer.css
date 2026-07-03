@@ -1,13 +1,10 @@
-/* Responsive shell: full-bleed on phones, centered ~480px column on desktop.
-   No side borders — the column sits directly on the ambient background. */
+/* Responsive shell: full-bleed on all viewports.
+   No max-width — the app fills the available width. */
 .mobile-app {
-  max-width: 480px;
   margin: 0 auto;
 }
 
-/* Pin the bottom nav to the viewport, constrained to the app column.
-   Centered with auto margins (not transform) — a transformed fixed element
-   combined with backdrop-filter corrupts the GPU layer on Android/Samsung. */
+/* Pin the bottom nav to the viewport, spanning the full width. */
 .m-tabbar {
   position: fixed;
   bottom: 0;
@@ -15,7 +12,6 @@
   right: 0;
   margin: 0 auto;
   width: 100%;
-  max-width: 480px;
 }
 /* Reserve space so scroll content isn't hidden behind the fixed tab bar */
 .m-scroll {
@@ -351,10 +347,10 @@
 .c-composer-send { width: 38px; height: 38px; padding: 0; flex: 0 0 auto; display: grid; place-items: center; border-radius: 99px; border: none; background: linear-gradient(135deg, var(--mint-200), var(--mint-300)); color: #001016; box-shadow: 0 0 16px -2px var(--mint-300), inset 0 0 8px rgba(255,255,255,0.4); transition: all .2s; }
 .c-composer-send:disabled { background: rgba(255,255,255,0.08); color: var(--text-4); box-shadow: none; }
 
-/* ─── Auth screens (glass + glow) ─── */
-.c-auth-screen { position: relative; background: radial-gradient(ellipse 95% 55% at 50% -8%, #0e1a16, var(--bg-0) 72%); overflow: hidden; }
-.c-auth-screen::before { content: ''; position: absolute; width: 340px; height: 340px; top: -100px; left: -90px; background: radial-gradient(circle, rgba(0,255,204,0.22), transparent 65%); filter: blur(50px); pointer-events: none; z-index: 0; }
-.c-auth-screen::after { content: ''; position: absolute; width: 360px; height: 360px; bottom: -130px; right: -110px; background: radial-gradient(circle, rgba(167,139,250,0.16), transparent 65%); filter: blur(56px); pointer-events: none; z-index: 0; }
+/* ─── Auth screens ─── */
+/* Transparent so the shared ambient background (ParticleField constellation +
+   body glow/grid) shows through, matching every other screen. */
+.c-auth-screen { position: relative; background: transparent; }
 .c-auth-scroll { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100%; padding: calc(20px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
 .c-auth { padding: 24px; max-width: 420px; margin: auto; width: 100%; animation: authIn .45s cubic-bezier(0.22, 1, 0.36, 1); }
 @keyframes authIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
@@ -497,3 +493,27 @@
 .c-notif-banner .t2 { font-size: 12px; color: var(--text-3); margin-top: 1px; }
 .c-notif-banner button { flex: 0 0 auto; background: var(--mint-500); color: #04140f; border: none; font-weight: 800; border-radius: var(--r-pill); padding: 8px 14px; font-size: 12px; cursor: pointer; }
 .c-notif-banner button:disabled { opacity: .6; }
+
+/* ─── Unified mint card style ─────────────────────────────────────────────
+   Every content card uses the same mint-tinted glass look as .c-notif-banner:
+   translucent mint fill + mint border. Only card CONTAINERS are listed here —
+   inputs, icon buttons, avatars, pills, badges and media keep their own
+   surfaces. Overrides background + border only; padding/radius/blur/:active
+   states defined above are preserved. Revert by deleting this block. */
+.c-card,
+.c-stat,
+.c-cred,
+.c-cred-card,
+.c-svc-card,
+.c-wh-day,
+.c-staff-card,
+.c-msc,
+.c-chat-row,
+.c-set-link,
+.c-mini,
+.c-qa-tile,
+.c-up-row,
+.c-master-card {
+  background: var(--mint-soft);
+  border: 1px solid var(--border-mint);
+}

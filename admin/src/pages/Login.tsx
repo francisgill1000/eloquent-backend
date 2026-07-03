@@ -69,7 +69,7 @@ export default function Login() {
       <div className="c-auth">
         <div className="c-auth-brand">
           <div className="c-auth-orb"><img src="/favicon.svg" alt="" /></div>
-          <div className="c-auth-wordmark">Admin</div>
+          <div className="c-auth-wordmark">Booking Manager</div>
         </div>
 
         <div className="c-auth-card">
