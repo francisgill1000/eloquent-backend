@@ -16,6 +16,16 @@ for (let h = 0; h < 24; h++) {
     TIME_OPTIONS.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
   }
 }
+// "Open until end of day" — lets a 24h shop close at 23:59 instead of 23:30.
+TIME_OPTIONS.push('23:59');
+
+// Times are stored as HH:MM:SS ("23:59:00"); the dropdowns use HH:MM. Trim so a
+// stored value matches an option (otherwise the select falls back to 00:00).
+const toHm = (t: string): string => (t || '').slice(0, 5);
+
+// Guarantee the current value is always selectable, even if it's off-grid.
+const optionsWith = (current: string): string[] =>
+  TIME_OPTIONS.includes(current) ? TIME_OPTIONS : [current, ...TIME_OPTIONS];
 
 type Row = { day: string; day_of_week: number; is_open: boolean; start_time: string; end_time: string };
 
@@ -24,7 +34,7 @@ function buildRows(workingHours: Array<{ day_of_week?: number; day?: string; sta
     const dayNum = dowFor(i);
     const found = workingHours.find((d) => d.day_of_week === dayNum || d.day?.toLowerCase() === day.toLowerCase());
     return found
-      ? { day, day_of_week: dayNum, is_open: true, start_time: found.start_time || '09:00', end_time: found.end_time || '18:00' }
+      ? { day, day_of_week: dayNum, is_open: true, start_time: toHm(found.start_time || '09:00'), end_time: toHm(found.end_time || '18:00') }
       : { day, day_of_week: dayNum, is_open: false, start_time: '09:00', end_time: '18:00' };
   });
 }
@@ -106,14 +116,14 @@ export default function WorkingHours() {
             <div className="c-wh-field">
               <label htmlFor={`${r.day}-open`}>Opens</label>
               <select id={`${r.day}-open`} className="c-wh-select" value={r.start_time} disabled={!r.is_open} onChange={(e) => updateDay(i, 'start_time', e.target.value)}>
-                {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                {optionsWith(r.start_time).map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <span className="c-wh-arrow"><Icons.ArrowRight size={18} /></span>
             <div className="c-wh-field">
               <label htmlFor={`${r.day}-close`}>Closes</label>
               <select id={`${r.day}-close`} className="c-wh-select" value={r.end_time} disabled={!r.is_open} onChange={(e) => updateDay(i, 'end_time', e.target.value)}>
-                {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                {optionsWith(r.end_time).map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>
