@@ -19,16 +19,19 @@ Add full role-based access control to the Booking Manager: per-business **users*
 | Auth depth | Real per-user login; Owner remains superadmin |
 | Enforcement | Backend (403 via middleware/policies) **and** frontend (hide/disable) |
 | Login UX | **Unchanged** — `shop_code + PIN`, where the PIN now uniquely identifies a `ShopUser` within the shop |
+| Auth plumbing | **Token stays issued on the `Shop`** (so `$request->user()` remains a `Shop` — existing controllers untouched). The token is tagged with the acting `shop_user_id`; RBAC resolves the current `ShopUser` from that tag. **No controller sweep needed** (Decision 2 dropped — this is safer). |
+| PIN storage | Plaintext, matching the existing `shops.pin` convention; hidden from serialization. Uniqueness enforced by a DB unique index `(shop_id, login_pin)`. |
 | UI | Single page `/settings/access` with inline segmented sections (Users · Roles · Permissions); modals/drawers, no sub-routes |
 
-## 3. The pivotal architecture change
+## 3. The architecture (low-risk, additive)
 
-**Before:** `Shop` is the authenticatable. Login = `shop_code + PIN` → Sanctum token on the Shop. Controllers call `$request->user()` and receive a `Shop`.
+**Before:** `Shop` is the Sanctum authenticatable. Login = `shop_code + PIN` → token on the Shop (`$shop->createToken(...)`). Controllers call `$request->user()` and receive a `Shop`. PINs are plaintext.
 
-**After:** A new **`ShopUser`** is the authenticatable. Login = `shop_code + PIN`, where PIN resolves to a specific `ShopUser` in that shop. Token is issued on the `ShopUser`. The current shop is `$request->user()->shop`.
+**After:** The **`Shop` stays the authenticatable** — the token is still created on the Shop, so `$request->user()` remains a `Shop` and **every existing controller keeps working unchanged**. We add a **`ShopUser`** as the RBAC *subject*: on login the PIN resolves to a specific `ShopUser`, and the issued token is tagged with that `shop_user_id`. A middleware reads the tag, loads the current `ShopUser`, and exposes it (`current_shop_user()`), against which all permission checks run.
 
 - Login screen and request shape are **identical** to today (`shop_code` + `pin`); only backend resolution changes.
 - Existing shops are migrated: each gets an auto-created **Owner** `ShopUser` seeded from `shop.pin`, assigned the non-deletable **Owner** role.
+- The acting user is carried on the `personal_access_tokens` row via a new nullable `shop_user_id` column (set at token creation).
 
 ## 4. Backend
 
@@ -39,8 +42,9 @@ Add full role-based access control to the Booking Manager: per-business **users*
 - Guard: `shop_users` (Sanctum, model `ShopUser`).
 
 ### 4.2 Data model
-- **`shop_users`**: `id, shop_id (fk, index), name, login_pin (hashed), is_active (bool, default true), timestamps`. Traits: `Authenticatable`, `HasApiTokens`, `HasRoles`.
-  - PIN uniqueness enforced **per shop** (unique composite `shop_id + login_pin` at the app/validation layer; PIN stored hashed, so uniqueness is checked by rejecting a PIN that already resolves within the shop).
+- **`shop_users`**: `id, shop_id (fk, index), name, login_pin (plaintext, hidden), is_active (bool, default true), timestamps`, with a unique index on `(shop_id, login_pin)`. Traits: `HasRoles` (spatie). It is **not** the authenticatable — the Shop is — so it does not need `Authenticatable`/`HasApiTokens`.
+  - PIN uniqueness enforced **per shop** by the DB unique index plus request validation; matches the existing plaintext `shops.pin` convention.
+- **`personal_access_tokens`**: add nullable `shop_user_id` column (set when the login endpoint creates the token, so each session knows which user is acting).
 - **spatie tables** (`roles`, `permissions`, `model_has_roles`, `model_has_permissions`, `role_has_permissions`) with `team_id` column (= `shop_id`).
 - Roles are **per-shop** (`team_id` set). Permissions are **global** (`team_id = null`), seeded from the catalog.
 
@@ -59,7 +63,8 @@ Add full role-based access control to the Booking Manager: per-business **users*
 (Catalog lives in one PHP source of truth — e.g. `App\Support\PermissionCatalog` — consumed by the seeder and exposed via the read-only permissions endpoint so backend and frontend never drift.)
 
 ### 4.4 Owner / superadmin
-- `Gate::before()` returns `true` when the current `ShopUser` holds the **Owner** role → bypasses all permission checks.
+- The current `ShopUser` is resolved from the token's `shop_user_id`. The `permission:` middleware treats a user holding the **Owner** role as all-allowed (bypass).
+- If a token has **no** `shop_user_id` (e.g. legacy tokens issued before this feature, or non-admin flows), the middleware treats the session as **Owner-equivalent** for backward compatibility, so existing integrations keep working. New logins always tag the token.
 - The Owner role is created per shop, cannot be deleted or renamed, and is not editable in the permission matrix (implicitly all-permissions).
 
 ### 4.5 Endpoints (new)
@@ -71,13 +76,13 @@ All under the authenticated group; all implicitly shop-scoped by the team middle
 - Role/permission-management endpoints guarded by `roles.manage` / `users.manage`.
 
 ### 4.6 Login change
-- `POST /shops/login` (existing path kept): validate `shop_code + pin` → find the shop, then find the `ShopUser` in that shop whose `login_pin` matches → issue token on that user → return `{ token, user, shop, permissions }`.
-- Backward-compatible response: still includes `shop`; adds `user` + `permissions`.
+- `POST /shops/login` (existing path kept): validate `shop_code + pin` → find the shop, then find the active `ShopUser` in that shop whose `login_pin` matches → create the token **on the shop** tagged with `shop_user_id` → return `{ token, user, shop, permissions }`.
+- Backward-compatible response: still includes `shop` (with `pin` visible, as today); adds `user` + `permissions`.
+- If a shop has no matching `ShopUser` yet (unmigrated), fall back to the legacy check (`$shop->pin === $pin`) and issue an untagged token → treated as Owner-equivalent. Keeps every current shop logging in during rollout.
 
 ### 4.7 Enforcement on existing resources
-- Add `$request->shop()` resolver (macro or `FormRequest`/middleware helper returning `$request->user()->shop`).
-- **Mechanical sweep:** replace `$request->user()` (previously a Shop) with `$request->shop()` in existing controllers.
-- Apply spatie `permission:<name>` middleware to existing resource routes per the catalog (e.g. `bookings.*`, `services.*`, `staff.*`, etc.).
+- **No controller sweep** — the token stays on the Shop, so `$request->user()` is unchanged.
+- Apply the spatie-based `permission:<name>` middleware to existing resource routes per the catalog (e.g. `bookings.*`, `services.*`, `staff.*`, etc.). The middleware resolves `current_shop_user()` from the token and returns 403 when the permission is missing (Owner/untagged bypass).
 
 ## 5. Frontend (single page)
 
@@ -105,9 +110,11 @@ Frontend: `can()` logic unit test (owner sentinel, granted, denied); Access page
 
 ## 7. Rollout / risk
 
-- Highest-risk item is the controller sweep (§4.7) — kept mechanical via the `$request->shop()` resolver and covered by feature tests before/after.
+- **Low blast radius:** the token stays on the Shop, so existing controllers/integrations are untouched; RBAC is purely additive.
+- Untagged/legacy tokens are treated as Owner-equivalent, so sessions issued before the deploy keep full access until re-login.
 - Data migration for existing shops (Owner user + role) is idempotent and reversible.
-- Permission enforcement is added per-route; a missed route simply stays owner-only-safe because non-owners get no permissions until roles are assigned.
+- Permission enforcement is added per-route; a non-owner gets no permissions until a role is assigned, so the default is safe-restrictive for staff and unchanged for owners.
+- Auth touches a production app — implement + test on a branch; **do not auto-deploy**; owner reviews before shipping.
 
 ## 8. Out of scope (YAGNI)
 
