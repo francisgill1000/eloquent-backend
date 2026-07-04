@@ -626,7 +626,14 @@
     order: 2;
     margin-top: 16px;
     overflow: visible;
+    /* Wrap the Upcoming bookings section in the same mint glass card as the others. */
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-mint);
+    border-radius: var(--r-lg);
+    padding: 20px 22px 22px;
   }
+  .c-dash-lower.is-empty .c-dash-main .c-section-title { margin: 0 0 12px; }
+  .c-dash-lower.is-empty .c-dash-main .m-empty { padding: 20px; }
   /* In the 50/50 row the cards are grid items (drop the column flex sizing). */
   .c-dash-lower.is-empty .c-dash-chart-card,
   .c-dash-lower.is-empty .c-dash-qr-card {
