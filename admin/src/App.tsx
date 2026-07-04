@@ -23,6 +23,7 @@ import Profile from '@/pages/Profile';
 import Settings from '@/pages/Settings';
 import AccessControl from '@/pages/AccessControl';
 import MasterShops from '@/pages/MasterShops';
+import MasterShopCreate from '@/pages/MasterShopCreate';
 import MasterShopDetail from '@/pages/MasterShopDetail';
 import CategorySetup from '@/pages/CategorySetup';
 import Assistant from '@/pages/Assistant';
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/assistant" element={<Assistant />} />
           <Route path="/ask" element={<VoiceAssistant />} />
           <Route path="/master" element={<MasterShops />} />
+          <Route path="/master/new" element={<MasterShopCreate />} />
           <Route path="/master/:id" element={<MasterShopDetail />} />
           <Route path="/chats/setup" element={<WhatsAppSetup />} />
           <Route path="/chats/:id" element={<ChatThread />} />
