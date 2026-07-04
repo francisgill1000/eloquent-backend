@@ -1,6 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
-import { VoiceAssistantFab } from '@/components/VoiceAssistantFab';
 import { WHATSAPP_ENABLED } from '@/lib/features';
 
 type Tab = { id: string; label: string; href: string; icon: keyof typeof Icons };
@@ -33,7 +32,6 @@ export function MobileLayout() {
   return (
     <div className="mobile-app">
       <main className="mobile-main"><Outlet /></main>
-      <VoiceAssistantFab />
       <div className="m-tabbar">
         {tabs.map((tab) => {
           const Icon = Icons[tab.icon];
