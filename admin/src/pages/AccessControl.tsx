@@ -124,6 +124,7 @@ function UsersSection({
         <div className="ac-empty">No users yet. Add your first team member.</div>
       )}
 
+      <div className="ac-card-grid">
       {users.map((u) =>
         edit === u.id ? (
           <UserEditor key={u.id} user={u} roles={roles} onCancel={() => setEdit(null)} onSaved={upsert} />
@@ -153,6 +154,7 @@ function UsersSection({
           </div>
         ),
       )}
+      </div>
     </>
   );
 }
@@ -293,6 +295,7 @@ function RolesSection({
         <RoleEditor role={null} groups={groups} onCancel={() => setEdit(null)} onSaved={upsert} />
       )}
 
+      <div className="ac-card-grid">
       {roles.map((r) =>
         edit === r.id ? (
           <RoleEditor key={r.id} role={r} groups={groups} onCancel={() => setEdit(null)} onSaved={upsert} />
@@ -321,6 +324,7 @@ function RolesSection({
           </div>
         ),
       )}
+      </div>
     </>
   );
 }

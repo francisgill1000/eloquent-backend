@@ -180,8 +180,23 @@
   color: inherit;
 }
 
+/* Card grid wrapper: vanishes on mobile (cards stack); desktop turns it into a
+   2-col grid. A lone card spans full width; inline editors always span full. */
+.ac-card-grid { display: contents; }
+
 /* Desktop (≥1024px): use the Dashboard's content width; the active tab panel
    spans the full width. Mobile/tablet below 1024px is untouched. */
 @media (min-width: 1024px) {
   .app-shell-main .c-access .m-scroll { max-width: 1200px; }
+
+  .c-access .ac-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0 16px;
+    align-items: start;
+  }
+  .c-access .ac-card-grid > .ac-card { margin: 0; }
+  .c-access .ac-card-grid > .ac-card:only-child { grid-column: 1 / -1; } /* single record = full width */
+  .c-access .ac-card-grid > .ac-editor { grid-column: 1 / -1; }          /* editors span full width */
 }
