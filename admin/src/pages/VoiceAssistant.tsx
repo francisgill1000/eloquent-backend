@@ -177,7 +177,7 @@ export default function VoiceAssistant() {
         <button className="c-icon-btn" aria-label="Back" onClick={() => navigate(-1)}><Icons.ChevronLeft size={18} /></button>
         <div className="va-head-text">
           <span className="va-title">Ask about your business</span>
-          <span className="va-sub">Speak or type — answers come back as voice</span>
+          <span className="va-sub">Ask a question — or tell me to change something</span>
         </div>
         {messages.length > 0 && (
           <button className="c-icon-btn" aria-label="Clear conversation" onClick={clearConversation}>
@@ -191,7 +191,7 @@ export default function VoiceAssistant() {
         {!loadingHistory && messages.length === 0 && !busy && (
           <div className="va-empty">
             <div className="va-empty-mic"><Icons.Mic size={26} /></div>
-            <p className="va-hint">Tap the mic and ask, e.g.<br />"How much did I make this month?"</p>
+            <p className="va-hint">Tap the mic and ask or tell me, e.g.<br />"How much did I make this month?" or "Cancel Sarah's 3 o'clock"</p>
           </div>
         )}
         {messages.map((m, i) => (
