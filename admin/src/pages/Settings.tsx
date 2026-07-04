@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { usePush } from '@/lib/usePush';
+import { WHATSAPP_ENABLED } from '@/lib/features';
 
 type Option = {
   label: string;
@@ -10,13 +11,15 @@ type Option = {
   icon: keyof typeof Icons;
 };
 
-const OPTIONS: Option[] = [
+const ALL_OPTIONS: Option[] = [
   { label: 'Working Hours', sub: 'Set your open & close times', to: '/working-hours', icon: 'Clock' },
   { label: 'Services', sub: 'Add or edit what you offer', to: '/services', icon: 'Grid' },
   { label: 'Staff', sub: 'Add & manage your team', to: '/staff', icon: 'Users' },
+  // WhatsApp connection — hidden temporarily behind WHATSAPP_ENABLED.
   { label: 'WhatsApp', sub: 'Chat connection settings', to: '/chats/setup', icon: 'WhatsApp' },
   { label: 'AI Assistant', sub: 'What your auto-reply assistant says', to: '/assistant', icon: 'Chat' },
 ];
+const OPTIONS: Option[] = ALL_OPTIONS.filter((o) => WHATSAPP_ENABLED || o.to !== '/chats/setup');
 
 export default function Settings() {
   const { shop } = useShop();

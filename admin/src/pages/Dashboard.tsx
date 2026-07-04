@@ -1,14 +1,20 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import { Spinner } from '@/components/Spinner';
 import { EmptyState } from '@/components/EmptyState';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { getShopBookings } from '@/lib/bookings';
+import { getCustomerCount } from '@/lib/customers';
 import { getWaAccount } from '@/lib/chats';
+import { WHATSAPP_ENABLED } from '@/lib/features';
 import { storage } from '@/lib/storage';
 import { formatLocalDate } from '@/lib/date';
 import type { Booking } from '@/types';
+
+// Where the public booking page lives (matches the Profile page's QR target).
+const CUSTOMER_WEB = 'https://bookings.eloquentservice.com';
 
 function formatTime(t?: string): string {
   if (!t) return 'TBD';
@@ -22,14 +28,53 @@ function dateOf(b: Booking): string {
   return String(b.date ?? '').slice(0, 10);
 }
 
-const QUICK_ACTIONS: { label: string; to: string; icon: keyof typeof Icons }[] = [
-  { label: 'Bookings', to: '/bookings', icon: 'Calendar' },
-  { label: 'Chats', to: '/chats', icon: 'Chat' },
-  { label: 'Staff', to: '/staff', icon: 'Users' },
-  { label: 'Services', to: '/services', icon: 'Grid' },
-  { label: 'Hours', to: '/working-hours', icon: 'Clock' },
-  { label: 'Profile', to: '/profile', icon: 'Store' },
+const ALL_QUICK_ACTIONS: { label: string; to: string; icon: keyof typeof Icons; sub: string }[] = [
+  { label: 'Bookings', to: '/bookings', icon: 'Calendar', sub: 'View & manage bookings' },
+  // Chats (WhatsApp) — hidden temporarily behind WHATSAPP_ENABLED.
+  { label: 'Chats', to: '/chats', icon: 'Chat', sub: 'Reply to customers' },
+  { label: 'Staff', to: '/staff', icon: 'Users', sub: 'Manage your team' },
+  { label: 'Services', to: '/services', icon: 'Grid', sub: 'Edit what you offer' },
+  { label: 'Hours', to: '/working-hours', icon: 'Clock', sub: 'Set open & close times' },
+  { label: 'Profile', to: '/profile', icon: 'Store', sub: 'Details & booking QR' },
 ];
+const QUICK_ACTIONS = ALL_QUICK_ACTIONS.filter((a) => WHATSAPP_ENABLED || a.to !== '/chats');
+
+// Setup steps shown (desktop) when there are no bookings yet, to fill the space
+// with something useful for a new business.
+const GET_STARTED: { icon: keyof typeof Icons; title: string; sub: string; to: string }[] = [
+  { icon: 'Grid', title: 'Add your services', sub: 'List what customers can book', to: '/services' },
+  { icon: 'Clock', title: 'Set working hours', sub: 'Set your open & close times', to: '/working-hours' },
+  { icon: 'Users', title: 'Add your staff', sub: 'Assign who handles bookings', to: '/staff' },
+  { icon: 'Store', title: 'Share booking link', sub: 'Invite customers to book', to: '/profile' },
+];
+
+// Business Overview (desktop) time filter — recomputes the KPI cards below.
+type PeriodKey = 'today' | 'month' | 'year';
+const PERIODS: { key: PeriodKey; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'month', label: 'This month' },
+  { key: 'year', label: 'Year' },
+];
+
+// Compact AED formatter for the overview cards (e.g. "AED 486k").
+function aed(n: number): string {
+  if (n >= 1000) {
+    const k = n / 1000;
+    return `AED ${(k >= 100 ? Math.round(k) : Math.round(k * 10) / 10).toLocaleString()}k`;
+  }
+  return `AED ${Math.round(n).toLocaleString()}`;
+}
+
+// Period-scoped stats derived from the loaded bookings (cancelled excluded
+// from revenue/count so the figures reflect real earned business).
+function periodStats(list: Booking[], pred: (b: Booking) => boolean) {
+  const rows = list.filter(pred);
+  const active = rows.filter((b) => String(b.status).toLowerCase() !== 'cancelled');
+  const revenue = active.reduce((s, b) => s + Number(b.charges ?? 0), 0);
+  const count = active.length;
+  const completed = rows.filter((b) => String(b.status).toLowerCase() === 'completed').length;
+  return { revenue, count, completed, avg: count ? revenue / count : 0 };
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -37,8 +82,12 @@ export default function Dashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [totalBookings, setTotalBookings] = useState<number | null>(null);
   const [totalRevenue, setTotalRevenue] = useState<number | null>(null);
+  const [customerCount, setCustomerCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [period, setPeriod] = useState<PeriodKey>('month');
+
+  const qrTarget = shop?.id ? `${CUSTOMER_WEB}/shop/${shop.id}` : '';
 
   // Master accounts skip the provider experience entirely.
   // Onboarding chain for regular shops: 1) lock in a category once,
@@ -53,6 +102,8 @@ export default function Dashboard() {
       navigate('/category-setup');
       return;
     }
+    // WhatsApp setup nudge — suppressed while the feature is hidden.
+    if (!WHATSAPP_ENABLED) return;
     // Per-shop so the nudge is judged for THIS shop, not once per device —
     // otherwise a second shop on the same device would never be prompted.
     const waPromptKey = `wa_setup_prompted:${shop.id}`;
@@ -92,6 +143,16 @@ export default function Dashboard() {
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
+  // Customer count for the dashboard card (desktop right column).
+  useEffect(() => {
+    if (!shop?.id) return;
+    let alive = true;
+    getCustomerCount(shop.id)
+      .then((n) => { if (alive) setCustomerCount(n); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [shop?.id]);
+
   const todayISO = formatLocalDate(new Date());
   const todayCount = bookings.filter((b) => dateOf(b) === todayISO).length;
   const completedCount = bookings.filter((b) => String(b.status).toLowerCase() === 'completed').length;
@@ -101,6 +162,37 @@ export default function Dashboard() {
       ? (a.start_time ?? '').localeCompare(b.start_time ?? '')
       : dateOf(a).localeCompare(dateOf(b))))
     .slice(0, 5);
+
+  // Business Overview KPIs (desktop): period-scoped values + real
+  // period-over-period deltas, all computed from the loaded bookings.
+  const now = new Date();
+  const ymNow = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const prevM = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const ymPrev = `${prevM.getFullYear()}-${String(prevM.getMonth() + 1).padStart(2, '0')}`;
+  const yNow = String(now.getFullYear());
+  const yPrev = String(now.getFullYear() - 1);
+  const yesterdayISO = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+  const curPred = period === 'today'
+    ? (b: Booking) => dateOf(b) === todayISO
+    : period === 'month'
+      ? (b: Booking) => dateOf(b).startsWith(ymNow)
+      : (b: Booking) => dateOf(b).startsWith(yNow);
+  const prevPred = period === 'today'
+    ? (b: Booking) => dateOf(b) === yesterdayISO
+    : period === 'month'
+      ? (b: Booking) => dateOf(b).startsWith(ymPrev)
+      : (b: Booking) => dateOf(b).startsWith(yPrev);
+  const cur = periodStats(bookings, curPred);
+  const prev = periodStats(bookings, prevPred);
+  const pct = (c: number, p: number) => (p > 0 ? Math.round(((c - p) / p) * 100) : null);
+  const suffix = period === 'today' ? 'Today' : period === 'month' ? 'MTD' : 'YTD';
+  const vsWord = period === 'today' ? 'yesterday' : period === 'month' ? 'last month' : 'last year';
+  const ovCards: { key: string; label: string; value: string; accent?: boolean; trend: number | null }[] = [
+    { key: 'rev', label: `Revenue · ${suffix}`, value: aed(cur.revenue), accent: true, trend: pct(cur.revenue, prev.revenue) },
+    { key: 'bk', label: `Bookings · ${suffix}`, value: cur.count.toLocaleString(), trend: pct(cur.count, prev.count) },
+    { key: 'done', label: `Completed · ${suffix}`, value: cur.completed.toLocaleString(), trend: pct(cur.completed, prev.completed) },
+    { key: 'avg', label: `Avg value · ${suffix}`, value: aed(cur.avg), trend: pct(cur.avg, prev.avg) },
+  ];
 
   return (
     <div className="m-screen c-dash">
@@ -124,62 +216,166 @@ export default function Dashboard() {
           </button>
         </div>
 
+        {/* Desktop-only Business Overview header (mobile uses the greeting header above) */}
+        <div className="c-dash-deskhead">
+          <div className="c-dash-deskhead-text">
+            <h1 className="c-dash-deskhead-title">Business Overview</h1>
+            <p className="c-dash-deskhead-sub">
+              <span className={`c-live-dot${shop?.is_open ? '' : ' off'}`} />
+              {shop?.is_open ? 'Open now' : 'Closed'} · {shop?.name ?? 'your business'}
+            </p>
+          </div>
+          <div className="c-ov-controls">
+            <div className="c-seg" role="tablist" aria-label="Time range">
+              {PERIODS.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={period === p.key}
+                  className={`c-seg-btn${period === p.key ? ' on' : ''}`}
+                  onClick={() => setPeriod(p.key)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <Link to="/ask" className="c-ask-btn"><Icons.Mic size={16} /> Ask</Link>
+          </div>
+        </div>
+
         {error && <div className="c-error-box" style={{ margin: '0 16px 12px' }}>{error}</div>}
 
-        {/* Hero revenue card */}
-        <div className="c-hero-stat">
-          <div className="c-hero-label">Total revenue</div>
-          <div className="c-hero-value">{totalRevenue != null ? `AED ${totalRevenue.toLocaleString()}` : '—'}</div>
-          <div className="c-hero-foot">{totalBookings ?? '—'} bookings all time</div>
+        {/* Business Overview KPI cards — desktop only (mobile keeps the KPI row below) */}
+        <div className="c-ov">
+          {ovCards.map((c) => (
+            <div key={c.key} className={`c-ov-card${c.accent ? ' accent' : ''}`}>
+              <div className="c-ov-label">{c.label}</div>
+              <div className="c-ov-value">{c.value}</div>
+              {c.trend != null ? (
+                <div className={`c-ov-trend ${c.trend >= 0 ? 'up' : 'down'}`}>
+                  <span className="c-ov-arrow">{c.trend >= 0 ? '▲' : '▼'}</span>
+                  {Math.abs(c.trend)}% vs {vsWord}
+                </div>
+              ) : (
+                <div className="c-ov-trend flat">— vs {vsWord}</div>
+              )}
+            </div>
+          ))}
         </div>
 
-        {/* Mini stats */}
-        <div className="c-mini-stats">
-          <div className="c-mini"><span className="v">{todayCount}</span><span className="k">Today</span></div>
-          <div className="c-mini"><span className="v">{completedCount}</span><span className="k">Completed</span></div>
-          <div className="c-mini"><span className="v">{totalBookings ?? '—'}</span><span className="k">Bookings</span></div>
+        {/* KPI row: revenue + stats. Desktop → one row; mobile → hero + 3-col stats (unchanged). */}
+        <div className="c-dash-kpis">
+          <div className="c-hero-stat">
+            <div className="c-hero-label">Total revenue</div>
+            <div className="c-hero-value">{totalRevenue != null ? `AED ${totalRevenue.toLocaleString()}` : '—'}</div>
+            <div className="c-hero-foot">{totalBookings ?? '—'} bookings all time</div>
+          </div>
+          <div className="c-mini-stats">
+            <div className="c-mini"><span className="v">{todayCount}</span><span className="k">Today</span></div>
+            <div className="c-mini"><span className="v">{completedCount}</span><span className="k">Completed</span></div>
+            <div className="c-mini"><span className="v">{totalBookings ?? '—'}</span><span className="k">Bookings</span></div>
+          </div>
         </div>
 
-        {/* Quick actions */}
-        <div className="c-section-title">Quick actions</div>
-        <div className="c-qa-grid">
-          {QUICK_ACTIONS.map((a) => {
-            const Icon = Icons[a.icon];
-            return (
-              <Link key={a.to} to={a.to} className="c-qa-tile">
-                <span className="c-qa-ic"><Icon size={18} /></span>
-                <span>{a.label}</span>
-              </Link>
-            );
-          })}
-        </div>
+        {/* Lower body. DOM order = Quick actions then Upcoming (matches mobile);
+            desktop reorders Upcoming into the wide left panel via CSS. */}
+        <div className="c-dash-lower">
+          <div className="c-dash-side">
+            <div className="c-section-title">Quick actions</div>
+            <div className="c-qa-grid">
+              {QUICK_ACTIONS.map((a) => {
+                const Icon = Icons[a.icon];
+                return (
+                  <Link key={a.to} to={a.to} className="c-qa-tile">
+                    <span className="c-qa-ic"><Icon size={18} /></span>
+                    <span className="c-qa-text">
+                      <span className="c-qa-label">{a.label}</span>
+                      <span className="c-qa-sub">{a.sub}</span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
 
-        <div className="c-section-title">Upcoming bookings</div>
-        {loading ? (
-          <Spinner label="Loading bookings…" />
-        ) : upcoming.length > 0 ? (
-          upcoming.map((b) => {
-            const name = b.customer?.name || b.customer_name || 'Guest';
-            const services = b.services?.map((s) => s.title || s.name).filter(Boolean).join(', ') || 'Service';
-            const isToday = dateOf(b) === todayISO;
-            const when = b.start_time ? formatTime(b.start_time) : (b.show_date ?? 'TBD');
-            return (
-              <button key={b.id} className="c-up-row" onClick={() => navigate(`/booking/${b.id}`)}>
-                <span className="c-up-time">
-                  {isToday ? 'Today' : dateOf(b).slice(5).replace('-', '/')}
-                  <em>{when}</em>
-                </span>
-                <span className="c-up-body">
-                  <span className="c-up-name">{name}</span>
-                  <span className="c-up-sub">{services}</span>
-                </span>
-                <span className="c-up-price">AED {b.charges ?? 0}</span>
-              </button>
-            );
-          })
-        ) : (
-          <EmptyState title="No upcoming bookings" subtitle="New bookings will appear here." />
-        )}
+          <div className="c-dash-main">
+            {loading ? (
+              <>
+                <div className="c-section-title">Upcoming bookings</div>
+                <Spinner label="Loading bookings…" />
+              </>
+            ) : upcoming.length === 0 ? (
+              <>
+                {/* Mobile keeps the simple empty state (unchanged) */}
+                <div className="c-section-title c-only-mobile">Upcoming bookings</div>
+                <div className="c-only-mobile"><EmptyState title="No upcoming bookings" subtitle="New bookings will appear here." /></div>
+                {/* Desktop fills the space with setup actions */}
+                <div className="c-section-title c-only-desktop">Get started</div>
+                <div className="c-getstarted">
+                  {GET_STARTED.map((g) => {
+                    const Icon = Icons[g.icon];
+                    return (
+                      <Link key={g.to} to={g.to} className="c-gs-card">
+                        <span className="c-gs-ic"><Icon size={20} /></span>
+                        <span className="c-gs-text">
+                          <span className="c-gs-title">{g.title}</span>
+                          <span className="c-gs-sub">{g.sub}</span>
+                        </span>
+                        <span className="c-gs-arrow"><Icons.Chevron size={18} /></span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="c-section-title">Upcoming bookings</div>
+                {upcoming.map((b) => {
+                const name = b.customer?.name || b.customer_name || 'Guest';
+                const services = b.services?.map((s) => s.title || s.name).filter(Boolean).join(', ') || 'Service';
+                const isToday = dateOf(b) === todayISO;
+                const when = b.start_time ? formatTime(b.start_time) : (b.show_date ?? 'TBD');
+                return (
+                  <button key={b.id} className="c-up-row" onClick={() => navigate(`/booking/${b.id}`)}>
+                    <span className="c-up-time">
+                      {isToday ? 'Today' : dateOf(b).slice(5).replace('-', '/')}
+                      <em>{when}</em>
+                    </span>
+                    <span className="c-up-body">
+                      <span className="c-up-name">{name}</span>
+                      <span className="c-up-sub">{services}</span>
+                    </span>
+                    <span className="c-up-price">AED {b.charges ?? 0}</span>
+                  </button>
+                );
+                })}
+              </>
+            )}
+          </div>
+
+          {/* Desktop-only right column: customer count + booking QR */}
+          <div className="c-dash-extra">
+            <div className="c-dash-stat-card">
+              <span className="c-dash-stat-ic"><Icons.Users size={20} /></span>
+              <span className="c-dash-stat-text">
+                <span className="v">{customerCount ?? '—'}</span>
+                <span className="k">Customers</span>
+              </span>
+            </div>
+            {qrTarget && (
+              <div className="c-dash-qr-card">
+                <div className="c-qr-frame">
+                  <QRCodeSVG value={qrTarget} size={150} level="M" bgColor="#ffffff" fgColor="#0a0e0c" />
+                </div>
+                <div className="c-dash-qr-cap">
+                  <span className="c-dash-qr-title">Booking QR</span>
+                  <span className="c-dash-qr-hint">Customers scan to book</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,458 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   Desktop layer (≥1024px). Everything here is additive and gated behind the
+   media query, so the mobile/tablet layout below 1024px is never touched.
+
+   Base (all widths): keep the height:100% chain intact through the new AppShell
+   wrappers so .m-screen still fills the viewport, and hide the desktop sidebar.
+   ─────────────────────────────────────────────────────────────────────────── */
+.app-shell,
+.app-shell-main {
+  height: 100%;
+}
+.ds-rail {
+  display: none;
+}
+/* Desktop-only dashboard page header — hidden on mobile/tablet. */
+.c-dash-deskhead {
+  display: none;
+}
+/* Get-started setup section + its title are desktop-only; mobile keeps the
+   plain "No upcoming bookings" empty state unchanged. */
+.c-getstarted,
+.c-only-desktop,
+.c-dash-extra {
+  display: none;
+}
+/* Business Overview KPI cards are desktop-only; mobile keeps the KPI row. */
+.c-ov {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  /* Shell: glass sidebar beside the scrollable content region */
+  .app-shell {
+    display: flex;
+    height: 100dvh;
+  }
+  .app-shell-main {
+    flex: 1;
+    min-width: 0;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  /* Tabbed routes are wrapped in .mobile-app, which uses min-height (not a
+     definite height) — that breaks the height:100% chain so screens can't fill
+     the viewport. Give it a definite height on desktop so .m-screen fills. */
+  .app-shell-main .mobile-app {
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  /* Bottom tab bar is replaced by the sidebar on desktop */
+  .m-tabbar {
+    display: none !important;
+  }
+
+  /* ── Sidebar (frosted glass, matches the app's other glass surfaces) ── */
+  .ds-rail {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 248px;
+    width: 248px;
+    height: calc(100dvh - 24px);
+    margin: 12px;
+    padding: 18px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+    gap: 4px;
+    /* Same mint-tinted glass fill + mint border as the app's cards, framed as a
+       rounded card. Subtle enough that the ambient background still reads. */
+    background: var(--mint-soft);
+    border: 1px solid var(--border-mint);
+    border-radius: var(--r-lg);
+  }
+
+  .ds-head {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 6px 8px 14px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--border-1);
+  }
+  .ds-orb {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+    border-radius: 12px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    font-size: 17px;
+    font-weight: 800;
+    color: #001016;
+    background: radial-gradient(circle at 30% 25%, var(--mint-200), var(--mint-300) 55%, var(--mint-700));
+    box-shadow: 0 0 20px -6px var(--mint-glow), inset 0 0 10px rgba(255, 255, 255, 0.35);
+  }
+  .ds-orb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .ds-head-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ds-name {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--text-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ds-status {
+    font-size: 11.5px;
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ds-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    overflow-y: auto;
+  }
+  .ds-link,
+  .ds-logout {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+  }
+  .ds-link:hover,
+  .ds-logout:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-1);
+  }
+  .ds-link.active {
+    background: var(--mint-soft);
+    border-color: var(--border-mint);
+    color: var(--mint-300);
+  }
+  .ds-link-ic {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    color: currentColor;
+  }
+  .ds-logout {
+    margin-top: auto;
+    color: var(--text-3);
+  }
+  .ds-logout:hover {
+    color: var(--danger);
+  }
+
+  /* ── Content width: single-column screens read at a sane width, centered.
+        The Dashboard opts out (below) to use the full width for its grid. ── */
+  .app-shell-main .m-scroll {
+    max-width: 860px;
+    margin-inline: auto;
+    width: 100%;
+  }
+
+  /* ── Dashboard (desktop): page header + KPI row + two panels ── */
+  /* The in-content greeting header duplicates the sidebar, so drop it. */
+  .c-dash .c-dash-head {
+    display: none;
+  }
+  .app-shell-main .c-dash .m-scroll {
+    max-width: 1200px;
+    padding: 26px 20px 28px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Page header — Business Overview title + time filter + Ask */
+  .c-dash-deskhead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0 4px 20px;
+  }
+  .c-dash-deskhead-title {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-1);
+  }
+  .c-dash-deskhead-sub {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13.5px;
+    color: var(--text-3);
+    margin-top: 4px;
+  }
+  .c-ov-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+  }
+  /* Segmented time filter */
+  .c-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    background: var(--surface-1);
+    border: 1px solid var(--border-1);
+    border-radius: 999px;
+  }
+  .c-seg-btn {
+    border: 0;
+    background: transparent;
+    color: var(--text-3);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 7px 15px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease;
+  }
+  .c-seg-btn:hover {
+    color: var(--text-1);
+  }
+  .c-seg-btn.on {
+    background: var(--mint-soft);
+    color: var(--mint-300);
+    box-shadow: inset 0 0 0 1px var(--border-mint);
+  }
+  /* Ask (voice assistant) pill */
+  .c-ask-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    color: #001410;
+    background: linear-gradient(135deg, var(--mint-300), var(--mint-500));
+    box-shadow: 0 8px 22px -12px var(--mint-glow);
+    transition: transform 0.16s ease;
+  }
+  .c-ask-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  /* The mobile KPI row is replaced by the Business Overview cards on desktop */
+  .c-dash-kpis {
+    display: none;
+  }
+
+  /* ── Business Overview cards — dark stat cards, mint revenue accent ── */
+  .c-ov {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 0 4px 14px;
+  }
+  .c-ov-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px 20px;
+    border-radius: var(--r-lg);
+    background: var(--surface-1);
+    border: 1px solid var(--border-1);
+  }
+  .c-ov-card.accent {
+    border-color: var(--border-mint);
+  }
+  .c-ov-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .c-ov-value {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    color: var(--text-1);
+  }
+  .c-ov-card.accent .c-ov-value {
+    color: var(--mint-300);
+  }
+  .c-ov-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-3);
+  }
+  .c-ov-trend .c-ov-arrow {
+    font-size: 9px;
+    line-height: 1;
+  }
+  .c-ov-trend.up {
+    color: var(--mint-300);
+  }
+  .c-ov-trend.down {
+    color: var(--danger);
+  }
+  .c-ov-trend.flat {
+    color: var(--text-4);
+  }
+
+  /* Lower body — Upcoming (main, wide) beside Quick actions (side, compact) */
+  .c-dash-lower {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 22px;
+    margin: 6px 4px 0;
+    align-items: stretch;
+    flex: 1 1 auto; /* fill the remaining viewport height (no bottom void) */
+    min-height: 0;
+  }
+  /* Right column (desktop): customer count + booking QR — useful, non-duplicate.
+     Offset to line up with the left column's cards (which sit below a section
+     title ≈ 36px tall), so the first card doesn't float higher than the rest. */
+  .c-dash-extra { display: flex; flex-direction: column; gap: 12px; order: 2; min-width: 0; margin-top: 36px; }
+  .c-dash-stat-card { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: var(--r-lg); }
+  .c-dash-stat-ic {
+    width: 42px; height: 42px; border-radius: 12px; flex: 0 0 auto;
+    display: grid; place-items: center;
+    background: var(--mint-soft); border: 1px solid var(--border-mint); color: var(--mint-300);
+  }
+  .c-dash-stat-text { display: flex; flex-direction: column; }
+  .c-dash-stat-text .v { font-size: 24px; font-weight: 800; color: var(--text-1); line-height: 1.1; }
+  .c-dash-stat-text .k { font-size: 11.5px; font-weight: 700; color: var(--text-4); text-transform: uppercase; letter-spacing: 0.08em; }
+  .c-dash-qr-card {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    padding: 22px; border-radius: var(--r-lg);
+  }
+  .c-dash-qr-card .c-qr-frame { margin: 0; padding: 12px; }
+  .c-dash-qr-cap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .c-dash-qr-title { font-size: 14.5px; font-weight: 700; color: var(--text-1); }
+  .c-dash-qr-hint { font-size: 12.5px; color: var(--text-3); }
+  /* Framed dashboard widgets so each panel reads as a defined area — even when
+     the Upcoming panel is empty. Subtle border + faint fill, section title as
+     the panel header. */
+  .c-dash-main,
+  .c-dash-side {
+    min-width: 0;
+    /* Transparent sections — only the cards carry a background, so every card on
+       the dashboard shares ONE consistent surface (no competing panel tints). */
+    background: transparent;
+    border: 0;
+  }
+  /* One card surface across the lower dashboard: booking rows,
+     quick-action tiles and get-started cards all use the same mint gradient. */
+  .c-dash-lower .c-up-row,
+  .c-dash-side .c-qa-tile,
+  .c-getstarted .c-gs-card,
+  .c-dash-stat-card,
+  .c-dash-qr-card {
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-mint);
+  }
+  .c-dash-main { order: 1; display: flex; flex-direction: column; overflow-y: auto; }
+  /* Quick Actions duplicates the sidebar (and Get Started) on desktop — hide it;
+     the main content takes the full width. Mobile keeps it (no sidebar). */
+  .c-dash-side { display: none; }
+  /* Quick actions as a single-column list of horizontal cards (icon + label +
+     description) that fills the side column — no awkward orphan tile. */
+  .c-dash-side .c-qa-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    flex: 1;
+    grid-auto-rows: minmax(64px, 1fr);
+    align-content: stretch;
+  }
+  .c-dash-side .c-qa-tile {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 0 18px;
+  }
+  .c-dash-side .c-qa-text { align-items: flex-start; text-align: left; min-width: 0; }
+  .c-dash-side .c-qa-label { font-size: 14.5px; font-weight: 700; color: var(--text-1); }
+  .c-dash-side .c-qa-sub { display: block; font-size: 12.5px; font-weight: 500; color: var(--text-3); }
+  /* Cards inside use margin:0 16px for phone gutters — remove it in the columns */
+  .c-dash-lower .c-section-title { margin: 6px 2px 14px; }
+  .c-dash-lower .c-qa-grid { margin: 0; }
+  .c-dash-lower .c-up-row { width: 100%; margin: 0 0 10px; }
+  .c-dash-lower .c-up-row:last-child { margin-bottom: 0; }
+  /* Center the empty state within the min-height panel */
+  .c-dash-main .m-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+  }
+
+  /* Desktop/mobile visibility helpers for the main panel's empty branch */
+  .c-only-mobile { display: none; }
+  .c-only-desktop { display: block; }
+
+  /* Get-started setup cards — fill the main panel when there are no bookings */
+  .c-getstarted {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    flex: 1;
+    grid-auto-rows: minmax(120px, 1fr);
+  }
+  .c-gs-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 22px;
+    border-radius: var(--r-lg);
+    text-decoration: none;
+    color: var(--text-2);
+    transition: transform 0.16s ease, border-color 0.16s ease;
+  }
+  .c-gs-card:hover { transform: translateY(-2px); border-color: var(--mint-400); }
+  .c-gs-arrow { margin-left: auto; flex: 0 0 auto; color: var(--text-4); display: grid; place-items: center; }
+  .c-gs-card:hover .c-gs-arrow { color: var(--mint-300); }
+  .c-gs-ic {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: var(--mint-soft);
+    border: 1px solid var(--border-mint);
+    color: var(--mint-300);
+  }
+  .c-gs-text { display: flex; flex-direction: column; gap: 3px; }
+  .c-gs-title { font-size: 15px; font-weight: 700; color: var(--text-1); }
+  .c-gs-sub { font-size: 12.5px; color: var(--text-3); }
+}

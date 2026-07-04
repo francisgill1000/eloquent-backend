@@ -1,17 +1,20 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { VoiceAssistantFab } from '@/components/VoiceAssistantFab';
+import { WHATSAPP_ENABLED } from '@/lib/features';
 
 type Tab = { id: string; label: string; href: string; icon: keyof typeof Icons };
 
-const tabs: Tab[] = [
+const ALL_TABS: Tab[] = [
   { id: 'home', label: 'Home', href: '/', icon: 'Home' },
   { id: 'bookings', label: 'Bookings', href: '/bookings', icon: 'Calendar' },
+  // WhatsApp Chats — hidden temporarily behind WHATSAPP_ENABLED.
   { id: 'chats', label: 'Chats', href: '/chats', icon: 'Chat' },
   // Reminders tab hidden for now — page still reachable at /reminders.
   { id: 'settings', label: 'Settings', href: '/settings', icon: 'Sliders' },
   { id: 'profile', label: 'Profile', href: '/profile', icon: 'Store' },
 ];
+const tabs = ALL_TABS.filter((t) => WHATSAPP_ENABLED || t.id !== 'chats');
 
 function activeTab(path: string): string {
   if (path === '/') return 'home';

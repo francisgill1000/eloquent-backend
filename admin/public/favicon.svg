@@ -16,8 +16,8 @@
   <rect x="2" y="2" width="96" height="96" rx="26" fill="url(#glow)"/>
   <rect x="2.75" y="2.75" width="94.5" height="94.5" rx="25.25" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="1.5"/>
 
-  <!-- BM monogram (dark ink) -->
+  <!-- BL monogram (dark ink) -->
   <text x="50" y="51" text-anchor="middle" dominant-baseline="central"
         font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif"
-        font-size="40" font-weight="800" letter-spacing="-2.5" fill="#04140f">BM</text>
+        font-size="42" font-weight="800" letter-spacing="-1.5" fill="#04140f">BL</text>
 </svg>
