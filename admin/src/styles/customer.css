@@ -252,9 +252,10 @@
 /* svc-grid vanishes on mobile (display:contents); desktop.css turns it into a
    2-col grid so service cards aren't stretched full-width on laptop. */
 .svc-grid { display: contents; }
-/* Service add/edit form: wrapper vanishes on mobile; desktop.css constrains it
-   to a centered glass card so inputs aren't stretched full-width on laptop. */
-.svc-edit-wrap { display: contents; }
+/* Service add/edit form: wrappers vanish on mobile; desktop.css lays it out as
+   form + live-preview columns. The preview is desktop-only. */
+.svc-edit-wrap, .svc-edit-main { display: contents; }
+.svc-edit-aside { display: none; }
 .svc-form { padding: 0 16px; }
 .c-svc-card { background: var(--surface-1); border: 1px solid var(--border-1); border-radius: var(--r-lg); overflow: hidden; margin: 0 16px 12px; }
 .c-svc-media { position: relative; width: 100%; height: 160px; background: var(--surface-2); }

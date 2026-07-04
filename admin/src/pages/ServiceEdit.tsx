@@ -59,6 +59,8 @@ export default function ServiceEdit() {
 
   const change = (key: keyof Form, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
+  const selectedCatName = parentCategoryId == null ? '' : (cats.find((c) => c.id === parentCategoryId)?.name ?? '');
+
   const handleSave = async () => {
     if (!form.title.trim()) { setError('Please enter a service title.'); return; }
     if (!form.price || parseFloat(form.price) <= 0) { setError('Please enter a valid price.'); return; }
@@ -87,6 +89,7 @@ export default function ServiceEdit() {
   return (
     <div className="m-screen c-svc-edit"><div className="m-scroll">
       <div className="svc-edit-wrap">
+      <div className="svc-edit-main">
       <button className="c-back" onClick={() => navigate('/services')}><Icons.ChevronLeft size={16} /> Back</button>
       <h1 className="c-auth-title" style={{ textAlign: 'left', margin: '0 16px 16px' }}>{isNew ? 'Add Service' : 'Edit Service'}</h1>
 
@@ -155,6 +158,28 @@ export default function ServiceEdit() {
           {saving ? 'Saving…' : isNew ? 'Create Service' : 'Save Changes'}
         </button>
       </div>
+      </div>
+
+      <aside className="svc-edit-aside">
+        <div className="svc-preview">
+          <div className="svc-preview-label">Live preview</div>
+          <div className="c-svc-card">
+            <div className="c-svc-body">
+              <div className="c-svc-head">
+                <span className={`c-row-title${form.title.trim() ? '' : ' svc-preview-ph'}`}>
+                  {form.title.trim() || 'Service title'}
+                </span>
+                <span className="c-svc-price-inline">AED {(parseFloat(form.price) || 0).toFixed(2)}</span>
+              </div>
+              {selectedCatName && <div className="svc-preview-chip">{selectedCatName}</div>}
+              <div className={`c-row-sub${form.description.trim() ? '' : ' svc-preview-ph'}`}>
+                {form.description.trim() || 'Service description appears here.'}
+              </div>
+            </div>
+          </div>
+          <p className="svc-preview-hint">This is how the service will appear to your customers.</p>
+        </div>
+      </aside>
       </div>
     </div></div>
   );
