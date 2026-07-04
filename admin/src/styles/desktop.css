@@ -698,8 +698,8 @@
         instead of full-width stretched inputs. ── */
   .c-svc-edit .svc-edit-wrap {
     display: block;
-    max-width: 600px;
-    margin-inline: auto;
+    max-width: 680px;
+    margin-inline: 0; /* left-aligned under Back/title — no wasted gap on the left */
     width: 100%;
   }
   .c-svc-edit .c-auth-title { margin-left: 0 !important; margin-right: 0 !important; }
