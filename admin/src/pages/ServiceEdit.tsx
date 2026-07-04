@@ -85,13 +85,14 @@ export default function ServiceEdit() {
   if (loading) return <div className="m-screen"><Spinner label="Loading service…" /></div>;
 
   return (
-    <div className="m-screen"><div className="m-scroll">
+    <div className="m-screen c-svc-edit"><div className="m-scroll">
+      <div className="svc-edit-wrap">
       <button className="c-back" onClick={() => navigate('/services')}><Icons.ChevronLeft size={16} /> Back</button>
       <h1 className="c-auth-title" style={{ textAlign: 'left', margin: '0 16px 16px' }}>{isNew ? 'Add Service' : 'Edit Service'}</h1>
 
       {error && <div className="c-error-box">{error}</div>}
 
-      <div style={{ padding: '0 16px' }}>
+      <div className="svc-form">
         <label className="c-field-label" htmlFor="parentCategory">Parent category (optional)</label>
         {addingCat ? (
           <div className="c-input-row" style={{ gap: 8 }}>
@@ -153,6 +154,7 @@ export default function ServiceEdit() {
         <button className="c-btn c-btn-block" disabled={saving} onClick={() => void handleSave()}>
           {saving ? 'Saving…' : isNew ? 'Create Service' : 'Save Changes'}
         </button>
+      </div>
       </div>
     </div></div>
   );
