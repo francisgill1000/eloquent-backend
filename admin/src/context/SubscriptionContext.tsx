@@ -12,7 +12,11 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (!shop || shop.is_master) { setSub(null); setLoading(false); return; }
+    // Shop still resolving from storage — stay in the loading state so the gate
+    // shows a spinner rather than briefly seeing no subscription and redirecting.
+    if (!shop) { setSub(null); return; }
+    if (shop.is_master) { setSub(null); setLoading(false); return; }
+    setLoading(true);
     try { setSub(await getSubscription()); } catch { /* leave as-is */ } finally { setLoading(false); }
   }, [shop]);
 
