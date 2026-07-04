@@ -2,6 +2,8 @@
 namespace App\Services\Assistant;
 
 use App\Models\Shop;
+use App\Services\Assistant\Contracts\AssistantToolModule;
+use App\Services\Assistant\Support\ToolCall;
 use App\Services\Reports\ReportsAggregator;
 use App\Support\Assistant\PeriodResolver;
 use Illuminate\Support\Facades\DB;
@@ -12,9 +14,31 @@ use Illuminate\Support\Facades\DB;
  * access is impossible. defs() returns Anthropic tool schemas; execute() runs
  * one tool and returns a JSON string for the tool-result message.
  */
-class OwnerAssistantTools
+class OwnerAssistantTools implements AssistantToolModule
 {
     public function __construct(protected ReportsAggregator $aggregator) {}
+
+    /** @return array<int, array<string, mixed>> */
+    public function toolDefs(): array
+    {
+        return static::defs();
+    }
+
+    public function handles(string $tool): bool
+    {
+        foreach (static::defs() as $def) {
+            if (($def['name'] ?? null) === $tool) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** @return array<string, mixed> */
+    public function run(ToolCall $call): array
+    {
+        return json_decode($this->execute($call->shop, $call->tool, $call->input), true) ?? [];
+    }
 
     public static function defs(): array
     {
