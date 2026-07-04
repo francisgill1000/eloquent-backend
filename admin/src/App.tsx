@@ -12,6 +12,7 @@ import Register from '@/pages/Register';
 import ForgotPin from '@/pages/ForgotPin';
 import Web from '@/pages/Web';
 import ScanApprove from '@/pages/ScanApprove';
+import Home from '@/pages/Home';
 import Dashboard from '@/pages/Dashboard';
 import Bookings from '@/pages/Bookings';
 import BookingAction from '@/pages/BookingAction';
@@ -74,7 +75,8 @@ export default function App() {
 
           {/* Authenticated tabbed */}
           <Route element={<MobileLayout />}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<Home />} />
+            <Route path="/overview" element={<Dashboard />} />
             <Route path="/bookings" element={<Bookings />} />
             <Route path="/chats" element={<Chats />} />
             <Route path="/reminders" element={<Reminders />} />
