@@ -78,21 +78,10 @@ class OwnerAssistantTools implements AssistantToolModule
                     'status' => ['type' => 'string', 'enum' => ['booked', 'completed', 'cancelled', 'queued']],
                 ]],
             ],
-            [
-                'name' => 'cancel_booking',
-                'description' => 'Cancel one booking by reference. Only call after the owner has confirmed in their previous message.',
-                'input_schema' => ['type' => 'object', 'properties' => [
-                    'reference' => ['type' => 'string', 'description' => 'Booking reference, e.g. BK00001'],
-                ], 'required' => ['reference']],
-            ],
-            [
-                'name' => 'update_booking_status',
-                'description' => 'Set a booking status. Only call after the owner has confirmed.',
-                'input_schema' => ['type' => 'object', 'properties' => [
-                    'reference' => ['type' => 'string'],
-                    'status' => ['type' => 'string', 'enum' => ['booked', 'completed', 'cancelled', 'queued']],
-                ], 'required' => ['reference', 'status']],
-            ],
+            // cancel_booking + update_booking_status moved to the gated
+            // App\Services\Assistant\Modules\BookingTools (kept out of defs()
+            // to avoid duplicate tool names; execute() arms remain for the
+            // legacy unit tests until fully retired).
             [
                 'name' => 'update_hours',
                 'description' => 'Set opening hours for one weekday (0=Sunday..6=Saturday). Only call after the owner has confirmed.',

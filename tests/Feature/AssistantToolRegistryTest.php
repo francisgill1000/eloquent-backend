@@ -34,4 +34,19 @@ class AssistantToolRegistryTest extends TestCase
         $json = app(AssistantToolRegistry::class)->execute($this->shop(), 'no_such_tool', []);
         $this->assertSame('unknown_tool', json_decode($json, true)['error']);
     }
+
+    public function test_booking_tools_are_registered(): void
+    {
+        $names = array_column(app(AssistantToolRegistry::class)->defs(), 'name');
+        $this->assertContains('cancel_booking', $names);
+        $this->assertContains('create_booking', $names);
+    }
+
+    public function test_kill_switch_hides_mutating_booking_tools(): void
+    {
+        config(['assistant.mutations_enabled' => false]);
+        $names = array_column(app(AssistantToolRegistry::class)->defs(), 'name');
+        $this->assertNotContains('cancel_booking', $names);
+        $this->assertContains('get_revenue', $names); // reads remain
+    }
 }
