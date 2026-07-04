@@ -108,7 +108,7 @@ class SubscriptionFlowTest extends TestCase
 
         // no webhook secret configured in tests → HMAC check skipped
         $this->postJson('/api/ziina/webhook', [
-            'event_type' => 'payment_intent.status.updated',
+            'event' => 'payment_intent.status.updated',
             'data' => ['id' => 'pi_paid', 'status' => 'completed'],
         ])->assertOk();
 
