@@ -55,7 +55,6 @@ export default function AccessControl() {
         <div className="ac-grid">
           <section className="ac-block"><UsersSection users={users} roles={roles} onChange={setUsers} /></section>
           <section className="ac-block"><RolesSection roles={roles} groups={groups} onChange={setRoles} /></section>
-          <section className="ac-block ac-block-wide"><PermissionsSection groups={groups} /></section>
         </div>
       )}
     </div></div>
@@ -405,32 +404,3 @@ function RoleEditor({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Permissions (read-only reference)                                          */
-/* -------------------------------------------------------------------------- */
-
-function PermissionsSection({ groups }: { groups: Record<string, PermGroup> }) {
-  const entries = Object.entries(groups);
-  if (entries.length === 0) return null;
-
-  return (
-    <>
-      <div className="ac-sec-head">
-        <span className="ac-sec-title">Permissions</span>
-      </div>
-      <div className="ac-ref-grid">
-        {entries.map(([key, group]) => (
-          <div className="ac-card" key={key}>
-            <div className="ac-ref-title">{group.label}</div>
-            {Object.entries(group.permissions).map(([perm, label]) => (
-              <div className="ac-ref-item" key={perm}>
-                <span>{label}</span>
-                <span className="ac-mono">{perm}</span>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    </>
-  );
-}
