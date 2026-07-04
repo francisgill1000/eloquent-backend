@@ -310,7 +310,7 @@ export default function Dashboard() {
 
         {/* Lower body. DOM order = Quick actions then Upcoming (matches mobile);
             desktop reorders Upcoming into the wide left panel via CSS. */}
-        <div className="c-dash-lower">
+        <div className={`c-dash-lower${!loading && upcoming.length === 0 ? ' is-empty' : ''}`}>
           <div className="c-dash-side">
             <div className="c-section-title">Quick actions</div>
             <div className="c-qa-grid">

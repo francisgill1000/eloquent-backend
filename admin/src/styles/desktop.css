@@ -583,13 +583,27 @@
     /* Compact rows matching the KPI cards above (not stretched to fill height) */
     grid-auto-rows: 120px;
   }
-  /* Setup empty state spans the full width and drops the separate right column
-     (customers + QR now live inside the grid above). */
-  .c-dash-lower.is-setup {
+  /* No-bookings state: the Action Required / stepper (or empty state) spans the
+     full width on top, and the Customers + Booking QR cards sit in an equal
+     50/50 row below it — both cards the same height. */
+  .c-dash-lower.is-empty {
     grid-template-columns: 1fr;
+    align-content: start;
   }
-  .c-dash-lower.is-setup .c-dash-extra {
-    display: none;
+  .c-dash-lower.is-empty .c-dash-main { order: 1; }
+  .c-dash-lower.is-empty .c-dash-extra {
+    order: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+    align-items: stretch; /* Customers card height matches the QR card */
+    flex: 0 0 auto;
+  }
+  /* In the 50/50 row the cards are grid items (drop the column flex sizing). */
+  .c-dash-lower.is-empty .c-dash-stat-card,
+  .c-dash-lower.is-empty .c-dash-qr-card {
+    flex: initial;
   }
   /* Customers & QR as grid cards — same size as the setup cards, tuned insides */
   .c-gs-stat-num {
