@@ -14,6 +14,11 @@ export default function RequireSubscription() {
   if (shop?.is_master) return <Outlet />;
   if (loading) return <Spinner label="Loading…" />;
 
-  const hasAccess = sub?.status === 'trialing' || sub?.status === 'active';
-  return hasAccess ? <Outlet /> : <Navigate to="/subscribe" replace />;
+  // Only block on a definitively-expired subscription. If the status is unknown
+  // (fetch failed), fail open — the backend gate still returns 402 on real data
+  // calls, which redirects here anyway. This avoids booting a valid trial user.
+  if (sub && sub.status !== 'trialing' && sub.status !== 'active') {
+    return <Navigate to="/subscribe" replace />;
+  }
+  return <Outlet />;
 }
