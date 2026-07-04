@@ -5,7 +5,8 @@ import { WHATSAPP_ENABLED } from '@/lib/features';
 type Tab = { id: string; label: string; href: string; icon: keyof typeof Icons };
 
 const ALL_TABS: Tab[] = [
-  { id: 'home', label: 'Home', href: '/', icon: 'Home' },
+  { id: 'home', label: 'Home', href: '/', icon: 'Mic' },
+  { id: 'overview', label: 'Overview', href: '/overview', icon: 'Chart' },
   { id: 'bookings', label: 'Bookings', href: '/bookings', icon: 'Calendar' },
   // WhatsApp Chats — hidden temporarily behind WHATSAPP_ENABLED.
   { id: 'chats', label: 'Chats', href: '/chats', icon: 'Chat' },
@@ -17,6 +18,7 @@ const tabs = ALL_TABS.filter((t) => WHATSAPP_ENABLED || t.id !== 'chats');
 
 function activeTab(path: string): string {
   if (path === '/') return 'home';
+  if (path.startsWith('/overview')) return 'overview';
   if (path.startsWith('/bookings') || path.startsWith('/booking')) return 'bookings';
   if (path.startsWith('/chats')) return 'chats';
   if (path.startsWith('/reminders')) return 'reminders';

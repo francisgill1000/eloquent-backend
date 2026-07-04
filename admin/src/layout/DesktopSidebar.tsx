@@ -14,7 +14,8 @@ import { WHATSAPP_ENABLED } from '@/lib/features';
 type NavItem = { label: string; to: string; icon: keyof typeof Icons; end?: boolean };
 
 const BASE_NAV: NavItem[] = [
-  { label: 'Home', to: '/', icon: 'Home', end: true },
+  { label: 'Home', to: '/', icon: 'Mic', end: true },
+  { label: 'Overview', to: '/overview', icon: 'Chart' },
   { label: 'Bookings', to: '/bookings', icon: 'Calendar' },
   // WhatsApp Chats — hidden while WHATSAPP_ENABLED is off.
   { label: 'Chats', to: '/chats', icon: 'Chat' },
