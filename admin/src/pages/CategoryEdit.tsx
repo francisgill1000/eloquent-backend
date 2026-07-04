@@ -43,7 +43,7 @@ export default function CategoryEdit() {
         else if (imagePayload) payload.image = imagePayload;
         await updateParentCategory(Number(id), payload);
       }
-      navigate('/categories');
+      navigate('/services', { state: { tab: 'categories' } });
     } catch (e: unknown) {
       const d = (e as { response?: { data?: { message?: string } } })?.response?.data;
       setError(d?.message || 'Failed to save category.');
@@ -55,13 +55,14 @@ export default function CategoryEdit() {
   if (loading) return <div className="m-screen"><Spinner label="Loading category…" /></div>;
 
   return (
-    <div className="m-screen"><div className="m-scroll">
-      <button className="c-back" onClick={() => navigate('/categories')}><Icons.ChevronLeft size={16} /> Back</button>
+    <div className="m-screen c-svc-edit"><div className="m-scroll">
+      <div className="svc-edit-wrap">
+      <button className="c-back" onClick={() => navigate('/services', { state: { tab: 'categories' } })}><Icons.ChevronLeft size={16} /> Back</button>
       <h1 className="c-auth-title" style={{ textAlign: 'left', margin: '0 16px 16px' }}>{isNew ? 'Add Category' : 'Edit Category'}</h1>
 
       {error && <div className="c-error-box">{error}</div>}
 
-      <div style={{ padding: '0 16px' }}>
+      <div className="svc-form">
         <label className="c-field-label" htmlFor="image">Image</label>
         <button type="button" className="c-img-pick" onClick={() => imageInput.current?.click()}>
           {image ? (
@@ -91,6 +92,7 @@ export default function CategoryEdit() {
         <button className="c-btn c-btn-block" disabled={saving} onClick={() => void handleSave()}>
           {saving ? 'Saving…' : isNew ? 'Create Category' : 'Save Changes'}
         </button>
+      </div>
       </div>
     </div></div>
   );
