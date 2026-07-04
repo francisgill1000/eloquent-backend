@@ -619,14 +619,19 @@
     margin: 8px 16px 0;
   }
   .c-profile .pf-col { display: flex; flex-direction: column; }
-  /* Right column sits in a glass card so credentials + QR read as one panel,
-     and stays in view while the form scrolls. */
+  /* Both columns sit in the same mint glass panel (matches the Dashboard cards)
+     so the form and the credentials/QR read as two peer cards. */
+  .c-profile .pf-col-form,
   .c-profile .pf-col-side {
-    gap: 4px;
-    padding: 8px 20px 20px;
+    padding: 20px;
     border-radius: var(--r-lg);
     background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
     border: 1px solid var(--border-mint);
+  }
+  /* Right column stays in view while the form scrolls. */
+  .c-profile .pf-col-side {
+    gap: 4px;
+    padding-top: 8px;
     position: sticky;
     top: 12px;
   }
