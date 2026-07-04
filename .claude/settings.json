@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-5OYJdDlY.css)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-Cj7DqOYW.css)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-BfD_5A-G.css)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-C7hTNQp2.css)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-Dw0Y5DQE.css)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-Cql66lHc.js)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-DXTPL-x5.css)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-mVTr4o-t.css)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-qx0LqFNo.js)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-DiDutkns.css)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-Ccwk_dzX.css)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-BRs7CIZ-.css)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-Cabx-MlU.css)",
+      "Bash(tar -czf /tmp/admin-dist.tar.gz -C dist .)",
+      "Bash(scp -o BatchMode=yes -o ConnectTimeout=15 /tmp/admin-dist.tar.gz root@64.227.153.90:/tmp/admin-dist.tar.gz)",
+      "Bash(rm -f /tmp/admin-dist.tar.gz)",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-Q0aV8w-U.css)",
+      "Bash(ssh root@64.227.153.90 'cd /var/www/eloquent-backend && echo \"=== branch/commit ===\"; git rev-parse --abbrev-ref HEAD; git log --oneline -1; echo \"=== status ===\"; git status -sb 2>&1 | head; echo \"=== php-fpm for api site ===\"; grep -h \"fastcgi_pass\" /etc/nginx/sites-enabled/api.eloquent-backend 2>/dev/null')",
+      "Bash(ssh root@64.227.153.90 'cd /var/www/eloquent-backend && git pull --ff-only origin main 2>&1 | tail -6 && echo \"=== new head ===\" && git log --oneline -1 && echo \"=== migrations pending? ===\" && php artisan migrate:status 2>&1 | tail -5')",
+      "Bash(ssh root@64.227.153.90 'cd /var/www/eloquent-backend && php artisan config:clear >/dev/null 2>&1; php artisan route:clear >/dev/null 2>&1; systemctl reload php8.3-fpm && echo \"php-fpm reloaded\" && systemctl is-active php8.3-fpm')",
+      "Bash(ssh root@64.227.153.90 \"grep -n \\\\\"services\\\\\" /var/www/eloquent-backend/app/Http/Requests/BookSlotRequest.php\")",
+      "Bash(curl -s https://admin.eloquentservice.com/assets/index-CrORyLEN.css)"
+    ]
+  }
+}

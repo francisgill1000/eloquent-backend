@@ -7,6 +7,8 @@ import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { getShopBookings } from '@/lib/bookings';
 import { formatLocalDate } from '@/lib/date';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
+import { BookingsCalendar } from './bookings/BookingsCalendar';
 import type { Booking } from '@/types';
 
 const FILTERS = ['All', 'Queued', 'Booked', 'Completed', 'Cancelled'] as const;
@@ -40,6 +42,7 @@ export default function Bookings() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('All');
+  const isDesktop = useIsDesktop();
 
   const fetchBookings = useCallback(async () => {
     if (!shop?.id) return;
@@ -57,6 +60,23 @@ export default function Bookings() {
   }, [shop?.id, logoutShop, navigate]);
 
   useEffect(() => { void fetchBookings(); }, [fetchBookings]);
+
+  // Desktop (≥1024px) gets the full calendar experience; mobile/tablet keep the
+  // list below, unchanged.
+  if (isDesktop) {
+    return (
+      <div className="m-screen c-bookings">
+        <div className="m-scroll">
+          <BookingsCalendar
+            bookings={bookings}
+            loading={loading}
+            error={error}
+            onOpen={(id) => navigate(`/booking/${id}`)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const filtered = bookings.filter((b) => {
     const matchFilter = filter === 'All' || String(b.status).toLowerCase() === filter.toLowerCase();
