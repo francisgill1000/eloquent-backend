@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import * as A from '@/lib/access';
 import type { PermGroup, Role, ShopUser } from '@/types';
 import '@/styles/access.css';
-
-type Tab = 'users' | 'roles' | 'permissions';
 
 function errMsg(e: unknown, fallback = 'Something went wrong.'): string {
   const data = (e as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })?.response?.data;
@@ -16,8 +14,11 @@ function errMsg(e: unknown, fallback = 'Something went wrong.'): string {
   return data?.message || fallback;
 }
 
+const initial = (name: string) => (Array.from(name.trim())[0] || '?').toUpperCase();
+
+type EditKey = number | 'new' | null;
+
 export default function AccessControl() {
-  const [tab, setTab] = useState<Tab>('users');
   const [roles, setRoles] = useState<Role[]>([]);
   const [users, setUsers] = useState<ShopUser[]>([]);
   const [groups, setGroups] = useState<Record<string, PermGroup>>({});
@@ -39,32 +40,22 @@ export default function AccessControl() {
     })();
   }, []);
 
-  const tabs: Tab[] = ['users', 'roles', 'permissions'];
-
   return (
     <div className="m-screen"><div className="m-scroll">
       <div className="c-page-head">
         <h1 className="c-page-title">Access Control</h1>
-        <p className="c-page-sub">Manage users, roles &amp; permissions for your business.</p>
+        <p className="c-page-sub">Manage who can log in and what they can do.</p>
       </div>
 
-      <div className="ac-seg">
-        {tabs.map((t) => (
-          <button key={t} className={`ac-seg-btn ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
-            {t === 'users' ? 'Users' : t === 'roles' ? 'Roles' : 'Permissions'}
-          </button>
-        ))}
-      </div>
-
-      {loadError && <div className="ac-empty">{loadError}</div>}
+      {loadError && <div className="ac-error">{loadError}</div>}
 
       {loading ? (
         <div className="ac-empty">Loading…</div>
       ) : (
         <>
-          {tab === 'users' && <UsersSection users={users} roles={roles} onChange={setUsers} />}
-          {tab === 'roles' && <RolesSection roles={roles} groups={groups} onChange={setRoles} />}
-          {tab === 'permissions' && <PermissionsSection groups={groups} />}
+          <UsersSection users={users} roles={roles} onChange={setUsers} />
+          <RolesSection roles={roles} groups={groups} onChange={setRoles} />
+          <PermissionsSection groups={groups} />
         </>
       )}
     </div></div>
@@ -85,12 +76,12 @@ function UsersSection({
   onChange: (u: ShopUser[]) => void;
 }) {
   const { currentUser } = useShop();
-  const [editing, setEditing] = useState<ShopUser | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [edit, setEdit] = useState<EditKey>(null);
 
   const upsert = (u: ShopUser) => {
     const exists = users.some((x) => x.id === u.id);
     onChange(exists ? users.map((x) => (x.id === u.id ? u : x)) : [...users, u]);
+    setEdit(null);
   };
 
   const remove = async (u: ShopUser) => {
@@ -105,59 +96,65 @@ function UsersSection({
 
   return (
     <>
-      <div className="ac-section-head">
-        <span className="ac-section-title">{users.length} user{users.length === 1 ? '' : 's'}</span>
-        <button className="c-btn" style={{ width: 'auto', padding: '8px 14px' }} onClick={() => setCreating(true)}>
-          <Icons.Plus size={16} /> Add user
-        </button>
+      <div className="ac-sec-head">
+        <span className="ac-sec-title">Users</span>
+        {edit !== 'new' && (
+          <button className="ac-add-btn" onClick={() => setEdit('new')}>
+            <Icons.Plus size={15} /> Add
+          </button>
+        )}
       </div>
 
-      {users.length === 0 && <div className="ac-empty">No users yet. Add your first team member.</div>}
+      {edit === 'new' && (
+        <UserEditor user={null} roles={roles} onCancel={() => setEdit(null)} onSaved={upsert} />
+      )}
 
-      {users.map((u) => (
-        <div className="ac-row" key={u.id}>
-          <div className="ac-row-main">
-            <div className="ac-row-title">
-              {u.name}
-              {currentUser?.id === u.id && <span className="ac-badge ac-badge-muted">You</span>}
-            </div>
-            <div className="ac-row-sub">
-              {u.role ? <span className="ac-badge">{u.role.name}</span> : <span className="ac-badge ac-badge-muted">No role</span>}
-              {!u.is_active && <span className="ac-badge ac-badge-off" style={{ marginLeft: 6 }}>Inactive</span>}
+      {users.length === 0 && edit !== 'new' && (
+        <div className="ac-empty">No users yet. Add your first team member.</div>
+      )}
+
+      {users.map((u) =>
+        edit === u.id ? (
+          <UserEditor key={u.id} user={u} roles={roles} onCancel={() => setEdit(null)} onSaved={upsert} />
+        ) : (
+          <div className="ac-card" key={u.id}>
+            <div className="ac-row">
+              <span className="ac-avatar">{initial(u.name)}</span>
+              <span className="ac-row-body">
+                <span className="ac-row-name">
+                  {u.name}
+                  {currentUser?.id === u.id && <span className="ac-tag ac-tag-muted">You</span>}
+                </span>
+                <span className="ac-row-sub">
+                  {u.role ? <span className="ac-tag">{u.role.name}</span> : <span className="ac-tag ac-tag-muted">No role</span>}
+                  {!u.is_active && <span className="ac-tag ac-tag-off">Inactive</span>}
+                </span>
+              </span>
+              <span className="ac-row-actions">
+                <button className="c-icon-btn" aria-label="Edit" onClick={() => setEdit(u.id)}>
+                  <Icons.Edit size={16} />
+                </button>
+                <button className="c-icon-btn ac-danger" aria-label="Delete" onClick={() => void remove(u)}>
+                  <Icons.Trash size={16} />
+                </button>
+              </span>
             </div>
           </div>
-          <div className="ac-actions">
-            <button className="ac-icon-btn" aria-label="Edit" onClick={() => setEditing(u)}>
-              <Icons.Edit size={16} />
-            </button>
-            <button className="ac-icon-btn ac-icon-btn-danger" aria-label="Delete" onClick={() => void remove(u)}>
-              <Icons.Trash size={16} />
-            </button>
-          </div>
-        </div>
-      ))}
-
-      {(creating || editing) && (
-        <UserModal
-          user={editing}
-          roles={roles}
-          onClose={() => { setCreating(false); setEditing(null); }}
-          onSaved={(u) => { upsert(u); setCreating(false); setEditing(null); }}
-        />
+        ),
       )}
     </>
   );
 }
 
-function UserModal({
+function UserEditor({
   user,
   roles,
-  onClose,
+  onCancel,
   onSaved,
 }: {
   user: ShopUser | null;
   roles: Role[];
-  onClose: () => void;
+  onCancel: () => void;
   onSaved: (u: ShopUser) => void;
 }) {
   const isEdit = !!user;
@@ -187,50 +184,53 @@ function UserModal({
   };
 
   return (
-    <div className="ac-backdrop" onClick={onClose}>
-      <div className="ac-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="ac-modal-title">{isEdit ? 'Edit user' : 'Add user'}</div>
-        <div className="ac-modal-sub">Users log in with the Business ID and their own PIN.</div>
+    <div className="ac-card ac-editor">
+      <div className="ac-editor-title">{isEdit ? 'Edit user' : 'New user'}</div>
+      {error && <div className="ac-error" style={{ margin: '0 0 12px' }}>{error}</div>}
 
-        {error && <div className="ac-error">{error}</div>}
+      <div className="ac-field">
+        <label className="ac-label">Name</label>
+        <input className="ac-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sara" />
+      </div>
 
-        <div className="ac-field">
-          <label className="ac-field-label">Name</label>
-          <input className="ac-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sara" />
-        </div>
+      <div className="ac-field">
+        <label className="ac-label">{isEdit ? 'PIN — leave blank to keep' : 'Login PIN'}</label>
+        <input
+          className="ac-input"
+          inputMode="numeric"
+          value={pin}
+          onChange={(e) => setPin(e.target.value)}
+          placeholder={isEdit ? '••••' : 'Logs in with Business ID + this PIN'}
+        />
+      </div>
 
-        <div className="ac-field">
-          <label className="ac-field-label">{isEdit ? 'PIN (leave blank to keep)' : 'PIN'}</label>
-          <input
-            className="ac-input"
-            inputMode="numeric"
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            placeholder={isEdit ? '••••' : 'Choose a login PIN'}
-          />
-        </div>
+      <div className="ac-field">
+        <label className="ac-label">Role</label>
+        <select className="ac-select" value={roleId ?? ''} onChange={(e) => setRoleId(e.target.value ? Number(e.target.value) : null)}>
+          <option value="">No role</option>
+          {roles.map((r) => (
+            <option key={r.id} value={r.id}>{r.name}</option>
+          ))}
+        </select>
+      </div>
 
-        <div className="ac-field">
-          <label className="ac-field-label">Role</label>
-          <select className="ac-select" value={roleId ?? ''} onChange={(e) => setRoleId(e.target.value ? Number(e.target.value) : null)}>
-            <option value="">No role</option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
-        </div>
+      <label className="ac-check">
+        <span
+          className={`c-toggle ${active ? 'on' : ''}`}
+          role="switch"
+          aria-checked={active}
+          onClick={() => setActive((v) => !v)}
+        >
+          <span className="c-toggle-knob" />
+        </span>
+        Active — can log in
+      </label>
 
-        <label className="ac-check-row">
-          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-          Active (can log in)
-        </label>
-
-        <div className="ac-modal-actions">
-          <button className="c-btn c-btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="c-btn" disabled={saving} onClick={() => void save()}>
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
+      <div className="ac-editor-actions">
+        <button className="c-btn c-btn-ghost" onClick={onCancel}>Cancel</button>
+        <button className="c-btn" disabled={saving} onClick={() => void save()}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
       </div>
     </div>
   );
@@ -249,12 +249,12 @@ function RolesSection({
   groups: Record<string, PermGroup>;
   onChange: (r: Role[]) => void;
 }) {
-  const [editing, setEditing] = useState<Role | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [edit, setEdit] = useState<EditKey>(null);
 
   const upsert = (r: Role) => {
     const exists = roles.some((x) => x.id === r.id);
     onChange(exists ? roles.map((x) => (x.id === r.id ? r : x)) : [...roles, r]);
+    setEdit(null);
   };
 
   const remove = async (r: Role) => {
@@ -269,56 +269,60 @@ function RolesSection({
 
   return (
     <>
-      <div className="ac-section-head">
-        <span className="ac-section-title">{roles.length} role{roles.length === 1 ? '' : 's'}</span>
-        <button className="c-btn" style={{ width: 'auto', padding: '8px 14px' }} onClick={() => setCreating(true)}>
-          <Icons.Plus size={16} /> Add role
-        </button>
+      <div className="ac-sec-head">
+        <span className="ac-sec-title">Roles</span>
+        {edit !== 'new' && (
+          <button className="ac-add-btn" onClick={() => setEdit('new')}>
+            <Icons.Plus size={15} /> Add
+          </button>
+        )}
       </div>
 
-      {roles.map((r) => (
-        <div className="ac-row" key={r.id}>
-          <div className="ac-row-main">
-            <div className="ac-row-title">
-              {r.name}
-              {r.is_owner && <span className="ac-badge ac-badge-muted"><Icons.Key size={12} /> Owner</span>}
-            </div>
-            <div className="ac-row-sub">
-              {r.is_owner ? 'Full access — cannot be changed' : `${r.permissions.length} permission${r.permissions.length === 1 ? '' : 's'}`}
-            </div>
-          </div>
-          <div className="ac-actions">
-            <button className="ac-icon-btn" aria-label="Edit" disabled={r.is_owner} onClick={() => setEditing(r)}>
-              <Icons.Edit size={16} />
-            </button>
-            <button className="ac-icon-btn ac-icon-btn-danger" aria-label="Delete" disabled={r.is_owner} onClick={() => void remove(r)}>
-              <Icons.Trash size={16} />
-            </button>
-          </div>
-        </div>
-      ))}
+      {edit === 'new' && (
+        <RoleEditor role={null} groups={groups} onCancel={() => setEdit(null)} onSaved={upsert} />
+      )}
 
-      {(creating || editing) && (
-        <RoleModal
-          role={editing}
-          groups={groups}
-          onClose={() => { setCreating(false); setEditing(null); }}
-          onSaved={(r) => { upsert(r); setCreating(false); setEditing(null); }}
-        />
+      {roles.map((r) =>
+        edit === r.id ? (
+          <RoleEditor key={r.id} role={r} groups={groups} onCancel={() => setEdit(null)} onSaved={upsert} />
+        ) : (
+          <div className="ac-card" key={r.id}>
+            <div className="ac-row">
+              <span className="ac-avatar"><Icons.Key size={18} /></span>
+              <span className="ac-row-body">
+                <span className="ac-row-name">
+                  {r.name}
+                  {r.is_owner && <span className="ac-tag ac-tag-muted">Locked</span>}
+                </span>
+                <span className="ac-row-sub">
+                  {r.is_owner ? 'Full access to everything' : `${r.permissions.length} permission${r.permissions.length === 1 ? '' : 's'}`}
+                </span>
+              </span>
+              <span className="ac-row-actions">
+                <button className="c-icon-btn" aria-label="Edit" disabled={r.is_owner} onClick={() => setEdit(r.id)}>
+                  <Icons.Edit size={16} />
+                </button>
+                <button className="c-icon-btn ac-danger" aria-label="Delete" disabled={r.is_owner} onClick={() => void remove(r)}>
+                  <Icons.Trash size={16} />
+                </button>
+              </span>
+            </div>
+          </div>
+        ),
       )}
     </>
   );
 }
 
-function RoleModal({
+function RoleEditor({
   role,
   groups,
-  onClose,
+  onCancel,
   onSaved,
 }: {
   role: Role | null;
   groups: Record<string, PermGroup>;
-  onClose: () => void;
+  onCancel: () => void;
   onSaved: (r: Role) => void;
 }) {
   const isEdit = !!role;
@@ -330,7 +334,7 @@ function RoleModal({
   const toggle = (perm: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(perm) ? next.delete(perm) : next.add(perm);
+      if (next.has(perm)) next.delete(perm); else next.add(perm);
       return next;
     });
   };
@@ -360,49 +364,42 @@ function RoleModal({
   };
 
   return (
-    <div className="ac-backdrop" onClick={onClose}>
-      <div className="ac-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="ac-modal-title">{isEdit ? 'Edit role' : 'Add role'}</div>
-        <div className="ac-modal-sub">Choose which actions this role can perform.</div>
+    <div className="ac-card ac-editor">
+      <div className="ac-editor-title">{isEdit ? 'Edit role' : 'New role'}</div>
+      {error && <div className="ac-error" style={{ margin: '0 0 12px' }}>{error}</div>}
 
-        {error && <div className="ac-error">{error}</div>}
+      <div className="ac-field">
+        <label className="ac-label">Role name</label>
+        <input className="ac-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Receptionist" />
+      </div>
 
-        <div className="ac-field">
-          <label className="ac-field-label">Role name</label>
-          <input className="ac-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Receptionist" />
-        </div>
-
-        {Object.entries(groups).map(([key, group]) => {
-          const perms = Object.keys(group.permissions);
-          const allOn = perms.every((p) => selected.has(p));
-          return (
-            <div className="ac-matrix-group" key={key}>
-              <div className="ac-matrix-head" onClick={() => toggleGroup(perms, allOn)}>
-                <span className="ac-matrix-head-title">{group.label}</span>
-                <span className="ac-link-btn">{allOn ? 'Clear all' : 'Select all'}</span>
-              </div>
-              <div className="ac-matrix-body">
-                {Object.entries(group.permissions).map(([perm, label]) => (
-                  <label className="ac-perm-row" key={perm}>
-                    <input type="checkbox" checked={selected.has(perm)} onChange={() => toggle(perm)} />
-                    <span>
-                      {label}
-                      <br />
-                      <span className="ac-perm-name">{perm}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
+      <label className="ac-label" style={{ marginBottom: 4 }}>Permissions</label>
+      {Object.entries(groups).map(([key, group]) => {
+        const perms = Object.keys(group.permissions);
+        const allOn = perms.every((p) => selected.has(p));
+        return (
+          <div className="ac-matrix-group" key={key}>
+            <div className="ac-matrix-head">
+              <span className="ac-matrix-label">{group.label}</span>
+              <button className="ac-selectall" onClick={() => toggleGroup(perms, allOn)}>
+                {allOn ? 'Clear' : 'Select all'}
+              </button>
             </div>
-          );
-        })}
+            {Object.entries(group.permissions).map(([perm, label]) => (
+              <label className="ac-perm" key={perm}>
+                <input type="checkbox" checked={selected.has(perm)} onChange={() => toggle(perm)} />
+                {label}
+              </label>
+            ))}
+          </div>
+        );
+      })}
 
-        <div className="ac-modal-actions">
-          <button className="c-btn c-btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="c-btn" disabled={saving} onClick={() => void save()}>
-            {saving ? 'Saving…' : 'Save role'}
-          </button>
-        </div>
+      <div className="ac-editor-actions">
+        <button className="c-btn c-btn-ghost" onClick={onCancel}>Cancel</button>
+        <button className="c-btn" disabled={saving} onClick={() => void save()}>
+          {saving ? 'Saving…' : 'Save role'}
+        </button>
       </div>
     </div>
   );
@@ -413,21 +410,21 @@ function RoleModal({
 /* -------------------------------------------------------------------------- */
 
 function PermissionsSection({ groups }: { groups: Record<string, PermGroup> }) {
-  const entries = useMemo(() => Object.entries(groups), [groups]);
-
-  if (entries.length === 0) {
-    return <div className="ac-empty">No permissions defined.</div>;
-  }
+  const entries = Object.entries(groups);
+  if (entries.length === 0) return null;
 
   return (
     <>
+      <div className="ac-sec-head">
+        <span className="ac-sec-title">Permissions</span>
+      </div>
       {entries.map(([key, group]) => (
-        <div className="ac-ref-group" key={key}>
-          <div className="ac-ref-group-title">{group.label}</div>
+        <div className="ac-card" key={key}>
+          <div className="ac-ref-title">{group.label}</div>
           {Object.entries(group.permissions).map(([perm, label]) => (
             <div className="ac-ref-item" key={perm}>
               <span>{label}</span>
-              <span className="ac-perm-name">{perm}</span>
+              <span className="ac-mono">{perm}</span>
             </div>
           ))}
         </div>
