@@ -135,6 +135,9 @@ Route::post('/wa/webhook', [\App\Http\Controllers\WaWebhookController::class, 'r
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/master/shops', [\App\Http\Controllers\MasterController::class, 'shops']);
     Route::patch('/master/shops/{shop}', [\App\Http\Controllers\MasterController::class, 'updateShop']);
+    Route::get('/master/pricing', [\App\Http\Controllers\MasterController::class, 'pricing']);
+    Route::patch('/master/pricing', [\App\Http\Controllers\MasterController::class, 'updatePricing']);
+    Route::patch('/master/shops/{shop}/subscription', [\App\Http\Controllers\MasterController::class, 'grantSubscription']);
     Route::get('/wa/push/vapid-key', [\App\Http\Controllers\WaPushController::class, 'vapidKey']);
     Route::post('/wa/push/subscribe', [\App\Http\Controllers\WaPushController::class, 'subscribe']);
     Route::post('/wa/push/unsubscribe', [\App\Http\Controllers\WaPushController::class, 'unsubscribe']);
