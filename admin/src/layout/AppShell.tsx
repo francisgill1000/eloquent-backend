@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { DesktopSidebar } from '@/layout/DesktopSidebar';
+import { VoiceAssistantFab } from '@/components/VoiceAssistantFab';
 
 /**
  * Wraps every authenticated screen. At ≥1024px it lays out a persistent glass
@@ -14,6 +15,7 @@ export function AppShell() {
       <div className="app-shell-main">
         <Outlet />
       </div>
+      <VoiceAssistantFab />
     </div>
   );
 }
