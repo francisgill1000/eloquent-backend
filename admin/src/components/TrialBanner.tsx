@@ -1,13 +1,17 @@
 import { Link } from 'react-router-dom';
 import { useSubscription } from '@/context/SubscriptionContext';
 
+/** Only nudge in the final stretch of the trial — silent before that. */
+const NUDGE_WINDOW_DAYS = 5;
+
 /**
- * In-app renewal nudge. Shows only during the trial; escalates in the final
- * few days. This is the v1 reminder mechanism — no outbound messaging.
+ * In-app renewal nudge. Stays silent for most of the trial and only appears in
+ * the final few days (escalating as expiry nears), so a new shop enjoys the
+ * trial without being pushed to pay on day 1. v1 reminder — no outbound msgs.
  */
 export default function TrialBanner() {
   const { sub } = useSubscription();
-  if (!sub || sub.status !== 'trialing') return null;
+  if (!sub || sub.status !== 'trialing' || sub.days_left > NUDGE_WINDOW_DAYS) return null;
 
   const urgent = sub.days_left <= 3;
   return (
