@@ -754,22 +754,21 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
-    align-items: stretch; /* every card in a row the same (taller) height */
+    align-items: start;
     margin: 0 16px;
   }
-  /* Tall, roomy mint glass cards. Body grows to fill so the divider + Edit/Delete
-     actions sit pinned at the bottom edge. */
+  /* Roomy mint glass cards that size to their content, with a divider above
+     clean, subtle Edit/Delete buttons. */
   .c-services .svc-grid .c-svc-card {
     margin: 0;
     display: flex;
     flex-direction: column;
-    min-height: 200px;
     background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
     border: 1px solid var(--border-mint);
     transition: transform 0.16s ease, border-color 0.16s ease;
   }
   .c-services .svc-grid .c-svc-card:hover { transform: translateY(-2px); border-color: var(--mint-400); }
-  .c-services .svc-grid .c-svc-body { flex: 1; padding: 20px 20px 16px; }
+  .c-services .svc-grid .c-svc-body { padding: 18px 20px 16px; }
   .c-services .svc-grid .c-svc-head .c-row-title { font-size: 16px; }
   .c-services .svc-grid .c-svc-actions {
     padding: 12px 16px;
@@ -801,6 +800,40 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+  }
+
+  /* ── Staff (desktop): same UI as Services — glass add card + 2-col glass card
+        grid for the list. ── */
+  .c-staff .c-staff-add {
+    margin: 0 16px 18px;
+    max-width: 520px;
+    padding: 16px;
+    border-radius: var(--r-lg);
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-mint);
+  }
+  .c-staff .staff-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+    margin: 0 16px;
+  }
+  .c-staff .staff-grid .c-staff-card {
+    margin: 0;
+    padding: 16px 18px;
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-mint);
+    transition: transform 0.16s ease, border-color 0.16s ease;
+  }
+  .c-staff .staff-grid .c-staff-card:hover { transform: translateY(-2px); border-color: var(--mint-400); }
+  /* Center the "No staff yet" empty state like the Services page. */
+  .c-staff .m-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 240px;
   }
 
   /* ── Service add/edit (desktop): a centered, comfortably-narrow glass card
