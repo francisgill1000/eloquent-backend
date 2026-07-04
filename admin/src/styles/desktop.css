@@ -589,8 +589,12 @@
   .c-dash-lower.is-empty {
     grid-template-columns: 1fr;
     align-content: start;
+    flex: 0 0 auto; /* take content height; the page (m-scroll) scrolls, not a card */
   }
-  .c-dash-lower.is-empty .c-dash-main { order: 1; }
+  .c-dash-lower.is-empty .c-dash-main {
+    order: 1;
+    overflow: visible; /* no scrollbar inside the Action Required card */
+  }
   .c-dash-lower.is-empty .c-dash-extra {
     order: 2;
     display: grid;
@@ -604,6 +608,34 @@
   .c-dash-lower.is-empty .c-dash-stat-card,
   .c-dash-lower.is-empty .c-dash-qr-card {
     flex: initial;
+  }
+
+  /* Customers card — mirror the top KPI cards (label on top, big value below),
+     with the icon anchored top-left and the figure filling the tall card. */
+  .c-dash-lower.is-empty .c-dash-stat-card {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 22px 24px;
+  }
+  .c-dash-lower.is-empty .c-dash-stat-text {
+    flex-direction: column-reverse; /* label (.k) above the value (.v) */
+    gap: 6px;
+  }
+  .c-dash-lower.is-empty .c-dash-stat-text .k {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .c-dash-lower.is-empty .c-dash-stat-text .v {
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: var(--text-1);
   }
   /* Customers & QR as grid cards — same size as the setup cards, tuned insides */
   .c-gs-stat-num {
