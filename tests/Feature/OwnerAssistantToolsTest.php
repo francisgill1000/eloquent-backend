@@ -60,4 +60,16 @@ class OwnerAssistantToolsTest extends TestCase
         $this->assertContains('BK90001', $refs);
         $this->assertNotContains('BK90099', $refs); // never sees the other shop
     }
+
+    public function test_module_run_delegates_to_execute(): void
+    {
+        $shop = $this->seedShopWithBooking();
+        $call = new \App\Services\Assistant\Support\ToolCall($shop, null, 'get_revenue', ['period' => 'this_month'], false);
+
+        $out = $this->tools()->run($call);
+
+        $this->assertSame(50, (int) $out['kpis']['gross_revenue']);
+        $this->assertTrue($this->tools()->handles('get_revenue'));
+        $this->assertFalse($this->tools()->handles('nope'));
+    }
 }
