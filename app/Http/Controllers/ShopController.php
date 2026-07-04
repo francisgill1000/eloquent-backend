@@ -126,6 +126,9 @@ class ShopController extends Controller
 
         $shop = Shop::create($dataToStore);
 
+        // Every new shop starts a 30-day free trial (Booking Manager + Ask).
+        app(\App\Services\SubscriptionService::class)->startTrial($shop);
+
         $token = $shop->createToken('auth_token')->plainTextToken;
 
         return response()->json([
