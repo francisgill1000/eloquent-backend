@@ -16,13 +16,29 @@ class AssistantToolRegistry
     public function __construct(
         protected OwnerAssistantTools $legacy,
         protected \App\Services\Assistant\Modules\BookingTools $bookings,
-        // Later plans add: protected ServiceTools $services, etc.
+        protected \App\Services\Assistant\Modules\ServiceTools $services,
+        protected \App\Services\Assistant\Modules\CategoryTools $categories,
+        protected \App\Services\Assistant\Modules\StaffTools $staff,
+        protected \App\Services\Assistant\Modules\HoursTools $hours,
+        protected \App\Services\Assistant\Modules\CustomerTools $customers,
+        protected \App\Services\Assistant\Modules\ProfileTools $profile,
+        protected \App\Services\Assistant\Modules\AccessTools $access,
     ) {}
 
     /** @return array<int, AssistantToolModule> */
     protected function modules(): array
     {
-        return [$this->legacy, $this->bookings];
+        return [
+            $this->legacy,
+            $this->bookings,
+            $this->services,
+            $this->categories,
+            $this->staff,
+            $this->hours,
+            $this->customers,
+            $this->profile,
+            $this->access,
+        ];
     }
 
     /** @return array<int, AssistantToolModule> */
