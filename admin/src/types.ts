@@ -174,6 +174,10 @@ export type MasterShop = {
   status?: string;
   persona?: string | null;
   is_master?: boolean;
+  subscription_status?: string | null;
+  plan?: string | null;
+  access_until?: string | null;
+  days_left?: number;
   bookings_count?: number;
   wa_connected?: boolean;
   wa_number?: string | null;

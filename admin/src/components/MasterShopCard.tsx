@@ -22,6 +22,9 @@ export function MasterShopCard({ shop, onOpen }: {
           </span>
           <span className="c-msc-tags">
             {shop.is_master && <em className="c-msc-tag master">master</em>}
+            {shop.subscription_status === 'trialing' && <em className="c-msc-tag master">trialing · {shop.days_left ?? 0}d</em>}
+            {shop.subscription_status === 'active' && <em className="c-msc-tag master">active</em>}
+            {shop.subscription_status === 'expired' && <em className="c-msc-tag off">expired</em>}
             {inactive && <em className="c-msc-tag off">Inactive</em>}
           </span>
         </div>
