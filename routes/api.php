@@ -60,6 +60,13 @@ Route::post('/invoice/{invoice}/mark-paid', [\App\Http\Controllers\BookingInvoic
 
 // Ziina payments — public webhook (account-wide; verified by X-Hmac-Signature).
 Route::post('/ziina/webhook', [\App\Http\Controllers\ZiinaWebhookController::class, 'handle']);
+
+// Subscription status + checkout. Deliberately NOT behind subscription.active —
+// a lapsed shop must be able to read its status and start a payment.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/shop/subscription', [\App\Http\Controllers\SubscriptionController::class, 'show']);
+    Route::post('/shop/subscription/checkout', [\App\Http\Controllers\SubscriptionController::class, 'checkout']);
+});
 Route::get('/bookings', [BookingController::class, 'index']);
 
 // Reports
@@ -128,6 +135,9 @@ Route::post('/wa/webhook', [\App\Http\Controllers\WaWebhookController::class, 'r
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/master/shops', [\App\Http\Controllers\MasterController::class, 'shops']);
     Route::patch('/master/shops/{shop}', [\App\Http\Controllers\MasterController::class, 'updateShop']);
+    Route::get('/master/pricing', [\App\Http\Controllers\MasterController::class, 'pricing']);
+    Route::patch('/master/pricing', [\App\Http\Controllers\MasterController::class, 'updatePricing']);
+    Route::patch('/master/shops/{shop}/subscription', [\App\Http\Controllers\MasterController::class, 'grantSubscription']);
     Route::get('/wa/push/vapid-key', [\App\Http\Controllers\WaPushController::class, 'vapidKey']);
     Route::post('/wa/push/subscribe', [\App\Http\Controllers\WaPushController::class, 'subscribe']);
     Route::post('/wa/push/unsubscribe', [\App\Http\Controllers\WaPushController::class, 'unsubscribe']);
@@ -148,7 +158,7 @@ Route::middleware('auth:sanctum')->group(function () {
 // rbac.context resolves current_shop_user() + the spatie team so the assistant's
 // tools enforce the acting user's permissions (owner/untagged tokens stay
 // all-allowed for backward compatibility).
-Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
+Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->group(function () {
     Route::get('/shop/assistant/history',    [\App\Http\Controllers\OwnerAssistantController::class, 'history']);
     Route::delete('/shop/assistant/history', [\App\Http\Controllers\OwnerAssistantController::class, 'clear']);
     Route::post('/shop/assistant/text',      [\App\Http\Controllers\OwnerAssistantController::class, 'text']);
@@ -161,7 +171,7 @@ Route::get('/shop/assistant/audio/{message}', [\App\Http\Controllers\OwnerAssist
     ->name('assistant.audio')
     ->middleware('signed');
 
-Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
+Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->group(function () {
     // Catalog (services) — reads need services.view, writes need services.manage.
     Route::get('shop/catalogs', [CatalogController::class, 'index'])->middleware('can.perm:services.view');
     Route::get('shop/catalogs/{catalog}', [CatalogController::class, 'show'])->middleware('can.perm:services.view');
@@ -180,7 +190,7 @@ Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
 // RBAC — users, roles, permissions. All per-shop; rbac.context runs AFTER
 // auth:sanctum so the acting ShopUser + team scope are resolved from the token.
 // ---------------------------------------------------------------------------
-Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
+Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->group(function () {
     Route::get('/auth/me', [\App\Http\Controllers\RbacMeController::class, 'me']);
     Route::get('/shop/permissions', [\App\Http\Controllers\RbacMeController::class, 'permissions'])->middleware('can.perm:roles.view');
 

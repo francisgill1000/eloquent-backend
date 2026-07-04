@@ -34,6 +34,7 @@ class MasterController extends Controller
         $shops = Shop::query()
             ->where('id', '!=', $master->id) // the master's own account isn't a business
             ->withCount('bookings')
+            ->with('subscription')
             ->orderByDesc('id')
             ->get()
             ->map(fn (Shop $shop) => $this->presentShop($shop, $waShopIds));
@@ -80,6 +81,10 @@ class MasterController extends Controller
             'status' => $shop->status,
             'persona' => $shop->persona,
             'is_master' => (bool) $shop->is_master,
+            'subscription_status' => optional($shop->subscription)->status,
+            'plan' => optional($shop->subscription)->plan,
+            'access_until' => optional(optional($shop->subscription)->access_until)->toIso8601String(),
+            'days_left' => optional($shop->subscription)->daysLeft() ?? 0,
             'bookings_count' => $shop->bookings_count,
             'wa_connected' => $waShopIds->has($shop->id),
             'wa_number' => $waShopIds->get($shop->id),
@@ -88,4 +93,51 @@ class MasterController extends Controller
         ];
     }
 
+    /** Master-only: current subscription prices (fils). */
+    public function pricing(Request $request)
+    {
+        $this->requireMaster($request);
+
+        return response()->json([
+            'monthly' => \App\Models\Pricing::fils('monthly'),
+            'annual' => \App\Models\Pricing::fils('annual'),
+        ]);
+    }
+
+    /** Master-only: update subscription prices. Applies to new payments only. */
+    public function updatePricing(Request $request)
+    {
+        $this->requireMaster($request);
+
+        $data = $request->validate([
+            'monthly_fils' => ['required', 'integer', 'min:200'],
+            'annual_fils' => ['required', 'integer', 'min:200'],
+        ]);
+
+        \App\Models\Pricing::where('plan', 'monthly')->update(['price_fils' => $data['monthly_fils']]);
+        \App\Models\Pricing::where('plan', 'annual')->update(['price_fils' => $data['annual_fils']]);
+
+        return response()->json(['monthly' => $data['monthly_fils'], 'annual' => $data['annual_fils']]);
+    }
+
+    /** Master-only: manually grant/extend a shop's access (comp or fix). */
+    public function grantSubscription(Request $request, Shop $shop)
+    {
+        $this->requireMaster($request);
+
+        $data = $request->validate(['grant_days' => ['required', 'integer', 'min:1', 'max:3650']]);
+
+        $sub = $shop->subscription()->firstOrCreate([], ['status' => 'expired', 'access_until' => now()]);
+        $base = ($sub->access_until && $sub->access_until->isFuture()) ? $sub->access_until : now();
+        $sub->update([
+            'access_until' => $base->copy()->addDays($data['grant_days']),
+            'status' => 'active',
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'access_until' => $sub->access_until,
+            'days_left' => $sub->daysLeft(),
+        ]);
+    }
 }

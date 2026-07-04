@@ -6,6 +6,7 @@ use App\Traits\HasBase64Image;
 use Carbon\Carbon;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -276,6 +277,11 @@ class Shop extends Authenticatable
     public function staff()
     {
         return $this->hasMany(Staff::class);
+    }
+
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class);
     }
 
     public function shopUsers()
