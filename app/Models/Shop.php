@@ -278,6 +278,11 @@ class Shop extends Authenticatable
         return $this->hasMany(Staff::class);
     }
 
+    public function shopUsers()
+    {
+        return $this->hasMany(ShopUser::class);
+    }
+
     public function getTotalBookingsAttribute()
     {
         return $this->bookings()->count();

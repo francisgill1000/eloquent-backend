@@ -7,6 +7,8 @@ import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { getShopBookings } from '@/lib/bookings';
 import { getCustomerCount } from '@/lib/customers';
+import { listCatalogs } from '@/lib/catalogs';
+import { getStaff, getShop } from '@/lib/shops';
 import { getWaAccount } from '@/lib/chats';
 import { WHATSAPP_ENABLED } from '@/lib/features';
 import { storage } from '@/lib/storage';
@@ -39,14 +41,19 @@ const ALL_QUICK_ACTIONS: { label: string; to: string; icon: keyof typeof Icons; 
 ];
 const QUICK_ACTIONS = ALL_QUICK_ACTIONS.filter((a) => WHATSAPP_ENABLED || a.to !== '/chats');
 
-// Setup steps shown (desktop) when there are no bookings yet, to fill the space
-// with something useful for a new business.
-const GET_STARTED: { icon: keyof typeof Icons; title: string; sub: string; to: string }[] = [
-  { icon: 'Grid', title: 'Add your services', sub: 'List what customers can book', to: '/services' },
-  { icon: 'Clock', title: 'Set working hours', sub: 'Set your open & close times', to: '/working-hours' },
-  { icon: 'Users', title: 'Add your staff', sub: 'Assign who handles bookings', to: '/staff' },
-  { icon: 'Store', title: 'Share booking link', sub: 'Invite customers to book', to: '/profile' },
+// Onboarding flow. Working hours is pre-populated by default (so it reads as
+// already done) — put it first so the stepper progresses cleanly left-to-right
+// instead of showing a completed step ahead of an unfinished one.
+type SetupKey = 'services' | 'hours' | 'staff';
+const SETUP_STEPS: { key: SetupKey; label: string; sub: string; to: string }[] = [
+  { key: 'hours', label: 'Set working hours', sub: 'Your open & close times', to: '/working-hours' },
+  { key: 'services', label: 'Add services', sub: 'List what customers can book', to: '/services' },
+  { key: 'staff', label: 'Add staff', sub: 'Assign who handles bookings', to: '/staff' },
 ];
+
+const CheckMark = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+);
 
 // Business Overview (desktop) time filter — recomputes the KPI cards below.
 type PeriodKey = 'today' | 'month' | 'year';
@@ -86,6 +93,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [period, setPeriod] = useState<PeriodKey>('month');
+  const [setupState, setSetupState] = useState<Record<SetupKey, boolean> | null>(null);
 
   const qrTarget = shop?.id ? `${CUSTOMER_WEB}/shop/${shop.id}` : '';
 
@@ -153,6 +161,22 @@ export default function Dashboard() {
     return () => { alive = false; };
   }, [shop?.id]);
 
+  // Setup progress — services / working hours / staff. Login omits working_hours,
+  // so fetch the full shop; each source is independent, so failures degrade to "not done".
+  useEffect(() => {
+    if (!shop?.id) return;
+    let alive = true;
+    Promise.allSettled([listCatalogs(), getShop(shop.id), getStaff(shop.id)])
+      .then(([svc, full, staff]) => {
+        if (!alive) return;
+        const hasServices = svc.status === 'fulfilled' && svc.value.length > 0;
+        const hasHours = full.status === 'fulfilled' && (full.value.working_hours?.length ?? 0) > 0;
+        const hasStaff = staff.status === 'fulfilled' && staff.value.length > 0;
+        setSetupState({ services: hasServices, hours: hasHours, staff: hasStaff });
+      });
+    return () => { alive = false; };
+  }, [shop?.id]);
+
   const todayISO = formatLocalDate(new Date());
   const todayCount = bookings.filter((b) => dateOf(b) === todayISO).length;
   const completedCount = bookings.filter((b) => String(b.status).toLowerCase() === 'completed').length;
@@ -193,6 +217,13 @@ export default function Dashboard() {
     { key: 'done', label: `Completed · ${suffix}`, value: cur.completed.toLocaleString(), trend: pct(cur.completed, prev.completed) },
     { key: 'avg', label: `Avg value · ${suffix}`, value: aed(cur.avg), trend: pct(cur.avg, prev.avg) },
   ];
+
+  // Desktop "Get started" empty state → setup stepper + share cards.
+  const isSetup = !loading && upcoming.length === 0;
+  const steps = SETUP_STEPS.map((s) => ({ ...s, done: !!setupState?.[s.key] }));
+  const doneCount = steps.filter((s) => s.done).length;
+  const currentIndex = steps.findIndex((s) => !s.done); // -1 once everything is done
+  const showSetup = setupState !== null && currentIndex !== -1;
 
   return (
     <div className="m-screen c-dash">
@@ -280,7 +311,7 @@ export default function Dashboard() {
 
         {/* Lower body. DOM order = Quick actions then Upcoming (matches mobile);
             desktop reorders Upcoming into the wide left panel via CSS. */}
-        <div className="c-dash-lower">
+        <div className={`c-dash-lower${isSetup ? ' is-setup' : ''}`}>
           <div className="c-dash-side">
             <div className="c-section-title">Quick actions</div>
             <div className="c-qa-grid">
@@ -310,22 +341,67 @@ export default function Dashboard() {
                 {/* Mobile keeps the simple empty state (unchanged) */}
                 <div className="c-section-title c-only-mobile">Upcoming bookings</div>
                 <div className="c-only-mobile"><EmptyState title="No upcoming bookings" subtitle="New bookings will appear here." /></div>
-                {/* Desktop fills the space with setup actions */}
-                <div className="c-section-title c-only-desktop">Get started</div>
-                <div className="c-getstarted">
-                  {GET_STARTED.map((g) => {
-                    const Icon = Icons[g.icon];
-                    return (
-                      <Link key={g.to} to={g.to} className="c-gs-card">
-                        <span className="c-gs-ic"><Icon size={20} /></span>
+                {/* Desktop: onboarding stepper + share cards */}
+                <div className="c-only-desktop">
+                  {showSetup ? (
+                    <>
+                      <div className="c-section-title">Action required</div>
+                      <section className="c-setup">
+                        <div className="c-setup-head">
+                          <div>
+                            <h2 className="c-setup-title">Finish setting up your business</h2>
+                            <p className="c-setup-sub">
+                              {doneCount} of {steps.length} done · next: {steps[currentIndex].label}
+                            </p>
+                          </div>
+                          <Link to={steps[currentIndex].to} className="c-setup-cta">
+                            Continue<Icons.ArrowRight size={16} />
+                          </Link>
+                        </div>
+                        <ol className="c-stepper">
+                          {steps.map((s, i) => {
+                            const status = s.done ? 'done' : i === currentIndex ? 'current' : 'todo';
+                            return (
+                              <li key={s.key} className={`c-step ${status}`}>
+                                <Link to={s.to} className="c-step-link">
+                                  <span className="c-step-node">{s.done ? <CheckMark /> : i + 1}</span>
+                                  <span className="c-step-meta">
+                                    <span className="c-step-label">{s.label}</span>
+                                    <span className="c-step-state">
+                                      {s.done ? 'Done' : status === 'current' ? 'Current step' : 'To do'}
+                                    </span>
+                                  </span>
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      </section>
+                    </>
+                  ) : setupState ? (
+                    <div className="c-section-title">You're all set — share your booking link</div>
+                  ) : null}
+
+                  <div className="c-setup-cards">
+                    <div className="c-gs-card c-gs-stat">
+                      <span className="c-gs-ic"><Icons.Users size={20} /></span>
+                      <span className="c-gs-text">
+                        <span className="c-gs-title c-gs-stat-num">{customerCount ?? '—'}</span>
+                        <span className="c-gs-sub">Customers</span>
+                      </span>
+                    </div>
+                    {qrTarget && (
+                      <div className="c-gs-card c-gs-qr">
+                        <div className="c-qr-frame">
+                          <QRCodeSVG value={qrTarget} size={64} level="M" bgColor="#ffffff" fgColor="#0a0e0c" />
+                        </div>
                         <span className="c-gs-text">
-                          <span className="c-gs-title">{g.title}</span>
-                          <span className="c-gs-sub">{g.sub}</span>
+                          <span className="c-gs-title">Booking QR</span>
+                          <span className="c-gs-sub">Customers scan to book</span>
                         </span>
-                        <span className="c-gs-arrow"><Icons.Chevron size={18} /></span>
-                      </Link>
-                    );
-                  })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </>
             ) : (
