@@ -684,6 +684,13 @@
     margin: 4px 16px 0;
   }
   .c-wh .wh-grid .c-wh-day { margin: 0; }
+  /* Closed days keep the same card structure as open ones — fields shown but
+     dimmed & non-interactive — so every card reads the same and lines up. */
+  .c-wh .wh-grid .c-wh-times.closed {
+    display: flex;
+    opacity: 0.4;
+    pointer-events: none;
+  }
   /* Save as a right-aligned form-footer action of natural width — not a
      full-width bar, and not an orphaned lozenge floating bottom-left. */
   .c-wh .wh-save { display: flex; justify-content: flex-end; padding: 18px 16px 8px; max-width: none; }

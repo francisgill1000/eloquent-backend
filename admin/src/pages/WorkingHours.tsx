@@ -102,23 +102,21 @@ export default function WorkingHours() {
               </span>
             </label>
           </div>
-          {r.is_open && (
-            <div className="c-wh-times">
-              <div className="c-wh-field">
-                <label htmlFor={`${r.day}-open`}>Opens</label>
-                <select id={`${r.day}-open`} className="c-wh-select" value={r.start_time} onChange={(e) => updateDay(i, 'start_time', e.target.value)}>
-                  {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <span className="c-wh-arrow"><Icons.ArrowRight size={18} /></span>
-              <div className="c-wh-field">
-                <label htmlFor={`${r.day}-close`}>Closes</label>
-                <select id={`${r.day}-close`} className="c-wh-select" value={r.end_time} onChange={(e) => updateDay(i, 'end_time', e.target.value)}>
-                  {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
+          <div className={`c-wh-times${r.is_open ? '' : ' closed'}`}>
+            <div className="c-wh-field">
+              <label htmlFor={`${r.day}-open`}>Opens</label>
+              <select id={`${r.day}-open`} className="c-wh-select" value={r.start_time} disabled={!r.is_open} onChange={(e) => updateDay(i, 'start_time', e.target.value)}>
+                {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
             </div>
-          )}
+            <span className="c-wh-arrow"><Icons.ArrowRight size={18} /></span>
+            <div className="c-wh-field">
+              <label htmlFor={`${r.day}-close`}>Closes</label>
+              <select id={`${r.day}-close`} className="c-wh-select" value={r.end_time} disabled={!r.is_open} onChange={(e) => updateDay(i, 'end_time', e.target.value)}>
+                {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
         </div>
       ))}
       </div>
