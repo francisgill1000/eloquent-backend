@@ -167,10 +167,11 @@
     color: var(--danger);
   }
 
-  /* ── Content width: single-column screens read at a sane width, centered.
-        The Dashboard opts out (below) to use the full width for its grid. ── */
+  /* ── Content width: every screen fills the same width as the Dashboard so
+        content hugs the sidebar instead of sitting narrow + centered with big
+        side gaps. Centered on very wide monitors. ── */
   .app-shell-main .m-scroll {
-    max-width: 860px;
+    max-width: 1200px;
     margin-inline: auto;
     width: 100%;
   }
