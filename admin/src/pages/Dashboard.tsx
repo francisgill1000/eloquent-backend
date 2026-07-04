@@ -246,6 +246,37 @@ export default function Dashboard() {
           </button>
         </div>
 
+        {/* Setup alert — top of the dashboard on desktop; auto-hides once done. */}
+        {showSetup && (
+          <section className="c-setup-alert c-only-desktop">
+            <div className="c-setup-head">
+              <div>
+                <h2 className="c-setup-title">Finish setting up your business</h2>
+                <p className="c-setup-sub">{doneCount} of {steps.length} done · next: {steps[currentIndex].label}</p>
+              </div>
+              <Link to={steps[currentIndex].to} className="c-setup-cta">Continue<Icons.ArrowRight size={16} /></Link>
+            </div>
+            <ol className="c-stepper">
+              {steps.map((s, i) => {
+                const status = s.done ? 'done' : i === currentIndex ? 'current' : 'todo';
+                return (
+                  <li key={s.key} className={`c-step ${status}`}>
+                    <Link to={s.to} className="c-step-link">
+                      <span className="c-step-node">{s.done ? <CheckMark /> : i + 1}</span>
+                      <span className="c-step-meta">
+                        <span className="c-step-label">{s.label}</span>
+                        <span className="c-step-state">
+                          {s.done ? 'Done' : status === 'current' ? 'Current step' : 'To do'}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        )}
+
         {/* Desktop-only Business Overview header (mobile uses the greeting header above) */}
         <div className="c-dash-deskhead">
           <div className="c-dash-deskhead-text">
@@ -270,7 +301,6 @@ export default function Dashboard() {
                 </button>
               ))}
             </div>
-            <Link to="/ask" className="c-ask-btn"><Icons.Mic size={16} /> Ask</Link>
           </div>
         </div>
 
@@ -340,50 +370,11 @@ export default function Dashboard() {
                 {/* Mobile keeps the simple empty state (unchanged) */}
                 <div className="c-section-title c-only-mobile">Upcoming bookings</div>
                 <div className="c-only-mobile"><EmptyState title="No upcoming bookings" subtitle="New bookings will appear here." /></div>
-                {/* Desktop: onboarding stepper (setup incomplete) or empty state.
+                {/* Desktop empty state. Setup guidance now lives in the top alert;
                     Customers + Booking QR live in the right column (c-dash-extra). */}
                 <div className="c-only-desktop">
-                  {showSetup ? (
-                    <>
-                      <div className="c-section-title">Action required</div>
-                      <section className="c-setup">
-                        <div className="c-setup-head">
-                          <div>
-                            <h2 className="c-setup-title">Finish setting up your business</h2>
-                            <p className="c-setup-sub">
-                              {doneCount} of {steps.length} done · next: {steps[currentIndex].label}
-                            </p>
-                          </div>
-                          <Link to={steps[currentIndex].to} className="c-setup-cta">
-                            Continue<Icons.ArrowRight size={16} />
-                          </Link>
-                        </div>
-                        <ol className="c-stepper">
-                          {steps.map((s, i) => {
-                            const status = s.done ? 'done' : i === currentIndex ? 'current' : 'todo';
-                            return (
-                              <li key={s.key} className={`c-step ${status}`}>
-                                <Link to={s.to} className="c-step-link">
-                                  <span className="c-step-node">{s.done ? <CheckMark /> : i + 1}</span>
-                                  <span className="c-step-meta">
-                                    <span className="c-step-label">{s.label}</span>
-                                    <span className="c-step-state">
-                                      {s.done ? 'Done' : status === 'current' ? 'Current step' : 'To do'}
-                                    </span>
-                                  </span>
-                                </Link>
-                              </li>
-                            );
-                          })}
-                        </ol>
-                      </section>
-                    </>
-                  ) : (
-                    <>
-                      <div className="c-section-title">Upcoming bookings</div>
-                      <EmptyState title="No upcoming bookings" subtitle="New bookings will appear here." />
-                    </>
-                  )}
+                  <div className="c-section-title">Upcoming bookings</div>
+                  <EmptyState title="No upcoming bookings" subtitle="New bookings will appear here." />
                 </div>
               </>
             ) : (
