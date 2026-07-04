@@ -696,10 +696,10 @@
 
   /* ── Service add/edit (desktop): a centered, comfortably-narrow glass card
         instead of full-width stretched inputs. ── */
-  /* Form + live-preview two-column layout so the right half isn't empty. */
+  /* Create form (left) + existing-services list (right) on one screen. */
   .c-svc-edit .svc-edit-wrap {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
     gap: 24px;
     align-items: start;
     margin: 0 16px;
@@ -713,28 +713,45 @@
     border: 1px solid var(--border-mint);
   }
 
-  /* Right column — live preview of the service card, sticky as the form scrolls. */
-  .c-svc-edit .svc-edit-aside { display: block; position: sticky; top: 12px; }
-  .c-svc-edit .svc-preview {
-    padding: 20px;
-    border-radius: var(--r-lg);
+  /* Right column — existing services. Sticky, aligned with the form top (which
+     sits below the Back + title ≈ 52px), with its own scroll if the list is long. */
+  .c-svc-edit .svc-edit-aside {
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 12px;
+    margin-top: 52px;
+    max-height: calc(100dvh - 64px);
+  }
+  .c-svc-edit .svc-list-head {
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-2); margin-bottom: 12px;
+  }
+  .c-svc-edit .svc-list {
+    display: flex; flex-direction: column; gap: 10px;
+    overflow-y: auto; padding-right: 4px;
+  }
+  /* List cards use the same mint glass surface as the form card, and are
+     clickable (each jumps to editing that service). */
+  .c-svc-edit .svc-edit-aside .c-svc-card {
+    margin: 0; width: 100%; text-align: left; cursor: pointer; display: block;
     background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
     border: 1px solid var(--border-mint);
+    transition: transform 0.16s ease, border-color 0.16s ease;
   }
-  .c-svc-edit .svc-preview-label {
-    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--text-3); margin-bottom: 12px;
+  .c-svc-edit .svc-edit-aside .c-svc-card:hover { transform: translateY(-2px); border-color: var(--mint-400); }
+  .c-svc-edit .svc-edit-aside .c-svc-card.is-current { border-color: var(--mint-300); box-shadow: 0 0 0 1px var(--mint-300); }
+  .c-svc-edit .svc-edit-aside .c-svc-body { padding: 14px; }
+
+  /* Empty state — centered in the right column. */
+  .c-svc-edit .svc-list-empty {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; min-height: 260px; padding: 28px;
+    border: 1px dashed var(--border-mint); border-radius: var(--r-lg);
   }
-  .c-svc-edit .svc-preview .c-svc-card { margin: 0; }
-  .c-svc-edit .svc-preview .c-svc-body { padding: 14px; }
-  .c-svc-edit .svc-preview-chip {
-    display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 999px;
-    font-size: 11px; font-weight: 700;
-    background: var(--mint-soft); border: 1px solid var(--border-mint); color: var(--mint-300);
-  }
-  .c-svc-edit .svc-preview .c-row-sub { margin-top: 8px; }
-  .c-svc-edit .svc-preview-ph { color: var(--text-4); font-style: italic; }
-  .c-svc-edit .svc-preview-hint { font-size: 12px; color: var(--text-3); margin: 12px 2px 0; }
+  .c-svc-edit .svc-list-empty-title { font-weight: 700; color: var(--text-1); margin: 0; }
+  .c-svc-edit .svc-list-empty-sub { font-size: 13px; color: var(--text-3); margin: 6px 0 0; max-width: 240px; }
 
   /* ── Working Hours (desktop): two columns of day cards instead of one long
         stretched full-width stack. ── */

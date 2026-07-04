@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
-import { getCatalog, createCatalog, updateCatalog } from '@/lib/catalogs';
+import { getCatalog, createCatalog, updateCatalog, listCatalogs } from '@/lib/catalogs';
 import { listParentCategories, createParentCategory } from '@/lib/parentCategories';
-import type { ParentCategory } from '@/types';
+import type { ParentCategory, Service } from '@/types';
 
 type Form = { title: string; description: string; price: string };
 
@@ -23,8 +23,19 @@ export default function ServiceEdit() {
   const [newCatName, setNewCatName] = useState('');
   const [creatingCat, setCreatingCat] = useState(false);
 
+  // Existing services, shown as a companion list beside the form (desktop only).
+  const [existing, setExisting] = useState<Service[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+
   useEffect(() => {
     listParentCategories().then(setCats).catch(() => { /* non-fatal: empty list */ });
+  }, []);
+
+  useEffect(() => {
+    listCatalogs()
+      .then(setExisting)
+      .catch(() => { /* non-fatal: empty list */ })
+      .finally(() => setLoadingList(false));
   }, []);
 
   useEffect(() => {
@@ -58,8 +69,6 @@ export default function ServiceEdit() {
   };
 
   const change = (key: keyof Form, value: string) => setForm((f) => ({ ...f, [key]: value }));
-
-  const selectedCatName = parentCategoryId == null ? '' : (cats.find((c) => c.id === parentCategoryId)?.name ?? '');
 
   const handleSave = async () => {
     if (!form.title.trim()) { setError('Please enter a service title.'); return; }
@@ -161,24 +170,34 @@ export default function ServiceEdit() {
       </div>
 
       <aside className="svc-edit-aside">
-        <div className="svc-preview">
-          <div className="svc-preview-label">Live preview</div>
-          <div className="c-svc-card">
-            <div className="c-svc-body">
-              <div className="c-svc-head">
-                <span className={`c-row-title${form.title.trim() ? '' : ' svc-preview-ph'}`}>
-                  {form.title.trim() || 'Service title'}
-                </span>
-                <span className="c-svc-price-inline">AED {(parseFloat(form.price) || 0).toFixed(2)}</span>
-              </div>
-              {selectedCatName && <div className="svc-preview-chip">{selectedCatName}</div>}
-              <div className={`c-row-sub${form.description.trim() ? '' : ' svc-preview-ph'}`}>
-                {form.description.trim() || 'Service description appears here.'}
-              </div>
-            </div>
+        <div className="svc-list-head">Your services</div>
+        {loadingList ? (
+          <Spinner label="Loading services…" />
+        ) : existing.length > 0 ? (
+          <div className="svc-list">
+            {existing.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={`c-svc-card svc-list-card${String(c.id) === id ? ' is-current' : ''}`}
+                onClick={() => navigate(`/services/${c.id}/edit`)}
+              >
+                <div className="c-svc-body">
+                  <div className="c-svc-head">
+                    <span className="c-row-title">{c.title || c.name}</span>
+                    <span className="c-svc-price-inline">AED {Number(c.price ?? 0).toFixed(2)}</span>
+                  </div>
+                  {c.description && <div className="c-row-sub">{c.description}</div>}
+                </div>
+              </button>
+            ))}
           </div>
-          <p className="svc-preview-hint">This is how the service will appear to your customers.</p>
-        </div>
+        ) : (
+          <div className="svc-list-empty">
+            <p className="svc-list-empty-title">No services yet</p>
+            <p className="svc-list-empty-sub">Create your first service using the form on the left.</p>
+          </div>
+        )}
       </aside>
       </div>
     </div></div>
