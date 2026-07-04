@@ -51,9 +51,36 @@ const SETUP_STEPS: { key: SetupKey; label: string; sub: string; to: string }[] =
   { key: 'staff', label: 'Add staff', sub: 'Assign who handles bookings', to: '/staff' },
 ];
 
-const CheckMark = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
-);
+// Unique customers per month for the last N months, derived from the bookings.
+function customersByMonth(bookings: Booking[], months = 6): { label: string; value: number }[] {
+  const now = new Date();
+  const buckets = Array.from({ length: months }, (_, i) => {
+    const dt = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
+    return { key: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`, label: dt.toLocaleString('en-US', { month: 'short' }), set: new Set<string>() };
+  });
+  const byKey = new Map(buckets.map((b) => [b.key, b]));
+  for (const b of bookings) {
+    const bucket = byKey.get(dateOf(b).slice(0, 7));
+    if (bucket) bucket.set.add(String(b.customer?.phone ?? b.customer_whatsapp ?? b.customer?.name ?? b.customer_name ?? b.id));
+  }
+  return buckets.map((b) => ({ label: b.label, value: b.set.size }));
+}
+
+// Tiny CSS bar chart used in the Customers card.
+function MiniBars({ data }: { data: { label: string; value: number }[] }) {
+  const max = Math.max(1, ...data.map((d) => d.value));
+  return (
+    <div className="c-dash-chart">
+      {data.map((d, i) => (
+        <div className="c-dash-bar-col" key={i}>
+          <span className="c-dash-bar-val">{d.value || ''}</span>
+          <div className="c-dash-bar" style={{ height: `${(d.value / max) * 100}%` }} />
+          <span className="c-dash-bar-label">{d.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // Business Overview (desktop) time filter — recomputes the KPI cards below.
 type PeriodKey = 'today' | 'month' | 'year';
@@ -211,11 +238,11 @@ export default function Dashboard() {
   const pct = (c: number, p: number) => (p > 0 ? Math.round(((c - p) / p) * 100) : null);
   const suffix = period === 'today' ? 'Today' : period === 'month' ? 'MTD' : 'YTD';
   const vsWord = period === 'today' ? 'yesterday' : period === 'month' ? 'last month' : 'last year';
-  const ovCards: { key: string; label: string; value: string; accent?: boolean; trend: number | null }[] = [
+  const ovCards: { key: string; label: string; value: string; accent?: boolean; trend: number | null; sub?: string }[] = [
     { key: 'rev', label: `Revenue · ${suffix}`, value: aed(cur.revenue), accent: true, trend: pct(cur.revenue, prev.revenue) },
     { key: 'bk', label: `Bookings · ${suffix}`, value: cur.count.toLocaleString(), trend: pct(cur.count, prev.count) },
     { key: 'done', label: `Completed · ${suffix}`, value: cur.completed.toLocaleString(), trend: pct(cur.completed, prev.completed) },
-    { key: 'avg', label: `Avg value · ${suffix}`, value: aed(cur.avg), trend: pct(cur.avg, prev.avg) },
+    { key: 'cust', label: 'Customers', value: (customerCount ?? 0).toLocaleString(), trend: null, sub: 'All-time total' },
   ];
 
   // Desktop "Get started" empty state → setup stepper.
@@ -246,34 +273,15 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Setup alert — top of the dashboard on desktop; auto-hides once done. */}
+        {/* Setup alert — slim banner at the top on desktop; auto-hides once done. */}
         {showSetup && (
           <section className="c-setup-alert c-only-desktop">
-            <div className="c-setup-head">
-              <div>
-                <h2 className="c-setup-title">Finish setting up your business</h2>
-                <p className="c-setup-sub">{doneCount} of {steps.length} done · next: {steps[currentIndex].label}</p>
-              </div>
-              <Link to={steps[currentIndex].to} className="c-setup-cta">Continue<Icons.ArrowRight size={16} /></Link>
+            <span className="c-setup-alert-badge">{doneCount}/{steps.length}</span>
+            <div className="c-setup-alert-text">
+              <strong>Finish setting up your business</strong>
+              <span>Next: {steps[currentIndex].label}</span>
             </div>
-            <ol className="c-stepper">
-              {steps.map((s, i) => {
-                const status = s.done ? 'done' : i === currentIndex ? 'current' : 'todo';
-                return (
-                  <li key={s.key} className={`c-step ${status}`}>
-                    <Link to={s.to} className="c-step-link">
-                      <span className="c-step-node">{s.done ? <CheckMark /> : i + 1}</span>
-                      <span className="c-step-meta">
-                        <span className="c-step-label">{s.label}</span>
-                        <span className="c-step-state">
-                          {s.done ? 'Done' : status === 'current' ? 'Current step' : 'To do'}
-                        </span>
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ol>
+            <Link to={steps[currentIndex].to} className="c-setup-cta">Continue<Icons.ArrowRight size={16} /></Link>
           </section>
         )}
 
@@ -312,7 +320,9 @@ export default function Dashboard() {
             <div key={c.key} className={`c-ov-card${c.accent ? ' accent' : ''}`}>
               <div className="c-ov-label">{c.label}</div>
               <div className="c-ov-value">{c.value}</div>
-              {c.trend != null ? (
+              {c.sub ? (
+                <div className="c-ov-trend flat">{c.sub}</div>
+              ) : c.trend != null ? (
                 <div className={`c-ov-trend ${c.trend >= 0 ? 'up' : 'down'}`}>
                   <span className="c-ov-arrow">{c.trend >= 0 ? '▲' : '▼'}</span>
                   {Math.abs(c.trend)}% vs {vsWord}
@@ -403,14 +413,14 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Desktop-only right column: customer count + booking QR */}
+          {/* Desktop-only cards: customers chart + booking QR */}
           <div className="c-dash-extra">
-            <div className="c-dash-stat-card">
-              <span className="c-dash-stat-ic"><Icons.Users size={20} /></span>
-              <span className="c-dash-stat-text">
-                <span className="v">{customerCount ?? '—'}</span>
-                <span className="k">Customers</span>
-              </span>
+            <div className="c-dash-chart-card">
+              <div className="c-dash-chart-head">
+                <span className="c-dash-chart-title">Customers</span>
+                <span className="c-dash-chart-sub">Last 6 months</span>
+              </div>
+              <MiniBars data={customersByMonth(bookings)} />
             </div>
             {qrTarget && (
               <div className="c-dash-qr-card">
