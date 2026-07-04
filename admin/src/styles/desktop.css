@@ -674,6 +674,26 @@
   /* Sign out is redundant on desktop — the sidebar already has Log out. */
   .c-profile .pf-signout { display: none; }
 
+  /* ── Services (desktop): 2-col card grid per category; empty state centered
+        vertically in the viewport instead of clinging to the top. ── */
+  .c-services .m-scroll { display: flex; flex-direction: column; }
+  .c-services .svc-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+    margin: 0 16px;
+  }
+  .c-services .svc-grid .c-svc-card { margin: 0; }
+  /* Center the "No services yet" empty state in the available height. */
+  .c-services .m-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
   /* ── Working Hours (desktop): two columns of day cards instead of one long
         stretched full-width stack. ── */
   .c-wh .wh-grid {

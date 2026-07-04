@@ -249,6 +249,9 @@
 .c-qr-actions .c-btn-ghost { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px; font-size: 13px; }
 
 /* Service catalog cards */
+/* svc-grid vanishes on mobile (display:contents); desktop.css turns it into a
+   2-col grid so service cards aren't stretched full-width on laptop. */
+.svc-grid { display: contents; }
 .c-svc-card { background: var(--surface-1); border: 1px solid var(--border-1); border-radius: var(--r-lg); overflow: hidden; margin: 0 16px 12px; }
 .c-svc-media { position: relative; width: 100%; height: 160px; background: var(--surface-2); }
 .c-svc-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
