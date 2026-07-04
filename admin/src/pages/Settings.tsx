@@ -38,6 +38,7 @@ export default function Settings() {
         <p className="c-page-sub">Manage how your business runs on Business Lens.</p>
       </div>
 
+      <div className="c-set-grid">
       {push.supported && (
         <div
           className="c-set-link"
@@ -70,6 +71,7 @@ export default function Settings() {
           </Link>
         );
       })}
+      </div>
     </div></div>
   );
 }

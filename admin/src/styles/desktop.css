@@ -176,6 +176,18 @@
     width: 100%;
   }
 
+  /* Settings menu → a card grid on desktop so tiles are filled instead of
+     sparse full-width rows with a lone chevron. Mobile keeps stacked rows. */
+  .c-set-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 0 16px;
+    align-items: start;
+  }
+  .c-set-grid .c-set-link { margin: 0; }
+  .c-set-grid .c-set-link > svg { display: none; } /* drop the row chevron in tiles */
+
   /* ── Dashboard (desktop): page header + KPI row + two panels ── */
   /* The in-content greeting header duplicates the sidebar, so drop it. */
   .c-dash .c-dash-head {
