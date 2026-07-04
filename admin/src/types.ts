@@ -141,6 +141,28 @@ export type WaMessage = {
   created_at?: string;
 };
 
+// ---- RBAC ----
+export type AuthUser = { id: number | null; name: string; is_active: boolean };
+
+export type Me = { user: AuthUser | null; permissions: string[] };
+
+/** A permission module group from the read-only catalog. */
+export type PermGroup = { label: string; permissions: Record<string, string> };
+
+export type Role = {
+  id: number;
+  name: string;
+  is_owner: boolean;
+  permissions: string[];
+};
+
+export type ShopUser = {
+  id: number;
+  name: string;
+  is_active: boolean;
+  role: { id: number; name: string } | null;
+};
+
 export type MasterShop = {
   id: number;
   name: string;
