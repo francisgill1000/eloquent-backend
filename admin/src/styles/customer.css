@@ -256,6 +256,8 @@
    a comfortably-wide glass card. */
 .svc-edit-wrap { display: contents; }
 .svc-form { padding: 0 16px; }
+/* Booking detail/action page wrapper: vanishes on mobile; desktop centers it. */
+.ba-wrap { display: contents; }
 .c-svc-card { background: var(--surface-1); border: 1px solid var(--border-1); border-radius: var(--r-lg); overflow: hidden; margin: 0 16px 12px; }
 .c-svc-media { position: relative; width: 100%; height: 160px; background: var(--surface-2); }
 .c-svc-media img { width: 100%; height: 100%; object-fit: cover; display: block; }

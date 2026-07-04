@@ -97,10 +97,12 @@ export default function BookingAction() {
 
   const status = String(booking.status || 'Booked');
   const name = booking.customer?.name || booking.customer_name || 'Guest';
-  const services = booking.services?.map((s) => s.title || s.name).filter(Boolean).join(', ') || 'Service';
+  const serviceList = booking.services?.map((s) => s.title || s.name).filter(Boolean) ?? [];
+  const services = serviceList.length ? serviceList.join(', ') : '—';
 
   return (
-    <div className="m-screen"><div className="m-scroll">
+    <div className="m-screen c-booking-action"><div className="m-scroll">
+      <div className="ba-wrap">
       <button className="c-back" onClick={() => navigate(-1)}><Icons.ChevronLeft size={16} /> Back</button>
 
       {error && <div className="c-error-box">{error}</div>}
@@ -155,6 +157,7 @@ export default function BookingAction() {
           </div>
         </>
       )}
+      </div>
     </div></div>
   );
 }

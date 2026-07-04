@@ -28,7 +28,7 @@ class BookSlotRequest extends FormRequest
             'date'              => ['required', 'date'],
             'start_time'        => ['required'],
             'charges'           => ['nullable', 'numeric', 'min:0'],
-            'services'          => ['nullable', 'array'],
+            'services'          => ['required', 'array', 'min:1'],
             'customer_name'     => ['nullable', 'string', 'max:255'],
             'customer_whatsapp' => ['nullable', 'string', 'max:32'],
             'promo_code'        => ['nullable', 'string', 'max:32'],
@@ -40,6 +40,9 @@ class BookSlotRequest extends FormRequest
         return [
             'date.required' => 'Booking date is required',
             'start_time.required' => 'Start time is required',
+            'services.required' => 'Please select at least one service',
+            'services.min' => 'Please select at least one service',
+            'services.array' => 'Please select at least one service',
         ];
     }
 }

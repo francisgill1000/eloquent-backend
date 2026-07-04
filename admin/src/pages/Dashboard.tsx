@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
 import { Spinner } from '@/components/Spinner';
 import { EmptyState } from '@/components/EmptyState';
 import { Icons } from '@/components/Icons';
@@ -14,9 +13,6 @@ import { WHATSAPP_ENABLED } from '@/lib/features';
 import { storage } from '@/lib/storage';
 import { formatLocalDate } from '@/lib/date';
 import type { Booking } from '@/types';
-
-// Where the public booking page lives (matches the Profile page's QR target).
-const CUSTOMER_WEB = 'https://bookings.eloquentservice.com';
 
 function formatTime(t?: string): string {
   if (!t) return 'TBD';
@@ -55,19 +51,19 @@ const CheckMark = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
 );
 
-// Unique customers per month for the last N months, derived from the bookings.
-function customersByMonth(bookings: Booking[], months = 6): { label: string; value: number }[] {
+// Bookings per month for the last N months, derived from the bookings.
+function bookingsByMonth(bookings: Booking[], months = 6): { label: string; value: number }[] {
   const now = new Date();
   const buckets = Array.from({ length: months }, (_, i) => {
     const dt = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
-    return { key: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`, label: dt.toLocaleString('en-US', { month: 'short' }), set: new Set<string>() };
+    return { key: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`, label: dt.toLocaleString('en-US', { month: 'short' }), count: 0 };
   });
   const byKey = new Map(buckets.map((b) => [b.key, b]));
   for (const b of bookings) {
     const bucket = byKey.get(dateOf(b).slice(0, 7));
-    if (bucket) bucket.set.add(String(b.customer?.phone ?? b.customer_whatsapp ?? b.customer?.name ?? b.customer_name ?? b.id));
+    if (bucket) bucket.count += 1;
   }
-  return buckets.map((b) => ({ label: b.label, value: b.set.size }));
+  return buckets.map((b) => ({ label: b.label, value: b.count }));
 }
 
 // Tiny CSS bar chart used in the Customers card.
@@ -125,8 +121,6 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [period, setPeriod] = useState<PeriodKey>('month');
   const [setupState, setSetupState] = useState<Record<SetupKey, boolean> | null>(null);
-
-  const qrTarget = shop?.id ? `${CUSTOMER_WEB}/shop/${shop.id}` : '';
 
   // Master accounts skip the provider experience entirely.
   // Onboarding chain for regular shops: 1) lock in a category once,
@@ -436,26 +430,15 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Desktop-only cards: customers chart + booking QR */}
+          {/* Desktop-only: bookings-per-month chart */}
           <div className="c-dash-extra">
             <div className="c-dash-chart-card">
               <div className="c-dash-chart-head">
-                <span className="c-dash-chart-title">Customers</span>
+                <span className="c-dash-chart-title">Bookings</span>
                 <span className="c-dash-chart-sub">Last 6 months</span>
               </div>
-              <MiniBars data={customersByMonth(bookings)} />
+              <MiniBars data={bookingsByMonth(bookings)} />
             </div>
-            {qrTarget && (
-              <div className="c-dash-qr-card">
-                <div className="c-qr-frame">
-                  <QRCodeSVG value={qrTarget} size={150} level="M" bgColor="#ffffff" fgColor="#0a0e0c" />
-                </div>
-                <div className="c-dash-qr-cap">
-                  <span className="c-dash-qr-title">Booking QR</span>
-                  <span className="c-dash-qr-hint">Customers scan to book</span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
