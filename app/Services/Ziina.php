@@ -57,10 +57,12 @@ class Ziina
      */
     public function createSubscriptionIntent(\App\Models\Shop $shop, string $plan, int $amountFils, array $urls): array
     {
+        // Ziina caps the message length (MESSAGE_LENGTH_INVALID), so keep it
+        // short — no shop name, no em-dash.
         return $this->postIntent(
             $amountFils,
             (string) Str::uuid(),
-            "Booking Manager {$plan} subscription — {$shop->name}",
+            "Booking Manager {$plan} plan",
             $urls,
         );
     }
