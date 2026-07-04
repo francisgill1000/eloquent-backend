@@ -499,53 +499,30 @@
 }
 .c-trial-banner.urgent { background: var(--warn-soft); border-color: rgba(244, 184, 96, 0.35); }
 
-/* ── Voice-first home: a single animated mic that opens Ask. ── */
+/* ── Voice-first home: a single mic (soft glow, no pulse) that opens Ask. ── */
 .home-mic-screen {
-  display: flex; align-items: center; justify-content: center;
-  min-height: calc(100dvh - 150px); padding: 24px 16px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: calc(100dvh - 88px); padding: 24px 16px; text-align: center;
 }
-.home-mic-wrap { display: flex; flex-direction: column; align-items: center; gap: 30px; }
-.home-mic-greeting { margin: 0; font-size: 20px; font-weight: 700; color: var(--text-1); letter-spacing: -0.01em; }
+.home-mic-wrap { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+.home-mic-greeting { margin: 0; font-size: 19px; font-weight: 700; color: var(--text-1); letter-spacing: -0.01em; }
 .home-mic {
-  position: relative; width: 132px; height: 132px; padding: 0;
+  position: relative; width: 96px; height: 96px; padding: 0;
   border: none; background: none; cursor: pointer; display: grid; place-items: center;
 }
 .home-mic-core {
-  position: relative; z-index: 2; width: 116px; height: 116px; border-radius: 50%;
+  width: 96px; height: 96px; border-radius: 50%;
   display: grid; place-items: center; color: #05130f;
   background: radial-gradient(circle at 35% 30%, var(--mint-300), var(--mint-500, #00c9a7) 72%);
   border: 1px solid var(--mint-400);
-  animation: home-mic-breathe 3.6s ease-in-out infinite, home-mic-glow 3.6s ease-in-out infinite;
-  transition: transform 0.18s ease;
+  box-shadow: 0 0 40px rgba(0, 255, 204, 0.4);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-.home-mic:hover .home-mic-core { transform: scale(1.05); }
+.home-mic:hover .home-mic-core { transform: scale(1.05); box-shadow: 0 0 56px rgba(0, 255, 204, 0.55); }
 .home-mic:active .home-mic-core { transform: scale(0.97); }
-.home-mic-ring {
-  position: absolute; top: 50%; left: 50%; width: 116px; height: 116px; margin: -58px 0 0 -58px;
-  border-radius: 50%; border: 2px solid var(--mint-400); z-index: 1;
-  animation: home-mic-pulse 3s ease-out infinite;
-}
-.home-mic-ring:nth-child(2) { animation-delay: 1s; }
-.home-mic-ring:nth-child(3) { animation-delay: 2s; }
 .home-mic-hint {
   margin: 0; font-size: 12px; font-weight: 700; color: var(--text-3);
   text-transform: uppercase; letter-spacing: 0.16em;
-}
-@keyframes home-mic-pulse {
-  0% { transform: scale(1); opacity: 0.5; }
-  100% { transform: scale(2.4); opacity: 0; }
-}
-@keyframes home-mic-breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); }
-}
-@keyframes home-mic-glow {
-  0%, 100% { box-shadow: 0 0 36px rgba(0, 255, 204, 0.35); }
-  50% { box-shadow: 0 0 64px rgba(0, 255, 204, 0.6); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .home-mic-ring { display: none; }
-  .home-mic-core { animation: none; box-shadow: 0 0 36px rgba(0, 255, 204, 0.4); }
 }
 
 /* Master — business detail */
