@@ -19,8 +19,11 @@ abstract class MutatingTool extends AssistantModule
     {
         $target = $resolve();
 
-        // resolve() may hand back a terminal response — pass it straight through.
-        if (isset($target['error']) || isset($target['ambiguous'])) {
+        // resolve() may hand back a terminal response (notFound()/ambiguous(),
+        // always arrays) — pass it straight through. Guard with is_array first:
+        // a resolved record may be a plain stdClass (DB row) which would throw
+        // on array access, and Eloquent models need no such check.
+        if (is_array($target) && (isset($target['error']) || isset($target['ambiguous']))) {
             return $target;
         }
 
