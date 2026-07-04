@@ -1,9 +1,17 @@
 import api from './api';
-import type { MasterShop, ServiceCategory, Shop, StaffMember, WorkingHours } from '@/types';
+import type { AuthUser, MasterShop, ServiceCategory, Shop, StaffMember, WorkingHours } from '@/types';
 
-export async function shopLogin(shopCode: string, pin: string): Promise<{ token: string; shop: Shop }> {
+export async function shopLogin(
+  shopCode: string,
+  pin: string,
+): Promise<{ token: string; shop: Shop; user: AuthUser | null; permissions: string[] }> {
   const { data } = await api.post('shops/login', { shop_code: shopCode, pin });
-  return { token: data.token, shop: data.shop };
+  return {
+    token: data.token,
+    shop: data.shop,
+    user: data.user ?? null,
+    permissions: Array.isArray(data.permissions) ? data.permissions : [],
+  };
 }
 
 export async function resetPin(shopCode: string): Promise<unknown> {

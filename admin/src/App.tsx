@@ -21,6 +21,7 @@ import Staff from '@/pages/Staff';
 import WorkingHours from '@/pages/WorkingHours';
 import Profile from '@/pages/Profile';
 import Settings from '@/pages/Settings';
+import AccessControl from '@/pages/AccessControl';
 import MasterShops from '@/pages/MasterShops';
 import MasterShopDetail from '@/pages/MasterShopDetail';
 import CategorySetup from '@/pages/CategorySetup';
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/categories/new" element={<CategoryEdit />} />
           <Route path="/categories/:id/edit" element={<CategoryEdit />} />
           <Route path="/staff" element={<Staff />} />
+          <Route path="/settings/access" element={<AccessControl />} />
           <Route path="/working-hours" element={<WorkingHours />} />
           <Route path="/category-setup" element={<CategorySetup />} />
           <Route path="/assistant" element={<Assistant />} />

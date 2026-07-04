@@ -20,7 +20,7 @@ describe('Login', () => {
   beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); nav.mockReset(); });
 
   it('logs in with Business ID and PIN on one page', async () => {
-    vi.spyOn(shops, 'shopLogin').mockResolvedValue({ token: 't', shop: { id: 1, name: 'Acme' } });
+    vi.spyOn(shops, 'shopLogin').mockResolvedValue({ token: 't', shop: { id: 1, name: 'Acme' }, user: null, permissions: ['*'] });
     setup();
     const user = userEvent.setup();
     await user.type(screen.getByLabelText(/business id/i), 'ACME01');

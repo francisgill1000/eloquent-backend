@@ -18,15 +18,18 @@ const ALL_OPTIONS: Option[] = [
   // WhatsApp connection — hidden temporarily behind WHATSAPP_ENABLED.
   { label: 'WhatsApp', sub: 'Chat connection settings', to: '/chats/setup', icon: 'WhatsApp' },
   { label: 'AI Assistant', sub: 'What your auto-reply assistant says', to: '/assistant', icon: 'Chat' },
+  { label: 'Access Control', sub: 'Users, roles & permissions', to: '/settings/access', icon: 'Key' },
 ];
 const OPTIONS: Option[] = ALL_OPTIONS.filter((o) => WHATSAPP_ENABLED || o.to !== '/chats/setup');
 
 export default function Settings() {
-  const { shop } = useShop();
+  const { shop, can } = useShop();
   const push = usePush();
+  // Hide Access Control from users who can neither view users nor roles.
+  const visible = OPTIONS.filter((o) => o.to !== '/settings/access' || can('users.view') || can('roles.view'));
   const options: Option[] = shop?.is_master
-    ? [...OPTIONS, { label: 'All Businesses', sub: 'Master view — codes, PINs & activity', to: '/master', icon: 'Key' }]
-    : OPTIONS;
+    ? [...visible, { label: 'All Businesses', sub: 'Master view — codes, PINs & activity', to: '/master', icon: 'Key' }]
+    : visible;
 
   return (
     <div className="m-screen"><div className="m-scroll">

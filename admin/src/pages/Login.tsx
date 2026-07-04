@@ -6,7 +6,7 @@ import { storage } from '@/lib/storage';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { loginShop } = useShop();
+  const { loginShop, setAccess } = useShop();
   const [shopCode, setShopCode] = useState('');
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -40,7 +40,7 @@ export default function Login() {
     setSubmitting(true);
     setError('');
     try {
-      const { token, shop } = await shopLogin(shopCode.trim(), pin);
+      const { token, shop, user, permissions } = await shopLogin(shopCode.trim(), pin);
       if (token && shop) {
         if (rememberMe) {
           storage.set('remember_shop_login', 'true');
@@ -52,6 +52,7 @@ export default function Login() {
           storage.remove('remember_shop_pin');
         }
         loginShop(shop, token);
+        setAccess(user, permissions);
         navigate('/');
       } else {
         setError('Invalid response from server.');
