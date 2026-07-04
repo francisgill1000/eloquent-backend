@@ -16,10 +16,7 @@ export default function Home() {
       <div className="home-mic-wrap">
         <p className="home-mic-greeting">{firstName ? `Hi, ${firstName}` : 'Hi there'}</p>
         <button className="home-mic" aria-label="Ask your assistant" onClick={() => navigate('/ask')}>
-          <span className="home-mic-ring" aria-hidden />
-          <span className="home-mic-ring" aria-hidden />
-          <span className="home-mic-ring" aria-hidden />
-          <span className="home-mic-core"><Icons.Mic size={44} /></span>
+          <span className="home-mic-core"><Icons.Mic size={38} /></span>
         </button>
         <p className="home-mic-hint">Tap to ask anything</p>
       </div>
