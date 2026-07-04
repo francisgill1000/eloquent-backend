@@ -75,7 +75,7 @@ export default function Staff() {
   };
 
   return (
-    <div className="m-screen"><div className="m-scroll">
+    <div className="m-screen c-staff"><div className="m-scroll">
       <button className="c-back" onClick={() => navigate(-1)}><Icons.ChevronLeft size={16} /> Back</button>
       <div className="c-page-head">
         <h1 className="c-page-title">Staff</h1>
@@ -98,7 +98,8 @@ export default function Staff() {
       {loading ? (
         <Spinner label="Loading staff…" />
       ) : staff.length > 0 ? (
-        staff.map((m) => {
+        <div className="staff-grid">
+        {staff.map((m) => {
           const active = m.is_active !== false;
           return (
             <div key={m.id} className="c-staff-card">
@@ -119,7 +120,8 @@ export default function Staff() {
               </div>
             </div>
           );
-        })
+        })}
+        </div>
       ) : (
         <EmptyState title="No staff yet" subtitle="Add your team members to assign them to bookings." />
       )}

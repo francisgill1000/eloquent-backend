@@ -304,6 +304,9 @@
 .c-wh-arrow { color: var(--text-4); margin-bottom: 11px; flex: 0 0 auto; }
 
 /* Staff member cards */
+/* staff-grid vanishes on mobile (display:contents); desktop.css turns it into a
+   2-col glass card grid like the Services list. */
+.staff-grid { display: contents; }
 .c-staff-add { display: flex; gap: 10px; padding: 0 16px 16px; }
 .c-staff-add .c-input-row { flex: 1; margin: 0; }
 .c-staff-card { display: flex; align-items: center; gap: 12px; background: var(--surface-1); border: 1px solid var(--border-1); border-radius: var(--r-lg); padding: 14px; margin: 0 16px 10px; }
