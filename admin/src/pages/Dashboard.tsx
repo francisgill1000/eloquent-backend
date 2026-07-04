@@ -218,8 +218,7 @@ export default function Dashboard() {
     { key: 'avg', label: `Avg value · ${suffix}`, value: aed(cur.avg), trend: pct(cur.avg, prev.avg) },
   ];
 
-  // Desktop "Get started" empty state → setup stepper + share cards.
-  const isSetup = !loading && upcoming.length === 0;
+  // Desktop "Get started" empty state → setup stepper.
   const steps = SETUP_STEPS.map((s) => ({ ...s, done: !!setupState?.[s.key] }));
   const doneCount = steps.filter((s) => s.done).length;
   const currentIndex = steps.findIndex((s) => !s.done); // -1 once everything is done
@@ -311,7 +310,7 @@ export default function Dashboard() {
 
         {/* Lower body. DOM order = Quick actions then Upcoming (matches mobile);
             desktop reorders Upcoming into the wide left panel via CSS. */}
-        <div className={`c-dash-lower${isSetup ? ' is-setup' : ''}`}>
+        <div className={`c-dash-lower${!loading && upcoming.length === 0 && showSetup ? ' is-setup' : ''}`}>
           <div className="c-dash-side">
             <div className="c-section-title">Quick actions</div>
             <div className="c-qa-grid">
@@ -341,7 +340,8 @@ export default function Dashboard() {
                 {/* Mobile keeps the simple empty state (unchanged) */}
                 <div className="c-section-title c-only-mobile">Upcoming bookings</div>
                 <div className="c-only-mobile"><EmptyState title="No upcoming bookings" subtitle="New bookings will appear here." /></div>
-                {/* Desktop: onboarding stepper + share cards */}
+                {/* Desktop: onboarding stepper (setup incomplete) or empty state.
+                    Customers + Booking QR live in the right column (c-dash-extra). */}
                 <div className="c-only-desktop">
                   {showSetup ? (
                     <>
@@ -378,30 +378,12 @@ export default function Dashboard() {
                         </ol>
                       </section>
                     </>
-                  ) : setupState ? (
-                    <div className="c-section-title">You're all set — share your booking link</div>
-                  ) : null}
-
-                  <div className="c-setup-cards">
-                    <div className="c-gs-card c-gs-stat">
-                      <span className="c-gs-ic"><Icons.Users size={20} /></span>
-                      <span className="c-gs-text">
-                        <span className="c-gs-title c-gs-stat-num">{customerCount ?? '—'}</span>
-                        <span className="c-gs-sub">Customers</span>
-                      </span>
-                    </div>
-                    {qrTarget && (
-                      <div className="c-gs-card c-gs-qr">
-                        <div className="c-qr-frame">
-                          <QRCodeSVG value={qrTarget} size={64} level="M" bgColor="#ffffff" fgColor="#0a0e0c" />
-                        </div>
-                        <span className="c-gs-text">
-                          <span className="c-gs-title">Booking QR</span>
-                          <span className="c-gs-sub">Customers scan to book</span>
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                  ) : (
+                    <>
+                      <div className="c-section-title">Upcoming bookings</div>
+                      <EmptyState title="No upcoming bookings" subtitle="New bookings will appear here." />
+                    </>
+                  )}
                 </div>
               </>
             ) : (
