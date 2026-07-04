@@ -861,6 +861,26 @@
     min-height: 240px;
   }
 
+  /* ── Master "All Businesses" (desktop): same compact 2-col mint-glass grid
+        as Services/Staff, so cards size to content instead of full-width rows. ── */
+  .c-master .msc-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+    margin: 0 16px;
+  }
+  .c-master .msc-grid .c-msc {
+    margin: 0;
+    padding: 16px 18px;
+    gap: 12px;
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-mint);
+    transition: transform 0.16s ease, border-color 0.16s ease;
+  }
+  .c-master .msc-grid .c-msc:hover { transform: translateY(-2px); border-color: var(--mint-400); }
+  .c-master .msc-grid .c-msc-thumb { width: 52px; height: 52px; font-size: 22px; }
+
   /* ── Service add/edit (desktop): a centered, comfortably-narrow glass card
         instead of full-width stretched inputs. ── */
   /* Single form, centered both horizontally and vertically in the viewport. */

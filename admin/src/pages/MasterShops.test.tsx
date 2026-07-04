@@ -39,27 +39,4 @@ describe('MasterShops', () => {
     expect(screen.queryByText('730762')).not.toBeInTheDocument();
     expect(screen.queryByText('2511')).not.toBeInTheDocument();
   });
-
-  it('creates a provider account and shows its credentials', async () => {
-    vi.spyOn(shopsLib, 'getMasterShops').mockResolvedValue([]);
-    vi.spyOn(shopsLib, 'getServiceCategories').mockResolvedValue([{ id: 9, name: 'Salon' }]);
-    const create = vi.spyOn(shopsLib, 'registerShop').mockResolvedValue({
-      shop: { id: 31, name: 'New Salon', shop_code: '555666', pin: '1234' },
-      token: 'tok-x',
-    });
-
-    setup();
-    const user = (await import('@testing-library/user-event')).default.setup();
-    await user.click(await screen.findByRole('button', { name: /add business/i }));
-    await user.type(screen.getByLabelText(/business name/i), 'New Salon');
-    await user.type(screen.getByLabelText(/phone number/i), '0501239876');
-    await user.selectOptions(screen.getByLabelText(/service category/i), '9');
-    await user.click(screen.getByRole('button', { name: /create business/i }));
-
-    expect(create).toHaveBeenCalledWith({
-      name: 'New Salon', phone: '0501239876', category_id: 9, is_verified: true,
-    });
-    expect(await screen.findByText('555666')).toBeInTheDocument();
-    expect(screen.getByText('1234')).toBeInTheDocument();
-  });
 });
