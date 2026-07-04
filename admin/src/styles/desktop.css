@@ -806,7 +806,6 @@
         grid for the list. ── */
   .c-staff .c-staff-add {
     margin: 0 16px 18px;
-    max-width: 520px;
     padding: 16px;
     border-radius: var(--r-lg);
     background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
