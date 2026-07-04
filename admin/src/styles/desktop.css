@@ -201,6 +201,14 @@
     background-clip: padding-box;
   }
 
+  /* Settings: vertically center the header + tile grid in the viewport so the
+     short content sits mid-screen instead of hugging the top. */
+  .app-shell-main .c-settings .m-scroll {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
   /* Settings menu → a card grid on desktop so tiles are filled instead of
      sparse full-width rows with a lone chevron. Mobile keeps stacked rows. */
   .c-set-grid {
