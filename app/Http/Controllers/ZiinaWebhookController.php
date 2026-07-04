@@ -58,13 +58,21 @@ class ZiinaWebhookController extends Controller
             return; // only completed payments flip an invoice to paid
         }
 
+        // A completed intent belongs to either a booking invoice or a
+        // subscription payment. Try both (they never collide on intent id).
         $invoice = BookingInvoice::where('ziina_intent_id', $intentId)->first();
-        if (!$invoice) {
-            Log::warning("Ziina webhook for unknown intent {$intentId}");
-            return;
+        if ($invoice) {
+            $invoice->markPaid(); // idempotent
         }
 
-        // Idempotent — a duplicate/late webhook is a no-op.
-        $invoice->markPaid();
+        $subPayment = \App\Models\SubscriptionPayment::where('ziina_intent_id', $intentId)->first();
+        if ($subPayment && $subPayment->status !== 'paid') {
+            $subPayment->update(['status' => 'paid', 'paid_at' => now()]);
+            app(\App\Services\SubscriptionService::class)->applyPaidPayment($subPayment);
+        }
+
+        if (!$invoice && !$subPayment) {
+            Log::warning("Ziina webhook for unknown intent {$intentId}");
+        }
     }
 }
