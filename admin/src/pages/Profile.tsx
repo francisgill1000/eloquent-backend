@@ -155,13 +155,15 @@ export default function Profile() {
   };
 
   return (
-    <div className="m-screen">
+    <div className="m-screen c-profile">
       <AppBar title="Business Profile" actions={WHATSAPP_ENABLED ? <WhatsAppButton /> : undefined} />
       <div className="m-scroll">
         {error && <div className="c-error-box">{error}</div>}
         {message && <div className="c-card" style={{ color: 'var(--mint-300)' }}>{message}</div>}
 
-        <div style={{ padding: '0 16px' }}>
+        <div className="pf-grid">
+          <div className="pf-col pf-col-form">
+        <div className="pf-form">
           {/* Cover banner */}
           <button type="button" className="c-hero-pick" onClick={() => heroInput.current?.click()}>
             {heroPreview ? (
@@ -213,7 +215,9 @@ export default function Profile() {
             {saving ? 'Saving…' : 'Save Profile'}
           </button>
         </div>
+          </div>
 
+          <div className="pf-col pf-col-side">
         {/* Credentials */}
         {(shopCode || pin) && (
           <>
@@ -276,8 +280,10 @@ export default function Profile() {
             </div>
           </>
         )}
+          </div>
+        </div>
 
-        <div style={{ padding: '8px 16px 24px' }}>
+        <div className="pf-signout">
           <button className="c-btn-ghost" style={{ width: '100%', color: 'var(--danger)' }} onClick={handleLogout}>
             <Icons.Logout size={16} /> Sign Out
           </button>

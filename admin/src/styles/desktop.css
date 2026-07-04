@@ -607,4 +607,40 @@
   .c-gs-text { display: flex; flex-direction: column; gap: 3px; }
   .c-gs-title { font-size: 15px; font-weight: 700; color: var(--text-1); }
   .c-gs-sub { font-size: 12.5px; color: var(--text-3); }
+
+  /* ── Business Profile (desktop): two columns — the editable business form on
+        the left, credentials + booking QR on the right — instead of one long
+        stretched mobile column. Matches the Dashboard's card language. ── */
+  .c-profile .pf-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+    margin: 8px 16px 0;
+  }
+  .c-profile .pf-col { display: flex; flex-direction: column; }
+  /* Right column sits in a glass card so credentials + QR read as one panel,
+     and stays in view while the form scrolls. */
+  .c-profile .pf-col-side {
+    gap: 4px;
+    padding: 8px 20px 20px;
+    border-radius: var(--r-lg);
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-mint);
+    position: sticky;
+    top: 12px;
+  }
+
+  /* Grid owns the gutters now — drop the mobile 16px insets inside the columns. */
+  .c-profile .pf-form { padding: 0; }
+  .c-profile .pf-col-side .c-section-title { margin: 14px 0 10px; }
+  .c-profile .pf-col-side .c-section-title:first-child { margin-top: 4px; }
+  .c-profile .pf-col-side .c-cred-grid { padding: 0 0 8px; }
+  .c-profile .pf-col-side .c-qr-card { margin: 0; }
+
+  /* Cover banner gets a little more presence at column width. */
+  .c-profile .c-hero-pick { height: 190px; }
+
+  /* Sign out: a compact left-aligned action, not a full-width 1200px bar. */
+  .c-profile .pf-signout { padding: 20px 16px 8px; max-width: 320px; }
 }
