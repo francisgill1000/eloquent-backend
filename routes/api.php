@@ -60,6 +60,13 @@ Route::post('/invoice/{invoice}/mark-paid', [\App\Http\Controllers\BookingInvoic
 
 // Ziina payments — public webhook (account-wide; verified by X-Hmac-Signature).
 Route::post('/ziina/webhook', [\App\Http\Controllers\ZiinaWebhookController::class, 'handle']);
+
+// Subscription status + checkout. Deliberately NOT behind subscription.active —
+// a lapsed shop must be able to read its status and start a payment.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/shop/subscription', [\App\Http\Controllers\SubscriptionController::class, 'show']);
+    Route::post('/shop/subscription/checkout', [\App\Http\Controllers\SubscriptionController::class, 'checkout']);
+});
 Route::get('/bookings', [BookingController::class, 'index']);
 
 // Reports
