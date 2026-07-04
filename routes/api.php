@@ -155,7 +155,7 @@ Route::middleware('auth:sanctum')->group(function () {
 // rbac.context resolves current_shop_user() + the spatie team so the assistant's
 // tools enforce the acting user's permissions (owner/untagged tokens stay
 // all-allowed for backward compatibility).
-Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
+Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->group(function () {
     Route::get('/shop/assistant/history',    [\App\Http\Controllers\OwnerAssistantController::class, 'history']);
     Route::delete('/shop/assistant/history', [\App\Http\Controllers\OwnerAssistantController::class, 'clear']);
     Route::post('/shop/assistant/text',      [\App\Http\Controllers\OwnerAssistantController::class, 'text']);
@@ -168,7 +168,7 @@ Route::get('/shop/assistant/audio/{message}', [\App\Http\Controllers\OwnerAssist
     ->name('assistant.audio')
     ->middleware('signed');
 
-Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
+Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->group(function () {
     // Catalog (services) — reads need services.view, writes need services.manage.
     Route::get('shop/catalogs', [CatalogController::class, 'index'])->middleware('can.perm:services.view');
     Route::get('shop/catalogs/{catalog}', [CatalogController::class, 'show'])->middleware('can.perm:services.view');
@@ -187,7 +187,7 @@ Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
 // RBAC — users, roles, permissions. All per-shop; rbac.context runs AFTER
 // auth:sanctum so the acting ShopUser + team scope are resolved from the token.
 // ---------------------------------------------------------------------------
-Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
+Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->group(function () {
     Route::get('/auth/me', [\App\Http\Controllers\RbacMeController::class, 'me']);
     Route::get('/shop/permissions', [\App\Http\Controllers\RbacMeController::class, 'permissions'])->middleware('can.perm:roles.view');
 
