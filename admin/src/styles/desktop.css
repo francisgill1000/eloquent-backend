@@ -361,24 +361,37 @@
     color: var(--text-4);
   }
 
-  /* ── Setup alert (top-of-dashboard onboarding banner) ── */
-  /* Sits above Business Overview and disappears once setup is complete. Uses the
-     stepper markup but more compact (smaller nodes, tighter padding). */
+  /* ── Setup alert (slim top-of-dashboard onboarding banner) ── */
+  /* One compact row: progress badge + message + Continue. Sits above Business
+     Overview and disappears once setup is complete. */
   .c-setup-alert {
+    display: flex;
+    align-items: center;
+    gap: 14px;
     background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
     border: 1px solid var(--border-mint);
     border-radius: var(--r-lg);
-    padding: 14px 22px 16px;
-    margin: 0 4px 18px;
+    padding: 11px 14px;
+    margin: 0 4px 16px;
   }
-  .c-setup-alert .c-setup-head { margin-bottom: 14px; }
-  .c-setup-alert .c-setup-title { font-size: 15px; }
-  .c-setup-alert .c-setup-sub { margin-top: 2px; }
-  .c-setup-alert .c-step-node { width: 28px; height: 28px; font-size: 12.5px; }
-  .c-setup-alert .c-step::before { top: 14px; }
-  .c-setup-alert .c-step-link { gap: 7px; }
-  .c-setup-alert .c-step-label { font-size: 12.5px; }
-  .c-setup-alert .c-step-state { font-size: 10px; }
+  .c-setup-alert-badge {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    min-width: 44px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: var(--mint-soft);
+    border: 1px solid var(--border-mint);
+    color: var(--mint-300);
+    font-weight: 800;
+    font-size: 13px;
+  }
+  .c-setup-alert-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .c-setup-alert-text strong { font-size: 14px; font-weight: 700; color: var(--text-1); }
+  .c-setup-alert-text span { font-size: 12.5px; color: var(--text-3); }
+  .c-setup-alert .c-setup-cta { flex: 0 0 auto; }
 
   /* ── Setup stepper (desktop onboarding: services → hours → staff) ── */
   .c-setup {
@@ -610,52 +623,51 @@
     align-content: start;
     flex: 0 0 auto; /* take content height; the page (m-scroll) scrolls, not a card */
   }
-  .c-dash-lower.is-empty .c-dash-main {
-    order: 1;
-    overflow: visible; /* no scrollbar inside the Action Required card */
-  }
+  /* Cards row on top; Upcoming bookings section last. */
   .c-dash-lower.is-empty .c-dash-extra {
-    order: 2;
+    order: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
-    margin-top: 12px;
-    align-items: stretch; /* Customers card height matches the QR card */
+    margin-top: 0;
+    align-items: stretch; /* chart card height matches the QR card */
     flex: 0 0 auto;
   }
+  .c-dash-lower.is-empty .c-dash-main {
+    order: 2;
+    margin-top: 16px;
+    overflow: visible;
+  }
   /* In the 50/50 row the cards are grid items (drop the column flex sizing). */
-  .c-dash-lower.is-empty .c-dash-stat-card,
+  .c-dash-lower.is-empty .c-dash-chart-card,
   .c-dash-lower.is-empty .c-dash-qr-card {
     flex: initial;
   }
 
-  /* Customers card — mirror the top KPI cards (label on top, big value below),
-     with the icon anchored top-left and the figure filling the tall card. */
-  .c-dash-lower.is-empty .c-dash-stat-card {
+  /* Customers chart card — small bar chart of unique customers per month. */
+  .c-dash-chart-card {
+    display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 18px;
-    padding: 22px 24px;
+    gap: 16px;
+    padding: 20px 22px;
+    border-radius: var(--r-lg);
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-mint);
   }
-  .c-dash-lower.is-empty .c-dash-stat-text {
-    flex-direction: column-reverse; /* label (.k) above the value (.v) */
-    gap: 6px;
+  .c-dash-chart-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .c-dash-chart-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
+  .c-dash-chart-sub { font-size: 11.5px; color: var(--text-4); }
+  .c-dash-chart { flex: 1; display: flex; align-items: flex-end; gap: 10px; min-height: 120px; }
+  .c-dash-bar-col { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; }
+  .c-dash-bar-val { font-size: 11px; font-weight: 700; color: var(--mint-300); min-height: 14px; }
+  .c-dash-bar {
+    width: 100%;
+    max-width: 38px;
+    min-height: 4px;
+    border-radius: 6px 6px 0 0;
+    background: linear-gradient(180deg, var(--mint-300), var(--mint-600));
   }
-  .c-dash-lower.is-empty .c-dash-stat-text .k {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-3);
-  }
-  .c-dash-lower.is-empty .c-dash-stat-text .v {
-    font-size: 40px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    line-height: 1;
-    color: var(--text-1);
-  }
+  .c-dash-bar-label { font-size: 10.5px; font-weight: 600; color: var(--text-4); }
   /* Customers & QR as grid cards — same size as the setup cards, tuned insides */
   .c-gs-stat-num {
     font-size: 22px !important;
