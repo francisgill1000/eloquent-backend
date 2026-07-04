@@ -41,12 +41,43 @@ class Ziina
         // Ziina amounts are in the minor unit (fils): 10.50 AED -> 1050.
         $amount = (int) round(((float) $invoice->total) * 100);
 
+        return $this->postIntent(
+            $amount,
+            $invoice->ziina_operation_id,
+            "Payment for invoice {$invoice->invoice_number}",
+            $urls,
+        );
+    }
+
+    /**
+     * Create a payment intent for a subscription pass (monthly/annual).
+     *
+     * @param array{success_url:string,cancel_url:string,failure_url:string} $urls
+     * @return array Ziina response (includes `id`, `redirect_url`, `status`).
+     */
+    public function createSubscriptionIntent(\App\Models\Shop $shop, string $plan, int $amountFils, array $urls): array
+    {
+        return $this->postIntent(
+            $amountFils,
+            (string) Str::uuid(),
+            "Booking Manager {$plan} subscription — {$shop->name}",
+            $urls,
+        );
+    }
+
+    /**
+     * Shared POST to Ziina's /payment_intent. Amount is already in fils.
+     *
+     * @param array{success_url:string,cancel_url:string,failure_url:string} $urls
+     */
+    private function postIntent(int $amountFils, string $operationId, string $message, array $urls): array
+    {
         $response = $this->client()->post('/payment_intent', [
-            'amount'        => $amount,
+            'amount'        => $amountFils,
             'currency_code' => 'AED',
             'test'          => (bool) config('services.ziina.test'),
-            'message'       => "Payment for invoice {$invoice->invoice_number}",
-            'operation_id'  => $invoice->ziina_operation_id,
+            'message'       => $message,
+            'operation_id'  => $operationId,
             'success_url'   => $urls['success_url'],
             'cancel_url'    => $urls['cancel_url'],
             'failure_url'   => $urls['failure_url'],

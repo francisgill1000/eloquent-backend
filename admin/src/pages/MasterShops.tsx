@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { getMasterShops } from '@/lib/shops';
+import { getMasterPricing, updateMasterPricing } from '@/lib/masterPricing';
 import { pushSupported, pushEnabled, enablePush, disablePush } from '@/lib/push';
 import { MasterShopCard } from '@/components/MasterShopCard';
 import type { MasterShop } from '@/types';
@@ -20,6 +21,34 @@ export default function MasterShops() {
   // browser push notifications (master only — gets every incoming WA message)
   const [pushOn, setPushOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+
+  // subscription pricing (AED strings in the inputs; stored as fils)
+  const [priceMonthly, setPriceMonthly] = useState('');
+  const [priceAnnual, setPriceAnnual] = useState('');
+  const [pricingBusy, setPricingBusy] = useState(false);
+  const [pricingMsg, setPricingMsg] = useState('');
+
+  useEffect(() => {
+    getMasterPricing()
+      .then((p) => { setPriceMonthly(String(p.monthly / 100)); setPriceAnnual(String(p.annual / 100)); })
+      .catch(() => undefined);
+  }, []);
+
+  const savePricing = async () => {
+    setPricingBusy(true);
+    setPricingMsg('');
+    try {
+      await updateMasterPricing({
+        monthly_fils: Math.round(parseFloat(priceMonthly) * 100),
+        annual_fils: Math.round(parseFloat(priceAnnual) * 100),
+      });
+      setPricingMsg('Saved ✓');
+    } catch {
+      setPricingMsg('Could not save prices.');
+    } finally {
+      setPricingBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (pushSupported()) void pushEnabled().then(setPushOn).catch(() => undefined);
@@ -83,6 +112,32 @@ export default function MasterShops() {
       </div>
 
       {error && <div className="c-error-box">{error}</div>}
+
+      <div className="c-master-card" style={{ marginBottom: 14 }}>
+        <div className="c-msc-top" style={{ marginBottom: 10 }}>
+          <span className="c-master-name">Subscription pricing</span>
+          {pricingMsg && <em style={{ fontSize: 12, color: 'var(--text-3)' }}>{pricingMsg}</em>}
+        </div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 120 }}>
+            <label className="c-field-label" htmlFor="price-monthly">Monthly (AED)</label>
+            <div className="c-input-row">
+              <input id="price-monthly" type="number" min="2" step="1" value={priceMonthly}
+                onChange={(e) => { setPriceMonthly(e.target.value); setPricingMsg(''); }} />
+            </div>
+          </div>
+          <div style={{ flex: 1, minWidth: 120 }}>
+            <label className="c-field-label" htmlFor="price-annual">Annual (AED)</label>
+            <div className="c-input-row">
+              <input id="price-annual" type="number" min="2" step="1" value={priceAnnual}
+                onChange={(e) => { setPriceAnnual(e.target.value); setPricingMsg(''); }} />
+            </div>
+          </div>
+        </div>
+        <button className="c-btn c-btn-block" style={{ marginTop: 12 }} disabled={pricingBusy} onClick={() => void savePricing()}>
+          {pricingBusy ? 'Saving…' : 'Save prices'}
+        </button>
+      </div>
 
       <button className="c-btn-ghost" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: 'calc(100% - 32px)', margin: '0 16px 12px' }}
         onClick={() => navigate('/master/new')}>

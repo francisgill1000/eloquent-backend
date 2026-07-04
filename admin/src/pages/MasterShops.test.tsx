@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { ShopProvider } from '@/context/ShopContext';
 import { storage } from '@/lib/storage';
 import * as shopsLib from '@/lib/shops';
+import * as pricingLib from '@/lib/masterPricing';
 import MasterShops from './MasterShops';
 
 function setup() {
@@ -13,7 +14,11 @@ function setup() {
 }
 
 describe('MasterShops', () => {
-  beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); });
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+    vi.spyOn(pricingLib, 'getMasterPricing').mockResolvedValue({ monthly: 14900, annual: 100000 });
+  });
 
   it('lists every business as a summary card (credentials live on the detail screen)', async () => {
     vi.spyOn(shopsLib, 'getMasterShops').mockResolvedValue([
@@ -38,5 +43,17 @@ describe('MasterShops', () => {
     // credentials are no longer shown inline in the list
     expect(screen.queryByText('730762')).not.toBeInTheDocument();
     expect(screen.queryByText('2511')).not.toBeInTheDocument();
+  });
+
+  it('shows subscription status on business cards', async () => {
+    vi.spyOn(shopsLib, 'getMasterShops').mockResolvedValue([
+      {
+        id: 30, name: 'Shakaina Salon', shop_code: '730762', status: 'active',
+        subscription_status: 'trialing', days_left: 12, wa_connected: false,
+      },
+    ]);
+    setup();
+    expect(await screen.findByText('Shakaina Salon')).toBeInTheDocument();
+    expect(screen.getByText(/trialing/i)).toBeInTheDocument();
   });
 });

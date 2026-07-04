@@ -1,5 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
 import { ShopProvider } from '@/context/ShopContext';
+import { SubscriptionProvider } from '@/context/SubscriptionContext';
+import RequireSubscription from '@/components/RequireSubscription';
+import Subscribe from '@/pages/Subscribe';
 import { ParticleField } from '@/components/ParticleField';
 import { MobileLayout } from '@/layout/MobileLayout';
 import { AppShell } from '@/layout/AppShell';
@@ -35,6 +38,7 @@ import WhatsAppSetup from '@/pages/WhatsAppSetup';
 export default function App() {
   return (
     <ShopProvider>
+      <SubscriptionProvider>
       <ParticleField />
       <Routes>
         {/* Public / full-screen */}
@@ -46,7 +50,10 @@ export default function App() {
 
         {/* Authenticated — wrapped in the desktop AppShell (sidebar at ≥1024px) */}
         <Route element={<RequireShop />}>
+          {/* Paywall: logged-in but NOT subscription-gated, so lapsed shops can pay. */}
+          <Route path="/subscribe" element={<Subscribe />} />
           <Route element={<AppShell />}>
+          <Route element={<RequireSubscription />}>
           <Route path="/booking/:id" element={<BookingAction />} />
           <Route path="/services/new" element={<ServiceEdit />} />
           <Route path="/services/:id/edit" element={<ServiceEdit />} />
@@ -76,8 +83,10 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
           </Route>
           </Route>
+          </Route>
         </Route>
       </Routes>
+      </SubscriptionProvider>
     </ShopProvider>
   );
 }

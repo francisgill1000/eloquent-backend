@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { DesktopSidebar } from '@/layout/DesktopSidebar';
 import { VoiceAssistantFab } from '@/components/VoiceAssistantFab';
+import TrialBanner from '@/components/TrialBanner';
 
 /**
  * Wraps every authenticated screen. At ≥1024px it lays out a persistent glass
@@ -13,6 +14,7 @@ export function AppShell() {
     <div className="app-shell">
       <DesktopSidebar />
       <div className="app-shell-main">
+        <TrialBanner />
         <Outlet />
       </div>
       <VoiceAssistantFab />

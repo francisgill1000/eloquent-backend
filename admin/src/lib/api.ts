@@ -20,4 +20,15 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// A 402 means the shop's subscription has lapsed — send them to the paywall.
+api.interceptors.response.use(
+  (r) => r,
+  (error) => {
+    if (error?.response?.status === 402 && !window.location.pathname.startsWith('/subscribe')) {
+      window.location.assign('/subscribe');
+    }
+    return Promise.reject(error);
+  },
+);
+
 export default api;
