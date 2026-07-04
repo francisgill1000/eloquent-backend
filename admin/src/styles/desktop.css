@@ -176,6 +176,31 @@
     width: 100%;
   }
 
+  /* Mobile hides the native scrollbar (touch scroll). On desktop bring back a
+     slim, on-brand scrollbar so there's a visible handle to drag. */
+  .app-shell-main .m-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--mint-500) transparent;
+    scrollbar-gutter: stable;
+  }
+  .app-shell-main .m-scroll::-webkit-scrollbar {
+    display: block;
+    width: 10px;
+  }
+  .app-shell-main .m-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .app-shell-main .m-scroll::-webkit-scrollbar-thumb {
+    background: var(--mint-700);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  .app-shell-main .m-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--mint-500);
+    background-clip: padding-box;
+  }
+
   /* Settings menu → a card grid on desktop so tiles are filled instead of
      sparse full-width rows with a lone chevron. Mobile keeps stacked rows. */
   .c-set-grid {
@@ -646,6 +671,6 @@
   /* Cover banner gets a little more presence at column width. */
   .c-profile .c-hero-pick { height: 190px; }
 
-  /* Sign out: a compact left-aligned action, not a full-width 1200px bar. */
-  .c-profile .pf-signout { padding: 20px 16px 8px; max-width: 320px; }
+  /* Sign out is redundant on desktop — the sidebar already has Log out. */
+  .c-profile .pf-signout { display: none; }
 }
