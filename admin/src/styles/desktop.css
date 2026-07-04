@@ -694,6 +694,22 @@
     justify-content: center;
   }
 
+  /* ── Service add/edit (desktop): a centered, comfortably-narrow glass card
+        instead of full-width stretched inputs. ── */
+  .c-svc-edit .svc-edit-wrap {
+    display: block;
+    max-width: 600px;
+    margin-inline: auto;
+    width: 100%;
+  }
+  .c-svc-edit .c-auth-title { margin-left: 0 !important; margin-right: 0 !important; }
+  .c-svc-edit .svc-form {
+    padding: 22px;
+    border-radius: var(--r-lg);
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-mint);
+  }
+
   /* ── Working Hours (desktop): two columns of day cards instead of one long
         stretched full-width stack. ── */
   .c-wh .wh-grid {
