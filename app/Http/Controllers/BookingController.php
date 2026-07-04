@@ -110,25 +110,17 @@ class BookingController extends Controller
                     }
                 }
 
-                $booking = Booking::create([
-                    'status'                => $staff ? 'booked' : 'queued',
-                    'shop_id'               => $shop->id,
-                    'shop_customer_id'      => $shopCustomer?->id,
-                    'staff_id'              => $staff?->id,
-                    'date'                  => $date,
-                    'start_time'            => $startTime,
-                    'end_time'              => $shop->getEndSlot(
-                        $startTime,
-                        $workingHour->slot_duration
-                    ),
-                    'device_id'             => $request->header('X-Device-Id'),
-                    'charges'               => $finalCharges,
-                    'services'              => $request->services ?? [],
+                $booking = app(\App\Services\Booking\BookingCreator::class)->create($shop, [
                     'customer_name'         => $request->customer_name,
                     'customer_whatsapp'     => $request->customer_whatsapp,
+                    'date'                  => $date,
+                    'start_time'            => $startTime,
+                    'services'              => $request->services ?? [],
+                    'charges'               => $finalCharges,
+                    'discount_amount'       => $discountAmount,
                     'promo_code_id'         => $promoCodeId,
                     'marketing_campaign_id' => $campaignId,
-                    'discount_amount'       => $discountAmount,
+                    'device_id'             => $request->header('X-Device-Id'),
                 ]);
 
                 if ($promoCodeId) {
@@ -242,52 +234,11 @@ class BookingController extends Controller
             'status' => 'required|in:booked,completed,cancelled,Booked,Completed,Cancelled'
         ]);
 
-        $previousStatus = strtolower($booking->status);
-        $previousStaffId = $booking->staff_id;
-
-        $newStatus = strtolower($validated['status']);
-        $vacates = in_array($newStatus, ['cancelled', 'completed'], true)
-            && in_array($previousStatus, ['booked'], true)
-            && $previousStaffId !== null;
-
-        // When a booked slot is being vacated, also free the staff_id so the
-        // unique (staff_id, date, start_time) index doesn't block promotion of
-        // a queued booking on the same slot.
-        $updateData = ['status' => $newStatus];
-        if ($vacates) {
-            $updateData['staff_id'] = null;
-        }
-        $booking->update($updateData);
-
-        if ($vacates) {
-            (new StaffAssigner())->sweep(
-                shopId: $booking->shop_id,
-                date: Carbon::parse($booking->date)->format('Y-m-d'),
-                startTime: $booking->getRawOriginal('start_time')
-            );
-        }
-
-        // Invoice lifecycle
-        if ($newStatus === 'completed' && $previousStatus === 'booked') {
-            \App\Models\BookingInvoice::firstOrCreate(
-                ['booking_id' => $booking->id],
-                [
-                    'subtotal'  => $booking->charges ?? 0,
-                    'total'     => $booking->charges ?? 0,
-                    'status'    => 'issued',
-                    'issued_at' => now(),
-                ]
-            );
-        }
-
-        if ($newStatus === 'cancelled') {
-            $booking->load('invoice');
-            $booking->invoice?->update(['status' => 'cancelled']);
-        }
+        $fresh = app(\App\Services\Booking\BookingStatusService::class)->apply($booking, $validated['status']);
 
         return response()->json([
             'message' => 'Booking updated successfully',
-            'data' => $booking->fresh(['staff', 'invoice'])
+            'data' => $fresh,
         ]);
     }
 }
