@@ -673,4 +673,17 @@
 
   /* Sign out is redundant on desktop — the sidebar already has Log out. */
   .c-profile .pf-signout { display: none; }
+
+  /* ── Working Hours (desktop): two columns of day cards instead of one long
+        stretched full-width stack. ── */
+  .c-wh .wh-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+    margin: 4px 16px 0;
+  }
+  .c-wh .wh-grid .c-wh-day { margin: 0; }
+  /* Save button: a compact action, not a full-width 1200px bar. */
+  .c-wh .wh-save { padding: 20px 16px 8px; max-width: 340px; }
 }
