@@ -30,7 +30,7 @@ class OwnerAssistantConfirmGateTest extends TestCase
         Http::fake([
             'api.anthropic.com/*' => Http::sequence()
                 ->push(['content' => [['type' => 'text', 'text' => 'Cancel BK00001? Say yes to confirm.']]]) // turn 1
-                ->push(['content' => [['type' => 'tool_use', 'id' => 'tu1', 'name' => 'cancel_booking', 'input' => ['reference' => 'BK00001']]]]) // turn 2 tool call
+                ->push(['content' => [['type' => 'tool_use', 'id' => 'tu1', 'name' => 'cancel_booking', 'input' => ['reference' => 'BK00001', 'confirmed' => true]]]]) // turn 2 tool call — carries confirmed:true for the enforced gate
                 ->push(['content' => [['type' => 'text', 'text' => 'Done, BK00001 is cancelled.']]]), // turn 2 summary
             'api.openai.com/v1/audio/speech' => Http::response('OGG', 200),
         ]);
