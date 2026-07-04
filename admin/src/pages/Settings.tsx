@@ -32,7 +32,7 @@ export default function Settings() {
     : visible;
 
   return (
-    <div className="m-screen"><div className="m-scroll">
+    <div className="m-screen c-settings"><div className="m-scroll">
       <div className="c-page-head">
         <h1 className="c-page-title">Settings</h1>
         <p className="c-page-sub">Manage how your business runs on Business Lens.</p>
