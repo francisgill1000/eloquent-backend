@@ -78,28 +78,12 @@ class OwnerAssistantTools implements AssistantToolModule
                     'status' => ['type' => 'string', 'enum' => ['booked', 'completed', 'cancelled', 'queued']],
                 ]],
             ],
-            // cancel_booking + update_booking_status moved to the gated
-            // App\Services\Assistant\Modules\BookingTools (kept out of defs()
-            // to avoid duplicate tool names; execute() arms remain for the
-            // legacy unit tests until fully retired).
-            [
-                'name' => 'update_hours',
-                'description' => 'Set opening hours for one weekday (0=Sunday..6=Saturday). Only call after the owner has confirmed.',
-                'input_schema' => ['type' => 'object', 'properties' => [
-                    'day_of_week' => ['type' => 'integer', 'description' => '0=Sunday .. 6=Saturday'],
-                    'start_time' => ['type' => 'string', 'description' => 'HH:MM 24h'],
-                    'end_time' => ['type' => 'string', 'description' => 'HH:MM 24h'],
-                ], 'required' => ['day_of_week', 'start_time', 'end_time']],
-            ],
-            [
-                'name' => 'update_service_price',
-                'description' => 'Change a service price. Identify the service by catalog_id (preferred) or service_title. Only call after the owner has confirmed.',
-                'input_schema' => ['type' => 'object', 'properties' => [
-                    'catalog_id' => ['type' => 'integer'],
-                    'service_title' => ['type' => 'string'],
-                    'price' => ['type' => 'number'],
-                ], 'required' => ['price']],
-            ],
+            // The write tools that used to live here — cancel_booking,
+            // update_booking_status, update_hours, update_service_price — are
+            // superseded by the gated domain modules (BookingTools, HoursTools,
+            // ServiceTools). They are removed from defs() to avoid duplicate
+            // tool names; their execute() arms remain only so the legacy unit
+            // tests (OwnerAssistantMutationTest) stay green until fully retired.
         ];
     }
 

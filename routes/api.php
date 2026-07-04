@@ -145,7 +145,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shop/wa/contacts/{contact}/status', [\App\Http\Controllers\WaChatController::class, 'setLeadStatus']);
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+// rbac.context resolves current_shop_user() + the spatie team so the assistant's
+// tools enforce the acting user's permissions (owner/untagged tokens stay
+// all-allowed for backward compatibility).
+Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
     Route::get('/shop/assistant/history',    [\App\Http\Controllers\OwnerAssistantController::class, 'history']);
     Route::delete('/shop/assistant/history', [\App\Http\Controllers\OwnerAssistantController::class, 'clear']);
     Route::post('/shop/assistant/text',      [\App\Http\Controllers\OwnerAssistantController::class, 'text']);
