@@ -90,7 +90,7 @@
 .c-status.cancelled { color: var(--text-3); background: var(--neutral-soft); }
 
 /* Forms */
-.c-field-label { font-size: 10px; color: var(--text-3); font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; margin: 0 0 8px 4px; }
+.c-field-label { display: block; font-size: 10px; color: var(--text-3); font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; margin: 0 0 8px 4px; }
 .c-input-row {
   display: flex; align-items: center; gap: 10px; background: var(--surface-1);
   border: 1px solid var(--border-1); border-radius: var(--r-lg);
