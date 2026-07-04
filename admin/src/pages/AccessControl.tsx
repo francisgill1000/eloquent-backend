@@ -24,6 +24,7 @@ export default function AccessControl() {
   const [groups, setGroups] = useState<Record<string, PermGroup>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [tab, setTab] = useState<'users' | 'roles'>('users');
 
   useEffect(() => {
     (async () => {
@@ -52,10 +53,21 @@ export default function AccessControl() {
       {loading ? (
         <div className="ac-empty">Loading…</div>
       ) : (
-        <div className="ac-grid">
-          <section className="ac-block"><UsersSection users={users} roles={roles} onChange={setUsers} /></section>
-          <section className="ac-block"><RolesSection roles={roles} groups={groups} onChange={setRoles} /></section>
-        </div>
+        <>
+          <div className="ac-tabs" role="tablist" aria-label="Access control">
+            <button type="button" role="tab" aria-selected={tab === 'users'} className={`ac-tab${tab === 'users' ? ' on' : ''}`} onClick={() => setTab('users')}>
+              Users <span className="ac-tab-count">{users.length}</span>
+            </button>
+            <button type="button" role="tab" aria-selected={tab === 'roles'} className={`ac-tab${tab === 'roles' ? ' on' : ''}`} onClick={() => setTab('roles')}>
+              Roles <span className="ac-tab-count">{roles.length}</span>
+            </button>
+          </div>
+          {tab === 'users' ? (
+            <section className="ac-block"><UsersSection users={users} roles={roles} onChange={setUsers} /></section>
+          ) : (
+            <section className="ac-block"><RolesSection roles={roles} groups={groups} onChange={setRoles} /></section>
+          )}
+        </>
       )}
     </div></div>
   );
