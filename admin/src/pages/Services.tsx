@@ -58,7 +58,7 @@ export default function Services() {
   };
 
   return (
-    <div className="m-screen">
+    <div className="m-screen c-services">
       <AppBar
         title="Services"
         actions={
@@ -75,8 +75,9 @@ export default function Services() {
           <Spinner label="Loading services…" />
         ) : catalogs.length > 0 ? (
           groupByParentCategory(catalogs).map((group) => (
-            <div key={group.name}>
+            <div key={group.name} className="svc-group">
               <div className="m-section-title" style={{ padding: '12px 16px 4px' }}><h3>{group.name}</h3></div>
+              <div className="svc-grid">
               {group.items.map((c) => (
             <div key={c.id} className="c-svc-card">
               <div className="c-svc-body">
@@ -96,6 +97,7 @@ export default function Services() {
               </div>
             </div>
               ))}
+              </div>
             </div>
           ))
         ) : (
