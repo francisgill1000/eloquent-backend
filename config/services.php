@@ -76,6 +76,8 @@ return [
         'test'           => env('ZIINA_TEST', true),
         // Where Ziina sends customers back; falls back to APP_URL when unset.
         'return_base'    => env('ZIINA_RETURN_BASE', env('CUSTOMER_APP_URL')),
+        // Subscription payments return to the ADMIN app (not the customer app).
+        'admin_return_base' => env('ZIINA_ADMIN_RETURN_BASE', 'https://admin.eloquentservice.com'),
     ],
 
 ];
