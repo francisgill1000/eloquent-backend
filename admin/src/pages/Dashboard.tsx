@@ -51,6 +51,10 @@ const SETUP_STEPS: { key: SetupKey; label: string; sub: string; to: string }[] =
   { key: 'staff', label: 'Add staff', sub: 'Assign who handles bookings', to: '/staff' },
 ];
 
+const CheckMark = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+);
+
 // Unique customers per month for the last N months, derived from the bookings.
 function customersByMonth(bookings: Booking[], months = 6): { label: string; value: number }[] {
   const now = new Date();
@@ -273,15 +277,34 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Setup alert — slim banner at the top on desktop; auto-hides once done. */}
+        {/* Setup alert — compact stepper at the top on desktop; auto-hides once done. */}
         {showSetup && (
           <section className="c-setup-alert c-only-desktop">
-            <span className="c-setup-alert-badge">{doneCount}/{steps.length}</span>
-            <div className="c-setup-alert-text">
-              <strong>Finish setting up your business</strong>
-              <span>Next: {steps[currentIndex].label}</span>
+            <div className="c-setup-head">
+              <div>
+                <h2 className="c-setup-title">Finish setting up your business</h2>
+                <p className="c-setup-sub">{doneCount} of {steps.length} done · next: {steps[currentIndex].label}</p>
+              </div>
+              <Link to={steps[currentIndex].to} className="c-setup-cta">Continue<Icons.ArrowRight size={16} /></Link>
             </div>
-            <Link to={steps[currentIndex].to} className="c-setup-cta">Continue<Icons.ArrowRight size={16} /></Link>
+            <ol className="c-stepper">
+              {steps.map((s, i) => {
+                const status = s.done ? 'done' : i === currentIndex ? 'current' : 'todo';
+                return (
+                  <li key={s.key} className={`c-step ${status}`}>
+                    <Link to={s.to} className="c-step-link">
+                      <span className="c-step-node">{s.done ? <CheckMark /> : i + 1}</span>
+                      <span className="c-step-meta">
+                        <span className="c-step-label">{s.label}</span>
+                        <span className="c-step-state">
+                          {s.done ? 'Done' : status === 'current' ? 'Current step' : 'To do'}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ol>
           </section>
         )}
 
