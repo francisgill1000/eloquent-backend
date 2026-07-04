@@ -180,10 +180,8 @@
   color: inherit;
 }
 
-/* Desktop (≥1024px): use the Dashboard's content width. Single active tab panel,
-   constrained so a full list of rows doesn't stretch uncomfortably wide.
-   Mobile/tablet below 1024px is untouched (single column, 16px gutters). */
+/* Desktop (≥1024px): use the Dashboard's content width; the active tab panel
+   spans the full width. Mobile/tablet below 1024px is untouched. */
 @media (min-width: 1024px) {
   .app-shell-main .c-access .m-scroll { max-width: 1200px; }
-  .c-access .ac-block { max-width: 760px; }
 }
