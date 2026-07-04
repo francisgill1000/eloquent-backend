@@ -136,3 +136,33 @@
 
 .ac-empty { text-align: center; color: var(--text-3); font-size: 13px; padding: 18px 16px; margin: 0 16px 10px; }
 .ac-error { margin: 0 16px 10px; padding: 10px 12px; border-radius: 12px; background: var(--danger-soft); border: 1px solid rgba(248, 113, 113, 0.25); color: var(--danger); font-size: 13px; }
+
+/* Desktop (≥1024px): use the Dashboard's content width instead of the default
+   860px so the page doesn't sit narrow with big side gaps. Two columns —
+   Users | Roles — with Permissions spanning full width below. Mobile/tablet
+   below 1024px is untouched (single column, 16px gutters). */
+@media (min-width: 1024px) {
+  .app-shell-main .c-access .m-scroll { max-width: 1200px; }
+
+  .c-access .ac-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 24px;
+    align-items: start;
+    margin: 0 16px; /* matches c-page-head's 16px inset */
+  }
+  .c-access .ac-block-wide { grid-column: 1 / -1; }
+
+  /* Inside the grid, cards align to their column edges (grid owns the gutter). */
+  .c-access .ac-grid .ac-card,
+  .c-access .ac-grid .ac-empty,
+  .c-access .ac-grid .ac-sec-head { margin-left: 0; margin-right: 0; }
+
+  /* Permission reference cards flow in two columns across the full width. */
+  .c-access .ac-ref-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0 24px;
+    align-items: start;
+  }
+}
