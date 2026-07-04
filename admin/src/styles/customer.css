@@ -275,6 +275,9 @@
 .c-switch input:checked + .track::before { transform: translateX(18px); }
 
 /* Working hours day cards */
+/* Wrapper vanishes on mobile (display:contents); desktop.css makes it a 2-col
+   grid at >=1024px so day cards aren't stretched full-width. */
+.wh-grid { display: contents; }
 .c-wh-day { background: var(--surface-1); border: 1px solid var(--border-1); border-radius: var(--r-lg); padding: 16px; margin: 0 16px 10px; }
 .c-wh-head { display: flex; align-items: center; justify-content: space-between; }
 .c-wh-name { font-size: 15px; font-weight: 700; color: var(--text-1); }

@@ -79,7 +79,7 @@ export default function WorkingHours() {
   };
 
   return (
-    <div className="m-screen"><div className="m-scroll">
+    <div className="m-screen c-wh"><div className="m-scroll">
       <button className="c-back" onClick={() => navigate(-1)}><Icons.ChevronLeft size={16} /> Back</button>
       <div className="c-page-head">
         <h1 className="c-page-title">Working Hours</h1>
@@ -89,6 +89,7 @@ export default function WorkingHours() {
       {error && <div className="c-error-box">{error}</div>}
       {message && <div className="c-card" style={{ color: 'var(--mint-300)' }}>{message}</div>}
 
+      <div className="wh-grid">
       {rows.map((r, i) => (
         <div key={r.day} className="c-wh-day">
           <div className="c-wh-head">
@@ -120,8 +121,9 @@ export default function WorkingHours() {
           )}
         </div>
       ))}
+      </div>
 
-      <div style={{ padding: '8px 16px 24px' }}>
+      <div className="wh-save" style={{ padding: '8px 16px 24px' }}>
         <button className="c-btn c-btn-block" disabled={saving} onClick={() => void handleSave()}>
           {saving ? 'Saving…' : 'Save Working Hours'}
         </button>
