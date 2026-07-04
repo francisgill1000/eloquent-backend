@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AppBar } from '@/layout/AppBar';
 import { Spinner } from '@/components/Spinner';
 import { EmptyState } from '@/components/EmptyState';
@@ -26,7 +26,10 @@ function groupByParentCategory(items: Service[]): { name: string; items: Service
 
 export default function Services() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'services' | 'categories'>('services');
+  const location = useLocation();
+  const [tab, setTab] = useState<'services' | 'categories'>(
+    (location.state as { tab?: string } | null)?.tab === 'categories' ? 'categories' : 'services',
+  );
 
   const [catalogs, setCatalogs] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
