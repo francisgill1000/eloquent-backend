@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { AppBar } from '@/layout/AppBar';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { WHATSAPP_ENABLED } from '@/lib/features';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { updateShop, reverseGeocode } from '@/lib/shops';
@@ -155,7 +156,7 @@ export default function Profile() {
 
   return (
     <div className="m-screen">
-      <AppBar title="Business Profile" actions={<WhatsAppButton />} />
+      <AppBar title="Business Profile" actions={WHATSAPP_ENABLED ? <WhatsAppButton /> : undefined} />
       <div className="m-scroll">
         {error && <div className="c-error-box">{error}</div>}
         {message && <div className="c-card" style={{ color: 'var(--mint-300)' }}>{message}</div>}

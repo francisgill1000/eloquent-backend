@@ -411,7 +411,11 @@
 .c-qa-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 16px; }
 .c-qa-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 6px 12px; border-radius: 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); text-decoration: none; color: var(--text-2); font-size: 12px; font-weight: 600; }
 .c-qa-tile:active { background: rgba(255,255,255,0.10); }
-.c-qa-ic { width: 38px; height: 38px; border-radius: 13px; background: var(--mint-soft); border: 1px solid var(--border-mint); color: var(--mint-300); display: grid; place-items: center; }
+.c-qa-ic { width: 38px; height: 38px; border-radius: 13px; background: var(--mint-soft); border: 1px solid var(--border-mint); color: var(--mint-300); display: grid; place-items: center; flex: 0 0 auto; }
+/* Quick-action label/description. On mobile only the label shows (centered);
+   the description is desktop-only (see desktop.css). */
+.c-qa-text { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.c-qa-sub { display: none; }
 
 .c-up-row { display: flex; align-items: center; gap: 12px; width: calc(100% - 32px); margin: 0 16px 10px; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); cursor: pointer; text-align: left; color: inherit; font-family: inherit; }
 .c-up-row:active { background: rgba(255,255,255,0.10); }

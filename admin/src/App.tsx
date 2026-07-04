@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { ShopProvider } from '@/context/ShopContext';
 import { ParticleField } from '@/components/ParticleField';
 import { MobileLayout } from '@/layout/MobileLayout';
+import { AppShell } from '@/layout/AppShell';
 import { RequireShop } from '@/layout/RequireShop';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
@@ -41,8 +42,9 @@ export default function App() {
         <Route path="/forgot-pin" element={<ForgotPin />} />
         <Route path="/scan/:token" element={<ScanApprove />} />
 
-        {/* Authenticated full-screen */}
+        {/* Authenticated — wrapped in the desktop AppShell (sidebar at ≥1024px) */}
         <Route element={<RequireShop />}>
+          <Route element={<AppShell />}>
           <Route path="/booking/:id" element={<BookingAction />} />
           <Route path="/services/new" element={<ServiceEdit />} />
           <Route path="/services/:id/edit" element={<ServiceEdit />} />
@@ -68,6 +70,7 @@ export default function App() {
             <Route path="/services" element={<Services />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/profile" element={<Profile />} />
+          </Route>
           </Route>
         </Route>
       </Routes>

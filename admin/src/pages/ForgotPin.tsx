@@ -58,7 +58,7 @@ export default function ForgotPin() {
         {!result ? (
           <>
             <h1 className="c-auth-title">Forgot PIN?</h1>
-            <p className="c-auth-sub">Enter your Business ID and we'll generate a new PIN for your shop.</p>
+            <p className="c-auth-sub">Enter your Business ID and we'll generate a new PIN for your business.</p>
 
             {error && <div className="c-error-box">{error}</div>}
 
