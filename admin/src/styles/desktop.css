@@ -210,7 +210,16 @@
     margin: 0 16px;
     align-items: start;
   }
-  .c-set-grid .c-set-link { margin: 0; }
+  /* Match the app's mint glass cards (services/staff/dashboard) instead of the
+     plain white-glass rows. */
+  .c-set-grid .c-set-link {
+    margin: 0;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-mint);
+    transition: transform 0.16s ease, border-color 0.16s ease;
+  }
+  .c-set-grid .c-set-link:hover { transform: translateY(-2px); border-color: var(--mint-400); }
   .c-set-grid .c-set-link > svg { display: none; } /* drop the row chevron in tiles */
 
   /* ── Dashboard (desktop): page header + KPI row + two panels ── */
