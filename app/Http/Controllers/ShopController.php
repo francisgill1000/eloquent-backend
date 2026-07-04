@@ -184,16 +184,36 @@ class ShopController extends Controller
             return response()->json(['message' => 'Shop not found'], 404);
         }
 
-        if ($shop->pin !== $pin) {
+        // RBAC: the PIN identifies a specific ShopUser within the shop. The
+        // token is still created on the Shop (so $request->user() stays a Shop
+        // for every existing controller) but is tagged with the acting user id.
+        setPermissionsTeamId($shop->id);
+        $shopUser = $shop->shopUsers()
+            ->where('login_pin', $pin)
+            ->where('is_active', true)
+            ->first();
+
+        if ($shopUser) {
+            $new = $shop->createToken('auth_token');
+            $new->accessToken->forceFill(['shop_user_id' => $shopUser->id])->save();
+            $token = $new->plainTextToken;
+            $permissions = \App\Support\Rbac::permissionsFor($shopUser);
+            $user = ['id' => $shopUser->id, 'name' => $shopUser->name, 'is_active' => $shopUser->is_active];
+        } elseif ($shop->pin === $pin) {
+            // Legacy / unmigrated shop: owner-equivalent, untagged token.
+            $token = $shop->createToken('auth_token')->plainTextToken;
+            $permissions = [\App\Support\Rbac::WILDCARD];
+            $user = ['id' => null, 'name' => $shop->name, 'is_active' => true];
+        } else {
             return response()->json(['message' => 'Invalid PIN'], 401);
         }
-
-        $token = $shop->createToken('auth_token')->plainTextToken;
 
         $shop->recordLogin($request, ShopLoginActivity::METHOD_PIN);
 
         return response()->json([
             'shop' => $shop->makeVisible('pin'), // owner's own creds (Profile screen)
+            'user' => $user,
+            'permissions' => $permissions,
             'token' => $token
         ], 201);
     }

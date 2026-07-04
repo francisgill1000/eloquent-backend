@@ -158,17 +158,36 @@ Route::get('/shop/assistant/audio/{message}', [\App\Http\Controllers\OwnerAssist
     ->name('assistant.audio')
     ->middleware('signed');
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::apiResource('shop/catalogs', CatalogController::class)->only([
-        'index',
-        'store',
-        'show',
-        'update',
-        'destroy',
-    ]);
+Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
+    // Catalog (services) — reads need services.view, writes need services.manage.
+    Route::get('shop/catalogs', [CatalogController::class, 'index'])->middleware('can.perm:services.view');
+    Route::get('shop/catalogs/{catalog}', [CatalogController::class, 'show'])->middleware('can.perm:services.view');
+    Route::post('shop/catalogs', [CatalogController::class, 'store'])->middleware('can.perm:services.manage');
+    Route::put('shop/catalogs/{catalog}', [CatalogController::class, 'update'])->middleware('can.perm:services.manage');
+    Route::patch('shop/catalogs/{catalog}', [CatalogController::class, 'update'])->middleware('can.perm:services.manage');
+    Route::delete('shop/catalogs/{catalog}', [CatalogController::class, 'destroy'])->middleware('can.perm:services.manage');
 
     Route::get('/shop/parent-categories', [\App\Http\Controllers\ParentCategoryController::class, 'index']);
-    Route::post('/shop/parent-categories', [\App\Http\Controllers\ParentCategoryController::class, 'store']);
-    Route::put('/shop/parent-categories/{parentCategory}', [\App\Http\Controllers\ParentCategoryController::class, 'update']);
-    Route::delete('/shop/parent-categories/{parentCategory}', [\App\Http\Controllers\ParentCategoryController::class, 'destroy']);
+    Route::post('/shop/parent-categories', [\App\Http\Controllers\ParentCategoryController::class, 'store'])->middleware('can.perm:services.manage');
+    Route::put('/shop/parent-categories/{parentCategory}', [\App\Http\Controllers\ParentCategoryController::class, 'update'])->middleware('can.perm:services.manage');
+    Route::delete('/shop/parent-categories/{parentCategory}', [\App\Http\Controllers\ParentCategoryController::class, 'destroy'])->middleware('can.perm:services.manage');
+});
+
+// ---------------------------------------------------------------------------
+// RBAC — users, roles, permissions. All per-shop; rbac.context runs AFTER
+// auth:sanctum so the acting ShopUser + team scope are resolved from the token.
+// ---------------------------------------------------------------------------
+Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
+    Route::get('/auth/me', [\App\Http\Controllers\RbacMeController::class, 'me']);
+    Route::get('/shop/permissions', [\App\Http\Controllers\RbacMeController::class, 'permissions'])->middleware('can.perm:roles.view');
+
+    Route::get('/shop/roles', [\App\Http\Controllers\RoleController::class, 'index'])->middleware('can.perm:roles.view');
+    Route::post('/shop/roles', [\App\Http\Controllers\RoleController::class, 'store'])->middleware('can.perm:roles.manage');
+    Route::put('/shop/roles/{role}', [\App\Http\Controllers\RoleController::class, 'update'])->middleware('can.perm:roles.manage');
+    Route::delete('/shop/roles/{role}', [\App\Http\Controllers\RoleController::class, 'destroy'])->middleware('can.perm:roles.manage');
+
+    Route::get('/shop/users', [\App\Http\Controllers\ShopUserController::class, 'index'])->middleware('can.perm:users.view');
+    Route::post('/shop/users', [\App\Http\Controllers\ShopUserController::class, 'store'])->middleware('can.perm:users.manage');
+    Route::put('/shop/users/{shopUser}', [\App\Http\Controllers\ShopUserController::class, 'update'])->middleware('can.perm:users.manage');
+    Route::delete('/shop/users/{shopUser}', [\App\Http\Controllers\ShopUserController::class, 'destroy'])->middleware('can.perm:users.manage');
 });

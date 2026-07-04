@@ -280,11 +280,9 @@
     gap: 10px;
     padding: 18px 20px;
     border-radius: var(--r-lg);
-    background: var(--surface-1);
-    border: 1px solid var(--border-1);
-  }
-  .c-ov-card.accent {
-    border-color: var(--border-mint);
+    /* Same mint frosted surface as the Get Started / lower cards */
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-mint);
   }
   .c-ov-label {
     font-size: 11px;
@@ -325,6 +323,113 @@
     color: var(--text-4);
   }
 
+  /* ── Setup stepper (desktop onboarding: services → hours → staff) ── */
+  .c-setup {
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-mint);
+    border-radius: var(--r-lg);
+    padding: 20px 24px 24px;
+    margin-bottom: 12px;
+  }
+  .c-setup-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .c-setup-title { font-size: 16px; font-weight: 700; color: var(--text-1); }
+  .c-setup-sub { font-size: 12.5px; color: var(--text-3); margin-top: 3px; }
+  .c-setup-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex: 0 0 auto;
+    padding: 9px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    color: #001410;
+    background: linear-gradient(135deg, var(--mint-300), var(--mint-500));
+    box-shadow: 0 8px 22px -12px var(--mint-glow);
+    transition: transform 0.16s ease;
+  }
+  .c-setup-cta:hover { transform: translateY(-1px); }
+
+  .c-stepper { display: flex; list-style: none; padding: 0; margin: 0; }
+  .c-step { flex: 1; position: relative; min-width: 0; }
+  /* Connector = the segment on this node's LEFT; mint once progress has passed it */
+  .c-step::before {
+    content: '';
+    position: absolute;
+    top: 17px;
+    left: -50%;
+    width: 100%;
+    height: 2px;
+    background: var(--border-2);
+    z-index: 0;
+  }
+  .c-step:first-child::before { display: none; }
+  .c-step.done::before,
+  .c-step.current::before { background: var(--mint-400); }
+  .c-step-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 9px;
+    text-decoration: none;
+    color: inherit;
+    padding: 0 8px;
+  }
+  .c-step-node {
+    position: relative;
+    z-index: 1;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    font-weight: 800;
+    border: 2px solid var(--border-2);
+    background: var(--bg-1);
+    color: var(--text-4);
+    transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+  }
+  .c-step.current .c-step-node {
+    border-color: var(--mint-300);
+    color: var(--mint-300);
+    box-shadow: 0 0 0 4px var(--mint-soft);
+  }
+  .c-step.done .c-step-node {
+    border-color: var(--mint-300);
+    background: var(--mint-300);
+    color: #001410;
+  }
+  .c-step-link:hover .c-step-node { border-color: var(--mint-400); }
+  .c-step-meta { display: flex; flex-direction: column; gap: 2px; }
+  .c-step-label { font-size: 13.5px; font-weight: 700; color: var(--text-3); }
+  .c-step.current .c-step-label,
+  .c-step.done .c-step-label { color: var(--text-1); }
+  .c-step-state {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-4);
+  }
+  .c-step.current .c-step-state { color: var(--mint-300); }
+  .c-step.done .c-step-state { color: var(--text-3); }
+
+  /* Share cards (customers + QR) below the stepper */
+  .c-setup-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
   /* Lower body — Upcoming (main, wide) beside Quick actions (side, compact) */
   .c-dash-lower {
     display: grid;
@@ -339,7 +444,16 @@
      Offset to line up with the left column's cards (which sit below a section
      title ≈ 36px tall), so the first card doesn't float higher than the rest. */
   .c-dash-extra { display: flex; flex-direction: column; gap: 12px; order: 2; min-width: 0; margin-top: 36px; }
-  .c-dash-stat-card { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: var(--r-lg); }
+  /* Right column cards mirror the left get-started cards: same fill + border
+     (via the shared surface rule), same padding, min-height and hover lift. */
+  .c-dash-stat-card {
+    flex: 1 1 0; /* equal half of the column → same height as a left card */
+    display: flex; align-items: center; gap: 16px;
+    padding: 20px 22px; border-radius: var(--r-lg);
+    transition: transform 0.16s ease, border-color 0.16s ease;
+  }
+  .c-dash-stat-card:hover,
+  .c-dash-qr-card:hover { transform: translateY(-2px); border-color: var(--mint-400); }
   .c-dash-stat-ic {
     width: 42px; height: 42px; border-radius: 12px; flex: 0 0 auto;
     display: grid; place-items: center;
@@ -349,9 +463,10 @@
   .c-dash-stat-text .v { font-size: 24px; font-weight: 800; color: var(--text-1); line-height: 1.1; }
   .c-dash-stat-text .k { font-size: 11.5px; font-weight: 700; color: var(--text-4); text-transform: uppercase; letter-spacing: 0.08em; }
   .c-dash-qr-card {
-    flex: 1;
+    flex: 1 1 0; /* equal half of the column → same height as a left card */
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
     padding: 22px; border-radius: var(--r-lg);
+    transition: transform 0.16s ease, border-color 0.16s ease;
   }
   .c-dash-qr-card .c-qr-frame { margin: 0; padding: 12px; }
   .c-dash-qr-cap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
@@ -420,20 +535,44 @@
   .c-only-mobile { display: none; }
   .c-only-desktop { display: block; }
 
-  /* Get-started setup cards — fill the main panel when there are no bookings */
+  /* Get-started setup grid — one uniform 3-col grid (4 setup + customers + QR)
+     so every card is the exact same width and height. */
   .c-getstarted {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
-    flex: 1;
-    grid-auto-rows: minmax(120px, 1fr);
+    flex: 0 0 auto;
+    /* Compact rows matching the KPI cards above (not stretched to fill height) */
+    grid-auto-rows: 120px;
+  }
+  /* Setup empty state spans the full width and drops the separate right column
+     (customers + QR now live inside the grid above). */
+  .c-dash-lower.is-setup {
+    grid-template-columns: 1fr;
+  }
+  .c-dash-lower.is-setup .c-dash-extra {
+    display: none;
+  }
+  /* Customers & QR as grid cards — same size as the setup cards, tuned insides */
+  .c-gs-stat-num {
+    font-size: 22px !important;
+  }
+  /* QR as a horizontal card (small QR + caption) so it stays the same compact
+     height as the other cards. */
+  .c-gs-card.c-gs-qr {
+    gap: 14px;
+  }
+  .c-gs-card.c-gs-qr .c-qr-frame {
+    margin: 0;
+    padding: 6px;
+    flex: 0 0 auto;
   }
   .c-gs-card {
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 16px;
-    padding: 20px 22px;
+    padding: 18px 20px;
     border-radius: var(--r-lg);
     text-decoration: none;
     color: var(--text-2);
