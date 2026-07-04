@@ -40,7 +40,8 @@ Prices are **editable by the master** from the `/master` area and stored in the 
 - When access lapses, the app is blocked behind a `/subscribe` screen until they pay.
 - Master can edit prices, view every shop's subscription status, and manually grant/extend
   access (comp a shop, fix a payment issue).
-- Reminders nudge shops before (and at) expiry over the existing WhatsApp/push plumbing.
+- Shops are nudged toward renewal **in-app** (trial/expiry banner + `/subscribe` screen) —
+  no dependency on WhatsApp or other outbound messaging in v1.
 
 ## 4. Non-goals (explicitly out of v1)
 
@@ -50,6 +51,8 @@ Prices are **editable by the master** from the `/master` area and stored in the 
 - **Multiple tiers** (e.g. "Ask Unlimited") — one plan only for now.
 - **Proration / mid-period plan switching** — a new payment always extends `access_until`.
 - **Per-seat / per-user billing** — subscription is per shop.
+- **Outbound reminders (WhatsApp / email / SMS)** — v1 nudges in-app only; no external
+  messaging dependency.
 
 ## 5. Data model
 
@@ -65,7 +68,6 @@ Created lazily (on shop creation) — 1:1 with `shops`.
 | `plan` | string(16), nullable | `monthly` \| `annual` \| null (during trial) |
 | `trial_ends_at` | timestamp, nullable | set at creation to now+30d |
 | `access_until` | timestamp, nullable | **the authoritative access expiry** |
-| `last_reminded_at` | timestamp, nullable | dedupes expiry reminders (§6.7) |
 | `timestamps` | | |
 
 **Access rule (single source of truth):**
@@ -169,14 +171,14 @@ existing `BookingInvoice` lookup, also try matching a `subscription_payments` ro
 `SubscriptionService::applyPaidPayment()` which extends the shop's `access_until` by
 `period_days` and sets `status=active`, `plan`. Idempotent (guard on current status).
 
-### 6.7 Reminders
+### 6.7 Reminders (in-app only, v1)
 
-`php artisan subscriptions:remind` (scheduled daily): find shops whose `access_until` is
-within the next 3 days or already lapsed (within a small window), and send a WhatsApp/push
-reminder via the existing plumbing (the same channel master notifications use). Keep the
-copy short: days left + a one-tap link to `/subscribe`. Dedupe so a shop isn't reminded
-twice for the same threshold (track a `last_reminded_at` on the subscription, or a simple
-per-day guard).
+**No outbound messaging in v1** — do not depend on WhatsApp/push/email. Nudging happens
+entirely inside the app: the `GET /shop/subscription` response returns `days_left`, and the
+frontend surfaces it as a trial/expiry banner (§7.3) that escalates as expiry nears, plus
+the `/subscribe` screen itself. This means the reminder "just works" whenever the shop opens
+the app, with zero external dependency. Outbound reminders (WhatsApp/email/SMS) are a
+deferred add-on, not part of this build.
 
 ### 6.8 Master endpoints
 
@@ -210,7 +212,9 @@ subscription status and, on success, drop the user back into the app.
 ### 7.3 Trial banner
 
 While `status=trialing`, show a slim banner in `AppShell`: "X days left in your free trial
-— Subscribe" linking to `/subscribe`. Hidden when `active`.
+— Subscribe" linking to `/subscribe`. The banner escalates as `days_left` shrinks (calmer
+early in the trial, more prominent in the final few days). Hidden when `active`. This banner
+is the v1 reminder mechanism — no outbound messaging.
 
 ### 7.4 Master pricing + status UI
 
