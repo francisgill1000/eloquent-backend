@@ -3,8 +3,8 @@ namespace App\Http\Controllers;
 
 use App\Models\AssistantMessage;
 use App\Models\Shop;
+use App\Services\Assistant\AssistantToolRegistry;
 use App\Services\Assistant\ConversationStore;
-use App\Services\Assistant\OwnerAssistantTools;
 use App\Services\Wa\ClaudeClient;
 use App\Services\Wa\Speech;
 use App\Services\Wa\Transcriber;
@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Storage;
 class OwnerAssistantController extends Controller
 {
     public function __construct(
-        protected OwnerAssistantTools $tools,
+        protected AssistantToolRegistry $registry,
         protected ClaudeClient $claude,
         protected Speech $speech,
         protected Transcriber $transcriber,
@@ -90,8 +90,8 @@ class OwnerAssistantController extends Controller
             $replyText = $this->claude->toolLoop(
                 AssistantPrompt::for($shop),
                 $messages,
-                OwnerAssistantTools::defs(),
-                fn (string $tool, array $input) => $this->tools->execute($shop, $tool, $input),
+                $this->registry->defs(),
+                fn (string $tool, array $input) => $this->registry->execute($shop, $tool, $input),
             );
         } catch (\Throwable $e) {
             Log::error('assistant reply failed: ' . $e->getMessage());
