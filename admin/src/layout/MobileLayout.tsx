@@ -24,6 +24,8 @@ function activeTab(path: string): string {
   if (path.startsWith('/reminders')) return 'reminders';
   if (path.startsWith('/settings') || path.startsWith('/services') || path.startsWith('/staff') || path.startsWith('/working-hours')) return 'settings';
   if (path.startsWith('/profile')) return 'profile';
+  // Leads lives under the Settings group on mobile (reached via the Settings list).
+  if (path.startsWith('/leads')) return 'settings';
   return 'home';
 }
 

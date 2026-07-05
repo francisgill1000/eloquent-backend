@@ -1,0 +1,275 @@
+/* Lead Finder — mint-glass surfaces matching the app's other frosted cards.
+   Status accent per funnel stage: new=neutral, sent=info, replied/won=mint,
+   demo=warn, pass=muted. */
+
+.lf .c-page-head { margin-bottom: 12px; }
+
+/* Segmented Find / Pipeline toggle */
+.lf-seg {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  margin-bottom: 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  backdrop-filter: blur(12px);
+}
+.lf-seg-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 40px;
+  border: none;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-3);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease;
+}
+.lf-seg-btn.on {
+  background: var(--mint-soft);
+  color: var(--mint-300);
+  box-shadow: inset 0 0 0 1px var(--border-mint);
+}
+.lf-seg-count {
+  min-width: 20px;
+  padding: 0 6px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--mint-500);
+  color: #04140f;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Search inputs */
+.lf-search { margin-bottom: 14px; }
+.lf-search-inputs { display: grid; gap: 10px; margin-bottom: 12px; }
+@media (min-width: 640px) { .lf-search-inputs { grid-template-columns: 1fr 1fr; } }
+
+.lf-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 14px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  color: var(--text-3);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.lf-field:focus-within { border-color: var(--mint-400); box-shadow: 0 0 0 3px var(--mint-glow); }
+.lf-field input {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  color: var(--text-1);
+  font-size: 15px;
+}
+.lf-field input::placeholder { color: var(--text-4); }
+
+.lf-search-btn {
+  width: 100%;
+  height: 48px;
+  border-radius: var(--r-lg);
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Meta + limit banners */
+.lf-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-3);
+  margin: 0 2px 14px;
+}
+.lf-meta svg { color: var(--mint-300); }
+
+.lf-limit {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  margin-bottom: 16px;
+  background: var(--warn-soft);
+  border: 1px solid rgba(244, 184, 96, 0.28);
+  border-radius: var(--r-lg);
+}
+.lf-limit svg { color: var(--warn); margin-top: 2px; flex: 0 0 auto; }
+.lf-limit strong { display: block; color: var(--text-1); font-size: 14px; margin-bottom: 2px; }
+.lf-limit span { display: block; color: var(--text-3); font-size: 12.5px; line-height: 1.45; }
+
+/* Cards (shared by results + pipeline) */
+.lf-list { display: grid; gap: 10px; }
+.lf-card {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-left: 3px solid var(--border-2);
+  border-radius: var(--r-lg);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-1);
+  transition: border-color .16s ease, transform .16s ease;
+}
+.lf-card.sel { border-color: var(--mint-400); box-shadow: 0 0 0 1px var(--mint-glow); }
+.lf-card.saved { opacity: 0.6; }
+
+.lf-check {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-3);
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  color: #04140f;
+  cursor: pointer;
+  align-self: center;
+}
+.lf-card.sel .lf-check { background: var(--mint-500); border-color: var(--mint-400); }
+.lf-card.saved .lf-check { background: var(--mint-600); border-color: var(--mint-600); cursor: default; }
+.lf-check-empty { width: 100%; height: 100%; }
+.lf-check:disabled { cursor: default; }
+
+.lf-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.lf-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.lf-name { font-weight: 700; color: var(--text-1); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lf-rating {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--mint-300);
+}
+.lf-addr {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lf-addr svg { flex: 0 0 auto; color: var(--text-4); }
+
+/* Action pills */
+.lf-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lf-act {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  color: var(--text-2);
+  transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+.lf-act:hover { border-color: var(--border-3); color: var(--text-1); }
+.lf-act.wa { color: #25d366; border-color: rgba(37, 211, 102, 0.3); background: rgba(37, 211, 102, 0.08); }
+.lf-saved-tag { font-size: 11px; font-weight: 700; color: var(--mint-300); margin-left: auto; }
+
+.lf-savebar { position: sticky; bottom: 12px; margin-top: 14px; }
+
+/* Funnel chips */
+.lf-funnel {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+@media (min-width: 640px) { .lf-funnel { grid-template-columns: repeat(6, 1fr); } }
+.lf-fchip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-top: 2px solid var(--stage, var(--text-4));
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: background .16s ease, box-shadow .16s ease;
+}
+.lf-fchip.on { background: var(--surface-2); box-shadow: 0 0 0 1px var(--stage); }
+.lf-fchip-n { font-size: 18px; font-weight: 800; color: var(--text-1); line-height: 1; }
+.lf-fchip-l { font-size: 11px; font-weight: 600; color: var(--text-3); }
+
+/* Per-stage accent (drives border + status pill) */
+.s-new    { --stage: var(--text-4); }
+.s-sent   { --stage: var(--info); }
+.s-replied{ --stage: var(--mint-300); }
+.s-demo   { --stage: var(--warn); }
+.s-won    { --stage: var(--mint-500); }
+.s-pass   { --stage: var(--danger); }
+.lf-card.s-new, .lf-card.s-sent, .lf-card.s-replied,
+.lf-card.s-demo, .lf-card.s-won, .lf-card.s-pass { border-left-color: var(--stage); }
+
+/* Filters row */
+.lf-filters { display: flex; gap: 10px; margin-bottom: 14px; }
+.lf-filters .lf-field { flex: 1; height: 46px; margin: 0; }
+.lf-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  height: 46px;
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  color: var(--text-3);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.lf-toggle.on { background: var(--mint-soft); border-color: var(--border-mint); color: var(--mint-300); }
+
+/* Pipeline card foot */
+.lf-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 2px; }
+.lf-status {
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--stage);
+  background: color-mix(in srgb, var(--stage) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stage) 32%, transparent);
+}
+.lf-select {
+  flex: 0 0 auto;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  color: var(--text-1);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lf-select:disabled { opacity: 0.6; }

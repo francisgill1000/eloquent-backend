@@ -49,11 +49,14 @@ class LeadController extends Controller
                 $data['area'] ?? null,
             );
         } catch (SearchLimitReached $e) {
+            // 429 (not 402): 402 is reserved for lapsed subscriptions, which the
+            // admin SPA's axios interceptor redirects to /subscribe. A quota
+            // limit must stay on the page, so it uses Too Many Requests instead.
             return response()->json([
                 'error' => 'search_limit_reached',
                 'used' => $e->used,
                 'limit' => $e->limit,
-            ], 402);
+            ], 429);
         }
 
         return response()->json([
