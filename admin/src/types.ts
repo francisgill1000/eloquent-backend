@@ -184,3 +184,67 @@ export type MasterShop = {
   last_login_at?: string | null;
   created_at?: string | null;
 };
+
+// --- Lead Finder ---------------------------------------------------------
+
+/** The fixed prospecting funnel — mirrors the backend Lead::STATUSES. */
+export const LEAD_STATUSES = ['new', 'sent', 'replied', 'demo', 'won', 'pass'] as const;
+export type LeadStatus = (typeof LEAD_STATUSES)[number];
+
+/** A normalized search result from the discovery source (not yet saved). */
+export type LeadResult = {
+  name: string;
+  phone?: string | null;
+  website?: string | null;
+  address?: string | null;
+  category?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  rating?: number | null;
+  external_ref: string;
+  source?: string;
+};
+
+export type LeadSearchMeta = {
+  from_cache: boolean;
+  used: number;
+  limit: number;
+  remaining: number;
+};
+
+export type LeadSearchResponse = {
+  data: LeadResult[];
+  meta: LeadSearchMeta;
+};
+
+/** A saved lead the shop is working. Server appends the *_url accessors. */
+export type Lead = {
+  id: number;
+  name: string;
+  phone?: string | null;
+  whatsapp?: string | null;
+  website?: string | null;
+  address?: string | null;
+  category?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  source?: string;
+  external_ref?: string | null;
+  status: LeadStatus;
+  notes?: string | null;
+  last_contacted_at?: string | null;
+  next_followup_at?: string | null;
+  created_at?: string | null;
+  // Appended accessors from the API
+  whatsapp_url?: string | null;
+  is_mobile?: boolean;
+  tel_url?: string | null;
+  map_url?: string | null;
+};
+
+export type LeadFunnel = Record<LeadStatus, number>;
+
+export type LeadListResponse = {
+  data: Lead[];
+  funnel: LeadFunnel;
+};

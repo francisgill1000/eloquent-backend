@@ -119,8 +119,9 @@ rating, external_ref, source`.
 2. **Miss → allowance check.** `used = count(lead_search_logs this month)`;
    `limit = shop.lead_search_allowance ?? config('leads.monthly_search_allowance')`
    (100). If `used >= limit` → throw `SearchLimitReached` →
-   **HTTP 402 `{error:'search_limit_reached', used, limit}`** (mirrors the
-   `EnsureSubscribed` 402 convention).
+   **HTTP 429 `{error:'search_limit_reached', used, limit}`** (429 not 402 —
+   402 is reserved for the subscription paywall, which the admin SPA's axios
+   interceptor redirects to `/subscribe`; a quota limit must stay on the page).
 3. Under cap → call active source. For each place, reuse a fresh
    `lead_place_cache` row if present (skips a Place Details call), else fetch +
    upsert. Write `lead_search_cache` row + one `lead_search_logs` row
@@ -180,7 +181,7 @@ Ownership guard: every `{lead}` binding verified `->where('shop_id', $shop->id)`
   overridable per shop via `shops.lead_search_allowance`.
 - Consumed **only on live source calls** (cache hits are free — this is what the
   place/search caches buy us).
-- Exhausted → 402 `search_limit_reached`. Every live call logged in
+- Exhausted → 429 `search_limit_reached`. Every live call logged in
   `lead_search_logs` (usage log doubles as the counter).
 
 ## 10. Config & env
@@ -212,7 +213,7 @@ Ownership guard: every `{lead}` binding verified `->where('shop_id', $shop->id)`
   **search → save → status-update → activity-logged**, and that it stays
   **tenant-scoped** (shop B cannot read/patch shop A's leads; funnel counts are
   per-shop). Assert cache hit consumes no allowance; assert allowance exhaustion
-  returns 402.
+  returns 429.
 
 ## 12. File manifest
 

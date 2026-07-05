@@ -195,10 +195,11 @@ class LeadFinderTest extends TestCase
             ->getJson('/api/shop/leads/search?category=salon')
             ->assertOk();
 
-        // A different (novel) search misses cache and is blocked with 402.
+        // A different (novel) search misses cache and is blocked with 429
+        // (429, not 402: 402 is reserved for the subscription paywall).
         $this->auth($token)
             ->getJson('/api/shop/leads/search?category=spa')
-            ->assertStatus(402)
+            ->assertStatus(429)
             ->assertJsonPath('error', 'search_limit_reached');
     }
 }
