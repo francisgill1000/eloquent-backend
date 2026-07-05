@@ -8,43 +8,43 @@
             font-family: 'Inter';
             font-style: normal;
             font-weight: 400;
-            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-400-normal.woff) format('woff');
+            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-400-normal.ttf) format('truetype');
         }
         @font-face {
             font-family: 'Inter';
             font-style: normal;
             font-weight: 500;
-            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-500-normal.woff) format('woff');
+            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-500-normal.ttf) format('truetype');
         }
         @font-face {
             font-family: 'Inter';
             font-style: normal;
             font-weight: 600;
-            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-600-normal.woff) format('woff');
+            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-600-normal.ttf) format('truetype');
         }
         @font-face {
             font-family: 'Inter';
             font-style: normal;
             font-weight: 700;
-            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-700-normal.woff) format('woff');
+            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-700-normal.ttf) format('truetype');
         }
         @font-face {
             font-family: 'Inter';
             font-style: normal;
             font-weight: 800;
-            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-800-normal.woff) format('woff');
+            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-800-normal.ttf) format('truetype');
         }
         @font-face {
             font-family: 'Inter';
             font-style: normal;
             font-weight: 900;
-            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-900-normal.woff) format('woff');
+            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-900-normal.ttf) format('truetype');
         }
 
         @page { margin: 0; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Inter', 'Helvetica', sans-serif;
+            font-family: 'Inter', 'DejaVu Sans', sans-serif;
             color: #0f172a;
             font-size: 10.5pt;
             line-height: 1.5;
@@ -54,8 +54,8 @@
 
         /* Top color band */
         .band {
-            background: #4b8eff;
-            height: 8px;
+            background: #0d9488;
+            height: 9px;
             width: 100%;
         }
 
@@ -70,7 +70,7 @@
         .brand-name {
             font-size: 22pt;
             font-weight: 900;
-            color: #4b8eff;
+            color: #0d9488;
             letter-spacing: -0.5pt;
             margin-bottom: 4px;
         }
@@ -111,8 +111,8 @@
             letter-spacing: 1pt;
             margin-top: 8px;
         }
-        .badge-issued { background: #dbeafe; color: #1e40af; }
-        .badge-paid { background: #dcfce7; color: #166534; }
+        .badge-issued { background: #ccfbf1; color: #0f766e; }
+        .badge-paid { background: #ccfbf1; color: #0f766e; }
         .badge-cancelled { background: #fee2e2; color: #991b1b; }
 
         /* Bill-to / Booking info — two column box */
@@ -172,10 +172,10 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1pt;
-            color: #64748b;
-            background: #f1f5f9;
+            color: #0f766e;
+            background: #f0fdfa;
             padding: 10px 14px;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid #99f6e4;
         }
         table.items th.right { text-align: right; }
         table.items td {
@@ -193,10 +193,10 @@
         .totals-wrap td { vertical-align: top; }
         .totals-spacer { width: 60%; }
         .totals-box {
-            background: #f8fafc;
+            background: #f0fdfa;
             border-radius: 10px;
             padding: 14px 18px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid #99f6e4;
         }
         .totals-row {
             width: 100%;
@@ -210,25 +210,26 @@
         .totals-row tr.grand td {
             font-size: 13pt;
             font-weight: 900;
-            color: #0f172a;
-            border-top: 2px solid #0f172a;
+            color: #0f766e;
+            border-top: 2px solid #0d9488;
             padding-top: 10px;
             padding-bottom: 0;
         }
-        .totals-row tr.grand td.label { color: #0f172a; }
+        .totals-row tr.grand td.label { color: #0f766e; }
 
         /* Footer */
         .thanks {
             margin-top: 36px;
             padding: 18px 24px;
-            background: #f1f5f9;
+            background: #f0fdfa;
+            border: 1px solid #ccfbf1;
             border-radius: 10px;
             text-align: center;
         }
         .thanks-title {
             font-size: 12pt;
             font-weight: 800;
-            color: #0f172a;
+            color: #0f766e;
             margin-bottom: 4px;
         }
         .thanks-sub {
@@ -257,7 +258,7 @@
             letter-spacing: 6pt;
             opacity: 0.18;
         }
-        .stamp-paid { color: #166534; border-color: #166534; }
+        .stamp-paid { color: #0d9488; border-color: #0d9488; }
         .stamp-cancelled { color: #991b1b; border-color: #991b1b; }
     </style>
 </head>
@@ -399,7 +400,7 @@
         </div>
 
         <div class="footer">
-            Generated by Eloquent Bookings · Booking {{ $booking->booking_reference }} · Invoice {{ $invoice->invoice_number }}
+            System Generated · Booking {{ $booking->booking_reference }} · Invoice {{ $invoice->invoice_number }}
         </div>
     </div>
 </body>
