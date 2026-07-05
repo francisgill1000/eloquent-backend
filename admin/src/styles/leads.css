@@ -479,9 +479,16 @@
 .lf-viewbtn:hover { color: var(--text-1); }
 .lf-viewbtn.on { background: var(--mint-soft); color: var(--mint-300); }
 
-/* List / table view. Fixed layout so long business names truncate instead of
-   blowing out the width — the table always fits, no horizontal scroll. */
-.lf-table-wrap { border: 1px solid var(--border-1); border-radius: var(--r-lg); overflow: hidden; }
+/* List / table view. Same mint-glass skin as the cards — soft mint fill,
+   mint border, soft shadow — applied to the whole table, not per row.
+   Fixed layout so long business names truncate instead of forcing scroll. */
+.lf-table-wrap {
+  background: var(--mint-soft);
+  border: 1px solid var(--border-mint);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
 .lf-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .lf-table thead th {
   text-align: left;
@@ -490,9 +497,9 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .06em;
-  color: var(--text-4);
-  background: var(--surface-1);
-  border-bottom: 1px solid var(--border-1);
+  color: var(--mint-300);
+  background: color-mix(in srgb, var(--mint-400) 10%, transparent);
+  border-bottom: 1px solid var(--border-mint);
   white-space: nowrap;
 }
 /* Name column takes the slack; the rest are sized to their content. */
@@ -500,9 +507,9 @@
 .lf-table thead th:nth-child(3) { width: 132px; }
 .lf-table thead th:nth-child(4) { width: 160px; }
 .lf-table th.ta-r, .lf-table td.lf-row-actions { text-align: right; }
-.lf-row { border-top: 1px solid var(--border-1); transition: background .14s ease; }
+.lf-row { border-top: 1px solid color-mix(in srgb, var(--border-mint) 55%, transparent); transition: background .14s ease; }
 .lf-row:first-child { border-top: none; }
-.lf-row:hover { background: var(--mint-soft); }
+.lf-row:hover { background: color-mix(in srgb, var(--mint-400) 12%, transparent); }
 .lf-row td { padding: 10px 14px; vertical-align: middle; border-left: 2px solid transparent; }
 .lf-row td:first-child { border-left-color: var(--stage); }
 .lf-row-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; }
