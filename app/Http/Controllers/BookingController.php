@@ -231,7 +231,7 @@ class BookingController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => 'required|in:booked,completed,cancelled,Booked,Completed,Cancelled'
+            'status' => 'required|in:booked,completed,cancelled,queued,Booked,Completed,Cancelled,Queued'
         ]);
 
         $fresh = app(\App\Services\Booking\BookingStatusService::class)->apply($booking, $validated['status']);
