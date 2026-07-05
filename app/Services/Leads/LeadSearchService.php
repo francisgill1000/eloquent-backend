@@ -80,6 +80,18 @@ class LeadSearchService
         ];
     }
 
+    /** Record one billable search against the shop's monthly quota. */
+    public function recordSearch(Shop $shop, string $query, ?string $area, int $resultsCount = 0): void
+    {
+        DB::table('lead_search_logs')->insert([
+            'shop_id' => $shop->id,
+            'query' => $query,
+            'area' => $area,
+            'results_count' => $resultsCount,
+            'created_at' => now(),
+        ]);
+    }
+
     /** @return array{0:int,1:int} [used this month, limit] */
     public function usage(Shop $shop): array
     {

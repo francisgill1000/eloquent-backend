@@ -59,6 +59,40 @@
 }
 .lf-panel .m-empty { padding: 20px 8px; }
 
+/* Source picker (Google / Ad activity) inside the search card */
+.lf-srcpick { display: flex; gap: 6px; margin-bottom: 12px; }
+.lf-srcbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-1);
+  background: var(--surface-2);
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color .16s ease, border-color .16s ease, background .16s ease;
+}
+.lf-srcbtn.on { color: var(--mint-300); border-color: var(--border-mint); background: var(--mint-soft); }
+
+/* "Advertising" badge on Ad Activity results */
+.lf-adbadge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--info);
+  background: var(--info-soft);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+}
+
 /* Search inputs */
 .lf-search { margin-bottom: 14px; }
 .lf-search .lf-search-btn { margin-bottom: 0; }

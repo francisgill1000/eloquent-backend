@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Lead;
 use App\Models\LeadActivity;
 use App\Models\Shop;
+use App\Services\Leads\AdLibraryService;
 use App\Services\Leads\Exceptions\SearchLimitReached;
 use App\Services\Leads\LeadSearchService;
 use Illuminate\Http\Request;
@@ -18,8 +19,10 @@ use Illuminate\Validation\Rule;
  */
 class LeadController extends Controller
 {
-    public function __construct(private LeadSearchService $search)
-    {
+    public function __construct(
+        private LeadSearchService $search,
+        private AdLibraryService $adLibrary,
+    ) {
     }
 
     /** The authenticated tenant. */
@@ -67,6 +70,58 @@ class LeadController extends Controller
                 'limit' => $result['limit'],
                 'remaining' => $result['remaining'],
             ],
+        ]);
+    }
+
+    /**
+     * POST /shop/leads/ad-search
+     * Start an async "Ad Activity" scrape (businesses running Meta ads). Charges
+     * one monthly search up-front (Apify cost is incurred now). Returns a run id
+     * the client polls. 429 when the allowance is exhausted.
+     */
+    public function adSearchStart(Request $request)
+    {
+        $shop = $this->shop($request);
+
+        $data = $request->validate([
+            'category' => ['required', 'string', 'max:120'],
+            'area' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        if (! $this->adLibrary->configured()) {
+            return response()->json(['error' => 'ad_source_unconfigured'], 503);
+        }
+
+        [$used, $limit] = $this->search->usage($shop);
+        if ($used >= $limit) {
+            return response()->json(['error' => 'search_limit_reached', 'used' => $used, 'limit' => $limit], 429);
+        }
+
+        try {
+            $runId = $this->adLibrary->start($data['category'], $data['area'] ?? null);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'ad_search_failed'], 502);
+        }
+
+        // Charge the quota now — the scrape is already running (and billable).
+        $this->search->recordSearch($shop, $data['category'], $data['area'] ?? null);
+
+        return response()->json(['run_id' => $runId]);
+    }
+
+    /**
+     * GET /shop/leads/ad-search/{runId}
+     * Poll an Ad Activity scrape. Returns {status: running|done|failed, data:[]}.
+     */
+    public function adSearchPoll(Request $request, string $runId)
+    {
+        $this->shop($request);
+
+        $result = $this->adLibrary->poll($runId);
+
+        return response()->json([
+            'status' => $result['status'],
+            'data' => $result['results'],
         ]);
     }
 
