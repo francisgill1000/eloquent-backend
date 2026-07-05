@@ -6,9 +6,28 @@ import {
   getBooking, setBookingStatus, reassignBooking, markInvoicePaid,
 } from '@/lib/bookings';
 import { getStaff } from '@/lib/shops';
+import { statusKind } from '@/lib/calendar';
 import type { Booking, StaffMember } from '@/types';
 
 const STATUS_OPTIONS = ['Booked', 'Completed', 'Cancelled'];
+
+// Booking lifecycle for the progress timeline. Cancelled swaps the terminal
+// step; otherwise it's Queued → Booked → Completed.
+function timelineSteps(status: string): { label: string; state: 'done' | 'current' | 'todo' | 'cancelled' }[] {
+  const kind = statusKind(status);
+  if (kind === 'cancelled') {
+    return [
+      { label: 'Queued', state: 'done' },
+      { label: 'Booked', state: 'done' },
+      { label: 'Cancelled', state: 'cancelled' },
+    ];
+  }
+  const active = kind === 'queued' ? 0 : kind === 'booked' ? 1 : 2;
+  return ['Queued', 'Booked', 'Completed'].map((label, i) => ({
+    label,
+    state: i < active ? 'done' : i === active ? (kind === 'completed' ? 'done' : 'current') : 'todo',
+  }));
+}
 
 export default function BookingAction() {
   const { id } = useParams<{ id: string }>();
@@ -107,55 +126,118 @@ export default function BookingAction() {
 
       {error && <div className="c-error-box">{error}</div>}
 
-      <div className="c-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0 }}>{name}</h2>
+      {/* Hero — customer, reference, status + the key facts as tiles */}
+      <div className="ba-card ba-hero">
+        <div className="ba-hero-top">
+          <div className="ba-avatar">{name.charAt(0).toUpperCase()}</div>
+          <div className="ba-hero-id">
+            <span className="ba-name">{name}</span>
+            <span className="ba-ref">{booking.booking_reference || 'Booking'}</span>
+          </div>
           <span className={`c-chip c-chip-${status.toLowerCase()}`}>{status}</span>
         </div>
-        <div className="c-row"><span className="k">Service</span><span className="v">{services}</span></div>
-        {booking.date && <div className="c-row"><span className="k">Date</span><span className="v">{booking.date}</span></div>}
-        {booking.start_time && <div className="c-row"><span className="k">Time</span><span className="v">{booking.start_time}</span></div>}
-        {booking.staff?.name && <div className="c-row"><span className="k">Staff</span><span className="v">{booking.staff.name}</span></div>}
-        {booking.booking_reference && <div className="c-row"><span className="k">Reference</span><span className="v">{booking.booking_reference}</span></div>}
-        <div className="c-row"><span className="k">Charges</span><span className="v">AED {booking.charges ?? 0}</span></div>
+
+        <div className="ba-service">
+          <span className="ba-tile-l">Service</span>
+          <span className="ba-service-val">{services}</span>
+        </div>
+
+        <div className="ba-grid">
+          <div className="ba-tile">
+            <Icons.Calendar size={15} />
+            <span className="ba-tile-l">Date</span>
+            <span className="ba-tile-v">{booking.date || '—'}</span>
+          </div>
+          <div className="ba-tile">
+            <Icons.Clock size={15} />
+            <span className="ba-tile-l">Time</span>
+            <span className="ba-tile-v">{booking.start_time || '—'}</span>
+          </div>
+          <div className="ba-tile">
+            <Icons.User size={15} />
+            <span className="ba-tile-l">Staff</span>
+            <span className="ba-tile-v">{booking.staff?.name || 'Unassigned'}</span>
+          </div>
+          <div className="ba-tile ba-tile-amount">
+            <Icons.Tag size={15} />
+            <span className="ba-tile-l">Charges</span>
+            <span className="ba-tile-v">AED {booking.charges ?? 0}</span>
+          </div>
+        </div>
       </div>
 
-      <div className="c-section-title">Update Status</div>
-      <div style={{ display: 'flex', gap: 8, padding: '0 16px 12px' }}>
-        {STATUS_OPTIONS.map((s) => (
-          <button key={s} className={s === status ? 'c-btn' : 'c-btn-ghost'} style={{ flex: 1 }} disabled={busy} onClick={() => void updateStatus(s)}>
-            {s}
-          </button>
-        ))}
+      <div className="ba-section">
+        <div className="ba-section-title">Progress</div>
+        <div className="ba-card ba-timeline-card">
+          <ol className="ba-timeline">
+            {timelineSteps(status).map((step, i) => (
+              <li key={step.label} className={`ba-tstep ${step.state}`}>
+                <span className="ba-tstep-in">
+                  <span className="ba-tnode">
+                    {step.state === 'done' ? <Icons.Check size={16} /> : step.state === 'cancelled' ? '✕' : i + 1}
+                  </span>
+                  <span className="ba-tmeta">
+                    <span className="ba-tlabel">{step.label}</span>
+                    <span className="ba-tstate">
+                      {step.state === 'done' ? 'Done' : step.state === 'current' ? 'Current' : step.state === 'cancelled' ? 'Cancelled' : 'Pending'}
+                    </span>
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+
+      <div className="ba-section">
+        <div className="ba-section-title">Update status</div>
+        <div className="ba-status-seg">
+          {STATUS_OPTIONS.map((s) => (
+            <button key={s} className={`ba-status-btn s-${s.toLowerCase()}${s === status ? ' on' : ''}`}
+              disabled={busy} onClick={() => void updateStatus(s)}>
+              {s}
+            </button>
+          ))}
+        </div>
       </div>
 
       {booking.invoice && (
-        <>
-          <div className="c-section-title">Invoice</div>
-          <div className="c-card">
-            <div className="c-row"><span className="k">Status</span><span className="v">{booking.invoice.paid ? 'Paid' : (booking.invoice.status ?? 'Unpaid')}</span></div>
+        <div className="ba-section">
+          <div className="ba-section-title">Invoice</div>
+          <div className="ba-card ba-invoice">
+            <div className="ba-invoice-row">
+              <span className="ba-tile-l">Payment</span>
+              <span className={`c-chip ${booking.invoice.paid ? 'c-chip-completed' : 'c-chip-pending'}`}>
+                {booking.invoice.paid ? 'Paid' : (booking.invoice.status ?? 'Unpaid')}
+              </span>
+            </div>
             {!booking.invoice.paid && (
               <button className="c-btn c-btn-block" style={{ marginTop: 12 }} disabled={busy} onClick={() => void payInvoice()}>
-                Mark as Paid
+                <Icons.Check size={16} /> Mark as Paid
               </button>
             )}
           </div>
-        </>
+        </div>
       )}
 
       {staff.length > 0 && (
-        <>
-          <div className="c-section-title">Assign Staff</div>
-          <div className="c-card" style={{ padding: '0 16px' }}>
-            {staff.map((m) => (
-              <button key={m.id} className="c-list-row" style={{ width: '100%', background: 'none', border: 'none', borderTop: '1px solid var(--border-1)', cursor: 'pointer', textAlign: 'left' }} disabled={busy} onClick={() => void assign(m)}>
-                <Icons.User size={16} />
-                <span className="c-row-title" style={{ flex: 1 }}>{m.name}</span>
-                {booking.staff?.id === m.id && <Icons.Check size={18} />}
-              </button>
-            ))}
+        <div className="ba-section">
+          <div className="ba-section-title">Assign staff</div>
+          <div className="ba-staff-list">
+            {staff.map((m) => {
+              const assigned = booking.staff?.id === m.id;
+              return (
+                <button key={m.id} className={`ba-staff-row${assigned ? ' on' : ''}`} disabled={busy} onClick={() => void assign(m)}>
+                  <span className="ba-staff-av">{(m.name || '?').charAt(0).toUpperCase()}</span>
+                  <span className="ba-staff-name">{m.name}</span>
+                  {assigned
+                    ? <span className="ba-staff-tag"><Icons.Check size={14} /> Assigned</span>
+                    : <span className="ba-staff-assign">Assign</span>}
+                </button>
+              );
+            })}
           </div>
-        </>
+        </div>
       )}
       </div>
     </div></div>

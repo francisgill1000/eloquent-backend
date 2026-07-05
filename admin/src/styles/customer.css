@@ -258,6 +258,115 @@
 .svc-form { padding: 0 16px; }
 /* Booking detail/action page wrapper: vanishes on mobile; desktop centers it. */
 .ba-wrap { display: contents; }
+
+/* ── Booking detail (BookingAction): hero card, info tiles, status segmented
+   control, progress timeline and staff list. Works on mobile + desktop. ── */
+.ba-card {
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.10), rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-mint);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  margin: 0 16px 14px;
+}
+.ba-hero { padding: 18px; }
+.ba-hero-top { display: flex; align-items: center; gap: 12px; }
+.ba-avatar {
+  width: 46px; height: 46px; border-radius: 14px; flex: 0 0 auto;
+  display: grid; place-items: center; font-size: 20px; font-weight: 800; color: #04140f;
+  background: linear-gradient(135deg, var(--mint-300), var(--mint-500));
+}
+.ba-hero-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.ba-name { font-size: 20px; font-weight: 800; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ba-ref { font-size: 12px; font-weight: 700; color: var(--text-3); letter-spacing: .04em; }
+
+.ba-service {
+  margin-top: 16px; padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-1); border-radius: var(--r-md);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.ba-service-val { font-size: 15px; font-weight: 700; color: var(--text-1); }
+.ba-grid { margin-top: 10px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.ba-tile {
+  padding: 12px 14px; min-width: 0;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-1); border-radius: var(--r-md);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.ba-tile > svg { color: var(--mint-300); }
+.ba-tile-l { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-4); }
+.ba-tile-v { font-size: 15px; font-weight: 700; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ba-tile-amount { background: var(--mint-soft); border-color: var(--border-mint); }
+.ba-tile-amount > svg { color: var(--mint-300); }
+.ba-tile-amount .ba-tile-v { color: var(--mint-300); font-size: 17px; font-variant-numeric: tabular-nums; }
+
+.ba-section { margin: 0 16px 14px; }
+.ba-section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--text-3); margin: 4px 2px 10px; }
+
+.ba-status-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ba-status-btn {
+  height: 46px; border-radius: var(--r-md);
+  background: var(--surface-1); border: 1px solid var(--border-1); color: var(--text-2);
+  font-size: 13.5px; font-weight: 700; cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, color .16s ease;
+}
+.ba-status-btn:hover:not(:disabled) { border-color: var(--border-mint); color: var(--text-1); }
+.ba-status-btn:disabled { opacity: .6; cursor: default; }
+.ba-status-btn.s-booked.on { background: var(--info-soft); border-color: var(--info); color: var(--info); }
+.ba-status-btn.s-completed.on { background: color-mix(in srgb, var(--mint-500) 18%, transparent); border-color: var(--mint-500); color: var(--mint-300); }
+.ba-status-btn.s-cancelled.on { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+
+/* Progress timeline — self-contained (works on mobile), mirrors the Overview stepper */
+.ba-timeline-card { padding: 18px 8px 16px; }
+.ba-timeline { display: flex; list-style: none; padding: 0; margin: 0; }
+.ba-tstep { flex: 1; position: relative; min-width: 0; }
+.ba-tstep::before {
+  content: ''; position: absolute; top: 16px; left: -50%; width: 100%; height: 2px;
+  background: var(--border-2); z-index: 0;
+}
+.ba-tstep:first-child::before { display: none; }
+.ba-tstep.done::before, .ba-tstep.current::before { background: var(--mint-400); }
+.ba-tstep.cancelled::before { background: var(--danger); }
+.ba-tstep-in { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 0 4px; }
+.ba-tnode {
+  position: relative; z-index: 1; width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 13px; font-weight: 800;
+  border: 2px solid var(--border-2); background: var(--surface-1); color: var(--text-4);
+}
+.ba-tstep.current .ba-tnode { border-color: var(--mint-300); color: var(--mint-300); box-shadow: 0 0 0 4px var(--mint-soft); }
+.ba-tstep.done .ba-tnode { border-color: var(--mint-300); background: var(--mint-300); color: #001410; }
+.ba-tstep.cancelled .ba-tnode { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+.ba-tmeta { display: flex; flex-direction: column; gap: 2px; }
+.ba-tlabel { font-size: 12.5px; font-weight: 700; color: var(--text-3); }
+.ba-tstep.current .ba-tlabel, .ba-tstep.done .ba-tlabel { color: var(--text-1); }
+.ba-tstep.cancelled .ba-tlabel { color: var(--danger); }
+.ba-tstate { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-4); }
+.ba-tstep.current .ba-tstate { color: var(--mint-300); }
+.ba-tstep.cancelled .ba-tstate { color: var(--danger); }
+
+.ba-invoice { padding: 14px 16px; }
+.ba-invoice-row { display: flex; align-items: center; justify-content: space-between; }
+
+.ba-staff-list {
+  background: var(--mint-soft); border: 1px solid var(--border-mint);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-1); overflow: hidden;
+}
+.ba-staff-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px;
+  background: transparent; border: 0; border-top: 1px solid color-mix(in srgb, var(--border-mint) 55%, transparent);
+  color: var(--text-1); text-align: left; cursor: pointer; transition: background .14s ease;
+}
+.ba-staff-row:first-child { border-top: 0; }
+.ba-staff-row:hover:not(:disabled) { background: color-mix(in srgb, var(--mint-400) 12%, transparent); }
+.ba-staff-row:disabled { cursor: default; }
+.ba-staff-row.on { background: color-mix(in srgb, var(--mint-400) 10%, transparent); }
+.ba-staff-av {
+  width: 32px; height: 32px; border-radius: 10px; flex: 0 0 auto;
+  display: grid; place-items: center; font-size: 13px; font-weight: 800;
+  color: var(--mint-300); background: var(--mint-soft); border: 1px solid var(--border-mint);
+}
+.ba-staff-name { flex: 1; font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ba-staff-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--mint-300); }
+.ba-staff-assign { font-size: 12px; font-weight: 700; color: var(--text-4); }
+.ba-staff-row:hover:not(:disabled) .ba-staff-assign { color: var(--mint-300); }
 /* Bookings status funnel — same stat chips as the leads funnel (.lf-fchip),
    with per-status accent colours. Clicking a chip filters; the active chip
    toggles back to "All". */
