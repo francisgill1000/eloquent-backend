@@ -386,7 +386,7 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
   const [dueOnly, setDueOnly] = useState(false);
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [perPage, setPerPage] = useState<PerPage>(10);
+  const [perPage, setPerPage] = useState<PerPage>(15);
   const [page, setPage] = useState(1);
   const [view, setView] = useState<'cards' | 'list'>(
     () => (localStorage.getItem('lf_view') === 'list' ? 'list' : 'cards'),

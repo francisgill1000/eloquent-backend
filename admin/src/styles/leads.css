@@ -306,7 +306,8 @@
   transition: border-color .16s ease, color .16s ease, background .16s ease;
 }
 .lf-act:hover { border-color: var(--border-3); color: var(--text-1); }
-.lf-act.wa { color: #25d366; border-color: rgba(37, 211, 102, 0.3); background: rgba(37, 211, 102, 0.08); }
+.lf-act.wa { color: var(--mint-300); border-color: var(--border-mint); background: var(--mint-soft); }
+.lf-act.wa:hover { color: var(--mint-400); border-color: var(--mint-400); }
 .lf-saved-tag { font-size: 11px; font-weight: 700; color: var(--mint-300); margin-left: auto; }
 
 .lf-savebar { position: sticky; bottom: 12px; margin-top: 14px; }
@@ -478,9 +479,10 @@
 .lf-viewbtn:hover { color: var(--text-1); }
 .lf-viewbtn.on { background: var(--mint-soft); color: var(--mint-300); }
 
-/* List / table view */
-.lf-table-wrap { overflow-x: auto; border: 1px solid var(--border-1); border-radius: var(--r-lg); }
-.lf-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+/* List / table view. Fixed layout so long business names truncate instead of
+   blowing out the width — the table always fits, no horizontal scroll. */
+.lf-table-wrap { border: 1px solid var(--border-1); border-radius: var(--r-lg); overflow: hidden; }
+.lf-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .lf-table thead th {
   text-align: left;
   padding: 10px 14px;
@@ -493,15 +495,21 @@
   border-bottom: 1px solid var(--border-1);
   white-space: nowrap;
 }
+/* Name column takes the slack; the rest are sized to their content. */
+.lf-table thead th:nth-child(2) { width: 118px; }
+.lf-table thead th:nth-child(3) { width: 132px; }
+.lf-table thead th:nth-child(4) { width: 160px; }
 .lf-table th.ta-r, .lf-table td.lf-row-actions { text-align: right; }
 .lf-row { border-top: 1px solid var(--border-1); transition: background .14s ease; }
 .lf-row:first-child { border-top: none; }
 .lf-row:hover { background: var(--mint-soft); }
 .lf-row td { padding: 10px 14px; vertical-align: middle; border-left: 2px solid transparent; }
 .lf-row td:first-child { border-left-color: var(--stage); }
-.lf-row-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lf-row-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; }
+.lf-row-name .lf-name,
+.lf-row-name .lf-addr { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .lf-row-name .lf-name { font-size: 14px; }
-.lf-row-name .lf-addr { font-size: 12px; max-width: 320px; }
+.lf-row-name .lf-addr { font-size: 12px; }
 .lf-row .lf-select { height: 30px; }
 .lf-row-actions .lf-actions { justify-content: flex-end; flex-wrap: nowrap; }
 .lf-dash { color: var(--text-4); }
