@@ -935,9 +935,11 @@
   .c-booking-action .ba-card,
   .c-booking-action .ba-section { margin-left: 0; margin-right: 0; }
   .c-booking-action .ba-grid { grid-template-columns: repeat(4, 1fr); }
-  /* Hero splits: details left, status switch docked hard right */
-  .c-booking-action .ba-hero { flex-direction: row; align-items: stretch; gap: 28px; }
-  .c-booking-action .ba-switch { align-self: center; width: 210px; flex: 0 0 210px; }
+  /* Hero splits: details left, status switch docked hard right, full-height
+     divider between them (on the details column so it spans the card). */
+  .c-booking-action .ba-hero { flex-direction: row; align-items: stretch; gap: 0; }
+  .c-booking-action .ba-hero-main { padding-right: 28px; border-right: 1px solid var(--border-mint); }
+  .c-booking-action .ba-switch { align-self: center; width: 238px; flex: 0 0 238px; padding-left: 28px; }
 
   /* ── Working Hours (desktop): two columns of day cards instead of one long
         stretched full-width stack. ── */
