@@ -30,6 +30,10 @@ export default function Services() {
   const [tab, setTab] = useState<'services' | 'categories'>(
     (location.state as { tab?: string } | null)?.tab === 'categories' ? 'categories' : 'services',
   );
+  const [view, setView] = useState<'cards' | 'list'>(
+    () => (localStorage.getItem('svc_view') === 'list' ? 'list' : 'cards'),
+  );
+  useEffect(() => { localStorage.setItem('svc_view', view); }, [view]);
 
   const [catalogs, setCatalogs] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,19 +110,64 @@ export default function Services() {
       <div className="m-scroll">
         {error && <div className="c-error-box">{error}</div>}
 
-        <div className="ac-tabs" role="tablist" aria-label="Services and categories">
-          <button type="button" role="tab" aria-selected={tab === 'services'} className={`ac-tab${tab === 'services' ? ' on' : ''}`} onClick={() => setTab('services')}>
-            Services <span className="ac-tab-count">{catalogs.length}</span>
-          </button>
-          <button type="button" role="tab" aria-selected={tab === 'categories'} className={`ac-tab${tab === 'categories' ? ' on' : ''}`} onClick={() => setTab('categories')}>
-            Categories <span className="ac-tab-count">{cats.length}</span>
-          </button>
+        <div className="c-listhead">
+          <div className="ac-tabs" role="tablist" aria-label="Services and categories">
+            <button type="button" role="tab" aria-selected={tab === 'services'} className={`ac-tab${tab === 'services' ? ' on' : ''}`} onClick={() => setTab('services')}>
+              Services <span className="ac-tab-count">{catalogs.length}</span>
+            </button>
+            <button type="button" role="tab" aria-selected={tab === 'categories'} className={`ac-tab${tab === 'categories' ? ' on' : ''}`} onClick={() => setTab('categories')}>
+              Categories <span className="ac-tab-count">{cats.length}</span>
+            </button>
+          </div>
+          <div className="c-viewtog" role="group" aria-label="View">
+            <button className={`c-viewbtn${view === 'cards' ? ' on' : ''}`} aria-pressed={view === 'cards'}
+              onClick={() => setView('cards')} aria-label="Card view" title="Cards"><Icons.Grid size={15} /></button>
+            <button className={`c-viewbtn${view === 'list' ? ' on' : ''}`} aria-pressed={view === 'list'}
+              onClick={() => setView('list')} aria-label="List view" title="List"><Icons.List size={15} /></button>
+          </div>
         </div>
 
         {tab === 'services' ? (
           loading ? (
             <Spinner label="Loading services…" />
-          ) : catalogs.length > 0 ? (
+          ) : catalogs.length === 0 ? (
+            <EmptyState
+              title="No services yet"
+              subtitle="Add the services your business offers."
+              action={<button className="c-btn" onClick={() => navigate('/services/new')}>Add a Service</button>}
+            />
+          ) : view === 'list' ? (
+            <div className="c-dtable-wrap">
+              <table className="c-dtable">
+                <thead>
+                  <tr>
+                    <th>Service</th>
+                    <th style={{ width: 110 }}>Price</th>
+                    <th className="ta-r" style={{ width: 160 }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {catalogs.map((c) => (
+                    <tr key={c.id}>
+                      <td className="c-dt-namecell">
+                        <span className="c-dt-name">{c.title || c.name}</span>
+                        <span className="c-dt-sub">{c.parent_category?.name ?? UNCATEGORISED}</span>
+                      </td>
+                      <td><span className="c-dt-price">AED {Number(c.price ?? 0).toFixed(2)}</span></td>
+                      <td className="c-dt-act">
+                        <button className="c-dt-btn" onClick={() => navigate(`/services/${c.id}/edit`)}>
+                          <Icons.Edit size={13} /> Edit
+                        </button>
+                        <button className="c-dt-btn danger" disabled={deletingId === c.id} onClick={() => void handleDelete(c.id)}>
+                          <Icons.Trash size={13} /> {deletingId === c.id ? '…' : 'Delete'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
             groupByParentCategory(catalogs).map((group) => (
               <div key={group.name} className="svc-group">
                 <div className="m-section-title" style={{ padding: '12px 16px 4px' }}><h3>{group.name}</h3></div>
@@ -145,16 +194,42 @@ export default function Services() {
                 </div>
               </div>
             ))
-          ) : (
-            <EmptyState
-              title="No services yet"
-              subtitle="Add the services your business offers."
-              action={<button className="c-btn" onClick={() => navigate('/services/new')}>Add a Service</button>}
-            />
           )
         ) : catsLoading ? (
           <Spinner label="Loading categories…" />
-        ) : cats.length > 0 ? (
+        ) : cats.length === 0 ? (
+          <EmptyState
+            title="No categories yet"
+            subtitle="Create a category to group your services into sections."
+            action={<button className="c-btn" onClick={() => navigate('/categories/new')}>Add a Category</button>}
+          />
+        ) : view === 'list' ? (
+          <div className="c-dtable-wrap">
+            <table className="c-dtable">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th className="ta-r" style={{ width: 160 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cats.map((c) => (
+                  <tr key={c.id}>
+                    <td className="c-dt-namecell"><span className="c-dt-name">{c.name}</span></td>
+                    <td className="c-dt-act">
+                      <button className="c-dt-btn" onClick={() => navigate(`/categories/${c.id}/edit`)}>
+                        <Icons.Edit size={13} /> Edit
+                      </button>
+                      <button className="c-dt-btn danger" disabled={deletingCatId === c.id} onClick={() => void handleDeleteCat(c.id)}>
+                        <Icons.Trash size={13} /> {deletingCatId === c.id ? '…' : 'Delete'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
           <div className="svc-grid">
             {cats.map((c) => (
               <div key={c.id} className="c-svc-card">
@@ -179,12 +254,6 @@ export default function Services() {
               </div>
             ))}
           </div>
-        ) : (
-          <EmptyState
-            title="No categories yet"
-            subtitle="Create a category to group your services into sections."
-            action={<button className="c-btn" onClick={() => navigate('/categories/new')}>Add a Category</button>}
-          />
         )}
       </div>
     </div>
