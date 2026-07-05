@@ -47,14 +47,14 @@
   color: inherit;
 }
 
-/* Glass card wrapper (search box, empty states) — mirrors Services' .c-card. */
+/* Glass card wrapper (search box, empty states) — mirrors the Services card:
+   mint gradient fill + mint border. */
 .lf-panel {
-  background: var(--surface-1);
-  border: 1px solid var(--border-1);
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-mint);
   border-radius: var(--r-lg);
   padding: 16px;
   margin-bottom: 14px;
-  backdrop-filter: blur(12px);
   box-shadow: var(--shadow-1);
 }
 .lf-panel .m-empty { padding: 20px 8px; }
@@ -152,11 +152,10 @@
   display: flex;
   gap: 12px;
   padding: 14px;
-  background: var(--surface-1);
-  border: 1px solid var(--border-1);
-  border-left: 3px solid var(--border-2);
+  background: var(--mint-soft);
+  border: 1px solid var(--border-mint);
+  border-left: 3px solid var(--border-mint);
   border-radius: var(--r-lg);
-  backdrop-filter: blur(12px);
   box-shadow: var(--shadow-1);
   transition: border-color .16s ease, transform .16s ease;
 }
