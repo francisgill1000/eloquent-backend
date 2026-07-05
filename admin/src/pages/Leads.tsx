@@ -202,20 +202,25 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
             <Icons.Chart size={13} /> Ad activity
           </button>
         </div>
-        <div className="lf-search-inputs">
+        <div className={`lf-search-inputs${source === 'meta_ad_library' ? ' single' : ''}`}>
           <div className="lf-field">
             <Icons.Search size={16} />
             <input placeholder="What? e.g. salon, car wash" value={category}
               onChange={(e) => setCategory(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') void runSearch(); }} />
           </div>
-          <div className="lf-field">
-            <Icons.MapPin size={16} />
-            <input placeholder="Where? e.g. Dubai Marina" value={area}
-              onChange={(e) => setArea(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void runSearch(); }} />
-          </div>
+          {source === 'google_places' && (
+            <div className="lf-field">
+              <Icons.MapPin size={16} />
+              <input placeholder="Where? e.g. Dubai Marina" value={area}
+                onChange={(e) => setArea(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void runSearch(); }} />
+            </div>
+          )}
         </div>
+        {source === 'meta_ad_library' && (
+          <p className="lf-hint"><Icons.MapPin size={12} /> Ad Activity scans ads across the whole UAE — no area needed.</p>
+        )}
         <button className="c-btn lf-search-btn" disabled={loading || !category.trim()} onClick={() => void runSearch()}>
           {loading ? (scanning ? 'Scanning ads…' : 'Searching…') : <><Icons.Search size={16} /> Search</>}
         </button>

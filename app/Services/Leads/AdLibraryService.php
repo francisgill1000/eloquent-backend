@@ -39,7 +39,11 @@ class AdLibraryService
         $token = config('services.apify.token');
         $actor = config('services.apify.ad_library_actor', 'constructive_calm~facebook-ad-library-pro');
 
-        $keyword = trim($area ? "{$query} {$area}" : $query);
+        // Keyword only — the Ad Library matches this against ad CREATIVE TEXT,
+        // not location, and the country filter is already AE. Appending an area
+        // (e.g. "salon sharjah") would require the ad copy to contain that word
+        // and drastically over-filters, so $area is intentionally ignored here.
+        $keyword = trim($query);
 
         $resp = Http::timeout(15)
             ->retry(2, 300, throw: false)
