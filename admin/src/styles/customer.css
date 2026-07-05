@@ -332,16 +332,6 @@
   overflow: hidden;
   transition: box-shadow .25s ease;
 }
-/* Recessed stop notches at the three positions (rail spans the stops) */
-.ba-switch-rail::before {
-  content: ''; position: absolute; left: 50%; top: 0; width: 5px; height: 100%;
-  transform: translateX(-50%);
-  background:
-    radial-gradient(circle 2.5px at 50% 11%, rgba(255, 255, 255, 0.16) 60%, transparent 62%),
-    radial-gradient(circle 2.5px at 50% 50%, rgba(255, 255, 255, 0.16) 60%, transparent 62%),
-    radial-gradient(circle 2.5px at 50% 89%, rgba(255, 255, 255, 0.16) 60%, transparent 62%);
-  z-index: 1;
-}
 .ba-switch-fill {
   position: absolute; left: 0; right: 0; top: 0; z-index: 0;
   height: calc(var(--active) * 50%);
