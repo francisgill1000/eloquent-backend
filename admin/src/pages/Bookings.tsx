@@ -7,12 +7,19 @@ import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { getShopBookings } from '@/lib/bookings';
 import { formatLocalDate } from '@/lib/date';
+import { statusKind } from '@/lib/calendar';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { BookingsCalendar } from './bookings/BookingsCalendar';
 import type { Booking } from '@/types';
 
-const FILTERS = ['All', 'Queued', 'Booked', 'Completed', 'Cancelled'] as const;
-type Filter = (typeof FILTERS)[number];
+type Filter = 'All' | 'Queued' | 'Booked' | 'Completed' | 'Cancelled';
+const STAT_CHIPS: { filter: Filter; label: string; kind: 'all' | 'queued' | 'booked' | 'completed' | 'cancelled' }[] = [
+  { filter: 'All', label: 'All', kind: 'all' },
+  { filter: 'Queued', label: 'Queued', kind: 'queued' },
+  { filter: 'Booked', label: 'Booked', kind: 'booked' },
+  { filter: 'Completed', label: 'Completed', kind: 'completed' },
+  { filter: 'Cancelled', label: 'Cancelled', kind: 'cancelled' },
+];
 
 function chipClass(status: string): string {
   const s = status.toLowerCase();
@@ -79,7 +86,7 @@ export default function Bookings() {
   }
 
   const filtered = bookings.filter((b) => {
-    const matchFilter = filter === 'All' || String(b.status).toLowerCase() === filter.toLowerCase();
+    const matchFilter = filter === 'All' || statusKind(b.status) === filter.toLowerCase();
     const q = search.toLowerCase();
     const matchSearch = !q
       || (b.customer?.name || b.customer_name || '').toLowerCase().includes(q)
@@ -87,27 +94,31 @@ export default function Bookings() {
     return matchFilter && matchSearch;
   });
 
+  const counts = { all: bookings.length, queued: 0, booked: 0, completed: 0, cancelled: 0 };
+  for (const b of bookings) counts[statusKind(b.status)]++;
+
   const todayISO = formatLocalDate(new Date());
 
   return (
     <div className="m-screen c-dash">
       <AppBar title="Bookings" sub={`${filtered.length} shown`} />
       <div className="m-scroll">
+        <div className="c-bk-funnel">
+          {STAT_CHIPS.map((s) => (
+            <button
+              key={s.filter}
+              className={`lf-fchip bk-s-${s.kind}${filter === s.filter ? ' on' : ''}${counts[s.kind] === 0 ? ' zero' : ''}`}
+              onClick={() => setFilter((cur) => (cur === s.filter ? 'All' : s.filter))}
+            >
+              <span className="lf-fchip-n">{counts[s.kind]}</span>
+              <span className="lf-fchip-l">{s.label}</span>
+            </button>
+          ))}
+        </div>
+
         <div className="c-input-row" style={{ margin: '0 16px 12px' }}>
           <Icons.Search size={18} />
           <input type="text" placeholder="Search by name or reference…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-
-        <div className="c-filters">
-          {FILTERS.map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`c-filter-pill${f === filter ? ' active' : ''}`}
-            >
-              {f}
-            </button>
-          ))}
         </div>
 
         {error && <div className="c-error-box" style={{ margin: '0 16px 12px' }}>{error}</div>}

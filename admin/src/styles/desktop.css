@@ -1034,6 +1034,10 @@
   .c-bk-search { margin: 0; flex: 1 1 260px; max-width: 380px; }
   .c-bk-filters { margin: 0; padding: 0; overflow: visible; flex-wrap: wrap; }
 
+  /* Status funnel + search flush with the calendar gutter (2px), search full width */
+  .c-bookings .c-bk-funnel { margin: 0 2px 12px; gap: 10px; }
+  .c-bookings .c-bk-controls .c-bk-search { max-width: none; }
+
   /* ── Shared glass card wrapper for Month / Week ── */
   .c-bk-card {
     position: relative;

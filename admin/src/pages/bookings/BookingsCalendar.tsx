@@ -25,8 +25,17 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'list', label: 'List' },
 ];
 
-const FILTERS = ['All', 'Queued', 'Booked', 'Completed', 'Cancelled'] as const;
-type Filter = (typeof FILTERS)[number];
+type Filter = 'All' | 'Queued' | 'Booked' | 'Completed' | 'Cancelled';
+
+// Status funnel chips (mirrors the leads funnel): label + accent + the
+// statusKind() bucket the count comes from.
+const STAT_CHIPS: { filter: Filter; label: string; kind: 'all' | 'queued' | 'booked' | 'completed' | 'cancelled' }[] = [
+  { filter: 'All', label: 'All', kind: 'all' },
+  { filter: 'Queued', label: 'Queued', kind: 'queued' },
+  { filter: 'Booked', label: 'Booked', kind: 'booked' },
+  { filter: 'Completed', label: 'Completed', kind: 'completed' },
+  { filter: 'Cancelled', label: 'Cancelled', kind: 'cancelled' },
+];
 
 function chipClass(status: string): string {
   const kind = statusKind(status);
@@ -55,6 +64,13 @@ export function BookingsCalendar({ bookings, loading, error, onOpen }: Props) {
 
   const today = useMemo(() => new Date(), []);
   const todayISO = formatLocalDate(today);
+
+  // Per-status counts for the funnel chips, over all loaded bookings.
+  const counts = useMemo(() => {
+    const c = { all: bookings.length, queued: 0, booked: 0, completed: 0, cancelled: 0 };
+    for (const b of bookings) c[statusKind(b.status)]++;
+    return c;
+  }, [bookings]);
 
   // Status + search filter, shared across all three views.
   const filtered = useMemo(() => {
@@ -143,7 +159,22 @@ export function BookingsCalendar({ bookings, loading, error, onOpen }: Props) {
         </div>
       </div>
 
-      {/* Controls — search + status filter, apply to every view */}
+      {/* Status funnel — count per status, doubles as the filter (like leads) */}
+      <div className="c-bk-funnel">
+        {STAT_CHIPS.map((s) => (
+          <button
+            key={s.filter}
+            type="button"
+            className={`lf-fchip bk-s-${s.kind}${filter === s.filter ? ' on' : ''}${counts[s.kind] === 0 ? ' zero' : ''}`}
+            onClick={() => setFilter((cur) => (cur === s.filter ? 'All' : s.filter))}
+          >
+            <span className="lf-fchip-n">{counts[s.kind]}</span>
+            <span className="lf-fchip-l">{s.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Controls — search, applies to every view */}
       <div className="c-bk-controls">
         <div className="c-input-row c-bk-search">
           <Icons.Search size={18} />
@@ -153,18 +184,6 @@ export function BookingsCalendar({ bookings, loading, error, onOpen }: Props) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-        </div>
-        <div className="c-filters c-bk-filters">
-          {FILTERS.map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={`c-filter-pill${f === filter ? ' active' : ''}`}
-            >
-              {f}
-            </button>
-          ))}
         </div>
       </div>
 
