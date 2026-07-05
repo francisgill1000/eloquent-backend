@@ -419,31 +419,57 @@
 .ba-tstep.current .ba-tstate { color: var(--mint-300); }
 .ba-tstep.cancelled .ba-tstate { color: var(--danger); }
 
-.ba-invoice { padding: 14px 16px; }
-.ba-invoice-row { display: flex; align-items: center; justify-content: space-between; }
+.ba-invoice { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; }
+.ba-invoice-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.ba-invoice-icon {
+  width: 40px; height: 40px; border-radius: 12px; flex: 0 0 auto; display: grid; place-items: center;
+  color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); border: 1px solid color-mix(in srgb, var(--warn) 32%, transparent);
+}
+.ba-invoice-icon.paid { color: var(--mint-300); background: var(--mint-soft); border-color: var(--border-mint); }
+.ba-invoice-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ba-invoice-status { font-size: 15px; font-weight: 800; color: var(--warn); }
+.ba-invoice-status.paid { color: var(--mint-300); }
+.ba-invoice-btn {
+  display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto;
+  height: 40px; padding: 0 18px; border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--mint-300), var(--mint-500)); border: 0; color: #04140f;
+  font-size: 13.5px; font-weight: 800; cursor: pointer;
+  box-shadow: 0 8px 18px -8px var(--mint-glow);
+  transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;
+}
+.ba-invoice-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 24px -8px var(--mint-glow); }
+.ba-invoice-btn:disabled { opacity: .6; cursor: default; }
 
 .ba-staff-list {
   background: var(--mint-soft); border: 1px solid var(--border-mint);
   border-radius: var(--r-lg); box-shadow: var(--shadow-1); overflow: hidden;
 }
 .ba-staff-row {
-  display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px;
+  display: flex; align-items: center; gap: 13px; width: 100%; padding: 14px 16px;
   background: transparent; border: 0; border-top: 1px solid color-mix(in srgb, var(--border-mint) 55%, transparent);
   color: var(--text-1); text-align: left; cursor: pointer; transition: background .14s ease;
 }
 .ba-staff-row:first-child { border-top: 0; }
 .ba-staff-row:hover:not(:disabled) { background: color-mix(in srgb, var(--mint-400) 12%, transparent); }
 .ba-staff-row:disabled { cursor: default; }
-.ba-staff-row.on { background: color-mix(in srgb, var(--mint-400) 10%, transparent); }
+.ba-staff-row.on { background: color-mix(in srgb, var(--mint-400) 12%, transparent); box-shadow: inset 3px 0 0 var(--mint-400); }
 .ba-staff-av {
-  width: 32px; height: 32px; border-radius: 10px; flex: 0 0 auto;
-  display: grid; place-items: center; font-size: 13px; font-weight: 800;
+  width: 36px; height: 36px; border-radius: 11px; flex: 0 0 auto;
+  display: grid; place-items: center; font-size: 14px; font-weight: 800;
   color: var(--mint-300); background: var(--mint-soft); border: 1px solid var(--border-mint);
+  transition: background .16s ease, color .16s ease;
 }
-.ba-staff-name { flex: 1; font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ba-staff-row.on .ba-staff-av { background: linear-gradient(135deg, var(--mint-300), var(--mint-500)); color: #04140f; border-color: transparent; }
+.ba-staff-name { flex: 1; font-size: 14.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ba-staff-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--mint-300); }
-.ba-staff-assign { font-size: 12px; font-weight: 700; color: var(--text-4); }
-.ba-staff-row:hover:not(:disabled) .ba-staff-assign { color: var(--mint-300); }
+.ba-staff-assign {
+  display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto;
+  padding: 6px 12px; border-radius: var(--r-pill);
+  border: 1px solid var(--border-2); color: var(--text-3);
+  font-size: 12px; font-weight: 700;
+  transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+.ba-staff-row:hover:not(:disabled) .ba-staff-assign { border-color: var(--mint-400); color: var(--mint-300); background: var(--mint-soft); }
 /* Bookings status funnel — same stat chips as the leads funnel (.lf-fchip),
    with per-status accent colours. Clicking a chip filters; the active chip
    toggles back to "All". */

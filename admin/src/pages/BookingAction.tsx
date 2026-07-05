@@ -237,14 +237,17 @@ export default function BookingAction() {
         <div className="ba-section">
           <div className="ba-section-title">Invoice</div>
           <div className="ba-card ba-invoice">
-            <div className="ba-invoice-row">
-              <span className="ba-tile-l">Payment</span>
-              <span className={`c-chip ${booking.invoice.paid ? 'c-chip-completed' : 'c-chip-pending'}`}>
-                {booking.invoice.paid ? 'Paid' : (booking.invoice.status ?? 'Unpaid')}
-              </span>
+            <div className="ba-invoice-info">
+              <span className={`ba-invoice-icon${booking.invoice.paid ? ' paid' : ''}`}><Icons.Tag size={18} /></span>
+              <div className="ba-invoice-text">
+                <span className="ba-tile-l">Payment</span>
+                <span className={`ba-invoice-status${booking.invoice.paid ? ' paid' : ''}`}>
+                  {booking.invoice.paid ? 'Paid' : (booking.invoice.status ?? 'Unpaid')}
+                </span>
+              </div>
             </div>
             {!booking.invoice.paid && (
-              <button className="c-btn c-btn-block" style={{ marginTop: 12 }} disabled={busy} onClick={() => void payInvoice()}>
+              <button className="ba-invoice-btn" disabled={busy} onClick={() => void payInvoice()}>
                 <Icons.Check size={16} /> Mark as Paid
               </button>
             )}
@@ -264,7 +267,7 @@ export default function BookingAction() {
                   <span className="ba-staff-name">{m.name}</span>
                   {assigned
                     ? <span className="ba-staff-tag"><Icons.Check size={14} /> Assigned</span>
-                    : <span className="ba-staff-assign">Assign</span>}
+                    : <span className="ba-staff-assign">Assign <Icons.ArrowRight size={13} /></span>}
                 </button>
               );
             })}
