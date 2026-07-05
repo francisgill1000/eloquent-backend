@@ -12,7 +12,7 @@ type Option = {
 };
 
 const ALL_OPTIONS: Option[] = [
-  { label: 'Lead Finder', sub: 'Find UAE businesses & work them to won', to: '/leads', icon: 'Search' },
+  { label: 'Business Hunt', sub: 'Find UAE businesses & win them', to: '/leads', icon: 'Search' },
   { label: 'Working Hours', sub: 'Set your open & close times', to: '/working-hours', icon: 'Clock' },
   { label: 'Services', sub: 'Add or edit what you offer', to: '/services', icon: 'Grid' },
   { label: 'Staff', sub: 'Add & manage your team', to: '/staff', icon: 'Users' },
