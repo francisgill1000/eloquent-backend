@@ -174,34 +174,44 @@ export function BookingsCalendar({ bookings, loading, error, onOpen }: Props) {
         <Spinner label="Loading bookings…" />
       ) : view === 'list' ? (
         listRows.length > 0 ? (
-          <div className="c-bk-list">
-            {listRows.map((b) => {
-              const status = String(b.status || 'Booked');
-              const name = b.customer?.name || b.customer_name || 'Guest';
-              const services = b.services?.map((s) => s.title || s.name).filter(Boolean).join(', ') || 'Service';
-              const day = bookingDateKey(b);
-              const isToday = day === todayISO;
-              const dateLabel = !day ? 'TBD' : isToday ? 'Today' : day.slice(5).replace('-', '/');
-              const startMin = parseHM(b.start_time);
-              const when = startMin != null ? fmtTimeMin(startMin) : (b.show_date ?? '');
-              return (
-                <button key={b.id} className="c-up-row" onClick={() => onOpen(b.id)}>
-                  <span className="c-up-time">
-                    {dateLabel}
-                    {when ? <em>{when}</em> : null}
-                  </span>
-                  <span className="c-up-body">
-                    <span className="c-up-name">{name}</span>
-                    <span className="c-up-sub">{services}</span>
-                    {b.staff?.name ? <span className="c-up-sub"><Icons.User size={11} /> {b.staff.name}</span> : null}
-                  </span>
-                  <span className="c-up-end">
-                    <span className={chipClass(status)}>{status}</span>
-                    <span className="c-up-price">AED {b.charges ?? 0}</span>
-                  </span>
-                </button>
-              );
-            })}
+          <div className="c-dtable-wrap">
+            <table className="c-dtable">
+              <thead>
+                <tr>
+                  <th style={{ width: 96 }}>When</th>
+                  <th>Customer</th>
+                  <th>Service</th>
+                  <th style={{ width: 130 }}>Staff</th>
+                  <th style={{ width: 116 }}>Status</th>
+                  <th className="ta-r" style={{ width: 104 }}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {listRows.map((b) => {
+                  const status = String(b.status || 'Booked');
+                  const name = b.customer?.name || b.customer_name || 'Guest';
+                  const services = b.services?.map((s) => s.title || s.name).filter(Boolean).join(', ') || 'Service';
+                  const day = bookingDateKey(b);
+                  const isToday = day === todayISO;
+                  const dateLabel = !day ? 'TBD' : isToday ? 'Today' : day.slice(5).replace('-', '/');
+                  const startMin = parseHM(b.start_time);
+                  const when = startMin != null ? fmtTimeMin(startMin) : (b.show_date ?? '');
+                  return (
+                    <tr key={b.id} className="c-dt-click" onClick={() => onOpen(b.id)}>
+                      <td className="c-dt-namecell">
+                        <span className="c-dt-name">{dateLabel}</span>
+                        {when ? <span className="c-dt-sub">{when}</span> : null}
+                      </td>
+                      <td className="c-dt-namecell"><span className="c-dt-name">{name}</span></td>
+                      <td className="c-dt-namecell"><span className="c-dt-sub">{services}</span></td>
+                      <td className="c-dt-namecell"><span className="c-dt-sub">{b.staff?.name ?? '—'}</span></td>
+                      <td><span className={chipClass(status)}>{status}</span></td>
+                      <td className="ta-r"><span className="c-dt-price">AED {b.charges ?? 0}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div className="c-bk-card c-bk-empty">

@@ -1226,26 +1226,8 @@
     box-shadow: 0 0 8px 0 var(--mint-glow);
   }
 
-  /* ── List view: one continuous mint-glass table, matching the leads list ── */
-  .c-bk-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    background: var(--mint-soft);
-    border: 1px solid var(--border-mint);
-    border-radius: var(--r-lg);
-    box-shadow: var(--shadow-1);
-    overflow: hidden;
-  }
-  .c-bookings .c-bk-list .c-up-row {
-    width: 100%;
-    margin: 0;
-    background: transparent;
-    border: 0;
-    border-top: 1px solid color-mix(in srgb, var(--border-mint) 55%, transparent);
-    border-radius: 0;
-    transition: background 0.16s ease;
-  }
-  .c-bookings .c-bk-list .c-up-row:first-child { border-top: 0; }
-  .c-bookings .c-bk-list .c-up-row:hover { transform: none; background: color-mix(in srgb, var(--mint-400) 12%, transparent); }
+  /* ── List view: columnar mint-glass table (shared .c-dtable), matching
+        Services/Staff. Flush with the calendar gutter instead of the 16px
+        page inset used elsewhere. ── */
+  .c-bookings .c-dtable-wrap { margin: 0; }
 }
