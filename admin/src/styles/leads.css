@@ -146,8 +146,12 @@
   padding: 4px 2px;
 }
 
-/* Cards (shared by results + pipeline) */
+/* Cards (shared by results + pipeline). Two-up on desktop like the Services
+   grid; single column on narrow screens (these cards are wide). */
 .lf-list { display: grid; gap: 10px; }
+@media (min-width: 1024px) {
+  .lf-list { grid-template-columns: 1fr 1fr; }
+}
 .lf-card {
   display: flex;
   gap: 12px;
