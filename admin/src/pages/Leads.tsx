@@ -40,8 +40,8 @@ export default function Leads() {
     <div className="m-screen lf"><div className="m-scroll">
       <button className="c-back" onClick={() => navigate(-1)}><Icons.ChevronLeft size={16} /> Back</button>
       <div className="c-page-head">
-        <h1 className="c-page-title">Lead Finder</h1>
-        <p className="c-page-sub">Find real UAE businesses, then work them to won.</p>
+        <h1 className="c-page-title">Business Hunt</h1>
+        <p className="c-page-sub">Find real UAE businesses, then win them.</p>
       </div>
 
       <div className="lf-seg" role="tablist">
