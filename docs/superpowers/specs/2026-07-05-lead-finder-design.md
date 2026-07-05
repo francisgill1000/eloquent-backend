@@ -94,9 +94,11 @@ App\Services\Leads\Contracts\LeadSourceInterface
 Normalized DTO (assoc array): `name, phone, website, address, category, lat, lng,
 rating, external_ref, source`.
 
-- `App\Services\Leads\Sources\GooglePlacesSource` — legacy Places API:
-  Text Search (`/maps/api/place/textsearch/json`) → `place_id`s, then Place
-  Details (`/maps/api/place/details/json`) per place for phone/website.
+- `App\Services\Leads\Sources\GooglePlacesSource` — Places API (New):
+  `places:searchText` (POST, field-masked) returns name/address/location/rating/
+  phone/website in one call and paginates via `pageToken` to ~60 results (3
+  pages). (Legacy `textsearch` was tried first but its `next_page_token` never
+  activates on New-API-only projects, capping results at 20.)
   - Server-side key from `config('services.google_places.key')`
     (env `GOOGLE_PLACES_KEY`) — separate from `services.google_maps.key`.
     Key never logged; never returned to client.
