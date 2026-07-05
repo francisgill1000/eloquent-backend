@@ -64,7 +64,7 @@
                 <td style="width: 60%;">
                     <div class="brand">{{ $shop->name }}</div>
                     <div class="brand-meta">
-                        @if(!empty($shop->shop_code))Shop code: {{ $shop->shop_code }}@endif
+                        @if(!empty($shop->shop_code))Business Code: {{ $shop->shop_code }}@endif
                     </div>
                 </td>
                 <td style="width: 40%;" class="report-meta">
