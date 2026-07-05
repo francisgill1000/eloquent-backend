@@ -301,11 +301,13 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
                 onToggle={() => toggle(r.external_ref)} />
             ))}
           </div>
-          <div className="lf-savebar">
-            <button className="c-btn c-btn-block" disabled={saving || !selectedRefs.length} onClick={() => void saveSelected()}>
-              <Icons.Plus size={16} /> {saving ? 'Saving…' : `Save ${selectedRefs.length || ''} to pipeline`.trim()}
-            </button>
-          </div>
+          {selectedRefs.length > 0 && (
+            <div className="lf-savebar">
+              <button className="c-btn c-btn-block" disabled={saving} onClick={() => void saveSelected()}>
+                <Icons.Plus size={16} /> {saving ? 'Saving…' : `Save ${selectedRefs.length} to pipeline`}
+              </button>
+            </div>
+          )}
         </>
       ) : results && results.length === 0 ? (
         <div className="lf-panel">
