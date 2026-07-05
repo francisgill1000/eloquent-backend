@@ -139,12 +139,15 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
     }
   };
 
-  // Async: start the scrape, then poll every 4s until it finishes (~1 min).
+  // A repeat query returns instantly from cache; otherwise start the scrape and
+  // poll every 4s until it finishes (~1-2 min).
   const runAdSearch = async () => {
     setLoading(true); setScanning(true);
-    let runId: string;
+    const kw = category.trim();
+
+    let started: Awaited<ReturnType<typeof startAdSearch>>;
     try {
-      runId = await startAdSearch(category.trim(), area.trim() || undefined);
+      started = await startAdSearch(kw, area.trim() || undefined);
     } catch (e) {
       if (e instanceof SearchLimitError) setLimit({ used: e.used, limit: e.limit });
       else setError('Could not start the ad search.');
@@ -152,9 +155,17 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
       return;
     }
 
+    // Cache hit — no scrape, no wait, no quota spent.
+    if (started.cached) {
+      setResults(started.data);
+      setLoading(false); setScanning(false);
+      return;
+    }
+
+    const runId = started.runId;
     const tick = async () => {
       try {
-        const res = await pollAdSearch(runId);
+        const res = await pollAdSearch(runId, kw);
         if (res.status === 'running') {
           pollRef.current = window.setTimeout(tick, 4000);
           return; // keep scanning

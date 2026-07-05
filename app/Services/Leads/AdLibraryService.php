@@ -2,6 +2,7 @@
 
 namespace App\Services\Leads;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -143,6 +144,107 @@ class AdLibraryService
             ];
         }
 
+        return $out;
+    }
+
+    // --- Caching ----------------------------------------------------------
+    // Reuses the same global tables Google uses (lead_place_cache keyed by
+    // "fb:{pageId}", lead_search_cache keyed by the keyword). A repeat search
+    // is served free + instant with no re-scrape — no Apify cost, no quota spent.
+
+    /** Fresh cached results for this keyword, or null on miss. */
+    public function cachedResults(string $keyword): ?array
+    {
+        $ttlDays = (int) config('leads.cache_ttl_days', 30);
+        $row = DB::table('lead_search_cache')
+            ->where('source', 'meta_ad_library')
+            ->where('query_key', $this->cacheKey($keyword))
+            ->where('fetched_at', '>=', now()->subDays($ttlDays))
+            ->first();
+
+        if (! $row) {
+            return null;
+        }
+        return $this->hydrate(json_decode($row->external_refs, true) ?: []);
+    }
+
+    /** Persist a finished run's results so the next identical search is a hit. */
+    public function cacheResults(string $keyword, array $results): void
+    {
+        $refs = [];
+        foreach ($results as $r) {
+            if (empty($r['external_ref'])) {
+                continue;
+            }
+            $refs[] = $r['external_ref'];
+            DB::table('lead_place_cache')->updateOrInsert(
+                ['external_ref' => $r['external_ref']],
+                [
+                    'source' => 'meta_ad_library',
+                    'name' => $r['name'] ?? 'Unknown',
+                    'phone' => null,
+                    'website' => $r['website'] ?? null,
+                    'address' => null,
+                    'category' => $r['category'] ?? null,
+                    'lat' => null,
+                    'lng' => null,
+                    'rating' => null,
+                    'raw' => json_encode($r),
+                    'fetched_at' => now(),
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ],
+            );
+        }
+
+        DB::table('lead_search_cache')->updateOrInsert(
+            ['query_key' => $this->cacheKey($keyword)],
+            [
+                'source' => 'meta_ad_library',
+                'query' => $keyword,
+                'area' => null,
+                'external_refs' => json_encode($refs),
+                'fetched_at' => now(),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ],
+        );
+    }
+
+    private function cacheKey(string $keyword): string
+    {
+        return md5('meta_ad_library|' . strtolower(trim($keyword)));
+    }
+
+    /** Rebuild DTOs from the place cache, preserving order + advertising flag. */
+    private function hydrate(array $refs): array
+    {
+        if (empty($refs)) {
+            return [];
+        }
+        $rows = DB::table('lead_place_cache')->whereIn('external_ref', $refs)->get()->keyBy('external_ref');
+
+        $out = [];
+        foreach ($refs as $ref) {
+            $row = $rows->get($ref);
+            if (! $row) {
+                continue;
+            }
+            $out[] = [
+                'name' => $row->name,
+                'phone' => null,
+                'whatsapp' => null,
+                'website' => $row->website,
+                'address' => null,
+                'category' => $row->category,
+                'lat' => null,
+                'lng' => null,
+                'rating' => null,
+                'external_ref' => $row->external_ref,
+                'source' => 'meta_ad_library',
+                'advertising' => true,
+            ];
+        }
         return $out;
     }
 

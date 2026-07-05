@@ -68,14 +68,22 @@ export async function searchLeads(category: string, area?: string): Promise<Lead
   }
 }
 
+export type AdSearchStart =
+  | { cached: true; data: LeadResult[] }
+  | { cached: false; runId: string };
+
 /**
- * Start an async "Ad Activity" scrape (Meta Ad Library). Returns a run id to
- * poll. Throws SearchLimitError on 429.
+ * Start an "Ad Activity" search. A repeat query hits the cache and returns
+ * results immediately ({cached:true}); otherwise it kicks off an async scrape
+ * and returns a run id to poll. Throws SearchLimitError on 429.
  */
-export async function startAdSearch(category: string, area?: string): Promise<string> {
+export async function startAdSearch(category: string, area?: string): Promise<AdSearchStart> {
   try {
     const { data } = await api.post('/shop/leads/ad-search', { category, area: area || undefined });
-    return data?.run_id as string;
+    if (data?.cached) {
+      return { cached: true, data: Array.isArray(data.data) ? data.data : [] };
+    }
+    return { cached: false, runId: data?.run_id as string };
   } catch (err) {
     const res = (err as { response?: { status?: number; data?: { used?: number; limit?: number } } })?.response;
     if (res?.status === 429) {
@@ -87,9 +95,9 @@ export async function startAdSearch(category: string, area?: string): Promise<st
 
 export type AdSearchPoll = { status: 'running' | 'done' | 'failed'; data: LeadResult[] };
 
-/** Poll an Ad Activity scrape run. */
-export async function pollAdSearch(runId: string): Promise<AdSearchPoll> {
-  const { data } = await api.get(`/shop/leads/ad-search/${runId}`);
+/** Poll an Ad Activity scrape run. `category` is echoed back so the server can cache the result. */
+export async function pollAdSearch(runId: string, category: string): Promise<AdSearchPoll> {
+  const { data } = await api.get(`/shop/leads/ad-search/${runId}`, { params: { category } });
   return {
     status: data?.status ?? 'running',
     data: Array.isArray(data?.data) ? data.data : [],
