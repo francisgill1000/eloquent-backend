@@ -158,6 +158,31 @@
 }
 .lf-meta svg { color: var(--mint-300); }
 
+/* Subtle "scanning for more" line under the results while the slow source
+   enriches in the background, then a brief "added N more" confirmation. */
+.lf-scanmore {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-3);
+  margin: 0 2px 12px;
+}
+.lf-scanmore svg { color: var(--mint-300); }
+.lf-scandot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mint-300);
+  box-shadow: 0 0 0 0 var(--mint-glow);
+  animation: lf-scanpulse 1.4s ease-in-out infinite;
+}
+@keyframes lf-scanpulse {
+  0%   { opacity: 0.4; box-shadow: 0 0 0 0 var(--mint-glow); }
+  50%  { opacity: 1;   box-shadow: 0 0 0 5px transparent; }
+  100% { opacity: 0.4; box-shadow: 0 0 0 0 var(--mint-glow); }
+}
+
 .lf-limit {
   display: flex;
   gap: 12px;
