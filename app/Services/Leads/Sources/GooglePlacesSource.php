@@ -20,8 +20,16 @@ class GooglePlacesSource implements LeadSourceInterface
     private const TEXT_SEARCH = 'https://maps.googleapis.com/maps/api/place/textsearch/json';
     private const DETAILS = 'https://maps.googleapis.com/maps/api/place/details/json';
 
-    /** Cap details lookups to the first page to protect API spend. */
-    private const MAX_RESULTS = 20;
+    /**
+     * Google Text Search returns 20 results/page and caps at ~60 (3 pages) for
+     * a single query. We pull all available pages so the shop sees the full set
+     * (details are then fetched per place, so this scales API spend with count).
+     */
+    private const MAX_RESULTS = 60;
+    private const MAX_PAGES = 3;
+
+    /** next_page_token needs a short activation delay before Google accepts it. */
+    private const PAGE_TOKEN_DELAY_US = 2_000_000;
 
     public function key(): string
     {
@@ -39,27 +47,7 @@ class GooglePlacesSource implements LeadSourceInterface
         $text = trim($area ? "{$query} in {$area}" : $query);
 
         try {
-            $resp = Http::timeout(8)
-                ->retry(2, 200, throw: false)
-                ->get(self::TEXT_SEARCH, [
-                    'query' => $text,
-                    'region' => 'ae',
-                    'key' => $apiKey,
-                ]);
-
-            if (! $resp->successful()) {
-                Log::warning('Lead text search failed', ['status' => $resp->status()]);
-                return [];
-            }
-
-            $status = $resp->json('status');
-            if (! in_array($status, ['OK', 'ZERO_RESULTS'], true)) {
-                // Never include the key; log only Google's status field.
-                Log::warning('Lead text search returned non-OK', ['google_status' => $status]);
-                return [];
-            }
-
-            $places = array_slice($resp->json('results', []), 0, self::MAX_RESULTS);
+            $places = array_slice($this->textSearchAllPages($text, $apiKey), 0, self::MAX_RESULTS);
 
             $out = [];
             foreach ($places as $p) {
@@ -71,6 +59,53 @@ class GooglePlacesSource implements LeadSourceInterface
             Log::warning('Lead search errored', ['exception' => get_class($e)]);
             return [];
         }
+    }
+
+    /**
+     * Text Search across all available pages (Google caps at ~60 / 3 pages).
+     * The next_page_token from one page becomes valid ~2s later, so we wait
+     * before requesting the next. Any page-level failure just stops paging and
+     * returns whatever we have so far.
+     *
+     * @return array<int, array<string, mixed>> Raw Google place results.
+     */
+    private function textSearchAllPages(string $text, string $apiKey): array
+    {
+        $all = [];
+        $params = ['query' => $text, 'region' => 'ae', 'key' => $apiKey];
+
+        for ($page = 0; $page < self::MAX_PAGES; $page++) {
+            $resp = Http::timeout(8)
+                ->retry(2, 200, throw: false)
+                ->get(self::TEXT_SEARCH, $params);
+
+            if (! $resp->successful()) {
+                Log::warning('Lead text search failed', ['status' => $resp->status(), 'page' => $page]);
+                break;
+            }
+
+            $status = $resp->json('status');
+            if (! in_array($status, ['OK', 'ZERO_RESULTS'], true)) {
+                // Never include the key; log only Google's status field.
+                Log::warning('Lead text search returned non-OK', ['google_status' => $status, 'page' => $page]);
+                break;
+            }
+
+            foreach ($resp->json('results', []) as $r) {
+                $all[] = $r;
+            }
+
+            $token = $resp->json('next_page_token');
+            if (! $token || count($all) >= self::MAX_RESULTS) {
+                break;
+            }
+
+            // Token isn't valid immediately; wait then page with it only.
+            usleep(self::PAGE_TOKEN_DELAY_US);
+            $params = ['pagetoken' => $token, 'key' => $apiKey];
+        }
+
+        return $all;
     }
 
     /**
