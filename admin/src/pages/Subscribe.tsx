@@ -33,7 +33,7 @@ export default function Subscribe() {
     <div className="m-screen c-subscribe"><div className="m-scroll">
       <div className="c-page-head" style={{ paddingTop: 18 }}>
         <h1 className="c-page-title">Subscribe</h1>
-        <p className="c-page-sub">Unlock Booking Manager + Ask for your business.</p>
+        <p className="c-page-sub">Unlock Booking Lens + Ask for your business.</p>
       </div>
 
       {error && <div className="c-error-box">{error}</div>}

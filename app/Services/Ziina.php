@@ -62,7 +62,7 @@ class Ziina
         return $this->postIntent(
             $amountFils,
             (string) Str::uuid(),
-            "Booking Manager {$plan} plan",
+            "Booking Lens {$plan} plan",
             $urls,
         );
     }
