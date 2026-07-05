@@ -76,6 +76,23 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
   const selectedRefs = useMemo(() => Object.keys(selected).filter((k) => selected[k]), [selected]);
 
+  // Refs that can still be picked (already-saved ones are locked).
+  const selectableRefs = useMemo(
+    () => (results ?? []).filter((r) => !savedRefs[r.external_ref]).map((r) => r.external_ref),
+    [results, savedRefs],
+  );
+  const allSelected = selectableRefs.length > 0 && selectableRefs.every((ref) => selected[ref]);
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected({});
+    } else {
+      const next: Record<string, boolean> = {};
+      selectableRefs.forEach((ref) => { next[ref] = true; });
+      setSelected(next);
+    }
+  };
+
   const runSearch = async () => {
     if (!category.trim() || !shopReady) return;
     setLoading(true); setError(''); setLimit(null); setResults(null); setSelected({});
@@ -158,6 +175,14 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
         <Spinner label="Searching businesses…" />
       ) : results && results.length > 0 ? (
         <>
+          <div className="lf-listhead">
+            <span>{results.length} results{selectedRefs.length > 0 && ` · ${selectedRefs.length} selected`}</span>
+            {selectableRefs.length > 0 && (
+              <button className="lf-selall" onClick={toggleAll}>
+                {allSelected ? 'Clear all' : 'Select all'}
+              </button>
+            )}
+          </div>
           <div className="lf-list">
             {results.map((r) => (
               <ResultCard key={r.external_ref} r={r}
