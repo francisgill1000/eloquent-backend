@@ -111,8 +111,9 @@ export default function BookingAction() {
     try {
       await markInvoicePaid(booking.invoice.id);
       await fetchBooking();
-    } catch {
-      setError('Could not mark invoice paid.');
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg || 'Could not mark invoice paid.');
     } finally {
       setBusy(false);
     }
@@ -136,6 +137,14 @@ export default function BookingAction() {
   const switchIndex = SWITCH_OPTS.findIndex((o) => o.label.toLowerCase() === status.toLowerCase());
   const switchActive = switchIndex >= 0 ? switchIndex : 0;
   const switchColor = switchIndex >= 0 ? SWITCH_OPTS[switchIndex].color : 'var(--text-4)';
+
+  // Invoice state is driven off status (the source of truth): payable only when
+  // issued/overdue — never paid or cancelled.
+  const invStatus = (booking.invoice?.status ?? '').toLowerCase();
+  const invPaid = invStatus === 'paid' || booking.invoice?.paid === true;
+  const invCancelled = invStatus === 'cancelled';
+  const invLabel = invPaid ? 'Paid' : invCancelled ? 'Cancelled'
+    : booking.invoice?.status ? booking.invoice.status.charAt(0).toUpperCase() + booking.invoice.status.slice(1) : 'Unpaid';
 
   return (
     <div className="m-screen c-booking-action"><div className="m-scroll">
@@ -240,15 +249,13 @@ export default function BookingAction() {
           <div className="ba-section-title">Invoice</div>
           <div className="ba-card ba-invoice">
             <div className="ba-invoice-info">
-              <span className={`ba-invoice-icon${booking.invoice.paid ? ' paid' : ''}`}><Icons.Tag size={18} /></span>
+              <span className={`ba-invoice-icon${invPaid ? ' paid' : ''}`}><Icons.Tag size={18} /></span>
               <div className="ba-invoice-text">
                 <span className="ba-tile-l">Payment</span>
-                <span className={`ba-invoice-status${booking.invoice.paid ? ' paid' : ''}`}>
-                  {booking.invoice.paid ? 'Paid' : (booking.invoice.status ?? 'Unpaid')}
-                </span>
+                <span className={`ba-invoice-status${invPaid ? ' paid' : ''}`}>{invLabel}</span>
               </div>
             </div>
-            {!booking.invoice.paid && (
+            {!invPaid && !invCancelled && (
               <button className="ba-invoice-btn" disabled={busy} onClick={() => void payInvoice()}>
                 <Icons.Check size={16} /> Mark as Paid
               </button>

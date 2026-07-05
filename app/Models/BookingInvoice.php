@@ -19,10 +19,9 @@ class BookingInvoice extends Model
     /** Idempotently mark this invoice paid. Returns true if it transitioned. */
     public function markPaid(): bool
     {
-        if ($this->status === 'paid') {
-            return false;
-        }
-        if ($this->status !== 'issued') {
+        // Only issued/overdue invoices can be marked paid — never a cancelled
+        // or already-paid one.
+        if (!in_array($this->status, ['issued', 'overdue'], true)) {
             return false;
         }
 
