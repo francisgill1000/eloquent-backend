@@ -258,6 +258,23 @@
 .svc-form { padding: 0 16px; }
 /* Booking detail/action page wrapper: vanishes on mobile; desktop centers it. */
 .ba-wrap { display: contents; }
+/* Bookings status funnel — same stat chips as the leads funnel (.lf-fchip),
+   with per-status accent colours. Clicking a chip filters; the active chip
+   toggles back to "All". */
+.c-bk-funnel { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 0 16px 12px; }
+.bk-s-all       { --stage: var(--mint-400); }
+.bk-s-queued    { --stage: var(--warn); }
+.bk-s-booked    { --stage: var(--info); }
+.bk-s-completed { --stage: var(--mint-500); }
+.bk-s-cancelled { --stage: var(--danger); }
+.c-bk-funnel .lf-fchip-l { white-space: nowrap; }
+@media (max-width: 560px) {
+  .c-bk-funnel { gap: 6px; }
+  .c-bk-funnel .lf-fchip { padding: 9px 2px 8px; }
+  .c-bk-funnel .lf-fchip-n { font-size: 17px; }
+  .c-bk-funnel .lf-fchip-l { font-size: 8.5px; letter-spacing: .02em; }
+}
+
 /* ── Reusable cards/list view toggle + mint-glass data table ──
    Shared by Services and Staff so the list view matches the leads/bookings look. */
 .c-listhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 16px 4px; }
