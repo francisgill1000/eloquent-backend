@@ -46,10 +46,10 @@ export default function Leads() {
 
       <div className="lf-seg" role="tablist">
         <button role="tab" aria-selected={mode === 'find'} className={`lf-seg-btn${mode === 'find' ? ' on' : ''}`} onClick={() => setMode('find')}>
-          <Icons.Search size={15} /> Find
+          Find
         </button>
         <button role="tab" aria-selected={mode === 'pipeline'} className={`lf-seg-btn${mode === 'pipeline' ? ' on' : ''}`} onClick={() => setMode('pipeline')}>
-          <Icons.Grid size={15} /> Pipeline{funnelTotal > 0 && <span className="lf-seg-count">{funnelTotal}</span>}
+          Pipeline <span className="lf-seg-count">{funnelTotal}</span>
         </button>
       </div>
 
@@ -133,7 +133,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
   return (
     <>
-      <div className="lf-search">
+      <div className="lf-panel lf-search">
         <div className="lf-search-inputs">
           <div className="lf-field">
             <Icons.Search size={16} />
@@ -198,10 +198,14 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
           </div>
         </>
       ) : results && results.length === 0 ? (
-        <EmptyState title="No businesses found" subtitle="Try a broader category or a different area." />
+        <div className="lf-panel">
+          <EmptyState title="No businesses found" subtitle="Try a broader category or a different area." />
+        </div>
       ) : !limit && (
-        <EmptyState icon={<Icons.Search size={26} />} title="Search to find leads"
-          subtitle="Enter a business type and an area to discover real UAE businesses." />
+        <div className="lf-panel">
+          <EmptyState icon={<Icons.Search size={26} />} title="Search to find businesses"
+            subtitle="Enter a business type and an area to discover real UAE businesses." />
+        </div>
       )}
     </>
   );
@@ -311,9 +315,11 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
           ))}
         </div>
       ) : (
-        <EmptyState icon={<Icons.Grid size={26} />}
-          title={statusFilter || dueOnly || search ? 'No leads match' : 'No leads yet'}
-          subtitle={statusFilter || dueOnly || search ? 'Try clearing the filters.' : 'Use Find to search businesses and save them here.'} />
+        <div className="lf-panel">
+          <EmptyState icon={<Icons.Grid size={26} />}
+            title={statusFilter || dueOnly || search ? 'No matches' : 'Nothing saved yet'}
+            subtitle={statusFilter || dueOnly || search ? 'Try clearing the filters.' : 'Use Find to search businesses and save them here.'} />
+        </div>
       )}
     </>
   );
