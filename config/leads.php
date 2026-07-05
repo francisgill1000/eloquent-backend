@@ -21,4 +21,8 @@ return [
 
     'cache_ttl_days' => (int) env('LEAD_CACHE_TTL_DAYS', 30),
 
+    // Ad Activity results go stale faster than map data (campaigns change), so
+    // they self-refresh weekly. Users can also force a fresh scrape any time.
+    'ad_cache_ttl_days' => (int) env('LEAD_AD_CACHE_TTL_DAYS', 7),
+
 ];

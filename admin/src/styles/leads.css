@@ -172,6 +172,38 @@
 .lf-limit strong { display: block; color: var(--text-1); font-size: 14px; margin-bottom: 2px; }
 .lf-limit span { display: block; color: var(--text-3); font-size: 12.5px; line-height: 1.45; }
 
+/* Cached-results banner + Refresh (Ad Activity) */
+.lf-cached {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: var(--info-soft);
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  border-radius: var(--r-lg);
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.lf-cached > span { display: inline-flex; align-items: center; gap: 6px; }
+.lf-cached svg { color: var(--info); flex: 0 0 auto; }
+.lf-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-mint);
+  background: var(--mint-soft);
+  color: var(--mint-300);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.lf-refresh svg { color: var(--mint-300); }
+
 /* Results header — count + select all */
 .lf-listhead {
   display: flex;

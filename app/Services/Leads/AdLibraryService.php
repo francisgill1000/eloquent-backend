@@ -152,10 +152,14 @@ class AdLibraryService
     // "fb:{pageId}", lead_search_cache keyed by the keyword). A repeat search
     // is served free + instant with no re-scrape — no Apify cost, no quota spent.
 
-    /** Fresh cached results for this keyword, or null on miss. */
+    /**
+     * Fresh cached results for this keyword, or null on miss.
+     *
+     * @return array{results: array, fetched_at: string}|null
+     */
     public function cachedResults(string $keyword): ?array
     {
-        $ttlDays = (int) config('leads.cache_ttl_days', 30);
+        $ttlDays = (int) config('leads.ad_cache_ttl_days', 7);
         $row = DB::table('lead_search_cache')
             ->where('source', 'meta_ad_library')
             ->where('query_key', $this->cacheKey($keyword))
@@ -165,7 +169,10 @@ class AdLibraryService
         if (! $row) {
             return null;
         }
-        return $this->hydrate(json_decode($row->external_refs, true) ?: []);
+        return [
+            'results' => $this->hydrate(json_decode($row->external_refs, true) ?: []),
+            'fetched_at' => (string) $row->fetched_at,
+        ];
     }
 
     /** Persist a finished run's results so the next identical search is a hit. */

@@ -69,19 +69,20 @@ export async function searchLeads(category: string, area?: string): Promise<Lead
 }
 
 export type AdSearchStart =
-  | { cached: true; data: LeadResult[] }
+  | { cached: true; data: LeadResult[]; cachedAt?: string }
   | { cached: false; runId: string };
 
 /**
  * Start an "Ad Activity" search. A repeat query hits the cache and returns
  * results immediately ({cached:true}); otherwise it kicks off an async scrape
- * and returns a run id to poll. Throws SearchLimitError on 429.
+ * and returns a run id to poll. Pass fresh=true to bypass the cache and force a
+ * live re-scrape. Throws SearchLimitError on 429.
  */
-export async function startAdSearch(category: string, area?: string): Promise<AdSearchStart> {
+export async function startAdSearch(category: string, area?: string, fresh = false): Promise<AdSearchStart> {
   try {
-    const { data } = await api.post('/shop/leads/ad-search', { category, area: area || undefined });
+    const { data } = await api.post('/shop/leads/ad-search', { category, area: area || undefined, fresh: fresh || undefined });
     if (data?.cached) {
-      return { cached: true, data: Array.isArray(data.data) ? data.data : [] };
+      return { cached: true, data: Array.isArray(data.data) ? data.data : [], cachedAt: data.cached_at };
     }
     return { cached: false, runId: data?.run_id as string };
   } catch (err) {
