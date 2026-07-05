@@ -106,10 +106,17 @@ class GooglePlacesSource implements LeadSourceInterface
     /** Map a New-API place object to a normalized lead DTO. */
     private function normalize(array $p): array
     {
+        $website = $p['websiteUri'] ?? null;
+        // Google hands back a long google.com/search redirect (not a real site)
+        // when a place has no website — treat that as "no website".
+        if ($website && str_contains($website, 'google.com/search')) {
+            $website = null;
+        }
+
         return [
-            'name' => $p['displayName']['text'] ?? 'Unknown',
+            'name' => mb_substr($p['displayName']['text'] ?? 'Unknown', 0, 255),
             'phone' => $p['internationalPhoneNumber'] ?? $p['nationalPhoneNumber'] ?? null,
-            'website' => $p['websiteUri'] ?? null,
+            'website' => $website,
             'address' => $p['formattedAddress'] ?? null,
             'category' => $p['types'][0] ?? null,
             'lat' => $p['location']['latitude'] ?? null,
