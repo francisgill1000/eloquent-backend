@@ -38,11 +38,21 @@ class BookingStatusService
             );
         }
 
-        if ($newStatus === 'completed' && $previousStatus === 'booked') {
-            BookingInvoice::firstOrCreate(
-                ['booking_id' => $booking->id],
-                ['subtotal' => $booking->charges ?? 0, 'total' => $booking->charges ?? 0, 'status' => 'issued', 'issued_at' => now()],
-            );
+        if ($newStatus === 'completed') {
+            $invoice = $booking->invoice()->first();
+            if (!$invoice) {
+                BookingInvoice::create([
+                    'booking_id' => $booking->id,
+                    'subtotal'   => $booking->charges ?? 0,
+                    'total'      => $booking->charges ?? 0,
+                    'status'     => 'issued',
+                    'issued_at'  => now(),
+                ]);
+            } elseif ($invoice->status !== 'paid' && $invoice->status !== 'issued') {
+                // Re-issue a previously cancelled/overdue invoice so completing the
+                // booking makes it billable (and markable-as-paid) again.
+                $invoice->update(['status' => 'issued', 'issued_at' => $invoice->issued_at ?? now()]);
+            }
         }
 
         if ($newStatus === 'cancelled') {
