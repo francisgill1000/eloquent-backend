@@ -408,7 +408,7 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
     <>
       <div className="lf-funnel">
         {LEAD_STATUSES.map((s) => (
-          <button key={s} className={`lf-fchip s-${s}${statusFilter === s ? ' on' : ''}`}
+          <button key={s} className={`lf-fchip s-${s}${statusFilter === s ? ' on' : ''}${funnel[s] === 0 ? ' zero' : ''}`}
             onClick={() => setStatusFilter((cur) => (cur === s ? null : s))}>
             <span className="lf-fchip-n">{funnel[s]}</span>
             <span className="lf-fchip-l">{STATUS_LABEL[s]}</span>
