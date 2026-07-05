@@ -42,6 +42,18 @@ function followupLabel(iso?: string | null): { text: string; due: boolean } | nu
   return { text: `Follow up in ${days}d`, due: false };
 }
 
+// "just now" / "5h ago" / "3d ago" for a cached-at timestamp (server sends UTC).
+function cacheAgeLabel(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso.replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? '' : 'Z'));
+  if (Number.isNaN(d.getTime())) return '';
+  const mins = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
+  if (mins < 60) return 'just now';
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
+}
+
 export default function Leads() {
   const navigate = useNavigate();
   const { shop } = useShop();
@@ -92,6 +104,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   const [meta, setMeta] = useState<{ from_cache: boolean; remaining: number } | null>(null);
   const [source, setSource] = useState<LeadSource>('google_places');
   const [scanning, setScanning] = useState(false);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
   // Cancel any in-flight ad-search poll when leaving the pane.
@@ -118,11 +131,11 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
   const runSearch = async () => {
     if (!category.trim() || !shopReady) return;
-    setError(''); setLimit(null); setResults(null); setSelected({}); setMeta(null);
+    setError(''); setLimit(null); setResults(null); setSelected({}); setMeta(null); setCachedAt(null);
     if (pollRef.current) window.clearTimeout(pollRef.current);
 
     if (source === 'meta_ad_library') {
-      void runAdSearch();
+      void runAdSearch(false);
       return;
     }
 
@@ -140,14 +153,17 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   };
 
   // A repeat query returns instantly from cache; otherwise start the scrape and
-  // poll every 4s until it finishes (~1-2 min).
-  const runAdSearch = async () => {
-    setLoading(true); setScanning(true);
+  // poll every 4s until it finishes (~1-2 min). `fresh` (Refresh button)
+  // bypasses the cache and forces a live re-scrape.
+  const runAdSearch = async (fresh: boolean) => {
+    if (!category.trim() || !shopReady) return;
+    setLoading(true); setScanning(true); setError(''); setLimit(null); setCachedAt(null);
+    if (pollRef.current) window.clearTimeout(pollRef.current);
     const kw = category.trim();
 
     let started: Awaited<ReturnType<typeof startAdSearch>>;
     try {
-      started = await startAdSearch(kw, area.trim() || undefined);
+      started = await startAdSearch(kw, area.trim() || undefined, fresh);
     } catch (e) {
       if (e instanceof SearchLimitError) setLimit({ used: e.used, limit: e.limit });
       else setError('Could not start the ad search.');
@@ -158,6 +174,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
     // Cache hit — no scrape, no wait, no quota spent.
     if (started.cached) {
       setResults(started.data);
+      setCachedAt(started.cachedAt ?? null);
       setLoading(false); setScanning(false);
       return;
     }
@@ -252,6 +269,15 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
       {meta && !loading && (
         <div className="lf-meta">
           {meta.from_cache ? <><Icons.Check size={13} /> From cache — no search used</> : <>{meta.remaining} searches left this month</>}
+        </div>
+      )}
+
+      {cachedAt && !loading && results && results.length > 0 && (
+        <div className="lf-cached">
+          <span><Icons.Clock size={13} /> Cached results · {cacheAgeLabel(cachedAt)}</span>
+          <button className="lf-refresh" onClick={() => void runAdSearch(true)}>
+            <Icons.Search size={13} /> Refresh for latest
+          </button>
         </div>
       )}
 

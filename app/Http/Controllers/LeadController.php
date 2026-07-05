@@ -86,6 +86,7 @@ class LeadController extends Controller
         $data = $request->validate([
             'category' => ['required', 'string', 'max:120'],
             'area' => ['nullable', 'string', 'max:120'],
+            'fresh' => ['nullable', 'boolean'],
         ]);
 
         if (! $this->adLibrary->configured()) {
@@ -93,10 +94,17 @@ class LeadController extends Controller
         }
 
         // Cache-first: a repeat search is served free + instant (no re-scrape,
-        // no Apify cost, no quota spent).
-        $cached = $this->adLibrary->cachedResults($data['category']);
-        if ($cached !== null) {
-            return response()->json(['cached' => true, 'data' => $cached]);
+        // no Apify cost, no quota spent). `fresh=true` (the Refresh button)
+        // bypasses the cache and forces a live scrape.
+        if (! $request->boolean('fresh')) {
+            $cached = $this->adLibrary->cachedResults($data['category']);
+            if ($cached !== null) {
+                return response()->json([
+                    'cached' => true,
+                    'data' => $cached['results'],
+                    'cached_at' => $cached['fetched_at'],
+                ]);
+            }
         }
 
         [$used, $limit] = $this->search->usage($shop);
