@@ -107,6 +107,7 @@ export default function Bookings() {
           {STAT_CHIPS.map((s) => (
             <button
               key={s.filter}
+              aria-label={s.label}
               className={`lf-fchip bk-s-${s.kind}${filter === s.filter ? ' on' : ''}${counts[s.kind] === 0 ? ' zero' : ''}`}
               onClick={() => setFilter((cur) => (cur === s.filter ? 'All' : s.filter))}
             >

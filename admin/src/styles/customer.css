@@ -182,6 +182,7 @@
 .c-chip-completed { background: var(--mint-soft); color: var(--mint-300); }
 .c-chip-cancelled { background: var(--danger-soft); color: var(--danger); }
 .c-chip-pending { background: var(--warn-soft); color: var(--warn); }
+.c-chip-queued { background: var(--warn-soft); color: var(--warn); }
 
 .c-day-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border-1); }
 .c-day-row:first-child { border-top: none; }

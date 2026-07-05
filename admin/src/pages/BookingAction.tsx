@@ -213,7 +213,7 @@ export default function BookingAction() {
             {SWITCH_OPTS.map((o) => {
               const on = o.label.toLowerCase() === status.toLowerCase();
               return (
-                <button key={o.label} type="button"
+                <button key={o.label} type="button" aria-label={o.label}
                   className={`ba-switch-opt${on ? ' on' : ''}`}
                   style={{ '--optc': o.color } as CSSProperties}
                   disabled={busy} onClick={() => void updateStatus(o.label)}>
