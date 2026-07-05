@@ -380,6 +380,79 @@
 .lf-card.s-new, .lf-card.s-sent, .lf-card.s-replied,
 .lf-card.s-demo, .lf-card.s-won, .lf-card.s-pass { border-left-color: var(--stage); }
 
+/* Pagination — header (count + per-page) and footer (page nav) */
+.lf-pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.lf-pager-top { justify-content: space-between; margin-bottom: 12px; }
+.lf-pager-bottom { justify-content: center; margin-top: 16px; }
+.lf-pager-count { font-size: 13px; color: var(--text-3); }
+.lf-pager-count strong { color: var(--text-1); font-variant-numeric: tabular-nums; font-weight: 700; }
+.lf-perpage {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+.lf-perpage select {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  color: var(--text-1);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .16s ease;
+}
+.lf-perpage select:hover { border-color: var(--border-mint); }
+.lf-perpage select:focus-visible { outline: none; border-color: var(--mint-400); box-shadow: 0 0 0 3px var(--mint-glow); }
+
+.lf-page-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .16s ease, color .16s ease, opacity .16s ease;
+}
+.lf-page-btn:hover:not(:disabled) { border-color: var(--border-mint); color: var(--text-1); }
+.lf-page-btn:disabled { opacity: .4; cursor: default; }
+.lf-page-nums { display: flex; align-items: center; gap: 4px; }
+.lf-page-num {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 6px;
+  border-radius: var(--r-md);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease, border-color .16s ease;
+}
+.lf-page-num:hover { color: var(--text-1); border-color: var(--border-2); }
+.lf-page-num.on {
+  background: var(--mint-soft);
+  border-color: var(--border-mint);
+  color: var(--mint-300);
+}
+.lf-page-ellipsis { color: var(--text-4); padding: 0 2px; user-select: none; }
+
 /* Filters row */
 .lf-filters { display: flex; gap: 10px; margin-bottom: 14px; }
 .lf-filters .lf-field { flex: 1; height: 46px; margin: 0; }

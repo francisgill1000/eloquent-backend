@@ -42,6 +42,23 @@ function followupLabel(iso?: string | null): { text: string; due: boolean } | nu
   return { text: `Follow up in ${days}d`, due: false };
 }
 
+// Pipeline pagination — how many cards per page. "All" opts out of paging.
+const PER_PAGE_OPTIONS = [5, 10, 15] as const;
+type PerPage = number | 'all';
+
+// Compact numbered-page window with ellipses, e.g. [1, …, 4, 5, 6, …, 23].
+function pageWindow(current: number, count: number): (number | '…')[] {
+  if (count <= 7) return Array.from({ length: count }, (_, i) => i + 1);
+  const out: (number | '…')[] = [1];
+  const lo = Math.max(2, current - 1);
+  const hi = Math.min(count - 1, current + 1);
+  if (lo > 2) out.push('…');
+  for (let p = lo; p <= hi; p++) out.push(p);
+  if (hi < count - 1) out.push('…');
+  out.push(count);
+  return out;
+}
+
 // "just now" / "5h ago" / "3d ago" for a cached-at timestamp (server sends UTC).
 function cacheAgeLabel(iso?: string | null): string {
   if (!iso) return '';
@@ -369,6 +386,19 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
   const [dueOnly, setDueOnly] = useState(false);
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [perPage, setPerPage] = useState<PerPage>(10);
+  const [page, setPage] = useState(1);
+
+  // Client-side paging over the already-loaded pipeline.
+  const total = leads.length;
+  const pageSize = perPage === 'all' ? Math.max(total, 1) : perPage;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const start = (safePage - 1) * pageSize;
+  const pageLeads = perPage === 'all' ? leads : leads.slice(start, start + pageSize);
+
+  // Snap back to the first page whenever the result set or page size changes.
+  useEffect(() => { setPage(1); }, [perPage, statusFilter, dueOnly, search]);
 
   const fetch = useCallback(async () => {
     if (!shopReady) return;
@@ -432,11 +462,45 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
       {loading ? (
         <Spinner label="Loading pipeline…" />
       ) : leads.length > 0 ? (
-        <div className="lf-list">
-          {leads.map((l) => (
-            <LeadCard key={l.id} lead={l} busy={busyId === l.id} onStatus={(s) => void changeStatus(l, s)} />
-          ))}
-        </div>
+        <>
+          <div className="lf-pager lf-pager-top">
+            <span className="lf-pager-count">
+              Showing <strong>{start + 1}–{Math.min(start + pageSize, total)}</strong> of {total}
+            </span>
+            <label className="lf-perpage">
+              <span>Per page</span>
+              <select value={String(perPage)}
+                onChange={(e) => setPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+                {PER_PAGE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
+                <option value="all">All</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="lf-list">
+            {pageLeads.map((l) => (
+              <LeadCard key={l.id} lead={l} busy={busyId === l.id} onStatus={(s) => void changeStatus(l, s)} />
+            ))}
+          </div>
+
+          {pageCount > 1 && (
+            <div className="lf-pager lf-pager-bottom">
+              <button className="lf-page-btn" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+                <Icons.ChevronLeft size={15} /> Prev
+              </button>
+              <div className="lf-page-nums">
+                {pageWindow(safePage, pageCount).map((p, i) =>
+                  p === '…'
+                    ? <span key={`e${i}`} className="lf-page-ellipsis">…</span>
+                    : <button key={p} className={`lf-page-num${p === safePage ? ' on' : ''}`} onClick={() => setPage(p)}>{p}</button>,
+                )}
+              </div>
+              <button className="lf-page-btn" disabled={safePage >= pageCount} onClick={() => setPage(safePage + 1)}>
+                Next <Icons.Chevron size={15} />
+              </button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="lf-panel">
           <EmptyState icon={<Icons.Grid size={26} />}
