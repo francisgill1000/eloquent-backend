@@ -8,37 +8,37 @@
             font-family: 'Inter';
             font-style: normal;
             font-weight: 400;
-            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-400-normal.ttf) format('truetype');
+            src: url(https://cdn.jsdelivr.net/npm/@expo-google-fonts/inter/Inter_400Regular.ttf) format('truetype');
         }
         @font-face {
             font-family: 'Inter';
             font-style: normal;
             font-weight: 500;
-            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-500-normal.ttf) format('truetype');
+            src: url(https://cdn.jsdelivr.net/npm/@expo-google-fonts/inter/Inter_500Medium.ttf) format('truetype');
         }
         @font-face {
             font-family: 'Inter';
             font-style: normal;
             font-weight: 600;
-            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-600-normal.ttf) format('truetype');
+            src: url(https://cdn.jsdelivr.net/npm/@expo-google-fonts/inter/Inter_600SemiBold.ttf) format('truetype');
         }
         @font-face {
             font-family: 'Inter';
             font-style: normal;
             font-weight: 700;
-            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-700-normal.ttf) format('truetype');
+            src: url(https://cdn.jsdelivr.net/npm/@expo-google-fonts/inter/Inter_700Bold.ttf) format('truetype');
         }
         @font-face {
             font-family: 'Inter';
             font-style: normal;
             font-weight: 800;
-            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-800-normal.ttf) format('truetype');
+            src: url(https://cdn.jsdelivr.net/npm/@expo-google-fonts/inter/Inter_800ExtraBold.ttf) format('truetype');
         }
         @font-face {
             font-family: 'Inter';
             font-style: normal;
             font-weight: 900;
-            src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files/inter-latin-900-normal.ttf) format('truetype');
+            src: url(https://cdn.jsdelivr.net/npm/@expo-google-fonts/inter/Inter_900Black.ttf) format('truetype');
         }
 
         @page { margin: 0; }
