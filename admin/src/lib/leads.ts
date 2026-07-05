@@ -105,10 +105,17 @@ export async function pollAdSearch(runId: string, category: string): Promise<AdS
   };
 }
 
-/** Persist selected search results as leads (deduped on external_ref server-side). */
-export async function saveLeads(leads: LeadResult[]): Promise<Lead[]> {
+/**
+ * Persist selected search results as leads (deduped on external_ref server-side).
+ * Returns the saved rows plus `created` — how many were actually new (re-saving
+ * an existing lead dedupes and doesn't count).
+ */
+export async function saveLeads(leads: LeadResult[]): Promise<{ leads: Lead[]; created: number }> {
   const { data } = await api.post('/shop/leads', { leads });
-  return Array.isArray(data?.data) ? data.data : [];
+  return {
+    leads: Array.isArray(data?.data) ? data.data : [],
+    created: typeof data?.created === 'number' ? data.created : 0,
+  };
 }
 
 /** Move a lead through the funnel; writes an activity + bumps last_contacted_at. */

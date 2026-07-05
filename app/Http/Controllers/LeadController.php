@@ -170,6 +170,7 @@ class LeadController extends Controller
         ]);
 
         $saved = [];
+        $created = 0;
         foreach ($data['leads'] as $row) {
             $attrs = [
                 'name' => $row['name'],
@@ -201,10 +202,15 @@ class LeadController extends Controller
                 ]);
             }
 
+            if ($lead->wasRecentlyCreated) {
+                $created++;
+            }
             $saved[] = $lead;
         }
 
-        return response()->json(['data' => $saved], 201);
+        // `created` = rows actually inserted (re-saving an existing lead dedupes),
+        // so the client can bump the funnel count accurately.
+        return response()->json(['data' => $saved, 'created' => $created], 201);
     }
 
     /**

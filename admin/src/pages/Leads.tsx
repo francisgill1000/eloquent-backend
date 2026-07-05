@@ -65,6 +65,15 @@ export default function Leads() {
     [funnel],
   );
 
+  // Load the true funnel counts on mount so the Pipeline badge is accurate
+  // right away (rather than 0 until the Pipeline tab is opened).
+  useEffect(() => {
+    if (!shop?.id) return;
+    let alive = true;
+    listLeads().then((r) => { if (alive) setFunnel(r.funnel); }).catch(() => {});
+    return () => { alive = false; };
+  }, [shop?.id]);
+
   return (
     <div className="m-screen lf"><div className="m-scroll">
       <button className="c-back" onClick={() => navigate(-1)}><Icons.ChevronLeft size={16} /> Back</button>
@@ -204,12 +213,12 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
     setSaving(true); setError('');
     const picked = results.filter((r) => selected[r.external_ref] && !savedRefs[r.external_ref]);
     try {
-      await saveLeads(picked);
+      const res = await saveLeads(picked);
       const marked: Record<string, boolean> = { ...savedRefs };
       picked.forEach((p) => { marked[p.external_ref] = true; });
       setSavedRefs(marked);
       setSelected({});
-      onSaved(picked.length);
+      onSaved(res.created); // only bump the funnel by rows actually created
     } catch {
       setError('Could not save the selected leads.');
     } finally {
