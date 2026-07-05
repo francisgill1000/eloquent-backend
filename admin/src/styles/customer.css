@@ -275,7 +275,8 @@
   background: color-mix(in srgb, var(--mint-400) 10%, transparent);
   border-bottom: 1px solid var(--border-mint); white-space: nowrap;
 }
-.c-dtable th.ta-r, .c-dtable td.c-dt-act { text-align: right; }
+.c-dtable th.ta-r, .c-dtable td.ta-r, .c-dtable td.c-dt-act { text-align: right; }
+.c-dtable tbody tr.c-dt-click { cursor: pointer; }
 .c-dtable tbody tr { border-top: 1px solid color-mix(in srgb, var(--border-mint) 55%, transparent); transition: background .14s ease; }
 .c-dtable tbody tr:first-child { border-top: none; }
 .c-dtable tbody tr:hover { background: color-mix(in srgb, var(--mint-400) 12%, transparent); }
