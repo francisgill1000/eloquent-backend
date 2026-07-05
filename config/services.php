@@ -39,6 +39,14 @@ return [
         'key' => env('GOOGLE_MAPS_KEY'),
     ],
 
+    'google_places' => [
+        // Lead Finder discovery source. Enable "Places API" in Google Cloud and
+        // use a SERVER-side, IP-restricted key (restrict to the droplet's IP) —
+        // NOT the referrer-restricted frontend Maps key in google_maps.key above.
+        // This key is server-only: never exposed to the client and never logged.
+        'key' => env('GOOGLE_PLACES_KEY'),
+    ],
+
     'whatsapp' => [
         'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),
         'graph_version' => env('GRAPH_API_VERSION', 'v25.0'),

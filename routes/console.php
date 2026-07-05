@@ -11,6 +11,9 @@ Artisan::command('inspire', function () {
 
 Schedule::command('invoices:update-overdue-status')->daily();
 
+// Lead Finder — surface leads whose follow-up is due today.
+Schedule::command('leads:due-followups')->daily();
+
 Schedule::command('assistant:suggest-kb --days=7')
     ->weeklyOn(1, '03:00')
     ->withoutOverlapping()
