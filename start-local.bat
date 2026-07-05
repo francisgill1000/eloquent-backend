@@ -6,7 +6,7 @@ REM    - Queue worker     (generates AI chat replies)
 REM    - Business Lens app        http://localhost:5175
 REM    - Customer app     http://localhost:5174
 REM  Close any window (or Ctrl+C in it) to stop that server.
-REM  Self-contained: this launcher lives inside Booking-Manager,
+REM  Self-contained: this launcher lives inside Booking-Lens,
 REM  so %~dp0 is the project root (admin/ and customer/ are siblings).
 REM ============================================================
 

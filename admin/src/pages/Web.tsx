@@ -213,7 +213,7 @@ const LP_HTML = `
   <section class="hero">
     <div class="wrap hero-grid">
       <div>
-        <span class="eyebrow"><span class="ping"></span> AI booking manager · Built in the UAE</span>
+        <span class="eyebrow"><span class="ping"></span> AI booking Lens · Built in the UAE</span>
         <h1>Take bookings by QR.<br><span class="accent">Let AI handle them.</span><br>Manage your day by voice.</h1>
         <p class="sub">Your customers scan and book in seconds. AI does the scheduling. You run the whole thing — even your reports — just by asking out loud.</p>
         <div class="hero-actions">

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Gate the whole Booking Manager + Ask app behind a paid subscription — 30-day trial, then AED 149/mo (30-day pass) or AED 1,000/yr (365-day pass) via renewable Ziina one-off payments — with master-editable pricing and per-shop status.
+**Goal:** Gate the whole Booking Lens + Ask app behind a paid subscription — 30-day trial, then AED 149/mo (30-day pass) or AED 1,000/yr (365-day pass) via renewable Ziina one-off payments — with master-editable pricing and per-shop status.
 
 **Architecture:** A `subscriptions` row per shop holds one authoritative `access_until` timestamp; access = `now < access_until`. New shops start a 30-day trial. Paying via the existing Ziina one-off flow logs a `subscription_payments` row and, on the Ziina webhook, extends `access_until`. A backend middleware returns 402 for lapsed shops (master exempt); the admin SPA's `RequireSubscription` gate routes lapsed shops to `/subscribe`. Prices live in an editable `pricing` table.
 
@@ -533,7 +533,7 @@ private function postIntent(int $amountFils, string $operationId, string $messag
 
 public function createSubscriptionIntent(\App\Models\Shop $shop, string $plan, int $amountFils, array $urls): array {
     return $this->postIntent($amountFils, (string) \Illuminate\Support\Str::uuid(),
-        "Booking Manager {$plan} subscription — {$shop->name}", $urls);
+        "Booking Lens {$plan} subscription — {$shop->name}", $urls);
 }
 ```
 Then change the existing `createIntent(BookingInvoice $invoice, array $urls)` body to:
@@ -1246,7 +1246,7 @@ export default function Subscribe() {
     <div className="m-screen"><div className="m-scroll">
       <div className="c-page-head" style={{ paddingTop: 18 }}>
         <h1 className="c-page-title">Subscribe</h1>
-        <p className="c-page-sub">Unlock Booking Manager + Ask for your business.</p>
+        <p className="c-page-sub">Unlock Booking Lens + Ask for your business.</p>
       </div>
       {error && <div className="c-error-box">{error}</div>}
       <div className="svc-grid">
