@@ -1,5 +1,10 @@
-import api from './api';
+import api, { API_BASE } from './api';
 import type { Booking, ShopBookingsResponse } from '@/types';
+
+/** Public URL of a booking's invoice PDF (opens inline in the browser). */
+export function invoicePdfUrl(bookingId: number): string {
+  return `${API_BASE}/booking/${bookingId}/invoice/pdf`;
+}
 
 export async function getShopBookings(shopId: number): Promise<ShopBookingsResponse> {
   const { data } = await api.get('/shop/bookings', { params: { shop_id: shopId } });

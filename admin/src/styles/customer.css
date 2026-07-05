@@ -420,7 +420,7 @@
 .ba-tstep.current .ba-tstate { color: var(--mint-300); }
 .ba-tstep.cancelled .ba-tstate { color: var(--danger); }
 
-.ba-invoice { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; }
+.ba-invoice { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; flex-wrap: wrap; }
 .ba-invoice-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .ba-invoice-icon {
   width: 40px; height: 40px; border-radius: 12px; flex: 0 0 auto; display: grid; place-items: center;
@@ -440,6 +440,15 @@
 }
 .ba-invoice-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 24px -8px var(--mint-glow); }
 .ba-invoice-btn:disabled { opacity: .6; cursor: default; }
+.ba-invoice-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.ba-invoice-view {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 40px; padding: 0 16px; border-radius: var(--r-md);
+  background: var(--surface-1); border: 1px solid var(--border-2); color: var(--text-2);
+  font-size: 13.5px; font-weight: 700; text-decoration: none; cursor: pointer;
+  transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+.ba-invoice-view:hover { border-color: var(--border-mint); color: var(--mint-300); background: var(--mint-soft); }
 
 .ba-staff-list {
   background: var(--mint-soft); border: 1px solid var(--border-mint);

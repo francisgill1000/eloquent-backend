@@ -3,6 +3,7 @@ import { storage } from './storage';
 import { getDeviceId } from './deviceId';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://api.eloquentservice.com/api';
+export const API_BASE = BASE_URL;
 
 const api = axios.create({
   baseURL: BASE_URL,
