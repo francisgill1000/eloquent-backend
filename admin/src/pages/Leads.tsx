@@ -13,11 +13,12 @@ import {
   updateLeadStatus,
   waLink,
   telLink,
+  leadDigits,
   isUaeMobile,
   SearchLimitError,
 } from '@/lib/leads';
 import { LEAD_STATUSES } from '@/types';
-import type { Lead, LeadFunnel, LeadResult, LeadSource, LeadStatus } from '@/types';
+import type { Lead, LeadFunnel, LeadResult, LeadStatus } from '@/types';
 
 type Mode = 'find' | 'pipeline';
 
@@ -57,18 +58,6 @@ function pageWindow(current: number, count: number): (number | '…')[] {
   if (hi < count - 1) out.push('…');
   out.push(count);
   return out;
-}
-
-// "just now" / "5h ago" / "3d ago" for a cached-at timestamp (server sends UTC).
-function cacheAgeLabel(iso?: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso.replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? '' : 'Z'));
-  if (Number.isNaN(d.getTime())) return '';
-  const mins = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
-  if (mins < 60) return 'just now';
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.round(hrs / 24)}d ago`;
 }
 
 export default function Leads() {
@@ -127,12 +116,18 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   const [error, setError] = useState('');
   const [limit, setLimit] = useState<{ used: number; limit: number } | null>(null);
   const [meta, setMeta] = useState<{ from_cache: boolean; remaining: number } | null>(null);
-  const [source, setSource] = useState<LeadSource>('google_places');
+  // Background enrichment (the slow "advertising" source) runs after the fast
+  // results land and quietly appends. `scanning` drives the subtle indicator;
+  // `moreFound` is how many extra leads the last scan added.
   const [scanning, setScanning] = useState(false);
-  const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const [moreFound, setMoreFound] = useState<number | null>(null);
   const pollRef = useRef<number | null>(null);
+  // Mirror of `results` so the async poll appends against the latest list
+  // without capturing a stale closure.
+  const resultsRef = useRef<LeadResult[] | null>(null);
+  useEffect(() => { resultsRef.current = results; }, [results]);
 
-  // Cancel any in-flight ad-search poll when leaving the pane.
+  // Cancel any in-flight background scan when leaving the pane.
   useEffect(() => () => { if (pollRef.current) window.clearTimeout(pollRef.current); }, []);
 
   const selectedRefs = useMemo(() => Object.keys(selected).filter((k) => selected[k]), [selected]);
@@ -155,69 +150,89 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   };
 
   const runSearch = async () => {
-    if (!category.trim() || !shopReady) return;
-    setError(''); setLimit(null); setResults(null); setSelected({}); setMeta(null); setCachedAt(null);
+    const q = category.trim();
+    if (!q || !shopReady) return;
+    setError(''); setLimit(null); setResults(null); setSelected({}); setMeta(null);
+    setScanning(false); setMoreFound(null);
+    resultsRef.current = null;
     if (pollRef.current) window.clearTimeout(pollRef.current);
 
-    if (source === 'meta_ad_library') {
-      void runAdSearch(false);
-      return;
-    }
-
+    // 1. Fast source — real business listings, returned in ~1s.
     setLoading(true);
+    let gotFast = false;
     try {
-      const res = await searchLeads(category.trim());
+      const res = await searchLeads(q);
       setResults(res.data);
       setMeta({ from_cache: res.meta.from_cache, remaining: res.meta.remaining });
+      gotFast = true;
     } catch (e) {
       if (e instanceof SearchLimitError) setLimit({ used: e.used, limit: e.limit });
       else setError('Search failed. Please try again.');
     } finally {
       setLoading(false);
     }
+
+    // 2. Slow source — quietly scan for businesses running ads and append them.
+    // Skipped if the fast search failed or hit the allowance (never charges on
+    // its own; the fast search is the single billable point).
+    if (gotFast) void scanForMore(q);
   };
 
-  // A repeat query returns instantly from cache; otherwise start the scrape and
-  // poll every 4s until it finishes (~1-2 min). `fresh` (Refresh button)
-  // bypasses the cache and forces a live re-scrape.
-  const runAdSearch = async (fresh: boolean) => {
-    if (!category.trim() || !shopReady) return;
-    setLoading(true); setScanning(true); setError(''); setLimit(null); setCachedAt(null);
-    if (pollRef.current) window.clearTimeout(pollRef.current);
-    const kw = category.trim();
+  // De-dupe key across sources: same phone (or, lacking one, same name) means
+  // the same business — keep the first (fast-source) copy.
+  const keyOf = (r: LeadResult) => leadDigits(r.phone) || r.name.trim().toLowerCase();
+
+  const appendResults = (extra: LeadResult[]) => {
+    if (!extra.length) return;
+    const base = resultsRef.current ?? [];
+    const seen = new Set(base.map(keyOf));
+    const fresh = extra.filter((r) => {
+      const k = keyOf(r);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    if (!fresh.length) return;
+    const merged = [...base, ...fresh];
+    resultsRef.current = merged;
+    setResults(merged);
+    setMoreFound(fresh.length);
+  };
+
+  // Background enrichment via the slow "advertising" source. A repeat query is
+  // served instantly from cache; otherwise it kicks off a scrape and polls
+  // every 4s (~1-2 min). Failures are swallowed — this must never disrupt the
+  // fast results already on screen.
+  const scanForMore = async (q: string) => {
+    setScanning(true);
 
     let started: Awaited<ReturnType<typeof startAdSearch>>;
     try {
-      started = await startAdSearch(kw, undefined, fresh);
-    } catch (e) {
-      if (e instanceof SearchLimitError) setLimit({ used: e.used, limit: e.limit });
-      else setError('Could not start the ad search.');
-      setLoading(false); setScanning(false);
+      started = await startAdSearch(q);
+    } catch {
+      setScanning(false);
       return;
     }
 
-    // Cache hit — no scrape, no wait, no quota spent.
     if (started.cached) {
-      setResults(started.data);
-      setCachedAt(started.cachedAt ?? null);
-      setLoading(false); setScanning(false);
+      appendResults(started.data);
+      setScanning(false);
       return;
     }
 
     const runId = started.runId;
     const tick = async () => {
       try {
-        const res = await pollAdSearch(runId, kw);
+        const res = await pollAdSearch(runId, q);
         if (res.status === 'running') {
           pollRef.current = window.setTimeout(tick, 4000);
           return; // keep scanning
         }
-        if (res.status === 'failed') setError('Ad search failed. Please try again.');
-        else setResults(res.data);
+        if (res.status === 'done') appendResults(res.data);
       } catch {
-        setError('Ad search failed. Please try again.');
+        // swallow — background enrichment
       }
-      setLoading(false); setScanning(false);
+      setScanning(false);
     };
     void tick();
   };
@@ -245,33 +260,18 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   return (
     <>
       <div className="lf-panel lf-search">
-        <div className="lf-srcpick" role="tablist" aria-label="Lead source">
-          <button className={`lf-srcbtn${source === 'google_places' ? ' on' : ''}`}
-            onClick={() => { setSource('google_places'); setResults(null); setError(''); setLimit(null); }}>
-            <Icons.MapPin size={13} /> Google
-          </button>
-          <button className={`lf-srcbtn${source === 'meta_ad_library' ? ' on' : ''}`}
-            onClick={() => { setSource('meta_ad_library'); setResults(null); setError(''); setLimit(null); }}>
-            <Icons.Chart size={13} /> Ad activity
-          </button>
-        </div>
         <div className="lf-search-inputs single">
           <div className="lf-field">
             <Icons.Search size={16} />
             <input
-              placeholder={source === 'meta_ad_library'
-                ? 'What? e.g. salon, car wash'
-                : 'What & where? e.g. car wash in Dubai Marina'}
+              placeholder="What & where? e.g. car wash in Dubai Marina"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') void runSearch(); }} />
           </div>
         </div>
-        {source === 'meta_ad_library' && (
-          <p className="lf-hint"><Icons.MapPin size={12} /> Ad Activity scans ads across the whole UAE — no area needed.</p>
-        )}
         <button className="c-btn lf-search-btn" disabled={loading || !category.trim()} onClick={() => void runSearch()}>
-          {loading ? (scanning ? 'Scanning ads…' : 'Searching…') : <><Icons.Search size={16} /> Search</>}
+          {loading ? 'Searching…' : <><Icons.Search size={16} /> Search</>}
         </button>
       </div>
 
@@ -293,17 +293,16 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
         </div>
       )}
 
-      {cachedAt && !loading && results && results.length > 0 && (
-        <div className="lf-cached">
-          <span><Icons.Clock size={13} /> Cached results · {cacheAgeLabel(cachedAt)}</span>
-          <button className="lf-refresh" onClick={() => void runAdSearch(true)}>
-            <Icons.Search size={13} /> Refresh for latest
-          </button>
+      {!loading && (scanning || moreFound) && (
+        <div className="lf-scanmore">
+          {scanning
+            ? <><span className="lf-scandot" /> Scanning for more businesses…</>
+            : <><Icons.Check size={13} /> Added {moreFound} more</>}
         </div>
       )}
 
       {loading ? (
-        <Spinner label={scanning ? 'Scanning the ad library… (up to ~2 min)' : 'Searching businesses…'} />
+        <Spinner label="Searching businesses…" />
       ) : results && results.length > 0 ? (
         <>
           <div className="lf-listhead">
@@ -330,11 +329,11 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
             </div>
           )}
         </>
-      ) : results && results.length === 0 ? (
+      ) : results && results.length === 0 && !scanning ? (
         <div className="lf-panel">
           <EmptyState title="No businesses found" subtitle="Try a broader category or a different area." />
         </div>
-      ) : !limit && (
+      ) : results && results.length === 0 ? null : !limit && (
         <div className="lf-panel">
           <EmptyState icon={<Icons.Search size={26} />} title="Search to find businesses"
             subtitle="Enter a business type and area to discover real UAE businesses." />

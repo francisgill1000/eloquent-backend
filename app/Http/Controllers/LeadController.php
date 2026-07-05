@@ -75,13 +75,17 @@ class LeadController extends Controller
 
     /**
      * POST /shop/leads/ad-search
-     * Start an async "Ad Activity" scrape (businesses running Meta ads). Charges
-     * one monthly search up-front (Apify cost is incurred now). Returns a run id
-     * the client polls. 429 when the allowance is exhausted.
+     * Background enrichment for a unified search: scrape businesses running ads
+     * and append them to the fast (listings) results already on screen. This is
+     * always paired with a prior GET /shop/leads/search, which is the single
+     * billable point — so this endpoint does NOT charge the monthly allowance
+     * and is not quota-gated here (the paired listings search already enforced
+     * the limit before it ran). Cache hits are free + instant. Returns a run id
+     * the client polls.
      */
     public function adSearchStart(Request $request)
     {
-        $shop = $this->shop($request);
+        $this->shop($request);
 
         $data = $request->validate([
             'category' => ['required', 'string', 'max:120'],
@@ -94,8 +98,7 @@ class LeadController extends Controller
         }
 
         // Cache-first: a repeat search is served free + instant (no re-scrape,
-        // no Apify cost, no quota spent). `fresh=true` (the Refresh button)
-        // bypasses the cache and forces a live scrape.
+        // no Apify cost). `fresh=true` bypasses the cache and forces a scrape.
         if (! $request->boolean('fresh')) {
             $cached = $this->adLibrary->cachedResults($data['category']);
             if ($cached !== null) {
@@ -107,19 +110,11 @@ class LeadController extends Controller
             }
         }
 
-        [$used, $limit] = $this->search->usage($shop);
-        if ($used >= $limit) {
-            return response()->json(['error' => 'search_limit_reached', 'used' => $used, 'limit' => $limit], 429);
-        }
-
         try {
             $runId = $this->adLibrary->start($data['category'], $data['area'] ?? null);
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             return response()->json(['error' => 'ad_search_failed'], 502);
         }
-
-        // Charge the quota now — the scrape is already running (and billable).
-        $this->search->recordSearch($shop, $data['category'], $data['area'] ?? null);
 
         return response()->json(['run_id' => $runId]);
     }
