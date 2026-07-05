@@ -4,33 +4,31 @@
 
 .lf .c-page-head { margin-bottom: 12px; }
 
-/* Segmented Find / Pipeline toggle */
+/* Segmented Find / Pipeline toggle — matches the Access Control pill (ac-tabs). */
 .lf-seg {
-  display: flex;
-  gap: 6px;
-  padding: 5px;
-  margin-bottom: 16px;
+  display: inline-flex;
+  gap: 4px;
+  margin: 0 0 16px;
+  padding: 4px;
   background: var(--surface-1);
   border: 1px solid var(--border-1);
-  border-radius: var(--r-lg);
-  backdrop-filter: blur(12px);
+  border-radius: var(--r-pill);
 }
 .lf-seg-btn {
-  flex: 1;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  height: 40px;
-  border: none;
-  border-radius: var(--r-md);
+  gap: 8px;
+  border: 0;
   background: transparent;
   color: var(--text-3);
+  font-size: 13px;
   font-weight: 700;
-  font-size: 14px;
+  padding: 8px 18px;
+  border-radius: var(--r-pill);
   cursor: pointer;
-  transition: background .18s ease, color .18s ease;
+  transition: background .16s ease, color .16s ease;
 }
+.lf-seg-btn:hover { color: var(--text-1); }
 .lf-seg-btn.on {
   background: var(--mint-soft);
   color: var(--mint-300);
@@ -38,19 +36,32 @@
 }
 .lf-seg-count {
   min-width: 20px;
+  height: 18px;
   padding: 0 6px;
-  height: 20px;
   display: inline-grid;
   place-items: center;
   border-radius: var(--r-pill);
-  background: var(--mint-500);
-  color: #04140f;
   font-size: 11px;
   font-weight: 800;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
 }
+
+/* Glass card wrapper (search box, empty states) — mirrors Services' .c-card. */
+.lf-panel {
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-1);
+}
+.lf-panel .m-empty { padding: 20px 8px; }
 
 /* Search inputs */
 .lf-search { margin-bottom: 14px; }
+.lf-search .lf-search-btn { margin-bottom: 0; }
 .lf-search-inputs { display: grid; gap: 10px; margin-bottom: 12px; }
 @media (min-width: 640px) { .lf-search-inputs { grid-template-columns: 1fr 1fr; } }
 
