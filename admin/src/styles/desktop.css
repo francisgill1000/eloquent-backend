@@ -928,18 +928,13 @@
     height: 200px;
   }
 
-  /* ── Booking detail/action (desktop): centered, comfortably-narrow column
-        with the app's mint glass cards. ── */
-  .c-booking-action .ba-wrap {
-    display: block;
-    max-width: 640px;
-    margin-inline: auto;
-    width: 100%;
-  }
-  .c-booking-action .c-card {
-    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
-    border: 1px solid var(--border-mint);
-  }
+  /* ── Booking detail/action (desktop): full-width layout, info tiles in one
+        row of four. ── */
+  .app-shell-main .c-booking-action .m-scroll { padding: 26px 30px 34px; }
+  .c-booking-action .ba-wrap { display: block; width: 100%; }
+  .c-booking-action .ba-card,
+  .c-booking-action .ba-section { margin-left: 0; margin-right: 0; }
+  .c-booking-action .ba-grid { grid-template-columns: repeat(4, 1fr); }
 
   /* ── Working Hours (desktop): two columns of day cards instead of one long
         stretched full-width stack. ── */
