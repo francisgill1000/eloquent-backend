@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
 import {
-  getBooking, setBookingStatus, reassignBooking, markInvoicePaid,
+  getBooking, setBookingStatus, reassignBooking, markInvoicePaid, invoicePdfUrl,
 } from '@/lib/bookings';
 import { getStaff } from '@/lib/shops';
 import { statusKind } from '@/lib/calendar';
@@ -255,11 +255,16 @@ export default function BookingAction() {
                 <span className={`ba-invoice-status${invPaid ? ' paid' : ''}`}>{invLabel}</span>
               </div>
             </div>
-            {!invPaid && !invCancelled && (
-              <button className="ba-invoice-btn" disabled={busy} onClick={() => void payInvoice()}>
-                <Icons.Check size={16} /> Mark as Paid
-              </button>
-            )}
+            <div className="ba-invoice-actions">
+              <a className="ba-invoice-view" href={invoicePdfUrl(bookingId)} target="_blank" rel="noreferrer">
+                <Icons.Download size={15} /> View invoice
+              </a>
+              {!invPaid && !invCancelled && (
+                <button className="ba-invoice-btn" disabled={busy} onClick={() => void payInvoice()}>
+                  <Icons.Check size={16} /> Mark as Paid
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
