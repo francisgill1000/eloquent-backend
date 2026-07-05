@@ -268,7 +268,8 @@
   box-shadow: var(--shadow-1);
   margin: 0 16px 14px;
 }
-.ba-hero { padding: 18px; }
+.ba-hero { padding: 18px; display: flex; flex-direction: column; gap: 18px; }
+.ba-hero-main { flex: 1; min-width: 0; }
 .ba-hero-top { display: flex; align-items: center; gap: 12px; }
 .ba-avatar {
   width: 46px; height: 46px; border-radius: 14px; flex: 0 0 auto;
@@ -303,6 +304,45 @@
 
 .ba-status-card { padding: 12px; }
 .ba-status-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+/* Sliding-knob status switch — a vertical rail whose knob springs between
+   Booked / Completed / Cancelled and whose fill glows the status colour. */
+.ba-switch { position: relative; display: flex; gap: 12px; min-height: 210px; align-self: center; width: 260px; }
+.ba-switch-opts { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.ba-switch-opt {
+  flex: 1; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 2px;
+  background: none; border: 0; cursor: pointer; text-align: right; padding: 0 2px;
+  color: var(--text-3); transition: color .16s ease;
+}
+.ba-switch-opt:hover:not(:disabled) { color: var(--text-1); }
+.ba-switch-opt:disabled { cursor: default; }
+.ba-switch-opt.on { color: var(--optc); }
+.ba-switch-optlabel { font-size: 14.5px; font-weight: 800; }
+.ba-switch-optstate { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-4); }
+.ba-switch-opt.on .ba-switch-optstate { color: var(--optc); }
+
+.ba-switch-rail {
+  position: relative; width: 46px; align-self: stretch; border-radius: 24px;
+  background: var(--surface-2); border: 1px solid var(--border-2); overflow: hidden;
+}
+.ba-switch-fill {
+  position: absolute; left: 0; right: 0; top: 0;
+  height: calc(16.667% + var(--active) * 33.333%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--stage) 42%, transparent), color-mix(in srgb, var(--stage) 82%, transparent));
+  transition: height .34s cubic-bezier(.5, 1.5, .5, 1), background .2s ease;
+}
+.ba-switch.none .ba-switch-fill { height: 0; }
+.ba-switch-knob {
+  position: absolute; right: 3px; width: 40px; height: 40px; border-radius: 50%;
+  top: calc(16.667% + var(--active) * 33.333%); transform: translateY(-50%);
+  display: grid; place-items: center; z-index: 2; color: #04140f;
+  background: var(--stage);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--stage) 22%, transparent), 0 8px 18px -4px var(--stage);
+  transition: top .34s cubic-bezier(.5, 1.5, .5, 1), background .2s ease, box-shadow .2s ease;
+}
+.ba-switch.none .ba-switch-knob { background: var(--surface-1); color: var(--text-4); border: 2px solid var(--border-2); box-shadow: none; }
+.ba-switch-dot { width: 12px; height: 12px; border-radius: 50%; background: #04140f; }
+.ba-switch-x { font-size: 17px; font-weight: 900; line-height: 1; color: #fff; }
 .ba-status-btn {
   height: 46px; border-radius: var(--r-md);
   background: var(--surface-1); border: 1px solid var(--border-1); color: var(--text-2);
