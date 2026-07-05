@@ -165,6 +165,17 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->grou
     Route::post('/shop/assistant/voice',     [\App\Http\Controllers\OwnerAssistantController::class, 'voice']);
 });
 
+// Lead Finder — search real UAE businesses, save + work them (WhatsApp/call).
+// Tenant-scoped to the authed shop; shop_id is never read from the request.
+// Order matters: /shop/leads/search is declared before the {lead} route so it
+// is not swallowed by model binding.
+Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->group(function () {
+    Route::get   ('/shop/leads/search',           [\App\Http\Controllers\LeadController::class, 'search']);
+    Route::get   ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'index']);
+    Route::post  ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'store']);
+    Route::patch ('/shop/leads/{lead}/status',    [\App\Http\Controllers\LeadController::class, 'updateStatus']);
+});
+
 // Signed (not token-authed) so an <audio> element can load it directly; the
 // signature both authorizes and prevents one shop forging another's URL.
 Route::get('/shop/assistant/audio/{message}', [\App\Http\Controllers\OwnerAssistantController::class, 'audio'])
