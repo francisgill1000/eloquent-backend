@@ -1226,14 +1226,26 @@
     box-shadow: 0 0 8px 0 var(--mint-glow);
   }
 
-  /* ── List view: reuse the Dashboard's glass booking rows ── */
-  .c-bk-list { display: flex; flex-direction: column; gap: 10px; }
+  /* ── List view: one continuous mint-glass table, matching the leads list ── */
+  .c-bk-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--mint-soft);
+    border: 1px solid var(--border-mint);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-1);
+    overflow: hidden;
+  }
   .c-bookings .c-bk-list .c-up-row {
     width: 100%;
     margin: 0;
-    background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
-    border: 1px solid var(--border-mint);
-    transition: transform 0.16s ease, border-color 0.16s ease;
+    background: transparent;
+    border: 0;
+    border-top: 1px solid color-mix(in srgb, var(--border-mint) 55%, transparent);
+    border-radius: 0;
+    transition: background 0.16s ease;
   }
-  .c-bookings .c-bk-list .c-up-row:hover { transform: translateY(-1px); border-color: var(--mint-400); }
+  .c-bookings .c-bk-list .c-up-row:first-child { border-top: 0; }
+  .c-bookings .c-bk-list .c-up-row:hover { transform: none; background: color-mix(in srgb, var(--mint-400) 12%, transparent); }
 }
