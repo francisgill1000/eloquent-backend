@@ -119,7 +119,6 @@ export default function Leads() {
 
 function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta: number) => void }) {
   const [category, setCategory] = useState('');
-  const [area, setArea] = useState('');
   const [results, setResults] = useState<LeadResult[] | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [savedRefs, setSavedRefs] = useState<Record<string, boolean>>({});
@@ -167,7 +166,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
     setLoading(true);
     try {
-      const res = await searchLeads(category.trim(), area.trim() || undefined);
+      const res = await searchLeads(category.trim());
       setResults(res.data);
       setMeta({ from_cache: res.meta.from_cache, remaining: res.meta.remaining });
     } catch (e) {
@@ -189,7 +188,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
     let started: Awaited<ReturnType<typeof startAdSearch>>;
     try {
-      started = await startAdSearch(kw, area.trim() || undefined, fresh);
+      started = await startAdSearch(kw, undefined, fresh);
     } catch (e) {
       if (e instanceof SearchLimitError) setLimit({ used: e.used, limit: e.limit });
       else setError('Could not start the ad search.');
@@ -256,21 +255,17 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
             <Icons.Chart size={13} /> Ad activity
           </button>
         </div>
-        <div className={`lf-search-inputs${source === 'meta_ad_library' ? ' single' : ''}`}>
+        <div className="lf-search-inputs single">
           <div className="lf-field">
             <Icons.Search size={16} />
-            <input placeholder="What? e.g. salon, car wash" value={category}
+            <input
+              placeholder={source === 'meta_ad_library'
+                ? 'What? e.g. salon, car wash'
+                : 'What & where? e.g. car wash in Dubai Marina'}
+              value={category}
               onChange={(e) => setCategory(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') void runSearch(); }} />
           </div>
-          {source === 'google_places' && (
-            <div className="lf-field">
-              <Icons.MapPin size={16} />
-              <input placeholder="Where? e.g. Dubai Marina" value={area}
-                onChange={(e) => setArea(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') void runSearch(); }} />
-            </div>
-          )}
         </div>
         {source === 'meta_ad_library' && (
           <p className="lf-hint"><Icons.MapPin size={12} /> Ad Activity scans ads across the whole UAE — no area needed.</p>
@@ -342,7 +337,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
       ) : !limit && (
         <div className="lf-panel">
           <EmptyState icon={<Icons.Search size={26} />} title="Search to find businesses"
-            subtitle="Enter a business type and an area to discover real UAE businesses." />
+            subtitle="Enter a business type and area to discover real UAE businesses." />
         </div>
       )}
     </>
