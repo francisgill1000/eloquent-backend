@@ -27,6 +27,21 @@ const STATUS_LABEL: Record<LeadStatus, string> = {
 
 const EMPTY_FUNNEL: LeadFunnel = { new: 0, sent: 0, replied: 0, demo: 0, won: 0, pass: 0 };
 
+// Compact follow-up label for pipeline cards. `due` flips the styling to the
+// amber "chase me" treatment for anything due today or overdue.
+function followupLabel(iso?: string | null): { text: string; due: boolean } | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const days = Math.round((target.getTime() - today.getTime()) / 86_400_000);
+  if (days < 0) return { text: `Overdue ${-days}d`, due: true };
+  if (days === 0) return { text: 'Due today', due: true };
+  if (days === 1) return { text: 'Due tomorrow', due: false };
+  return { text: `Follow up in ${days}d`, due: false };
+}
+
 export default function Leads() {
   const navigate = useNavigate();
   const { shop } = useShop();
@@ -225,7 +240,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
       )}
 
       {loading ? (
-        <Spinner label={scanning ? 'Scanning the ad library… (~1 min)' : 'Searching businesses…'} />
+        <Spinner label={scanning ? 'Scanning the ad library… (up to ~2 min)' : 'Searching businesses…'} />
       ) : results && results.length > 0 ? (
         <>
           <div className="lf-listhead">
@@ -382,6 +397,7 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
 
 function LeadCard({ lead, busy, onStatus }: { lead: Lead; busy: boolean; onStatus: (s: LeadStatus) => void }) {
   const wa = lead.whatsapp_url && lead.is_mobile ? lead.whatsapp_url : null;
+  const follow = followupLabel(lead.next_followup_at);
   return (
     <div className={`lf-card s-${lead.status}`}>
       <div className="lf-card-body">
@@ -390,6 +406,11 @@ function LeadCard({ lead, busy, onStatus }: { lead: Lead; busy: boolean; onStatu
           <span className={`lf-status s-${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
         </div>
         {lead.address && <span className="lf-addr"><Icons.MapPin size={12} /> {lead.address}</span>}
+        {follow && (
+          <span className={`lf-follow${follow.due ? ' due' : ''}`}>
+            <Icons.Bell size={11} /> {follow.text}
+          </span>
+        )}
         <div className="lf-card-foot">
           <div className="lf-actions">
             {wa && <a className="lf-act wa" href={wa} target="_blank" rel="noreferrer"><Icons.WhatsApp size={14} /></a>}
