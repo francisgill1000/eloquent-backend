@@ -92,6 +92,13 @@ class LeadController extends Controller
             return response()->json(['error' => 'ad_source_unconfigured'], 503);
         }
 
+        // Cache-first: a repeat search is served free + instant (no re-scrape,
+        // no Apify cost, no quota spent).
+        $cached = $this->adLibrary->cachedResults($data['category']);
+        if ($cached !== null) {
+            return response()->json(['cached' => true, 'data' => $cached]);
+        }
+
         [$used, $limit] = $this->search->usage($shop);
         if ($used >= $limit) {
             return response()->json(['error' => 'search_limit_reached', 'used' => $used, 'limit' => $limit], 429);
@@ -118,6 +125,12 @@ class LeadController extends Controller
         $this->shop($request);
 
         $result = $this->adLibrary->poll($runId);
+
+        // Cache a finished run under its keyword so the next identical search is
+        // a free, instant hit. The client echoes back the category it searched.
+        if ($result['status'] === 'done' && ($category = $request->query('category'))) {
+            $this->adLibrary->cacheResults($category, $result['results']);
+        }
 
         return response()->json([
             'status' => $result['status'],
