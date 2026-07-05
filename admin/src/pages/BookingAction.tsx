@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, type CSSProperties } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
@@ -9,7 +9,12 @@ import { getStaff } from '@/lib/shops';
 import { statusKind } from '@/lib/calendar';
 import type { Booking, StaffMember } from '@/types';
 
-const STATUS_OPTIONS = ['Booked', 'Completed', 'Cancelled'];
+// Vertical sliding-knob switch config — order = top→bottom on the rail.
+const SWITCH_OPTS: { label: string; color: string }[] = [
+  { label: 'Booked', color: 'var(--info)' },
+  { label: 'Completed', color: 'var(--mint-400)' },
+  { label: 'Cancelled', color: 'var(--danger)' },
+];
 
 // Booking lifecycle for the progress timeline. Cancelled swaps the terminal
 // step; otherwise it's Queued → Booked → Completed.
@@ -118,6 +123,9 @@ export default function BookingAction() {
   const name = booking.customer?.name || booking.customer_name || 'Guest';
   const serviceList = booking.services?.map((s) => s.title || s.name).filter(Boolean) ?? [];
   const services = serviceList.length ? serviceList.join(', ') : '—';
+  const switchIndex = SWITCH_OPTS.findIndex((o) => o.label.toLowerCase() === status.toLowerCase());
+  const switchActive = switchIndex >= 0 ? switchIndex : 0;
+  const switchColor = switchIndex >= 0 ? SWITCH_OPTS[switchIndex].color : 'var(--text-4)';
 
   return (
     <div className="m-screen c-booking-action"><div className="m-scroll">
@@ -147,56 +155,71 @@ export default function BookingAction() {
         </ol>
       </div>
 
-      {/* Hero — customer, reference, status + the key facts as tiles */}
+      {/* Hero — details on the left, vertical status switch docked on the right */}
       <div className="ba-card ba-hero">
-        <div className="ba-hero-top">
-          <div className="ba-avatar">{name.charAt(0).toUpperCase()}</div>
-          <div className="ba-hero-id">
-            <span className="ba-name">{name}</span>
-            <span className="ba-ref">{booking.booking_reference || 'Booking'}</span>
+        <div className="ba-hero-main">
+          <div className="ba-hero-top">
+            <div className="ba-avatar">{name.charAt(0).toUpperCase()}</div>
+            <div className="ba-hero-id">
+              <span className="ba-name">{name}</span>
+              <span className="ba-ref">{booking.booking_reference || 'Booking'}</span>
+            </div>
+            <span className={`c-chip c-chip-${status.toLowerCase()}`}>{status}</span>
           </div>
-          <span className={`c-chip c-chip-${status.toLowerCase()}`}>{status}</span>
+
+          <div className="ba-service">
+            <span className="ba-tile-l">Service</span>
+            <span className="ba-service-val">{services}</span>
+          </div>
+
+          <div className="ba-grid">
+            <div className="ba-tile">
+              <Icons.Calendar size={15} />
+              <span className="ba-tile-l">Date</span>
+              <span className="ba-tile-v">{booking.date || '—'}</span>
+            </div>
+            <div className="ba-tile">
+              <Icons.Clock size={15} />
+              <span className="ba-tile-l">Time</span>
+              <span className="ba-tile-v">{booking.start_time || '—'}</span>
+            </div>
+            <div className="ba-tile">
+              <Icons.User size={15} />
+              <span className="ba-tile-l">Staff</span>
+              <span className="ba-tile-v">{booking.staff?.name || 'Unassigned'}</span>
+            </div>
+            <div className="ba-tile ba-tile-amount">
+              <Icons.Tag size={15} />
+              <span className="ba-tile-l">Charges</span>
+              <span className="ba-tile-v">AED {booking.charges ?? 0}</span>
+            </div>
+          </div>
         </div>
 
-        <div className="ba-service">
-          <span className="ba-tile-l">Service</span>
-          <span className="ba-service-val">{services}</span>
-        </div>
-
-        <div className="ba-grid">
-          <div className="ba-tile">
-            <Icons.Calendar size={15} />
-            <span className="ba-tile-l">Date</span>
-            <span className="ba-tile-v">{booking.date || '—'}</span>
+        {/* Sliding-knob status switch */}
+        <div className={`ba-switch${switchIndex < 0 ? ' none' : ''}`}
+          style={{ '--active': switchActive, '--stage': switchColor } as CSSProperties}>
+          <div className="ba-switch-opts">
+            {SWITCH_OPTS.map((o) => {
+              const on = o.label.toLowerCase() === status.toLowerCase();
+              return (
+                <button key={o.label} type="button"
+                  className={`ba-switch-opt${on ? ' on' : ''}`}
+                  style={{ '--optc': o.color } as CSSProperties}
+                  disabled={busy} onClick={() => void updateStatus(o.label)}>
+                  <span className="ba-switch-optlabel">{o.label}</span>
+                  <span className="ba-switch-optstate">{on ? 'Current' : 'Set'}</span>
+                </button>
+              );
+            })}
           </div>
-          <div className="ba-tile">
-            <Icons.Clock size={15} />
-            <span className="ba-tile-l">Time</span>
-            <span className="ba-tile-v">{booking.start_time || '—'}</span>
+          <div className="ba-switch-rail">
+            <div className="ba-switch-fill" />
           </div>
-          <div className="ba-tile">
-            <Icons.User size={15} />
-            <span className="ba-tile-l">Staff</span>
-            <span className="ba-tile-v">{booking.staff?.name || 'Unassigned'}</span>
-          </div>
-          <div className="ba-tile ba-tile-amount">
-            <Icons.Tag size={15} />
-            <span className="ba-tile-l">Charges</span>
-            <span className="ba-tile-v">AED {booking.charges ?? 0}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="ba-section">
-        <div className="ba-section-title">Update status</div>
-        <div className="ba-card ba-status-card">
-          <div className="ba-status-seg">
-            {STATUS_OPTIONS.map((s) => (
-              <button key={s} className={`ba-status-btn s-${s.toLowerCase()}${s === status ? ' on' : ''}`}
-                disabled={busy} onClick={() => void updateStatus(s)}>
-                {s}
-              </button>
-            ))}
+          <div className="ba-switch-knob">
+            {status.toLowerCase() === 'completed' ? <Icons.Check size={18} />
+              : status.toLowerCase() === 'cancelled' ? <span className="ba-switch-x">✕</span>
+              : <span className="ba-switch-dot" />}
           </div>
         </div>
       </div>
