@@ -71,6 +71,9 @@ export const Icons = {
   Grid: ({ size = 22 }: P) => (
     <svg width={size} height={size} viewBox="0 0 24 24" {...base}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
   ),
+  List: ({ size = 22 }: P) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base}><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" /></svg>
+  ),
   Chart: ({ size = 22 }: P) => (
     <svg width={size} height={size} viewBox="0 0 24 24" {...base}><path d="M3 3v18h18" /><rect x="7" y="12" width="3" height="6" rx="1" /><rect x="12.5" y="8" width="3" height="10" rx="1" /><rect x="18" y="5" width="3" height="13" rx="1" /></svg>
   ),

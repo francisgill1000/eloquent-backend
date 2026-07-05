@@ -388,6 +388,10 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
   const [busyId, setBusyId] = useState<number | null>(null);
   const [perPage, setPerPage] = useState<PerPage>(10);
   const [page, setPage] = useState(1);
+  const [view, setView] = useState<'cards' | 'list'>(
+    () => (localStorage.getItem('lf_view') === 'list' ? 'list' : 'cards'),
+  );
+  useEffect(() => { localStorage.setItem('lf_view', view); }, [view]);
 
   // Client-side paging over the already-loaded pipeline.
   const total = leads.length;
@@ -467,21 +471,49 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
             <span className="lf-pager-count">
               Showing <strong>{start + 1}–{Math.min(start + pageSize, total)}</strong> of {total}
             </span>
-            <label className="lf-perpage">
-              <span>Per page</span>
-              <select value={String(perPage)}
-                onChange={(e) => setPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
-                {PER_PAGE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-                <option value="all">All</option>
-              </select>
-            </label>
+            <div className="lf-pager-tools">
+              <div className="lf-viewtog" role="group" aria-label="View">
+                <button className={`lf-viewbtn${view === 'cards' ? ' on' : ''}`} aria-pressed={view === 'cards'}
+                  onClick={() => setView('cards')} aria-label="Card view" title="Cards"><Icons.Grid size={15} /></button>
+                <button className={`lf-viewbtn${view === 'list' ? ' on' : ''}`} aria-pressed={view === 'list'}
+                  onClick={() => setView('list')} aria-label="List view" title="List"><Icons.List size={15} /></button>
+              </div>
+              <label className="lf-perpage">
+                <span>Per page</span>
+                <select value={String(perPage)}
+                  onChange={(e) => setPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+                  {PER_PAGE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
+                  <option value="all">All</option>
+                </select>
+              </label>
+            </div>
           </div>
 
-          <div className="lf-list">
-            {pageLeads.map((l) => (
-              <LeadCard key={l.id} lead={l} busy={busyId === l.id} onStatus={(s) => void changeStatus(l, s)} />
-            ))}
-          </div>
+          {view === 'cards' ? (
+            <div className="lf-list">
+              {pageLeads.map((l) => (
+                <LeadCard key={l.id} lead={l} busy={busyId === l.id} onStatus={(s) => void changeStatus(l, s)} />
+              ))}
+            </div>
+          ) : (
+            <div className="lf-table-wrap">
+              <table className="lf-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Follow-up</th>
+                    <th className="ta-r">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageLeads.map((l) => (
+                    <LeadRow key={l.id} lead={l} busy={busyId === l.id} onStatus={(s) => void changeStatus(l, s)} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {pageCount > 1 && (
             <div className="lf-pager lf-pager-bottom">
@@ -509,6 +541,38 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
         </div>
       )}
     </>
+  );
+}
+
+function LeadRow({ lead, busy, onStatus }: { lead: Lead; busy: boolean; onStatus: (s: LeadStatus) => void }) {
+  const wa = lead.whatsapp_url && lead.is_mobile ? lead.whatsapp_url : null;
+  const follow = followupLabel(lead.next_followup_at);
+  return (
+    <tr className={`lf-row s-${lead.status}`}>
+      <td className="lf-row-name">
+        <span className="lf-name">{lead.name}</span>
+        {lead.address && <span className="lf-addr"><Icons.MapPin size={11} /> {lead.address}</span>}
+      </td>
+      <td>
+        <select className={`lf-select s-${lead.status}`} value={lead.status} disabled={busy}
+          onChange={(e) => onStatus(e.target.value as LeadStatus)} aria-label="Change status">
+          {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+        </select>
+      </td>
+      <td>
+        {follow
+          ? <span className={`lf-follow${follow.due ? ' due' : ''}`}><Icons.Bell size={11} /> {follow.text}</span>
+          : <span className="lf-dash">—</span>}
+      </td>
+      <td className="lf-row-actions">
+        <div className="lf-actions">
+          {wa && <a className="lf-act wa" href={wa} target="_blank" rel="noreferrer"><Icons.WhatsApp size={14} /></a>}
+          {lead.tel_url && <a className="lf-act" href={lead.tel_url}><Icons.Phone size={14} /></a>}
+          {lead.map_url && <a className="lf-act" href={lead.map_url} target="_blank" rel="noreferrer"><Icons.MapPin size={14} /></a>}
+          {lead.website && <a className="lf-act" href={lead.website} target="_blank" rel="noreferrer"><Icons.ArrowRight size={14} /></a>}
+        </div>
+      </td>
+    </tr>
   );
 }
 

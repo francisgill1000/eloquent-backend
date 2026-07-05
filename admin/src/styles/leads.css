@@ -453,6 +453,59 @@
 }
 .lf-page-ellipsis { color: var(--text-4); padding: 0 2px; user-select: none; }
 
+/* View toggle (cards / list) + per-page live together on the right of the header */
+.lf-pager-tools { display: inline-flex; align-items: center; gap: 12px; }
+.lf-viewtog {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+}
+.lf-viewbtn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 28px;
+  border-radius: 7px;
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease;
+}
+.lf-viewbtn:hover { color: var(--text-1); }
+.lf-viewbtn.on { background: var(--mint-soft); color: var(--mint-300); }
+
+/* List / table view */
+.lf-table-wrap { overflow-x: auto; border: 1px solid var(--border-1); border-radius: var(--r-lg); }
+.lf-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+.lf-table thead th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-4);
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border-1);
+  white-space: nowrap;
+}
+.lf-table th.ta-r, .lf-table td.lf-row-actions { text-align: right; }
+.lf-row { border-top: 1px solid var(--border-1); transition: background .14s ease; }
+.lf-row:first-child { border-top: none; }
+.lf-row:hover { background: var(--mint-soft); }
+.lf-row td { padding: 10px 14px; vertical-align: middle; border-left: 2px solid transparent; }
+.lf-row td:first-child { border-left-color: var(--stage); }
+.lf-row-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lf-row-name .lf-name { font-size: 14px; }
+.lf-row-name .lf-addr { font-size: 12px; max-width: 320px; }
+.lf-row .lf-select { height: 30px; }
+.lf-row-actions .lf-actions { justify-content: flex-end; flex-wrap: nowrap; }
+.lf-dash { color: var(--text-4); }
+
 /* Filters row */
 .lf-filters { display: flex; gap: 10px; margin-bottom: 14px; }
 .lf-filters .lf-field { flex: 1; height: 46px; margin: 0; }
