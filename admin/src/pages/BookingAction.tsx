@@ -9,6 +9,15 @@ import { getStaff } from '@/lib/shops';
 import { statusKind } from '@/lib/calendar';
 import type { Booking, StaffMember } from '@/types';
 
+// Crisp, bold marks for the switch knob (no inner circle — the knob is the
+// circle), so Completed's check and Cancelled's X read at the same weight.
+const KnobCheck = () => (
+  <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.2 4.2L19 6.5" /></svg>
+);
+const KnobX = () => (
+  <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" /></svg>
+);
+
 // Vertical sliding-knob switch config — order = top→bottom on the rail.
 const SWITCH_OPTS: { label: string; color: string }[] = [
   { label: 'Booked', color: 'var(--info)' },
@@ -197,7 +206,7 @@ export default function BookingAction() {
         </div>
 
         {/* Sliding-knob status switch */}
-        <div className={`ba-switch${switchIndex < 0 ? ' none' : ''}`}
+        <div className={`ba-switch ${statusKind(status)}${switchIndex < 0 ? ' none' : ''}`}
           style={{ '--active': switchActive, '--stage': switchColor } as CSSProperties}>
           <div className="ba-switch-opts">
             {SWITCH_OPTS.map((o) => {
@@ -217,8 +226,8 @@ export default function BookingAction() {
             <div className="ba-switch-fill" />
           </div>
           <div className="ba-switch-knob">
-            {status.toLowerCase() === 'completed' ? <Icons.Check size={18} />
-              : status.toLowerCase() === 'cancelled' ? <span className="ba-switch-x">✕</span>
+            {status.toLowerCase() === 'completed' ? <KnobCheck />
+              : status.toLowerCase() === 'cancelled' ? <KnobX />
               : <span className="ba-switch-dot" />}
           </div>
         </div>
