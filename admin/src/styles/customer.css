@@ -459,7 +459,7 @@
 /* Bookings — filter pills */
 .c-filters { display: flex; gap: 8px; padding: 0 16px 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .c-filters::-webkit-scrollbar { display: none; }
-.c-filter-pill { flex: 0 0 auto; padding: 7px 15px; border-radius: var(--r-pill); font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; color: var(--text-3); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: all 0.16s; }
+.c-filter-pill { flex: 0 0 auto; padding: 8px 18px; border-radius: var(--r-pill); font-size: 13px; font-weight: 700; white-space: nowrap; cursor: pointer; color: var(--text-3); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: all 0.16s; }
 .c-filter-pill.active { background: var(--mint-soft); border-color: var(--border-mint); color: var(--mint-300); }
 
 /* Master — all businesses */
