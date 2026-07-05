@@ -47,6 +47,14 @@ return [
         'key' => env('GOOGLE_PLACES_KEY'),
     ],
 
+    'apify' => [
+        // Lead Finder "Ad Activity" source — runs a Meta Ad Library scraper actor.
+        // Token from https://console.apify.com/account/integrations (server-only).
+        'token' => env('APIFY_TOKEN'),
+        // Actor id in username~name form (Apify REST path format).
+        'ad_library_actor' => env('APIFY_AD_LIBRARY_ACTOR', 'constructive_calm~facebook-ad-library-pro'),
+    ],
+
     'whatsapp' => [
         'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),
         'graph_version' => env('GRAPH_API_VERSION', 'v25.0'),

@@ -171,6 +171,9 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->grou
 // is not swallowed by model binding.
 Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->group(function () {
     Route::get   ('/shop/leads/search',           [\App\Http\Controllers\LeadController::class, 'search']);
+    // Ad Activity (Meta Ad Library) — async: start a run, then poll it.
+    Route::post  ('/shop/leads/ad-search',           [\App\Http\Controllers\LeadController::class, 'adSearchStart']);
+    Route::get   ('/shop/leads/ad-search/{runId}',   [\App\Http\Controllers\LeadController::class, 'adSearchPoll']);
     Route::get   ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'index']);
     Route::post  ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'store']);
     Route::patch ('/shop/leads/{lead}/status',    [\App\Http\Controllers\LeadController::class, 'updateStatus']);

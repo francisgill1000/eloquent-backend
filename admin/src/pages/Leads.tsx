@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { EmptyState } from '@/components/EmptyState';
@@ -8,6 +8,8 @@ import {
   listLeads,
   saveLeads,
   searchLeads,
+  startAdSearch,
+  pollAdSearch,
   updateLeadStatus,
   waLink,
   telLink,
@@ -15,7 +17,7 @@ import {
   SearchLimitError,
 } from '@/lib/leads';
 import { LEAD_STATUSES } from '@/types';
-import type { Lead, LeadFunnel, LeadResult, LeadStatus } from '@/types';
+import type { Lead, LeadFunnel, LeadResult, LeadSource, LeadStatus } from '@/types';
 
 type Mode = 'find' | 'pipeline';
 
@@ -73,6 +75,12 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   const [error, setError] = useState('');
   const [limit, setLimit] = useState<{ used: number; limit: number } | null>(null);
   const [meta, setMeta] = useState<{ from_cache: boolean; remaining: number } | null>(null);
+  const [source, setSource] = useState<LeadSource>('google_places');
+  const [scanning, setScanning] = useState(false);
+  const pollRef = useRef<number | null>(null);
+
+  // Cancel any in-flight ad-search poll when leaving the pane.
+  useEffect(() => () => { if (pollRef.current) window.clearTimeout(pollRef.current); }, []);
 
   const selectedRefs = useMemo(() => Object.keys(selected).filter((k) => selected[k]), [selected]);
 
@@ -95,20 +103,55 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
   const runSearch = async () => {
     if (!category.trim() || !shopReady) return;
-    setLoading(true); setError(''); setLimit(null); setResults(null); setSelected({});
+    setError(''); setLimit(null); setResults(null); setSelected({}); setMeta(null);
+    if (pollRef.current) window.clearTimeout(pollRef.current);
+
+    if (source === 'meta_ad_library') {
+      void runAdSearch();
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await searchLeads(category.trim(), area.trim() || undefined);
       setResults(res.data);
       setMeta({ from_cache: res.meta.from_cache, remaining: res.meta.remaining });
     } catch (e) {
-      if (e instanceof SearchLimitError) {
-        setLimit({ used: e.used, limit: e.limit });
-      } else {
-        setError('Search failed. Please try again.');
-      }
+      if (e instanceof SearchLimitError) setLimit({ used: e.used, limit: e.limit });
+      else setError('Search failed. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Async: start the scrape, then poll every 4s until it finishes (~1 min).
+  const runAdSearch = async () => {
+    setLoading(true); setScanning(true);
+    let runId: string;
+    try {
+      runId = await startAdSearch(category.trim(), area.trim() || undefined);
+    } catch (e) {
+      if (e instanceof SearchLimitError) setLimit({ used: e.used, limit: e.limit });
+      else setError('Could not start the ad search.');
+      setLoading(false); setScanning(false);
+      return;
+    }
+
+    const tick = async () => {
+      try {
+        const res = await pollAdSearch(runId);
+        if (res.status === 'running') {
+          pollRef.current = window.setTimeout(tick, 4000);
+          return; // keep scanning
+        }
+        if (res.status === 'failed') setError('Ad search failed. Please try again.');
+        else setResults(res.data);
+      } catch {
+        setError('Ad search failed. Please try again.');
+      }
+      setLoading(false); setScanning(false);
+    };
+    void tick();
   };
 
   const toggle = (ref: string) => setSelected((s) => ({ ...s, [ref]: !s[ref] }));
@@ -134,6 +177,16 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   return (
     <>
       <div className="lf-panel lf-search">
+        <div className="lf-srcpick" role="tablist" aria-label="Lead source">
+          <button className={`lf-srcbtn${source === 'google_places' ? ' on' : ''}`}
+            onClick={() => { setSource('google_places'); setResults(null); setError(''); setLimit(null); }}>
+            <Icons.MapPin size={13} /> Google
+          </button>
+          <button className={`lf-srcbtn${source === 'meta_ad_library' ? ' on' : ''}`}
+            onClick={() => { setSource('meta_ad_library'); setResults(null); setError(''); setLimit(null); }}>
+            <Icons.Chart size={13} /> Ad activity
+          </button>
+        </div>
         <div className="lf-search-inputs">
           <div className="lf-field">
             <Icons.Search size={16} />
@@ -149,7 +202,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
           </div>
         </div>
         <button className="c-btn lf-search-btn" disabled={loading || !category.trim()} onClick={() => void runSearch()}>
-          {loading ? 'Searching…' : <><Icons.Search size={16} /> Search</>}
+          {loading ? (scanning ? 'Scanning ads…' : 'Searching…') : <><Icons.Search size={16} /> Search</>}
         </button>
       </div>
 
@@ -172,7 +225,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
       )}
 
       {loading ? (
-        <Spinner label="Searching businesses…" />
+        <Spinner label={scanning ? 'Scanning the ad library… (~1 min)' : 'Searching businesses…'} />
       ) : results && results.length > 0 ? (
         <>
           <div className="lf-listhead">
@@ -222,7 +275,9 @@ function ResultCard({ r, selected, saved, onToggle }: { r: LeadResult; selected:
       <div className="lf-card-body">
         <div className="lf-card-top">
           <span className="lf-name">{r.name}</span>
-          {typeof r.rating === 'number' && <span className="lf-rating"><Icons.Sparkle size={12} /> {r.rating.toFixed(1)}</span>}
+          {r.advertising
+            ? <span className="lf-adbadge"><Icons.Chart size={11} /> Advertising</span>
+            : typeof r.rating === 'number' && <span className="lf-rating"><Icons.Sparkle size={12} /> {r.rating.toFixed(1)}</span>}
         </div>
         {r.address && <span className="lf-addr"><Icons.MapPin size={12} /> {r.address}</span>}
         <div className="lf-actions">

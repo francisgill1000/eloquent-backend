@@ -203,7 +203,12 @@ export type LeadResult = {
   rating?: number | null;
   external_ref: string;
   source?: string;
+  /** True for Meta Ad Library results (business actively running ads). */
+  advertising?: boolean;
 };
+
+/** Which discovery source a search targets. */
+export type LeadSource = 'google_places' | 'meta_ad_library';
 
 export type LeadSearchMeta = {
   from_cache: boolean;
