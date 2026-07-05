@@ -126,6 +126,27 @@ export default function BookingAction() {
 
       {error && <div className="c-error-box">{error}</div>}
 
+      {/* Progress timeline — at the top, no heading */}
+      <div className="ba-card ba-timeline-card">
+        <ol className="ba-timeline">
+          {timelineSteps(status).map((step, i) => (
+            <li key={step.label} className={`ba-tstep ${step.state}`}>
+              <span className="ba-tstep-in">
+                <span className="ba-tnode">
+                  {step.state === 'done' ? <Icons.Check size={16} /> : step.state === 'cancelled' ? '✕' : i + 1}
+                </span>
+                <span className="ba-tmeta">
+                  <span className="ba-tlabel">{step.label}</span>
+                  <span className="ba-tstate">
+                    {step.state === 'done' ? 'Done' : step.state === 'current' ? 'Current' : step.state === 'cancelled' ? 'Cancelled' : 'Pending'}
+                  </span>
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
       {/* Hero — customer, reference, status + the key facts as tiles */}
       <div className="ba-card ba-hero">
         <div className="ba-hero-top">
@@ -167,37 +188,16 @@ export default function BookingAction() {
       </div>
 
       <div className="ba-section">
-        <div className="ba-section-title">Progress</div>
-        <div className="ba-card ba-timeline-card">
-          <ol className="ba-timeline">
-            {timelineSteps(status).map((step, i) => (
-              <li key={step.label} className={`ba-tstep ${step.state}`}>
-                <span className="ba-tstep-in">
-                  <span className="ba-tnode">
-                    {step.state === 'done' ? <Icons.Check size={16} /> : step.state === 'cancelled' ? '✕' : i + 1}
-                  </span>
-                  <span className="ba-tmeta">
-                    <span className="ba-tlabel">{step.label}</span>
-                    <span className="ba-tstate">
-                      {step.state === 'done' ? 'Done' : step.state === 'current' ? 'Current' : step.state === 'cancelled' ? 'Cancelled' : 'Pending'}
-                    </span>
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </div>
-
-      <div className="ba-section">
         <div className="ba-section-title">Update status</div>
-        <div className="ba-status-seg">
-          {STATUS_OPTIONS.map((s) => (
-            <button key={s} className={`ba-status-btn s-${s.toLowerCase()}${s === status ? ' on' : ''}`}
-              disabled={busy} onClick={() => void updateStatus(s)}>
-              {s}
-            </button>
-          ))}
+        <div className="ba-card ba-status-card">
+          <div className="ba-status-seg">
+            {STATUS_OPTIONS.map((s) => (
+              <button key={s} className={`ba-status-btn s-${s.toLowerCase()}${s === status ? ' on' : ''}`}
+                disabled={busy} onClick={() => void updateStatus(s)}>
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
