@@ -20,6 +20,7 @@ const KnobX = () => (
 
 // Vertical sliding-knob switch config — order = top→bottom on the rail.
 const SWITCH_OPTS: { label: string; color: string }[] = [
+  { label: 'Queued', color: 'var(--warn)' },
   { label: 'Booked', color: 'var(--info)' },
   { label: 'Completed', color: 'var(--mint-400)' },
   { label: 'Cancelled', color: 'var(--danger)' },
@@ -228,6 +229,7 @@ export default function BookingAction() {
           <div className="ba-switch-knob">
             {status.toLowerCase() === 'completed' ? <KnobCheck />
               : status.toLowerCase() === 'cancelled' ? <KnobX />
+              : status.toLowerCase() === 'queued' ? <Icons.Clock size={18} />
               : <span className="ba-switch-dot" />}
           </div>
         </div>
