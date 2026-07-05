@@ -98,6 +98,18 @@
 .lf-search .lf-search-btn { margin-bottom: 0; }
 .lf-search-inputs { display: grid; gap: 10px; margin-bottom: 12px; }
 @media (min-width: 640px) { .lf-search-inputs { grid-template-columns: 1fr 1fr; } }
+/* Ad Activity has no area field — category spans full width. */
+.lf-search-inputs.single { grid-template-columns: 1fr; }
+
+.lf-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 2px 12px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.lf-hint svg { color: var(--text-4); flex: 0 0 auto; }
 
 .lf-field {
   display: flex;
