@@ -937,7 +937,7 @@
   .c-booking-action .ba-grid { grid-template-columns: repeat(4, 1fr); }
   /* Hero splits: details left, status switch docked hard right */
   .c-booking-action .ba-hero { flex-direction: row; align-items: stretch; gap: 28px; }
-  .c-booking-action .ba-switch { align-self: stretch; width: 210px; flex: 0 0 210px; }
+  .c-booking-action .ba-switch { align-self: center; width: 210px; flex: 0 0 210px; }
 
   /* ── Working Hours (desktop): two columns of day cards instead of one long
         stretched full-width stack. ── */

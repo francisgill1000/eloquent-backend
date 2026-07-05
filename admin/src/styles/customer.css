@@ -307,7 +307,7 @@
 
 /* Sliding-knob status switch — a vertical rail whose knob springs between
    Booked / Completed / Cancelled and whose fill glows the status colour. */
-.ba-switch { position: relative; min-height: 210px; align-self: center; width: 260px; padding-right: 62px; }
+.ba-switch { position: relative; height: 240px; align-self: center; width: 260px; padding-right: 62px; }
 .ba-switch-opts { position: absolute; top: 0; bottom: 0; left: 0; right: 62px; display: flex; flex-direction: column; }
 .ba-switch-opt {
   flex: 1; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 2px;
@@ -322,7 +322,7 @@
 .ba-switch-opt.on .ba-switch-optstate { color: var(--optc); }
 
 .ba-switch-rail {
-  position: absolute; right: 0; top: 16.667%; bottom: 16.667%; width: 50px; border-radius: 26px;
+  position: absolute; right: 0; top: 18px; bottom: 18px; width: 50px; border-radius: 26px;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.30), rgba(0, 0, 0, 0.12));
   border: 1px solid var(--border-2);
   box-shadow:
@@ -334,7 +334,7 @@
 }
 .ba-switch-fill {
   position: absolute; left: 0; right: 0; top: 0; z-index: 0;
-  height: calc(var(--active) * 50%);
+  height: calc(22px + var(--active) * 80px);
   background: linear-gradient(180deg, color-mix(in srgb, var(--stage) 22%, transparent), color-mix(in srgb, var(--stage) 78%, transparent));
   transition: height .38s cubic-bezier(.34, 1.56, .5, 1), background .2s ease;
 }
@@ -348,7 +348,7 @@
 
 .ba-switch-knob {
   position: absolute; right: 3px; width: 44px; height: 44px; border-radius: 50%;
-  top: calc(16.667% + var(--active) * 33.333%); transform: translateY(-50%);
+  top: calc(40px + var(--active) * 80px); transform: translateY(-50%);
   display: grid; place-items: center; z-index: 3; color: #04140f;
   background: radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--stage) 35%, white), var(--stage) 54%, color-mix(in srgb, var(--stage) 72%, black) 100%);
   box-shadow:
