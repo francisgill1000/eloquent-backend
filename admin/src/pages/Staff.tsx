@@ -16,6 +16,10 @@ export default function Staff() {
   const [newName, setNewName] = useState('');
   const [adding, setAdding] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [view, setView] = useState<'cards' | 'list'>(
+    () => (localStorage.getItem('staff_view') === 'list' ? 'list' : 'cards'),
+  );
+  useEffect(() => { localStorage.setItem('staff_view', view); }, [view]);
 
   const fetchStaff = useCallback(async () => {
     if (!shop?.id) return;
@@ -97,33 +101,82 @@ export default function Staff() {
 
       {loading ? (
         <Spinner label="Loading staff…" />
-      ) : staff.length > 0 ? (
-        <div className="staff-grid">
-        {staff.map((m) => {
-          const active = m.is_active !== false;
-          return (
-            <div key={m.id} className="c-staff-card">
-              <div className="c-staff-avatar">{(m.name || '?').charAt(0).toUpperCase()}</div>
-              <div className="c-staff-body">
-                <span className="c-staff-name">{m.name}</span>
-                <span className={active ? 'c-chip c-chip-completed' : 'c-chip c-chip-cancelled'} style={{ alignSelf: 'flex-start' }}>
-                  {active ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-              <div className="c-staff-actions">
-                <button className="c-icon-btn" aria-label="Rename" disabled={busyId === m.id} onClick={() => void rename(m)}>
-                  <Icons.Edit size={15} />
-                </button>
-                <button className={`c-icon-btn${active ? ' on' : ''}`} aria-label={active ? 'Disable' : 'Enable'} disabled={busyId === m.id} onClick={() => void toggleActive(m)}>
-                  <Icons.Power size={15} />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-        </div>
-      ) : (
+      ) : staff.length === 0 ? (
         <EmptyState title="No staff yet" subtitle="Add your team members to assign them to bookings." />
+      ) : (
+        <>
+          <div className="c-listhead">
+            <span className="c-dt-sub">{staff.length} member{staff.length !== 1 ? 's' : ''}</span>
+            <div className="c-viewtog" role="group" aria-label="View">
+              <button className={`c-viewbtn${view === 'cards' ? ' on' : ''}`} aria-pressed={view === 'cards'}
+                onClick={() => setView('cards')} aria-label="Card view" title="Cards"><Icons.Grid size={15} /></button>
+              <button className={`c-viewbtn${view === 'list' ? ' on' : ''}`} aria-pressed={view === 'list'}
+                onClick={() => setView('list')} aria-label="List view" title="List"><Icons.List size={15} /></button>
+            </div>
+          </div>
+
+          {view === 'list' ? (
+            <div className="c-dtable-wrap">
+              <table className="c-dtable">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th style={{ width: 110 }}>Status</th>
+                    <th className="ta-r" style={{ width: 120 }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {staff.map((m) => {
+                    const active = m.is_active !== false;
+                    return (
+                      <tr key={m.id}>
+                        <td className="c-dt-namecell"><span className="c-dt-name">{m.name}</span></td>
+                        <td>
+                          <span className={active ? 'c-chip c-chip-completed' : 'c-chip c-chip-cancelled'}>
+                            {active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="c-dt-act">
+                          <button className="c-icon-btn" aria-label="Rename" disabled={busyId === m.id} onClick={() => void rename(m)}>
+                            <Icons.Edit size={15} />
+                          </button>
+                          <button className={`c-icon-btn${active ? ' on' : ''}`} aria-label={active ? 'Disable' : 'Enable'} disabled={busyId === m.id} onClick={() => void toggleActive(m)}>
+                            <Icons.Power size={15} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="staff-grid">
+            {staff.map((m) => {
+              const active = m.is_active !== false;
+              return (
+                <div key={m.id} className="c-staff-card">
+                  <div className="c-staff-avatar">{(m.name || '?').charAt(0).toUpperCase()}</div>
+                  <div className="c-staff-body">
+                    <span className="c-staff-name">{m.name}</span>
+                    <span className={active ? 'c-chip c-chip-completed' : 'c-chip c-chip-cancelled'} style={{ alignSelf: 'flex-start' }}>
+                      {active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <div className="c-staff-actions">
+                    <button className="c-icon-btn" aria-label="Rename" disabled={busyId === m.id} onClick={() => void rename(m)}>
+                      <Icons.Edit size={15} />
+                    </button>
+                    <button className={`c-icon-btn${active ? ' on' : ''}`} aria-label={active ? 'Disable' : 'Enable'} disabled={busyId === m.id} onClick={() => void toggleActive(m)}>
+                      <Icons.Power size={15} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            </div>
+          )}
+        </>
       )}
     </div></div>
   );
