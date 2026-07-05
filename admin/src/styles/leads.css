@@ -311,7 +311,8 @@
 
 .lf-savebar { position: sticky; bottom: 12px; margin-top: 14px; }
 
-/* Funnel chips */
+/* Funnel chips — pipeline stage bar. Reads as a left-to-right flow; real
+   counts pop, empty stages recede so the eye lands on where leads actually are. */
 .lf-funnel {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -320,25 +321,39 @@
 }
 @media (min-width: 640px) { .lf-funnel { grid-template-columns: repeat(6, 1fr); } }
 .lf-fchip {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 11px 4px 10px;
-  background: var(--surface-1);
+  gap: 4px;
+  padding: 13px 6px 11px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stage) 7%, transparent), transparent 60%),
+    var(--surface-1);
   border: 1px solid var(--border-1);
-  border-top: 2px solid var(--stage, var(--text-4));
+  border-top: 2px solid color-mix(in srgb, var(--stage) 65%, transparent);
   border-radius: var(--r-md);
   cursor: pointer;
-  transition: background .16s ease, box-shadow .16s ease, transform .16s ease, border-color .16s ease;
+  transition: background .16s ease, box-shadow .16s ease, transform .16s ease, border-color .16s ease, opacity .16s ease;
 }
-.lf-fchip:hover { transform: translateY(-1px); border-color: var(--border-2); }
+.lf-fchip:hover {
+  transform: translateY(-2px);
+  border-top-color: var(--stage);
+  box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--stage) 55%, transparent);
+}
 .lf-fchip.on {
-  background: color-mix(in srgb, var(--stage) 12%, var(--surface-1));
-  box-shadow: inset 0 0 0 1px var(--stage);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stage) 18%, transparent), transparent 70%),
+    var(--surface-1);
+  border-color: color-mix(in srgb, var(--stage) 45%, var(--border-1));
+  box-shadow: inset 0 0 0 1px var(--stage), 0 6px 18px -8px color-mix(in srgb, var(--stage) 55%, transparent);
 }
+/* Empty stages recede — no leads there, so don't compete for attention. */
+.lf-fchip.zero:not(.on) { opacity: .5; }
+.lf-fchip.zero:not(.on):hover { opacity: .85; }
+.lf-fchip.zero:not(.on) .lf-fchip-n { color: var(--text-4); font-weight: 700; }
 .lf-fchip-n {
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 800;
   color: var(--text-1);
   line-height: 1;
@@ -351,8 +366,8 @@
   font-weight: 700;
   color: var(--stage);
   text-transform: uppercase;
-  letter-spacing: .05em;
-  opacity: .92;
+  letter-spacing: .06em;
+  opacity: .95;
 }
 
 /* Per-stage accent (drives border + status pill) */
@@ -382,7 +397,9 @@
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
+  transition: border-color .16s ease, color .16s ease, background .16s ease;
 }
+.lf-toggle:hover { border-color: var(--border-mint); color: var(--text-1); }
 .lf-toggle.on { background: var(--mint-soft); border-color: var(--border-mint); color: var(--mint-300); }
 
 /* Follow-up pill — surfaces next_followup_at; amber when due/overdue */
