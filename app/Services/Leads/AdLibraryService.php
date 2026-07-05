@@ -53,6 +53,9 @@ class AdLibraryService
                 'activeStatus' => 'active',
                 'count' => self::AD_COUNT,
                 'resolveAdvertiser' => false,
+                // Off, else a repeat identical search resumes as "already done"
+                // and returns an empty dataset. Each run must scrape fresh.
+                'enableCheckpoint' => false,
             ]);
 
         if (! $resp->successful() || ! $resp->json('data.id')) {
