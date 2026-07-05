@@ -307,8 +307,8 @@
 
 /* Sliding-knob status switch — a vertical rail whose knob springs between
    Booked / Completed / Cancelled and whose fill glows the status colour. */
-.ba-switch { position: relative; display: flex; gap: 12px; min-height: 210px; align-self: center; width: 260px; }
-.ba-switch-opts { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.ba-switch { position: relative; min-height: 210px; align-self: center; width: 260px; padding-right: 62px; }
+.ba-switch-opts { position: absolute; top: 0; bottom: 0; left: 0; right: 62px; display: flex; flex-direction: column; }
 .ba-switch-opt {
   flex: 1; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 2px;
   background: none; border: 0; cursor: pointer; text-align: right; padding: 0 2px;
@@ -322,7 +322,7 @@
 .ba-switch-opt.on .ba-switch-optstate { color: var(--optc); }
 
 .ba-switch-rail {
-  position: relative; width: 50px; align-self: stretch; border-radius: 26px;
+  position: absolute; right: 0; top: 16.667%; bottom: 16.667%; width: 50px; border-radius: 26px;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.30), rgba(0, 0, 0, 0.12));
   border: 1px solid var(--border-2);
   box-shadow:
@@ -332,19 +332,19 @@
   overflow: hidden;
   transition: box-shadow .25s ease;
 }
-/* Recessed stop notches at the three positions */
+/* Recessed stop notches at the three positions (rail spans the stops) */
 .ba-switch-rail::before {
   content: ''; position: absolute; left: 50%; top: 0; width: 5px; height: 100%;
   transform: translateX(-50%);
   background:
-    radial-gradient(circle 2.5px at 50% 16.667%, rgba(255, 255, 255, 0.16) 60%, transparent 62%),
-    radial-gradient(circle 2.5px at 50% 50%,     rgba(255, 255, 255, 0.16) 60%, transparent 62%),
-    radial-gradient(circle 2.5px at 50% 83.333%, rgba(255, 255, 255, 0.16) 60%, transparent 62%);
+    radial-gradient(circle 2.5px at 50% 11%, rgba(255, 255, 255, 0.16) 60%, transparent 62%),
+    radial-gradient(circle 2.5px at 50% 50%, rgba(255, 255, 255, 0.16) 60%, transparent 62%),
+    radial-gradient(circle 2.5px at 50% 89%, rgba(255, 255, 255, 0.16) 60%, transparent 62%);
   z-index: 1;
 }
 .ba-switch-fill {
   position: absolute; left: 0; right: 0; top: 0; z-index: 0;
-  height: calc(16.667% + var(--active) * 33.333%);
+  height: calc(var(--active) * 50%);
   background: linear-gradient(180deg, color-mix(in srgb, var(--stage) 22%, transparent), color-mix(in srgb, var(--stage) 78%, transparent));
   transition: height .38s cubic-bezier(.34, 1.56, .5, 1), background .2s ease;
 }
