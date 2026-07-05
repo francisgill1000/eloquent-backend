@@ -73,7 +73,7 @@ class Shop extends Authenticatable
             }
         }
 
-        throw new \RuntimeException('Unable to generate a unique shop code.');
+        throw new \RuntimeException('Unable to generate a unique Business Code.');
     }
 
     protected static function resolvePin($providedPin, string $shopCode): string

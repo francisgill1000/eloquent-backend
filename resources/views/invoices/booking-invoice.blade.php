@@ -279,7 +279,7 @@
                     <div class="brand-meta">
                         @if(!empty($shop->address)){{ $shop->address }}<br>@endif
                         @if(!empty($shop->whatsapp))<strong>WhatsApp:</strong> {{ $shop->whatsapp }}<br>@endif
-                        @if(!empty($shop->shop_code))<strong>Shop code:</strong> {{ $shop->shop_code }}@endif
+                        @if(!empty($shop->shop_code))<strong>Business Code:</strong> {{ $shop->shop_code }}@endif
                     </div>
                 </td>
                 <td style="width: 40%;" class="invoice-block">
