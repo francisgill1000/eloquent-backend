@@ -123,4 +123,19 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Allow Destructive DB Commands
+    |--------------------------------------------------------------------------
+    |
+    | When false (the default), migrate:fresh / migrate:refresh / migrate:reset
+    | / db:wipe are blocked — even with --force — via AppServiceProvider. Only
+    | disposable environments (local, staging) set ALLOW_DESTRUCTIVE_DB=true.
+    | Production must NEVER set it. Read through config (not raw env()) so the
+    | guard holds even when config is cached.
+    |
+    */
+
+    'allow_destructive_db' => env('ALLOW_DESTRUCTIVE_DB', false),
+
 ];
