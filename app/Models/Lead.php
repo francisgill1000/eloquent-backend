@@ -135,6 +135,8 @@ class Lead extends Model
         $text = strtr($template, [
             '{name}' => (string) $this->name,
             '{shop}' => (string) ($this->shop?->name ?? ''),
+            '{category}' => (string) ($this->categoryLabel() ?? ''),
+            '{area}' => (string) ($this->area() ?? ''),
         ]);
         return "https://wa.me/{$d}?text=" . rawurlencode($text);
     }
@@ -151,5 +153,22 @@ class Lead extends Model
             return null;
         }
         return "https://www.google.com/maps/search/?api=1&query={$this->lat},{$this->lng}";
+    }
+
+    /** Human label for the lead's industry (slug -> Title Case), else null. */
+    public function categoryLabel(): ?string
+    {
+        $c = trim((string) ($this->category ?? ''));
+        if ($c === '') {
+            return null;
+        }
+        return ucwords(str_replace(['_', '-'], ' ', $c));
+    }
+
+    /** Best available area/location string for the lead (its address), else null. */
+    public function area(): ?string
+    {
+        $a = trim((string) ($this->address ?? ''));
+        return $a !== '' ? $a : null;
     }
 }
