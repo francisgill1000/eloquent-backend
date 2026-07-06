@@ -215,6 +215,8 @@ export type LeadSearchMeta = {
   used: number;
   limit: number;
   remaining: number;
+  /** The real business-type keyword the AI actually searched (from the user's text). */
+  searched_for?: string;
 };
 
 export type LeadSearchResponse = {

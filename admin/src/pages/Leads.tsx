@@ -119,7 +119,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [limit, setLimit] = useState<{ used: number; limit: number } | null>(null);
-  const [meta, setMeta] = useState<{ from_cache: boolean; remaining: number } | null>(null);
+  const [meta, setMeta] = useState<{ from_cache: boolean; remaining: number; searched_for?: string } | null>(null);
   // Background enrichment (the slow "advertising" source) runs after the fast
   // results land and quietly appends. `scanning` drives the subtle indicator;
   // `moreFound` is how many extra leads the last scan added.
@@ -168,10 +168,12 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
     // 1. Fast source — real business listings, returned in ~1s.
     setLoading(true);
     let gotFast = false;
+    let searchedFor = q; // the AI-interpreted keyword the search actually used
     try {
       const res = await searchLeads(q);
       setResults(res.data);
-      setMeta({ from_cache: res.meta.from_cache, remaining: res.meta.remaining });
+      setMeta({ from_cache: res.meta.from_cache, remaining: res.meta.remaining, searched_for: res.meta.searched_for });
+      searchedFor = res.meta.searched_for || q;
       gotFast = true;
     } catch (e) {
       if (e instanceof SearchLimitError) setLimit({ used: e.used, limit: e.limit });
@@ -181,9 +183,10 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
     }
 
     // 2. Slow source — quietly scan for businesses running ads and append them.
-    // Skipped if the fast search failed or hit the allowance (never charges on
-    // its own; the fast search is the single billable point).
-    if (gotFast) void scanForMore(q);
+    // Uses the AI-interpreted keyword (not the raw text) so the ad scan targets
+    // the same business type. Skipped if the fast search failed or hit the
+    // allowance (never charges on its own; the fast search is the billable point).
+    if (gotFast) void scanForMore(searchedFor);
   };
 
   // De-dupe key across sources: same phone (or, lacking one, same name) means
@@ -302,6 +305,12 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
         <div className="lf-meta">
           {meta.from_cache ? <><Icons.Check size={13} /> From cache — no search used</> : <>{meta.remaining} searches left this month</>}
         </div>
+      )}
+
+      {/* Non-clickable caption: what the AI actually searched, shown only when it
+          differs from what the user typed (so clean keyword searches stay quiet). */}
+      {meta?.searched_for && !loading && meta.searched_for.toLowerCase() !== category.trim().toLowerCase() && (
+        <div className="lf-meta"><Icons.Search size={13} /> Showing: {meta.searched_for}</div>
       )}
 
       {!loading && (scanning || moreFound) && (
