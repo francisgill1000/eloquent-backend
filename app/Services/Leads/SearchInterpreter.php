@@ -43,8 +43,12 @@ class SearchInterpreter
                 throw new \RuntimeException('SearchInterpreter: model returned no keyword.');
             }
             $area = trim((string) ($json['area'] ?? ''));
+            // The Google source returns nothing without an area, so always
+            // attach one: the model's area, else the caller's, else the shop's
+            // own location, else Dubai (the largest UAE market).
+            $area = $area !== '' ? $area : ($rawArea ?: ($shop->location ?: 'Dubai'));
 
-            return ['keyword' => $keyword, 'area' => $area !== '' ? $area : ($rawArea ?: null)];
+            return ['keyword' => $keyword, 'area' => $area];
         });
     }
 
@@ -54,6 +58,9 @@ class SearchInterpreter
         $profile[] = 'Business name: ' . ($shop->name ?: '(unnamed)');
         if ($label = $shop->categoryLabel()) {
             $profile[] = 'Industry: ' . $label;
+        }
+        if ($shop->location) {
+            $profile[] = 'Location: ' . $shop->location;
         }
         $services = $shop->catalogs()->get(['title'])
             ->filter(fn ($s) => trim((string) $s->title) !== '')
@@ -66,16 +73,19 @@ class SearchInterpreter
         return implode("\n", $profile) . "\n\n" . implode("\n", [
             'You turn the user\'s request into ONE Google-Maps business-search term for a B2B lead-finding tool.',
             'Rules:',
-            '- If the request already names a concrete business TYPE (e.g. "car wash in Dubai Marina", "gyms",',
-            '  "restaurants in Deira"), keep that type — just clean it into a short keyword and pull out the area.',
+            '- If the request already names a concrete business TYPE to look for (e.g. "car wash in Dubai Marina",',
+            '  "gyms", "restaurants in Deira"), keep that type — just clean it into a short keyword.',
             '- If the request is a GOAL with no concrete type (e.g. "find me customers", "who can I sell to",',
-            '  "customers for my salon"), infer the single best type of BUSINESS that would realistically be a',
-            '  customer or referral partner for the user\'s business, based on their profile above.',
+            '  "customers for my salon"), infer the single best type of BUSINESS that would realistically BUY FROM',
+            '  or PARTNER WITH the user, based on their profile above. NEVER return the user\'s own business type or',
+            '  a direct competitor. Example: a hair salon looking for customers -> hotels, gyms, spas, wedding',
+            '  planners, event companies, modelling agencies — NOT other salons.',
             '- Only real business categories that exist on Google Maps (hotels, gyms, wedding planners, offices,',
             '  restaurants, clinics, …). Never individuals/consumers.',
-            '- Include an area only if the user mentioned one or it is clearly implied; otherwise leave it empty.',
+            '- ALWAYS include an area (a UAE city/emirate/neighbourhood). Use the area from the request if given,',
+            '  else the user\'s own location above, else "Dubai". Never leave the area empty.',
             '',
-            'Return ONLY JSON, no prose: {"keyword": "...", "area": "..."}  (area may be an empty string).',
+            'Return ONLY JSON, no prose: {"keyword": "...", "area": "..."}',
         ]);
     }
 

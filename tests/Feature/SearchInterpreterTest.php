@@ -52,6 +52,27 @@ class SearchInterpreterTest extends TestCase
         $this->assertSame('Deira', $out['area']);
     }
 
+    public function test_interpret_defaults_empty_area_to_shop_location(): void
+    {
+        $this->fakeClaude('{"keyword":"gyms","area":""}');
+        $shop = Shop::factory()->create(['location' => 'Sharjah']);
+
+        $out = app(SearchInterpreter::class)->interpret($shop, 'find me customers', null);
+
+        $this->assertSame('gyms', $out['keyword']);
+        $this->assertSame('Sharjah', $out['area']); // never empty (Google needs an area)
+    }
+
+    public function test_interpret_defaults_area_to_dubai_when_no_location(): void
+    {
+        $this->fakeClaude('{"keyword":"hotels","area":""}');
+        $shop = Shop::factory()->create(['location' => null]);
+
+        $out = app(SearchInterpreter::class)->interpret($shop, 'who can I sell to', null);
+
+        $this->assertSame('Dubai', $out['area']);
+    }
+
     public function test_interpret_throws_on_unparseable_reply(): void
     {
         $this->fakeClaude('sorry, no json');
