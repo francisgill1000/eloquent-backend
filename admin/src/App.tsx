@@ -37,6 +37,7 @@ import ChatThread from '@/pages/ChatThread';
 import WhatsAppSetup from '@/pages/WhatsAppSetup';
 import Leads from '@/pages/Leads';
 import LeadDetail from '@/pages/LeadDetail';
+import LeadMessages from '@/pages/LeadMessages';
 
 export default function App() {
   return (
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="/categories/:id/edit" element={<CategoryEdit />} />
           <Route path="/staff" element={<Staff />} />
           <Route path="/leads" element={<Leads />} />
+          <Route path="/leads/messages" element={<LeadMessages />} />
           <Route path="/leads/:id" element={<LeadDetail />} />
           <Route path="/settings/access" element={<AccessControl />} />
           <Route path="/working-hours" element={<WorkingHours />} />

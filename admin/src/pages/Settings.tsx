@@ -13,6 +13,7 @@ type Option = {
 
 const ALL_OPTIONS: Option[] = [
   { label: 'Business Hunt', sub: 'Find UAE businesses & win them', to: '/leads', icon: 'Search' },
+  { label: 'Lead messages', sub: 'WhatsApp opening & follow-up templates', to: '/leads/messages', icon: 'WhatsApp' },
   { label: 'Working Hours', sub: 'Set your open & close times', to: '/working-hours', icon: 'Clock' },
   { label: 'Services', sub: 'Add or edit what you offer', to: '/services', icon: 'Grid' },
   { label: 'Staff', sub: 'Add & manage your team', to: '/staff', icon: 'Users' },
