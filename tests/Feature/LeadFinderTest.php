@@ -80,6 +80,12 @@ class LeadFinderTest extends TestCase
 
     private function auth(string $token): self
     {
+        // Reset the resolved guard so each token switch re-authenticates from
+        // the Bearer header. The sanctum guard caches the first user across
+        // requests within a single test, which would otherwise make a second
+        // shop's request run as the first shop (breaking tenant-scoping checks).
+        $this->app['auth']->forgetGuards();
+
         return $this->withHeaders(['Authorization' => 'Bearer ' . $token]);
     }
 
@@ -159,9 +165,10 @@ class LeadFinderTest extends TestCase
         $leadA = Lead::where('shop_id', $shopA->id)->firstOrFail();
 
         // Shop B sees none of A's leads.
-        $respB = $this->auth($tokenB)->getJson('/api/shop/leads');
-        dump(['shopA' => $shopA->id, 'shopB' => $shopB->id, 'leadA_shop' => $leadA->shop_id, 'B_data' => $respB->json('data')]);
-        $respB->assertOk()->assertJsonCount(0, 'data');
+        $this->auth($tokenB)
+            ->getJson('/api/shop/leads')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
 
         // Shop B cannot mutate A's lead.
         $this->auth($tokenB)
