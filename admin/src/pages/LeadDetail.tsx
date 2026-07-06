@@ -182,34 +182,29 @@ export default function LeadDetail() {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Move stage — vertical sliding-knob switch (like the booking status) */}
-        <div className="ba-section">
-          <div className="ba-section-title">Move stage</div>
-          <div className="ba-card ld-switch-card">
-            <div className={`ba-switch ld-switch${passed ? ' cancelled' : ''}`}
-              style={{ '--active': activeIndex, '--stage': stageColor } as CSSProperties}>
-              <div className="ba-switch-opts">
-                {STAGE_OPTS.map((o) => {
-                  const on = o.status === lead.status;
-                  return (
-                    <button key={o.status} type="button" aria-label={STATUS_LABEL[o.status]}
-                      className={`ba-switch-opt${on ? ' on' : ''}`}
-                      style={{ '--optc': o.color } as CSSProperties}
-                      disabled={busy} onClick={() => void setStatus(o.status)}>
-                      <span className="ba-switch-optlabel">{STATUS_LABEL[o.status]}</span>
-                      <span className="ba-switch-optstate">{on ? 'Current' : 'Set'}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="ba-switch-rail"><div className="ba-switch-fill" /></div>
-              <div className="ba-switch-knob">
-                {lead.status === 'won' ? <KnobCheck />
-                  : lead.status === 'pass' ? <KnobX />
-                  : <span className="ba-switch-dot" />}
-              </div>
+          {/* Vertical sliding-knob stage switch — docked after the hero divider */}
+          <div className={`ba-switch ld-switch${passed ? ' cancelled' : ''}`}
+            style={{ '--active': activeIndex, '--stage': stageColor } as CSSProperties}>
+            <div className="ba-switch-opts">
+              {STAGE_OPTS.map((o) => {
+                const on = o.status === lead.status;
+                return (
+                  <button key={o.status} type="button" aria-label={STATUS_LABEL[o.status]}
+                    className={`ba-switch-opt${on ? ' on' : ''}`}
+                    style={{ '--optc': o.color } as CSSProperties}
+                    disabled={busy} onClick={() => void setStatus(o.status)}>
+                    <span className="ba-switch-optlabel">{STATUS_LABEL[o.status]}</span>
+                    <span className="ba-switch-optstate">{on ? 'Current' : 'Set'}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="ba-switch-rail"><div className="ba-switch-fill" /></div>
+            <div className="ba-switch-knob">
+              {lead.status === 'won' ? <KnobCheck />
+                : lead.status === 'pass' ? <KnobX />
+                : <span className="ba-switch-dot" />}
             </div>
           </div>
         </div>

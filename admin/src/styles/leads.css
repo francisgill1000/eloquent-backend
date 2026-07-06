@@ -657,9 +657,8 @@
 .ld-act:hover { border-color: var(--border-mint); background: var(--surface-2); }
 .ld-act.wa { border-color: var(--border-mint); background: var(--mint-soft); color: var(--mint-300); }
 
-/* Move-stage card — the vertical sliding-knob switch (reuses .ba-switch), but
-   sized for the 6 funnel stops (60px each) instead of the booking's 4. */
-.ld-switch-card { padding: 20px 8px; display: flex; justify-content: center; }
+/* Stage switch — reuses the booking .ba-switch (docked in the hero after the
+   divider), but sized for the 6 funnel stops (60px each) instead of 4. */
 .ld-switch { height: 360px; }
 .ld-switch .ba-switch-fill { height: calc(16px + var(--active) * 60px); }
 .ld-switch .ba-switch-knob { top: calc(30px + var(--active) * 60px); }
