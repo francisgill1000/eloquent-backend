@@ -34,13 +34,31 @@ const FUNNEL: LeadStatus[] = ['new', 'sent', 'replied', 'demo', 'won'];
 
 type StepState = 'done' | 'current' | 'todo';
 
-function steps(status: LeadStatus): { label: string; state: StepState }[] {
-  const active = FUNNEL.indexOf(status); // -1 when passed
+function steps(status: LeadStatus, activities: LeadActivity[]): { label: string; state: StepState }[] {
+  const active = FUNNEL.indexOf(status);
+
+  // Active lead — highlight its current position in the funnel.
+  if (active >= 0) {
+    return FUNNEL.map((s, i) => ({
+      label: STATUS_LABEL[s],
+      state: status === 'won' ? 'done' : i < active ? 'done' : i === active ? 'current' : 'todo',
+    }));
+  }
+
+  // Passed lead — there's no "current" stage, so show how far it actually got
+  // (the furthest funnel stage in its history) as Done. Every lead was New at
+  // creation, so it reached at least step 0.
+  let reached = 0;
+  for (const a of activities) {
+    if (a.type !== 'status_change') continue;
+    for (const s of [a.payload?.from, a.payload?.to]) {
+      const idx = FUNNEL.indexOf(s as LeadStatus);
+      if (idx > reached) reached = idx;
+    }
+  }
   return FUNNEL.map((s, i) => ({
     label: STATUS_LABEL[s],
-    state: status === 'won' ? 'done'
-      : active < 0 ? 'todo'
-      : i < active ? 'done' : i === active ? 'current' : 'todo',
+    state: i <= reached ? 'done' : 'todo',
   }));
 }
 
@@ -123,7 +141,7 @@ export default function LeadDetail() {
         {/* Funnel stepper */}
         <div className={`ba-card ba-timeline-card${passed ? ' ld-passed' : ''}`}>
           <ol className="ba-timeline">
-            {steps(lead.status).map((step, i) => (
+            {steps(lead.status, activities).map((step, i) => (
               <li key={step.label} className={`ba-tstep ${step.state}`}>
                 <span className="ba-tstep-in">
                   <span className="ba-tnode">{step.state === 'done' ? <Icons.Check size={16} /> : i + 1}</span>
