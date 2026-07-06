@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, type CSSProperties } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
-import { getLead, updateLeadStatus, logFollowup } from '@/lib/leads';
+import { getLead, updateLeadStatus, logFollowup, personalizeLead } from '@/lib/leads';
 import type { Lead, LeadActivity, LeadStatus } from '@/types';
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
@@ -105,6 +105,9 @@ export default function LeadDetail() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [aiText, setAiText] = useState<string | null>(null);
+  const [aiKind, setAiKind] = useState<'opening' | 'followup'>('opening');
+  const [aiBusy, setAiBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -156,6 +159,49 @@ export default function LeadDetail() {
       await load();
     } catch {
       setError('Could not log the follow-up.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // The AI message we write matches the lead's current stage.
+  const outreachKind = (): 'opening' | 'followup' => (lead?.status === 'new' ? 'opening' : 'followup');
+
+  // Digits for the wa.me link (server already normalized whatsapp_url).
+  const waDigits = (): string | null => {
+    const m = lead?.whatsapp_url?.match(/wa\.me\/(\d+)/);
+    return m ? m[1] : null;
+  };
+
+  const personalize = async () => {
+    if (!lead || aiBusy) return;
+    const kind = outreachKind();
+    setAiBusy(true); setError('');
+    try {
+      const text = await personalizeLead(lead.id, kind);
+      setAiKind(kind);
+      setAiText(text);
+    } catch {
+      setError('Could not generate right now. Please try again.');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  // Send the previewed AI message: open WhatsApp with it, then run the same
+  // stage transition as the normal outreach button.
+  const sendAi = async () => {
+    if (!lead || !aiText || busy) return;
+    const digits = waDigits();
+    if (digits) window.open(`https://wa.me/${digits}?text=${encodeURIComponent(aiText)}`, '_blank');
+    setBusy(true); setError('');
+    try {
+      if (aiKind === 'opening') await updateLeadStatus(lead.id, 'sent');
+      else await logFollowup(lead.id);
+      setAiText(null);
+      await load();
+    } catch {
+      setError('Could not update status.');
     } finally {
       setBusy(false);
     }
@@ -232,10 +278,30 @@ export default function LeadDetail() {
                   <Icons.WhatsApp size={16} /> Follow-up
                 </button>
               )}
+              {lead.is_mobile && (lead.status === 'new' || lead.status === 'sent' || lead.status === 'replied' || lead.status === 'demo') && (
+                <button type="button" className="ld-act" disabled={aiBusy || busy} onClick={() => void personalize()}>
+                  <Icons.Sparkle size={16} /> {aiBusy ? 'Writing…' : 'Personalize'}
+                </button>
+              )}
               {lead.tel_url && <a className="ld-act" href={lead.tel_url}><Icons.Phone size={16} /> Call</a>}
               {lead.website && <a className="ld-act" href={lead.website} target="_blank" rel="noreferrer"><Icons.ArrowRight size={16} /> Website</a>}
               {lead.map_url && <a className="ld-act" href={lead.map_url} target="_blank" rel="noreferrer"><Icons.MapPin size={16} /> Map</a>}
             </div>
+
+            {aiText && (
+              <div className="ba-card" style={{ padding: 14, marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="c-field-label" style={{ margin: 0 }}>AI {aiKind === 'opening' ? 'opening' : 'follow-up'} — review before sending</div>
+                <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text-1)', fontSize: 13.5, lineHeight: 1.5 }}>{aiText}</p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" className="ld-act wa" disabled={busy} onClick={() => void sendAi()}>
+                    <Icons.WhatsApp size={16} /> Open WhatsApp
+                  </button>
+                  <button type="button" className="c-btn-ghost" disabled={aiBusy} onClick={() => void personalize()}>
+                    {aiBusy ? 'Writing…' : 'Regenerate'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="ba-grid ld-grid">
               <div className="ba-tile">

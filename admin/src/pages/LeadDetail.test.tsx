@@ -66,4 +66,25 @@ describe('LeadDetail outreach button', () => {
     expect(screen.queryByRole('button', { name: /whatsapp/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /follow-up/i })).not.toBeInTheDocument();
   });
+
+  it('personalizes a New lead: previews AI text, then opens WhatsApp and marks Sent', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead }, activities: [] });
+    const personalize = vi.spyOn(leadsLib, 'personalizeLead').mockResolvedValue('Hi Pak Cargo, quick demo?');
+    const setStatus = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'sent' });
+
+    setup();
+    await userEvent.click(await screen.findByRole('button', { name: /personalize/i }));
+
+    // Preview shows the AI message
+    expect(await screen.findByText('Hi Pak Cargo, quick demo?')).toBeInTheDocument();
+    expect(personalize).toHaveBeenCalledWith(3, 'opening');
+
+    // Opening WhatsApp from the preview uses the AI text and advances the stage
+    await userEvent.click(screen.getByRole('button', { name: /open whatsapp/i }));
+    expect(window.open).toHaveBeenCalledWith(
+      'https://wa.me/971501112233?text=' + encodeURIComponent('Hi Pak Cargo, quick demo?'),
+      '_blank',
+    );
+    expect(setStatus).toHaveBeenCalledWith(3, 'sent');
+  });
 });
