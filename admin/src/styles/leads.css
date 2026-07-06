@@ -335,6 +335,22 @@
 .lf-act.wa:hover { color: var(--mint-400); border-color: var(--mint-400); }
 .lf-saved-tag { font-size: 11px; font-weight: 700; color: var(--mint-300); margin-left: auto; }
 
+/* "Show more" — reveals the next page of already-fetched results (no new call). */
+.lf-showmore {
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px 16px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border-mint);
+  background: var(--mint-soft);
+  color: var(--mint-300);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.lf-showmore:hover { background: var(--mint-glow); border-color: var(--mint-400); }
+
 .lf-savebar { position: sticky; bottom: 12px; margin-top: 14px; }
 
 /* Funnel chips — pipeline stage bar. Reads as a left-to-right flow; real

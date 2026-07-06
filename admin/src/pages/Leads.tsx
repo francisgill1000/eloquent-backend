@@ -106,6 +106,10 @@ export default function Leads() {
 
 // --- Find --------------------------------------------------------------------
 
+// How many results to reveal per "Show more". The backend fetches + caches the
+// full batch in one paid request; the user just pages through it 10 at a time.
+const PAGE_SIZE = 10;
+
 function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta: number) => void }) {
   const [category, setCategory] = useState('');
   const [results, setResults] = useState<LeadResult[] | null>(null);
@@ -121,6 +125,10 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   // `moreFound` is how many extra leads the last scan added.
   const [scanning, setScanning] = useState(false);
   const [moreFound, setMoreFound] = useState<number | null>(null);
+  // We fetch + cache the full result set, but reveal it to the user PAGE_SIZE at
+  // a time ("Show more"). Paging is purely client-side over already-fetched
+  // data — it never triggers another Google/Apify call.
+  const [visible, setVisible] = useState(PAGE_SIZE);
   const pollRef = useRef<number | null>(null);
   // Mirror of `results` so the async poll appends against the latest list
   // without capturing a stale closure.
@@ -153,7 +161,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
     const q = category.trim();
     if (!q || !shopReady) return;
     setError(''); setLimit(null); setResults(null); setSelected({}); setMeta(null);
-    setScanning(false); setMoreFound(null);
+    setScanning(false); setMoreFound(null); setVisible(PAGE_SIZE);
     resultsRef.current = null;
     if (pollRef.current) window.clearTimeout(pollRef.current);
 
@@ -306,7 +314,10 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
       ) : results && results.length > 0 ? (
         <>
           <div className="lf-listhead">
-            <span>{results.length} results{selectedRefs.length > 0 && ` · ${selectedRefs.length} selected`}</span>
+            <span>
+              Showing {Math.min(visible, results.length)} of {results.length}
+              {selectedRefs.length > 0 && ` · ${selectedRefs.length} selected`}
+            </span>
             {selectableRefs.length > 0 && (
               <button className="lf-selall" onClick={toggleAll}>
                 {allSelected ? 'Clear all' : 'Select all'}
@@ -314,13 +325,18 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
             )}
           </div>
           <div className="lf-list">
-            {results.map((r) => (
+            {results.slice(0, visible).map((r) => (
               <ResultCard key={r.external_ref} r={r}
                 selected={!!selected[r.external_ref]}
                 saved={!!savedRefs[r.external_ref]}
                 onToggle={() => toggle(r.external_ref)} />
             ))}
           </div>
+          {results.length > visible && (
+            <button className="lf-showmore" onClick={() => setVisible((v) => v + PAGE_SIZE)}>
+              Show more ({results.length - visible} more)
+            </button>
+          )}
           {selectedRefs.length > 0 && (
             <div className="lf-savebar">
               <button className="c-btn c-btn-block" disabled={saving} onClick={() => void saveSelected()}>
