@@ -14,6 +14,13 @@ class ModuleMiddlewareTest extends TestCase
     public function test_shop_without_leads_module_is_forbidden_from_leads_index(): void
     {
         $shop = Shop::create(['name' => 'BookingsOnly', 'modules' => ['bookings']]);
+        // Active subscription so the request clears the paywall (subscription.active
+        // runs before module:leads) and actually reaches the module gate.
+        $shop->subscription()->create([
+            'status' => 'active',
+            'plan' => 'monthly',
+            'access_until' => now()->addMonth(),
+        ]);
         Sanctum::actingAs($shop, ['*']);
 
         $this->getJson('/api/shop/leads')
