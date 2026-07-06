@@ -20,7 +20,7 @@ const ALL_TABS: Tab[] = [
 ];
 // A master is the operator account — a single "All Businesses" tab, not the
 // shop-operational tabs.
-const MASTER_TABS: Tab[] = [{ id: 'master', label: 'All Businesses', href: '/master', icon: 'Key' }];
+const MASTER_TABS: Tab[] = [{ id: 'master', label: 'All Businesses', href: '/master', icon: 'Key', modules: BOTH }];
 
 function activeTab(path: string): string {
   if (path === '/') return 'home';

@@ -39,7 +39,7 @@ export default function Settings() {
       (o.to !== '/settings/access' || can('users.view') || can('roles.view')),
   );
   const options: Option[] = shop?.is_master
-    ? [...visible, { label: 'All Businesses', sub: 'Master view — codes, PINs & activity', to: '/master', icon: 'Key' }]
+    ? [...visible, { label: 'All Businesses', sub: 'Master view — codes, PINs & activity', to: '/master', icon: 'Key', modules: BOTH }]
     : visible;
 
   return (

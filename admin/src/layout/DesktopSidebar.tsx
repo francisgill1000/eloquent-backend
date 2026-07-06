@@ -40,7 +40,7 @@ export function DesktopSidebar() {
   // A master is the operator account — it only manages other businesses, so it
   // gets a single menu item instead of the shop-operational nav.
   const items: NavItem[] = shop?.is_master
-    ? [{ label: 'All Businesses', to: '/master', icon: 'Key' }]
+    ? [{ label: 'All Businesses', to: '/master', icon: 'Key', modules: BOTH }]
     : nav;
 
   const logout = () => { logoutShop(); navigate('/login'); };
