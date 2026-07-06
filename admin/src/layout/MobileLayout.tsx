@@ -2,18 +2,21 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { WHATSAPP_ENABLED } from '@/lib/features';
+import { navVisible, type Module } from '@/lib/modules';
 
-type Tab = { id: string; label: string; href: string; icon: keyof typeof Icons };
+type Tab = { id: string; label: string; href: string; icon: keyof typeof Icons; modules: Module[] };
+
+const BOTH: Module[] = ['bookings', 'leads'];
 
 const ALL_TABS: Tab[] = [
-  { id: 'home', label: 'Home', href: '/', icon: 'Mic' },
-  { id: 'overview', label: 'Overview', href: '/overview', icon: 'Chart' },
-  { id: 'bookings', label: 'Bookings', href: '/bookings', icon: 'Calendar' },
+  { id: 'home', label: 'Home', href: '/', icon: 'Mic', modules: BOTH },
+  { id: 'overview', label: 'Overview', href: '/overview', icon: 'Chart', modules: BOTH },
+  { id: 'bookings', label: 'Bookings', href: '/bookings', icon: 'Calendar', modules: ['bookings'] },
   // WhatsApp Chats — hidden temporarily behind WHATSAPP_ENABLED.
-  { id: 'chats', label: 'Chats', href: '/chats', icon: 'Chat' },
+  { id: 'chats', label: 'Chats', href: '/chats', icon: 'Chat', modules: BOTH },
   // Reminders tab hidden for now — page still reachable at /reminders.
-  { id: 'settings', label: 'Settings', href: '/settings', icon: 'Sliders' },
-  { id: 'profile', label: 'Profile', href: '/profile', icon: 'Store' },
+  { id: 'settings', label: 'Settings', href: '/settings', icon: 'Sliders', modules: BOTH },
+  { id: 'profile', label: 'Profile', href: '/profile', icon: 'Store', modules: BOTH },
 ];
 // A master is the operator account — a single "All Businesses" tab, not the
 // shop-operational tabs.
@@ -38,7 +41,7 @@ export function MobileLayout() {
   const active = shop?.is_master ? 'master' : activeTab(pathname);
   const tabs = shop?.is_master
     ? MASTER_TABS
-    : ALL_TABS.filter((t) => WHATSAPP_ENABLED || t.id !== 'chats');
+    : ALL_TABS.filter((t) => (WHATSAPP_ENABLED || t.id !== 'chats') && navVisible(t.modules, shop));
 
   return (
     <div className="mobile-app">

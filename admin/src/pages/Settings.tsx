@@ -3,32 +3,41 @@ import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { usePush } from '@/lib/usePush';
 import { WHATSAPP_ENABLED } from '@/lib/features';
+import { shopHasModule, type Module } from '@/lib/modules';
 
 type Option = {
   label: string;
   sub: string;
   to: string;
   icon: keyof typeof Icons;
+  modules: Module[];
 };
 
+const BOTH: Module[] = ['bookings', 'leads'];
+
 const ALL_OPTIONS: Option[] = [
-  { label: 'Business Hunt', sub: 'Find UAE businesses & win them', to: '/leads', icon: 'Search' },
-  { label: 'Lead messages', sub: 'WhatsApp opening & follow-up templates', to: '/leads/messages', icon: 'WhatsApp' },
-  { label: 'Working Hours', sub: 'Set your open & close times', to: '/working-hours', icon: 'Clock' },
-  { label: 'Services', sub: 'Add or edit what you offer', to: '/services', icon: 'Grid' },
-  { label: 'Staff', sub: 'Add & manage your team', to: '/staff', icon: 'Users' },
+  { label: 'Business Hunt', sub: 'Find UAE businesses & win them', to: '/leads', icon: 'Search', modules: ['leads'] },
+  { label: 'Lead messages', sub: 'WhatsApp opening & follow-up templates', to: '/leads/messages', icon: 'WhatsApp', modules: ['leads'] },
+  { label: 'Working Hours', sub: 'Set your open & close times', to: '/working-hours', icon: 'Clock', modules: ['bookings'] },
+  { label: 'Services', sub: 'Add or edit what you offer', to: '/services', icon: 'Grid', modules: ['bookings'] },
+  { label: 'Staff', sub: 'Add & manage your team', to: '/staff', icon: 'Users', modules: ['bookings'] },
   // WhatsApp connection — hidden temporarily behind WHATSAPP_ENABLED.
-  { label: 'WhatsApp', sub: 'Chat connection settings', to: '/chats/setup', icon: 'WhatsApp' },
-  { label: 'AI Assistant', sub: 'What your auto-reply assistant says', to: '/assistant', icon: 'Chat' },
-  { label: 'Access Control', sub: 'Users, roles & permissions', to: '/settings/access', icon: 'Key' },
+  { label: 'WhatsApp', sub: 'Chat connection settings', to: '/chats/setup', icon: 'WhatsApp', modules: BOTH },
+  { label: 'AI Assistant', sub: 'What your auto-reply assistant says', to: '/assistant', icon: 'Chat', modules: BOTH },
+  { label: 'Access Control', sub: 'Users, roles & permissions', to: '/settings/access', icon: 'Key', modules: BOTH },
 ];
 const OPTIONS: Option[] = ALL_OPTIONS.filter((o) => WHATSAPP_ENABLED || o.to !== '/chats/setup');
 
 export default function Settings() {
   const { shop, can } = useShop();
   const push = usePush();
-  // Hide Access Control from users who can neither view users nor roles.
-  const visible = OPTIONS.filter((o) => o.to !== '/settings/access' || can('users.view') || can('roles.view'));
+  // Hide options for modules this shop lacks; also hide Access Control from
+  // users who can neither view users nor roles.
+  const visible = OPTIONS.filter(
+    (o) =>
+      o.modules.some((m) => shopHasModule(shop, m)) &&
+      (o.to !== '/settings/access' || can('users.view') || can('roles.view')),
+  );
   const options: Option[] = shop?.is_master
     ? [...visible, { label: 'All Businesses', sub: 'Master view — codes, PINs & activity', to: '/master', icon: 'Key' }]
     : visible;
