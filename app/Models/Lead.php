@@ -15,6 +15,12 @@ class Lead extends Model
     /** The fixed, opinionated funnel — deliberately not user-configurable. */
     public const STATUSES = ['new', 'sent', 'replied', 'demo', 'won', 'pass'];
 
+    /** Editable per shop (shops.lead_opening_template); this is the fallback. */
+    public const DEFAULT_OPENING = 'Hi {name}, this is Eloquent — we help UAE businesses take bookings and reply to customers on WhatsApp automatically. Could I share a quick demo?';
+
+    /** Editable per shop (shops.lead_followup_template); this is the fallback. */
+    public const DEFAULT_FOLLOWUP = 'Hi {name}, just following up on my earlier message — happy to send a short demo whenever suits you.';
+
     protected $fillable = [
         'shop_id',
         'name',
@@ -103,6 +109,29 @@ class Lead extends Model
     {
         $d = $this->normalizedDigits();
         return $d ? "https://wa.me/{$d}" : null;
+    }
+
+    /** wa.me link pre-filled with the shop's opening template ({name} → business name). */
+    public function getWhatsappOpeningUrlAttribute(): ?string
+    {
+        return $this->draftUrl($this->shop?->lead_opening_template ?: self::DEFAULT_OPENING);
+    }
+
+    /** wa.me link pre-filled with the shop's follow-up template ({name} → business name). */
+    public function getWhatsappFollowupUrlAttribute(): ?string
+    {
+        return $this->draftUrl($this->shop?->lead_followup_template ?: self::DEFAULT_FOLLOWUP);
+    }
+
+    /** Build wa.me/{digits}?text=... from a template, or null when there's no mobile. */
+    private function draftUrl(string $template): ?string
+    {
+        $d = $this->normalizedDigits();
+        if (! $d || ! $this->is_mobile) {
+            return null;
+        }
+        $text = str_replace('{name}', (string) $this->name, $template);
+        return "https://wa.me/{$d}?text=" . rawurlencode($text);
     }
 
     public function getTelUrlAttribute(): ?string
