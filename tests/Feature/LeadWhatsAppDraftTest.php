@@ -79,4 +79,23 @@ class LeadWhatsAppDraftTest extends TestCase
         $this->assertNull($res->json('data.whatsapp_opening_url'));
         $this->assertNull($res->json('data.whatsapp_followup_url'));
     }
+
+    public function test_default_opening_uses_the_sender_shop_name_not_a_hardcoded_brand(): void
+    {
+        [$shop, $token] = $this->actingShop();
+        $shop->update(['name' => 'Marina Spa']);
+        $lead = Lead::create([
+            'shop_id' => $shop->id, 'name' => 'Acme', 'phone' => '0501112233',
+            'status' => 'new', 'source' => 'google',
+        ]);
+
+        $opening = $this->auth($token)
+            ->getJson("/api/shop/leads/{$lead->id}")->assertOk()
+            ->json('data.whatsapp_opening_url');
+
+        // {shop} renders the logged-in shop's own name — tenant-safe default.
+        $this->assertStringContainsString('Marina%20Spa', $opening);
+        $this->assertStringNotContainsString('Eloquent', $opening);
+        $this->assertStringNotContainsString('%7Bshop%7D', $opening); // no leftover {shop}
+    }
 }

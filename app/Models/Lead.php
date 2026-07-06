@@ -16,7 +16,7 @@ class Lead extends Model
     public const STATUSES = ['new', 'sent', 'replied', 'demo', 'won', 'pass'];
 
     /** Editable per shop (shops.lead_opening_template); this is the fallback. */
-    public const DEFAULT_OPENING = 'Hi {name}, this is Eloquent 👋 We find you new customers from across the internet and handle them end-to-end — AI WhatsApp replies, one-tap calls, automatic follow-ups, and bookings, with every lead tracked in one app. Worth a quick 2-min demo?';
+    public const DEFAULT_OPENING = 'Hi {name}, this is {shop} 👋 We find you new customers from across the internet and handle them end-to-end — AI WhatsApp replies, one-tap calls, automatic follow-ups, and bookings, with every lead tracked in one app. Worth a quick 2-min demo?';
 
     /** Editable per shop (shops.lead_followup_template); this is the fallback. */
     public const DEFAULT_FOLLOWUP = 'Hi {name}, just circling back 🙂 Most businesses we set up start seeing new leads land in the first week. Happy to send a short demo whenever suits you.';
@@ -130,7 +130,12 @@ class Lead extends Model
         if (! $d || ! $this->is_mobile) {
             return null;
         }
-        $text = str_replace('{name}', (string) $this->name, $template);
+        // {name} = the lead being messaged; {shop} = the sender's own business
+        // name (keeps the default tenant-safe — never hardcodes one shop).
+        $text = strtr($template, [
+            '{name}' => (string) $this->name,
+            '{shop}' => (string) ($this->shop?->name ?? ''),
+        ]);
         return "https://wa.me/{$d}?text=" . rawurlencode($text);
     }
 
