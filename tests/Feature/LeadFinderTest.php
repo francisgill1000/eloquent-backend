@@ -64,10 +64,12 @@ class LeadFinderTest extends TestCase
         ];
     }
 
-    /** A master shop (bypasses subscription.active) + a token tagged to a ShopUser. */
+    /** A real (non-master) shop with an active trial so it clears
+     *  subscription.active, plus a token tagged to a ShopUser. Non-master is
+     *  deliberate: leads are tenant-scoped, so tenant-isolation must hold. */
     private function actingShop(): array
     {
-        $shop = Shop::factory()->create(['is_master' => true]);
+        $shop = Shop::factory()->trialing()->create();
         $user = ShopUser::factory()->create(['shop_id' => $shop->id]);
         $token = $shop->createToken('t');
         $token->accessToken->forceFill(['shop_user_id' => $user->id])->save();

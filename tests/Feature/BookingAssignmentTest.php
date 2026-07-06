@@ -29,6 +29,8 @@ class BookingAssignmentTest extends TestCase
             ->postJson("/api/shops/{$shop->id}/book", [
                 'date' => '2026-05-11',
                 'start_time' => '10:00:00',
+                'services' => [['title' => 'Cut', 'price' => '50.00']],
+                'charges' => 50.0,
             ]);
 
         $response->assertStatus(201);
@@ -56,6 +58,8 @@ class BookingAssignmentTest extends TestCase
             ->postJson("/api/shops/{$shop->id}/book", [
                 'date' => '2026-05-11',
                 'start_time' => '10:00:00',
+                'services' => [['title' => 'Cut', 'price' => '50.00']],
+                'charges' => 50.0,
             ]);
 
         $response->assertStatus(201);
