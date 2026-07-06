@@ -2,6 +2,7 @@
 
 namespace App\Services\Leads;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -72,11 +73,40 @@ class AdLibraryService
     /**
      * Poll a run. Returns ['status' => 'running'|'done'|'failed', 'results' => array].
      * Results are normalized lead DTOs (only when status is 'done').
+     *
+     * Two async stages behind one runId so each poll stays a short request:
+     *   1. Ad scrape — find advertisers (name + FB page).
+     *   2. Contact enrichment — read each advertiser's page for phone/website/
+     *      address, merge it in, then drop the ones with no usable contact.
+     * When stage 1 finishes we kick off stage 2 and keep reporting 'running';
+     * the client's existing 4s poll loop carries through both transparently.
      */
     public function poll(string $runId): array
     {
         $token = config('services.apify.token');
+        $stateKey = "adsearch:enrich:{$runId}";
 
+        // --- Stage 2: enrichment already running for this run ----------------
+        $state = Cache::get($stateKey);
+        if ($state !== null) {
+            $status = $this->runStatus($token, $state['contact_run']);
+            if (in_array($status, ['READY', 'RUNNING'], true)) {
+                return ['status' => 'running', 'results' => []];
+            }
+            Cache::forget($stateKey);
+
+            // Enrichment failed → fall back to the un-enriched leads (better than
+            // nothing; no usable-contact filter so the list isn't emptied).
+            if ($status !== 'SUCCEEDED') {
+                return ['status' => 'done', 'results' => $state['results']];
+            }
+
+            $contacts = $this->fetchContactResults($token, $state['contact_dataset'] ?? null);
+            $merged = $this->mergeContacts($state['results'], $contacts);
+            return ['status' => 'done', 'results' => $this->keepUsable($merged)];
+        }
+
+        // --- Stage 1: the ad scrape ------------------------------------------
         try {
             $resp = Http::timeout(15)->get(self::BASE . "/actor-runs/{$runId}?token={$token}");
             if (! $resp->successful()) {
@@ -94,12 +124,162 @@ class AdLibraryService
                 return ['status' => 'failed', 'results' => []];
             }
 
-            $datasetId = $resp->json('data.defaultDatasetId');
-            return ['status' => 'done', 'results' => $this->fetchResults($token, $datasetId)];
+            $results = $this->fetchResults($token, $resp->json('data.defaultDatasetId'));
+
+            // Kick off stage 2 (enrichment) and keep the client polling.
+            if ($results && config('leads.ad_enrich', true)) {
+                $started = $this->startContactRun($token, $results);
+                if ($started !== null) {
+                    Cache::put($stateKey, [
+                        'contact_run' => $started['runId'],
+                        'contact_dataset' => $started['datasetId'],
+                        'results' => $results,
+                    ], now()->addMinutes(15));
+                    return ['status' => 'running', 'results' => []];
+                }
+            }
+
+            // Enrichment off or failed to start → return the raw advertiser leads.
+            return ['status' => 'done', 'results' => $results];
         } catch (\Throwable $e) {
             Log::warning('Ad Library poll errored', ['exception' => get_class($e)]);
             return ['status' => 'failed', 'results' => []];
         }
+    }
+
+    /** Current Apify run status (READY/RUNNING/SUCCEEDED/…); RUNNING on any error. */
+    private function runStatus(string $token, string $runId): string
+    {
+        try {
+            $resp = Http::timeout(15)->get(self::BASE . "/actor-runs/{$runId}?token={$token}");
+            return $resp->successful() ? (string) $resp->json('data.status') : 'RUNNING';
+        } catch (\Throwable) {
+            return 'RUNNING';
+        }
+    }
+
+    /**
+     * Start stage 2: the Facebook page contact scraper over the advertiser pages
+     * we just found. Returns ['runId','datasetId'] or null if it couldn't start.
+     */
+    private function startContactRun(string $token, array $leads): ?array
+    {
+        $actor = config('services.apify.page_contact_actor', 'apify~facebook-page-contact-information');
+
+        $pages = [];
+        foreach ($leads as $lead) {
+            if (! empty($lead['page_url'])) {
+                $pages[] = $lead['page_url'];
+            }
+        }
+        $pages = array_values(array_unique($pages));
+        if (empty($pages)) {
+            return null;
+        }
+
+        try {
+            $resp = Http::timeout(15)->retry(2, 300, throw: false)
+                ->post(self::BASE . "/acts/{$actor}/runs?token={$token}", [
+                    'pages' => $pages,
+                    'language' => 'en-US',
+                ]);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (! $resp->successful() || ! $resp->json('data.id')) {
+            Log::warning('Contact enrichment failed to start', ['http' => $resp->status()]);
+            return null;
+        }
+
+        return [
+            'runId' => (string) $resp->json('data.id'),
+            'datasetId' => (string) $resp->json('data.defaultDatasetId'),
+        ];
+    }
+
+    /** Fetch stage-2 contact rows, keyed by normalized page URL for merging. */
+    private function fetchContactResults(string $token, ?string $datasetId): array
+    {
+        if (! $datasetId) {
+            return [];
+        }
+
+        $resp = Http::timeout(20)->get(self::BASE . "/datasets/{$datasetId}/items", [
+            'token' => $token,
+            'clean' => 'true',
+            'fields' => 'pageUrl,phone,website,websites,address',
+        ]);
+        if (! $resp->successful()) {
+            return [];
+        }
+
+        $byUrl = [];
+        foreach ($resp->json() ?? [] as $row) {
+            $url = $this->normUrl($row['pageUrl'] ?? '');
+            if ($url !== '') {
+                $byUrl[$url] = $row;
+            }
+        }
+        return $byUrl;
+    }
+
+    /** Merge phone/website/address from the contact scrape into the ad leads. */
+    private function mergeContacts(array $leads, array $byUrl): array
+    {
+        $out = [];
+        foreach ($leads as $lead) {
+            $c = $byUrl[$this->normUrl($lead['page_url'] ?? '')] ?? null;
+            if ($c) {
+                $phone = $this->firstString($c['phone'] ?? null);
+                $website = $this->firstString($c['website'] ?? null) ?: $this->firstString($c['websites'] ?? null);
+                $address = $this->firstString($c['address'] ?? null);
+
+                if ($phone) {
+                    $lead['phone'] = $phone;
+                    $lead['whatsapp'] = $phone;
+                }
+                if ($website) {
+                    $lead['website'] = $website; // a real site beats the FB-page fallback
+                }
+                if ($address) {
+                    $lead['address'] = preg_replace('/\s+/', ' ', $address);
+                }
+            }
+            $out[] = $lead;
+        }
+        return $out;
+    }
+
+    /**
+     * Keep only advertisers we can actually act on — a phone, or a real website
+     * (the Facebook-page fallback doesn't count). Applied only after enrichment,
+     * so a scrape that returns no contacts still shows its name-only leads.
+     */
+    private function keepUsable(array $leads): array
+    {
+        return array_values(array_filter($leads, function ($l) {
+            if (! empty($l['phone'])) {
+                return true;
+            }
+            $w = $l['website'] ?? null;
+            return $w && ! str_contains($w, 'facebook.com');
+        }));
+    }
+
+    private function normUrl(string $url): string
+    {
+        return rtrim(strtolower(trim($url)), '/');
+    }
+
+    /** Contact fields can arrive as a string or an array; take the first value. */
+    private function firstString($value): ?string
+    {
+        if (is_array($value)) {
+            $value = $value[0] ?? null;
+        }
+        $value = is_string($value) ? trim($value) : null;
+        return $value !== null && $value !== '' ? $value : null;
     }
 
     /** Fetch the dataset, dedupe advertisers, and normalize to lead DTOs. */
@@ -112,7 +292,9 @@ class AdLibraryService
         $resp = Http::timeout(20)->get(self::BASE . "/datasets/{$datasetId}/items", [
             'token' => $token,
             'clean' => 'true',
-            'fields' => 'pageName,pageId,linkUrl,pageCategories,isActive',
+            // `snapshot` carries the real page profile URL, which we feed to the
+            // contact scraper (the ad's own pageId sometimes differs from it).
+            'fields' => 'pageName,pageId,linkUrl,pageCategories,isActive,snapshot',
             'limit' => 100,
         ]);
 
@@ -130,6 +312,8 @@ class AdLibraryService
             }
             $seen[$pageId] = true;
 
+            $profileUri = $ad['snapshot']['page_profile_uri'] ?? null;
+
             $out[] = [
                 'name' => $name,
                 'phone' => null,
@@ -143,6 +327,8 @@ class AdLibraryService
                 'external_ref' => "fb:{$pageId}",
                 'source' => 'meta_ad_library',
                 'advertising' => true,
+                // Transient: used by stage-2 enrichment, not persisted as a column.
+                'page_url' => $profileUri ?: "https://www.facebook.com/{$pageId}/",
             ];
         }
 
@@ -191,9 +377,9 @@ class AdLibraryService
                 [
                     'source' => 'meta_ad_library',
                     'name' => $r['name'] ?? 'Unknown',
-                    'phone' => null,
+                    'phone' => $r['phone'] ?? null,
                     'website' => $r['website'] ?? null,
-                    'address' => null,
+                    'address' => $r['address'] ?? null,
                     'category' => $r['category'] ?? null,
                     'lat' => null,
                     'lng' => null,
@@ -241,10 +427,10 @@ class AdLibraryService
             }
             $out[] = [
                 'name' => $row->name,
-                'phone' => null,
-                'whatsapp' => null,
+                'phone' => $row->phone,
+                'whatsapp' => $row->phone,
                 'website' => $row->website,
-                'address' => null,
+                'address' => $row->address,
                 'category' => $row->category,
                 'lat' => null,
                 'lng' => null,

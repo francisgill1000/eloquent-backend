@@ -53,6 +53,9 @@ return [
         'token' => env('APIFY_TOKEN'),
         // Actor id in username~name form (Apify REST path format).
         'ad_library_actor' => env('APIFY_AD_LIBRARY_ACTOR', 'constructive_calm~facebook-ad-library-pro'),
+        // Second-stage enrichment: reads each advertiser's Facebook page for
+        // phone / website / address (the Ad Library itself has none).
+        'page_contact_actor' => env('APIFY_PAGE_CONTACT_ACTOR', 'apify~facebook-page-contact-information'),
     ],
 
     'whatsapp' => [
