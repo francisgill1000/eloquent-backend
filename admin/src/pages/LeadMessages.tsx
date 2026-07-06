@@ -55,8 +55,9 @@ export default function LeadMessages() {
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 className="c-page-title">Lead messages</h1>
           <p className="c-page-sub">
-            The WhatsApp messages drafted when you contact a lead. Use <code>{'{name}'}</code> to
-            insert the business name. Leave a message unchanged to keep using the default.
+            The WhatsApp messages drafted when you contact a lead. Use <code>{'{name}'}</code> for
+            the lead's business name and <code>{'{shop}'}</code> for your own. Leave a message
+            unchanged to keep using the default.
           </p>
         </div>
         <button className="c-icon-btn" aria-label="Back to settings" onClick={() => navigate('/settings')}>
