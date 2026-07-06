@@ -201,7 +201,10 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
       return true;
     });
     if (!fresh.length) return;
-    const merged = [...base, ...fresh];
+    // Put the (few) ad-sourced businesses at the FRONT so they land inside the
+    // first page of 10, mixed in with Google — the user can't tell them apart.
+    // Google's larger batch fills out the rest of every page.
+    const merged = [...fresh, ...base];
     resultsRef.current = merged;
     setResults(merged);
     setMoreFound(fresh.length);
@@ -370,9 +373,7 @@ function ResultCard({ r, selected, saved, onToggle }: { r: LeadResult; selected:
       <div className="lf-card-body">
         <div className="lf-card-top">
           <span className="lf-name">{r.name}</span>
-          {r.advertising
-            ? <span className="lf-adbadge"><Icons.Chart size={11} /> Advertising</span>
-            : typeof r.rating === 'number' && <span className="lf-rating"><Icons.Sparkle size={12} /> {r.rating.toFixed(1)}</span>}
+          {typeof r.rating === 'number' && <span className="lf-rating"><Icons.Sparkle size={12} /> {r.rating.toFixed(1)}</span>}
         </div>
         {r.address && <span className="lf-addr"><Icons.MapPin size={12} /> {r.address}</span>}
         <div className="lf-actions">
