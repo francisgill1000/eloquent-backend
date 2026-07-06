@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, type CSSProperties } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
-import { getLead, updateLeadStatus } from '@/lib/leads';
+import { getLead, updateLeadStatus, logFollowup } from '@/lib/leads';
 import type { Lead, LeadActivity, LeadStatus } from '@/types';
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
@@ -131,6 +131,36 @@ export default function LeadDetail() {
     }
   };
 
+  // New lead → open the opening draft, then optimistically move to Sent.
+  const sendOpening = async () => {
+    if (!lead || busy) return;
+    if (lead.whatsapp_opening_url) window.open(lead.whatsapp_opening_url, '_blank');
+    setBusy(true); setError('');
+    try {
+      await updateLeadStatus(lead.id, 'sent');
+      await load();
+    } catch {
+      setError('Could not update status.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Already contacted → open the follow-up draft and log the nudge.
+  const sendFollowup = async () => {
+    if (!lead || busy) return;
+    if (lead.whatsapp_followup_url) window.open(lead.whatsapp_followup_url, '_blank');
+    setBusy(true); setError('');
+    try {
+      await logFollowup(lead.id);
+      await load();
+    } catch {
+      setError('Could not log the follow-up.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (loading) return <div className="m-screen"><Spinner label="Loading lead…" /></div>;
 
   if (!lead) {
@@ -142,7 +172,6 @@ export default function LeadDetail() {
     );
   }
 
-  const wa = lead.whatsapp_url && lead.is_mobile ? lead.whatsapp_url : null;
   const passed = lead.status === 'pass';
   const activeIndex = STAGE_OPTS.findIndex((o) => o.status === lead.status);
   const stageColor = STAGE_COLOR[lead.status] ?? 'var(--text-4)';
@@ -193,7 +222,16 @@ export default function LeadDetail() {
             </div>
 
             <div className="ld-actions">
-              {wa && <a className="ld-act wa" href={wa} target="_blank" rel="noreferrer"><Icons.WhatsApp size={16} /> WhatsApp</a>}
+              {lead.is_mobile && lead.status === 'new' && (
+                <button type="button" className="ld-act wa" disabled={busy} onClick={() => void sendOpening()}>
+                  <Icons.WhatsApp size={16} /> WhatsApp
+                </button>
+              )}
+              {lead.is_mobile && (lead.status === 'sent' || lead.status === 'replied' || lead.status === 'demo') && (
+                <button type="button" className="ld-act wa" disabled={busy} onClick={() => void sendFollowup()}>
+                  <Icons.WhatsApp size={16} /> Follow-up
+                </button>
+              )}
               {lead.tel_url && <a className="ld-act" href={lead.tel_url}><Icons.Phone size={16} /> Call</a>}
               {lead.website && <a className="ld-act" href={lead.website} target="_blank" rel="noreferrer"><Icons.ArrowRight size={16} /> Website</a>}
               {lead.map_url && <a className="ld-act" href={lead.map_url} target="_blank" rel="noreferrer"><Icons.MapPin size={16} /> Map</a>}

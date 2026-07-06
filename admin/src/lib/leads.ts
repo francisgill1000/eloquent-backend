@@ -134,6 +134,12 @@ export async function updateLeadStatus(id: number, status: LeadStatus, note?: st
   return data?.data ?? data;
 }
 
+/** Record a follow-up nudge; logs a `contacted` activity + bumps last_contacted_at. */
+export async function logFollowup(id: number): Promise<Lead> {
+  const { data } = await api.post(`/shop/leads/${id}/followup`);
+  return data?.data ?? data;
+}
+
 export type LeadFilters = {
   status?: LeadStatus;
   category?: string;
