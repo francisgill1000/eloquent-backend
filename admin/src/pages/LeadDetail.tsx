@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, type CSSProperties } from 'react';
+import { useEffect, useState, useCallback, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
@@ -108,6 +108,10 @@ export default function LeadDetail() {
   const [aiText, setAiText] = useState<string | null>(null);
   const [aiKind, setAiKind] = useState<'opening' | 'followup'>('opening');
   const [aiBusy, setAiBusy] = useState(false);
+  // Drag-to-set on the vertical stage switch: index the knob is being dragged
+  // to (null = not dragging). Commit happens on release.
+  const switchRef = useRef<HTMLDivElement>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -205,6 +209,41 @@ export default function LeadDetail() {
     } finally {
       setBusy(false);
     }
+  };
+
+  // Nearest stage index to a vertical pointer position — measured from the
+  // actual option elements so it stays accurate regardless of CSS geometry.
+  const indexFromY = (clientY: number): number => {
+    const opts = switchRef.current?.querySelectorAll('.ba-switch-opt');
+    if (!opts || opts.length === 0) return 0;
+    let best = 0;
+    let bestDist = Infinity;
+    opts.forEach((el, i) => {
+      const r = (el as HTMLElement).getBoundingClientRect();
+      const dist = Math.abs(clientY - (r.top + r.height / 2));
+      if (dist < bestDist) { bestDist = dist; best = i; }
+    });
+    return best;
+  };
+
+  // Grab the knob/rail and slide. Tapping a stage label keeps its own onClick.
+  const onSwitchPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (busy) return;
+    if ((e.target as HTMLElement).closest('.ba-switch-opts')) return; // label taps = clicks
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragIndex(indexFromY(e.clientY));
+  };
+  const onSwitchPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragIndex === null) return;
+    setDragIndex(indexFromY(e.clientY));
+  };
+  const onSwitchPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragIndex === null) return;
+    const idx = dragIndex;
+    setDragIndex(null);
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+    const target = STAGE_OPTS[idx]?.status;
+    if (target && lead && target !== lead.status) void setStatus(target);
   };
 
   if (loading) return <div className="m-screen"><Spinner label="Loading lead…" /></div>;
@@ -327,12 +366,14 @@ export default function LeadDetail() {
             </div>
           </div>
 
-          {/* Vertical sliding-knob stage switch — docked after the hero divider */}
-          <div className={`ba-switch ld-switch${passed ? ' cancelled' : ''}`}
-            style={{ '--active': activeIndex, '--stage': stageColor } as CSSProperties}>
+          {/* Vertical sliding-knob stage switch — tap a stage or drag the knob. */}
+          <div ref={switchRef} className={`ba-switch ld-switch${passed ? ' cancelled' : ''}${dragIndex !== null ? ' dragging' : ''}`}
+            style={{ '--active': dragIndex ?? activeIndex, '--stage': stageColor } as CSSProperties}
+            onPointerDown={onSwitchPointerDown} onPointerMove={onSwitchPointerMove}
+            onPointerUp={onSwitchPointerUp} onPointerCancel={onSwitchPointerUp}>
             <div className="ba-switch-opts">
-              {STAGE_OPTS.map((o) => {
-                const on = o.status === lead.status;
+              {STAGE_OPTS.map((o, i) => {
+                const on = i === (dragIndex ?? activeIndex);
                 return (
                   <button key={o.status} type="button" aria-label={STATUS_LABEL[o.status]}
                     className={`ba-switch-opt${on ? ' on' : ''}`}
