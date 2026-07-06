@@ -140,6 +140,12 @@ export async function logFollowup(id: number): Promise<Lead> {
   return data?.data ?? data;
 }
 
+/** AI-write one ready-to-send message for this specific lead. Not saved. */
+export async function personalizeLead(id: number, kind: 'opening' | 'followup'): Promise<string> {
+  const { data } = await api.post(`/shop/leads/${id}/personalize`, { kind });
+  return data?.message ?? '';
+}
+
 export type LeadFilters = {
   status?: LeadStatus;
   category?: string;
