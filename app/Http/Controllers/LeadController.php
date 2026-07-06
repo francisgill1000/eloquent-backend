@@ -9,6 +9,7 @@ use App\Services\Leads\AdLibraryService;
 use App\Services\Leads\Exceptions\SearchLimitReached;
 use App\Services\Leads\LeadSearchService;
 use App\Services\Leads\OutreachWriter;
+use App\Services\Leads\SearchInterpreter;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -39,19 +40,30 @@ class LeadController extends Controller
      * Discover businesses via the active source. Does NOT save. Cache hits are
      * free; a live call over the monthly allowance returns 402.
      */
-    public function search(Request $request)
+    public function search(Request $request, SearchInterpreter $interpreter)
     {
         $data = $request->validate([
             'category' => ['required', 'string', 'max:120'],
             'area' => ['nullable', 'string', 'max:120'],
         ]);
 
+        $shop = $this->shop($request);
+
+        // AI turns whatever the user typed (a keyword or a plain-language goal
+        // like "customers for my salon") into a real business-type search. On
+        // any AI failure, fall back to searching the raw text literally.
+        $keyword = $data['category'];
+        $area = $data['area'] ?? null;
         try {
-            $result = $this->search->search(
-                $this->shop($request),
-                $data['category'],
-                $data['area'] ?? null,
-            );
+            $interpreted = $interpreter->interpret($shop, $keyword, $area);
+            $keyword = $interpreted['keyword'];
+            $area = $interpreted['area'];
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        try {
+            $result = $this->search->search($shop, $keyword, $area);
         } catch (SearchLimitReached $e) {
             // 429 (not 402): 402 is reserved for lapsed subscriptions, which the
             // admin SPA's axios interceptor redirects to /subscribe. A quota
@@ -70,6 +82,7 @@ class LeadController extends Controller
                 'used' => $result['used'],
                 'limit' => $result['limit'],
                 'remaining' => $result['remaining'],
+                'searched_for' => $keyword,
             ],
         ]);
     }
