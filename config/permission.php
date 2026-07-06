@@ -61,7 +61,7 @@ return [
     /*
      * Teams Feature.
      * When set to true the package implements teams using the 'team_foreign_key'.
-     * Booking Lens scopes roles per-shop (team_id = shop id).
+     * Business Lens scopes roles per-shop (team_id = shop id).
      */
     'teams' => true,
 
