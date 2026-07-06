@@ -15,11 +15,16 @@ class BookingCreatorTest extends TestCase
     private function shopWithHours(): Shop
     {
         $shop = Shop::create(['name' => 'S', 'shop_code' => '8100', 'pin' => '0', 'status' => 'active', 'category_id' => 11]);
-        \DB::table('shop_working_hours')->insert([
-            'shop_id' => $shop->id, 'day_of_week' => (int) now()->dayOfWeek,
-            'start_time' => '09:00:00', 'end_time' => '18:00:00', 'slot_duration' => 30,
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
+        // The Shop `created` hook already seeds default hours for Mon-Sat, so
+        // reconcile today's row instead of inserting a duplicate (which violates
+        // the shop_id+day_of_week unique index on any weekday).
+        \DB::table('shop_working_hours')->updateOrInsert(
+            ['shop_id' => $shop->id, 'day_of_week' => (int) now()->dayOfWeek],
+            [
+                'start_time' => '09:00:00', 'end_time' => '18:00:00', 'slot_duration' => 30,
+                'created_at' => now(), 'updated_at' => now(),
+            ],
+        );
         return $shop;
     }
 

@@ -106,7 +106,9 @@ class SubscriptionFlowTest extends TestCase
             'status' => 'pending', 'period_days' => 365,
         ]);
 
-        // no webhook secret configured in tests → HMAC check skipped
+        // Force the "no shared secret" path so the HMAC check is skipped,
+        // regardless of any ZIINA_WEBHOOK_SECRET in the runtime environment.
+        config(['services.ziina.webhook_secret' => null]);
         $this->postJson('/api/ziina/webhook', [
             'event' => 'payment_intent.status.updated',
             'data' => ['id' => 'pi_paid', 'status' => 'completed'],
