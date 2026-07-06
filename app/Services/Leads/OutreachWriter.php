@@ -60,9 +60,10 @@ class OutreachWriter
         $system = $this->rules()
             . "\n\n" . $this->shopProfile($shop)
             . "\n\nThe specific prospect you are messaging:\n" . implode("\n", $leadLines)
-            . "\n\nWrite ONE ready-to-send WhatsApp {$kind} message to THIS prospect."
-            . " Use their real name and details — do NOT use placeholders like {name}."
-            . " Return ONLY the message text, nothing else.";
+            . "\n\nWrite ONE ready-to-send WhatsApp {$kind} message to THIS business, addressing it by its"
+            . " business name and using the details above. Do NOT use placeholders like {name}, do NOT ask for"
+            . " any more information (a contact person's name is not needed), and do NOT explain yourself."
+            . " Output ONLY the finished message text, nothing else.";
 
         $msg = trim($this->claude->reply($system, [
             ['role' => 'user', 'content' => "Write the {$kind} message."],
@@ -87,6 +88,11 @@ class OutreachWriter
             '- End with a soft, low-friction question as the CTA (e.g. "Worth a quick 2-min demo?"). Never "buy now".',
             '- The follow-up must take a NEW angle (a proof point or a question), never repeat the opening.',
             '- No invented statistics, names, or offers. Plain text; at most one light emoji.',
+            '- You are messaging a BUSINESS. Address it by its business name (e.g. "Hi Marina Barbers").',
+            '  You will NOT have a contact person\'s name, and that is completely fine — never ask for one,',
+            '  never leave a blank for it, and never write "Dear [Name]".',
+            '- Never ask the reader (or the requester) for more information, and never explain what you are doing.',
+            '  Always produce the finished message itself, ready to send as-is.',
         ]);
     }
 
