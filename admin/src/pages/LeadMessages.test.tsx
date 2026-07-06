@@ -33,6 +33,25 @@ describe('LeadMessages', () => {
     await userEvent.type(opening, 'New opening {{name}');
     await userEvent.click(screen.getByRole('button', { name: /save/i }));
 
-    expect(save).toHaveBeenCalledWith('New opening {name}', 'Hi {name}, followup default');
+    // followup was left unchanged (still equals the loaded default), so it's
+    // coerced to null to stay linked to the (evolving) packaged default.
+    expect(save).toHaveBeenCalledWith('New opening {name}', null);
+  });
+
+  it('saves null for both fields when nothing was edited', async () => {
+    vi.spyOn(lib, 'getLeadMessages').mockResolvedValue({
+      opening: null, followup: null,
+      default_opening: 'Hi {name}, opening default', default_followup: 'Hi {name}, followup default',
+    });
+    const save = vi.spyOn(lib, 'saveLeadMessages').mockResolvedValue({
+      opening: null, followup: null,
+      default_opening: 'Hi {name}, opening default', default_followup: 'Hi {name}, followup default',
+    });
+
+    setup();
+    await screen.findByLabelText('Opening message');
+    await userEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    expect(save).toHaveBeenCalledWith(null, null);
   });
 });

@@ -17,6 +17,7 @@ export default function LeadMessages() {
   const [notice, setNotice] = useState('');
   const [opening, setOpening] = useState('');
   const [followup, setFollowup] = useState('');
+  const [defaults, setDefaults] = useState({ opening: '', followup: '' });
 
   useEffect(() => {
     let alive = true;
@@ -25,6 +26,7 @@ export default function LeadMessages() {
         if (!alive) return;
         setOpening(m.opening ?? m.default_opening);
         setFollowup(m.followup ?? m.default_followup);
+        setDefaults({ opening: m.default_opening, followup: m.default_followup });
       })
       .catch(() => { if (alive) setError('Could not load your messages.'); })
       .finally(() => { if (alive) setLoading(false); });
@@ -33,7 +35,11 @@ export default function LeadMessages() {
 
   const save = () => {
     setSaving(true); setError(''); setNotice('');
-    saveLeadMessages(opening, followup)
+    const norm = (v: string, def: string) => {
+      const t = v.trim();
+      return t === '' || t === def ? null : t;
+    };
+    saveLeadMessages(norm(opening, defaults.opening), norm(followup, defaults.followup))
       .then((m) => {
         setOpening(m.opening ?? m.default_opening);
         setFollowup(m.followup ?? m.default_followup);
@@ -50,7 +56,7 @@ export default function LeadMessages() {
           <h1 className="c-page-title">Lead messages</h1>
           <p className="c-page-sub">
             The WhatsApp messages drafted when you contact a lead. Use <code>{'{name}'}</code> to
-            insert the business name.
+            insert the business name. Leave a message unchanged to keep using the default.
           </p>
         </div>
         <button className="c-icon-btn" aria-label="Back to settings" onClick={() => navigate('/settings')}>
@@ -93,7 +99,7 @@ export default function LeadMessages() {
             </div>
           </div>
 
-          <button className="c-btn c-btn-block" disabled={saving || !opening.trim() || !followup.trim()} onClick={() => save()}>
+          <button className="c-btn c-btn-block" disabled={saving} onClick={() => save()}>
             {saving ? 'Saving…' : 'Save messages'}
           </button>
         </div>

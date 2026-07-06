@@ -57,4 +57,13 @@ describe('LeadDetail outreach button', () => {
     expect(screen.queryByRole('button', { name: /whatsapp/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /follow-up/i })).not.toBeInTheDocument();
   });
+
+  it('shows no outreach button for a Not-Interested (pass) lead', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'pass' }, activities: [] });
+
+    setup();
+    await screen.findByText('Pak Cargo');
+    expect(screen.queryByRole('button', { name: /whatsapp/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /follow-up/i })).not.toBeInTheDocument();
+  });
 });
