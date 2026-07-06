@@ -63,6 +63,7 @@ export type Shop = {
   latitude?: number | string;
   longitude?: number | string;
   is_open?: boolean;
+  modules?: Array<'bookings' | 'leads'>;
   working_hours?: WorkingHours[];
   catalogs?: Service[];
   [key: string]: unknown;
@@ -174,6 +175,7 @@ export type MasterShop = {
   status?: string;
   persona?: string | null;
   is_master?: boolean;
+  modules?: Array<'bookings' | 'leads'>;
   subscription_status?: string | null;
   plan?: string | null;
   access_until?: string | null;
