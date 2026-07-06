@@ -217,6 +217,9 @@ class LeadController extends Controller
         $shop = $this->shop($request);
         abort_unless($lead->shop_id === $shop->id, 404);
 
+        $lead->setRelation('shop', $shop);
+        $lead->append(['whatsapp_opening_url', 'whatsapp_followup_url']);
+
         $activities = $lead->activities()
             ->orderByDesc('id')
             ->get(['id', 'type', 'payload', 'created_at']);
