@@ -30,7 +30,7 @@ class BookingToolsModuleTest extends TestCase
         return $b->fresh();
     }
 
-    private function call(Shop $shop, string $tool, array $input, bool $confirmed): ToolCall
+    private function toolCall(Shop $shop, string $tool, array $input, bool $confirmed): ToolCall
     {
         return new ToolCall($shop, null, $tool, $input, $confirmed); // null user = owner-equivalent
     }
@@ -39,7 +39,7 @@ class BookingToolsModuleTest extends TestCase
     {
         $shop = $this->shop();
         $this->booking($shop);
-        $out = app(BookingTools::class)->run($this->call($shop, 'cancel_booking', ['reference' => 'BK00001'], false));
+        $out = app(BookingTools::class)->run($this->toolCall($shop, 'cancel_booking', ['reference' => 'BK00001'], false));
 
         $this->assertTrue($out['preview']);
         $this->assertSame('booked', strtolower(Booking::where('booking_reference', 'BK00001')->first()->getRawOriginal('status')));
@@ -49,7 +49,7 @@ class BookingToolsModuleTest extends TestCase
     {
         $shop = $this->shop();
         $this->booking($shop);
-        $out = app(BookingTools::class)->run($this->call($shop, 'cancel_booking', ['reference' => 'BK00001'], true));
+        $out = app(BookingTools::class)->run($this->toolCall($shop, 'cancel_booking', ['reference' => 'BK00001'], true));
 
         $this->assertTrue($out['done']);
         $fresh = Booking::where('booking_reference', 'BK00001')->first();
@@ -60,7 +60,7 @@ class BookingToolsModuleTest extends TestCase
     public function test_unknown_reference_returns_not_found(): void
     {
         $shop = $this->shop();
-        $out = app(BookingTools::class)->run($this->call($shop, 'cancel_booking', ['reference' => 'NOPE'], true));
+        $out = app(BookingTools::class)->run($this->toolCall($shop, 'cancel_booking', ['reference' => 'NOPE'], true));
         $this->assertSame('not_found', $out['error']);
     }
 
@@ -69,7 +69,7 @@ class BookingToolsModuleTest extends TestCase
         $shop = $this->shop();
         $other = Shop::create(['name' => 'O', 'shop_code' => '8299', 'pin' => '0', 'status' => 'active', 'category_id' => 11]);
         $this->booking($other, 'BK09999');
-        $out = app(BookingTools::class)->run($this->call($shop, 'cancel_booking', ['reference' => 'BK09999'], true));
+        $out = app(BookingTools::class)->run($this->toolCall($shop, 'cancel_booking', ['reference' => 'BK09999'], true));
         $this->assertSame('not_found', $out['error']); // scoped to acting shop
     }
 }
