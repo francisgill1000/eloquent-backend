@@ -199,16 +199,11 @@ export default function LeadDetail() {
               {lead.map_url && <a className="ld-act" href={lead.map_url} target="_blank" rel="noreferrer"><Icons.MapPin size={16} /> Map</a>}
             </div>
 
-            <div className="ba-grid">
+            <div className="ba-grid ld-grid">
               <div className="ba-tile">
                 <Icons.Phone size={15} />
                 <span className="ba-tile-l">Phone</span>
                 <span className="ba-tile-v">{lead.phone || '—'}</span>
-              </div>
-              <div className="ba-tile">
-                <Icons.MapPin size={15} />
-                <span className="ba-tile-l">Address</span>
-                <span className="ba-tile-v">{lead.address || '—'}</span>
               </div>
               <div className="ba-tile">
                 <Icons.Calendar size={15} />
@@ -219,6 +214,11 @@ export default function LeadDetail() {
                 <Icons.Clock size={15} />
                 <span className="ba-tile-l">Last contacted</span>
                 <span className="ba-tile-v">{fmtDate(lead.last_contacted_at)}</span>
+              </div>
+              <div className="ba-tile ld-tile-address">
+                <Icons.MapPin size={15} />
+                <span className="ba-tile-l">Address</span>
+                <span className="ba-tile-v">{lead.address || '—'}</span>
               </div>
             </div>
           </div>

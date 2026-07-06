@@ -679,3 +679,10 @@
 .ld-log-text { font-size: 13.5px; color: var(--text-1); }
 .ld-log-time { font-size: 11.5px; color: var(--text-4); }
 .ld-empty { color: var(--text-3); font-size: 13px; text-align: center; padding: 18px; }
+
+/* Hero detail tiles: 3 per row (desktop), Address on its own full-width row. */
+.ba-grid.ld-grid .ld-tile-address { grid-column: 1 / -1; }
+.ld-tile-address .ba-tile-v { white-space: normal; }
+@media (min-width: 1024px) {
+  .c-booking-action .ba-grid.ld-grid { grid-template-columns: repeat(3, 1fr); }
+}
