@@ -17,16 +17,30 @@ const KnobX = () => (
   <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" /></svg>
 );
 
+// Per-status colours (mirror the s-<status> --stage tokens in leads.css). Used
+// by the stage switch and the activity dots so both read from one palette.
+const STAGE_COLOR: Record<LeadStatus, string> = {
+  new: 'var(--text-4)',
+  sent: 'var(--info)',
+  replied: 'var(--mint-300)',
+  demo: 'var(--warn)',
+  won: 'var(--mint-500)',
+  pass: 'var(--danger)',
+};
+
 // Vertical sliding-knob switch — top→bottom order = the funnel, Pass at the end.
-// Colours mirror the s-<status> --stage tokens in leads.css.
-const STAGE_OPTS: { status: LeadStatus; color: string }[] = [
-  { status: 'new', color: 'var(--text-4)' },
-  { status: 'sent', color: 'var(--info)' },
-  { status: 'replied', color: 'var(--mint-300)' },
-  { status: 'demo', color: 'var(--warn)' },
-  { status: 'won', color: 'var(--mint-500)' },
-  { status: 'pass', color: 'var(--danger)' },
+const STAGE_OPTS: { status: LeadStatus }[] = [
+  { status: 'new' }, { status: 'sent' }, { status: 'replied' },
+  { status: 'demo' }, { status: 'won' }, { status: 'pass' },
 ];
+
+// Dot colour for a timeline row — the status it moved TO (else neutral mint).
+function activityColor(a: LeadActivity): string {
+  if (a.type === 'status_change' && a.payload?.to) {
+    return STAGE_COLOR[a.payload.to as LeadStatus] ?? 'var(--mint-300)';
+  }
+  return 'var(--mint-300)';
+}
 
 // Main funnel path for the stepper. `pass` is the dead-end (out of funnel) and
 // isn't a step — it's flagged separately on the card.
@@ -131,7 +145,7 @@ export default function LeadDetail() {
   const wa = lead.whatsapp_url && lead.is_mobile ? lead.whatsapp_url : null;
   const passed = lead.status === 'pass';
   const activeIndex = STAGE_OPTS.findIndex((o) => o.status === lead.status);
-  const stageColor = activeIndex >= 0 ? STAGE_OPTS[activeIndex].color : 'var(--text-4)';
+  const stageColor = STAGE_COLOR[lead.status] ?? 'var(--text-4)';
 
   return (
     <div className="m-screen c-booking-action"><div className="m-scroll">
@@ -218,7 +232,7 @@ export default function LeadDetail() {
                 return (
                   <button key={o.status} type="button" aria-label={STATUS_LABEL[o.status]}
                     className={`ba-switch-opt${on ? ' on' : ''}`}
-                    style={{ '--optc': o.color } as CSSProperties}
+                    style={{ '--optc': STAGE_COLOR[o.status] } as CSSProperties}
                     disabled={busy} onClick={() => void setStatus(o.status)}>
                     <span className="ba-switch-optlabel">{STATUS_LABEL[o.status]}</span>
                     <span className="ba-switch-optstate">{on ? 'Current' : 'Set'}</span>
@@ -245,7 +259,7 @@ export default function LeadDetail() {
               <ol className="ld-log">
                 {activities.map((a) => (
                   <li key={a.id} className="ld-log-row">
-                    <span className="ld-log-dot" />
+                    <span className="ld-log-dot" style={{ background: activityColor(a) }} />
                     <div className="ld-log-body">
                       <span className="ld-log-text">{activityText(a)}</span>
                       <span className="ld-log-time">{fmtDate(a.created_at)}</span>
