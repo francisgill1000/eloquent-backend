@@ -169,7 +169,7 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->grou
 // Tenant-scoped to the authed shop; shop_id is never read from the request.
 // Order matters: /shop/leads/search is declared before the {lead} route so it
 // is not swallowed by model binding.
-Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->group(function () {
+Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active', 'module:leads'])->group(function () {
     Route::get   ('/shop/leads/search',           [\App\Http\Controllers\LeadController::class, 'search']);
     // Ad Activity (Meta Ad Library) — async: start a run, then poll it.
     Route::post  ('/shop/leads/ad-search',           [\App\Http\Controllers\LeadController::class, 'adSearchStart']);
