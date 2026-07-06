@@ -1,4 +1,4 @@
-# 🔒 Booking Lens + Ask — 30-Second Video Ad (LOCKED)
+# 🔒 Business Lens + Ask — 30-Second Video Ad (LOCKED)
 
 **Format:** Founder direct-to-camera. ~28 seconds spoken naturally.
 

@@ -58,7 +58,8 @@
       "mcp__claude_ai_apify__get-actor-run",
       "mcp__claude_ai_apify__get-dataset-items",
       "Bash(./php/php.exe -l app/Services/Leads/AdLibraryService.php)",
-      "Bash(./php/php.exe -l app/Http/Controllers/LeadController.php)"
+      "Bash(./php/php.exe -l app/Http/Controllers/LeadController.php)",
+      "Bash(curl -s -o /dev/null -w \"api /: %{http_code}\\\\n\" https://api.eloquentservice.com/)"
     ]
   }
 }
