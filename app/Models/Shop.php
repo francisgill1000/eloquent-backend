@@ -30,6 +30,7 @@ class Shop extends Authenticatable
 
     protected $casts = [
         'last_login_at' => 'datetime',
+        'modules' => 'array',
     ];
 
     protected static function booted()
@@ -38,6 +39,7 @@ class Shop extends Authenticatable
             $shop->status = self::ACTIVE;
             $shop->shop_code = self::resolveShopCode($shop->shop_code ?? null);
             $shop->pin = self::resolvePin($shop->pin ?? null, $shop->shop_code);
+            $shop->modules = $shop->modules ?: ['bookings'];
         });
 
         // After a shop is created, ensure it has default working hours
@@ -254,6 +256,12 @@ class Shop extends Authenticatable
     public function categoryLabel(): ?string
     {
         return $this->custom_category ?: \App\Support\ServiceCategories::name($this->category_id);
+    }
+
+    /** True when this shop has the given product module enabled. */
+    public function hasModule(string $module): bool
+    {
+        return in_array($module, $this->modules ?? [], true);
     }
 
     public function getRegisteredAtAttribute()
