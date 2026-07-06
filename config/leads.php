@@ -19,11 +19,14 @@ return [
 
     'monthly_search_allowance' => (int) env('LEAD_MONTHLY_SEARCH_ALLOWANCE', 100),
 
-    'cache_ttl_days' => (int) env('LEAD_CACHE_TTL_DAYS', 30),
+    // How many days a cached search stays valid. 0 = NEVER expires: once a query
+    // is cached it is served from cache forever (no re-fetch, no cost) until the
+    // cache is cleared manually. This is the default to minimise provider cost.
+    // Set a positive number to re-enable automatic refresh after that many days.
+    'cache_ttl_days' => (int) env('LEAD_CACHE_TTL_DAYS', 0),
 
-    // Ad Activity results go stale faster than map data (campaigns change), so
-    // they self-refresh weekly. Users can also force a fresh scrape any time.
-    'ad_cache_ttl_days' => (int) env('LEAD_AD_CACHE_TTL_DAYS', 7),
+    // Same for the Ad Activity cache. 0 = never expires (manual clear only).
+    'ad_cache_ttl_days' => (int) env('LEAD_AD_CACHE_TTL_DAYS', 0),
 
     // Hard cap on how many ads the Apify scrape collects per run — the direct
     // Apify cost lever (billed per item). Low by default; after de-duping to one

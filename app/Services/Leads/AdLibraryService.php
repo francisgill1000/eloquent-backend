@@ -347,11 +347,12 @@ class AdLibraryService
      */
     public function cachedResults(string $keyword): ?array
     {
-        $ttlDays = (int) config('leads.ad_cache_ttl_days', 7);
+        // ttlDays <= 0 means the ad cache never expires (manual clear only).
+        $ttlDays = (int) config('leads.ad_cache_ttl_days', 0);
         $row = DB::table('lead_search_cache')
             ->where('source', 'meta_ad_library')
             ->where('query_key', $this->cacheKey($keyword))
-            ->where('fetched_at', '>=', now()->subDays($ttlDays))
+            ->when($ttlDays > 0, fn ($q) => $q->where('fetched_at', '>=', now()->subDays($ttlDays)))
             ->first();
 
         if (! $row) {

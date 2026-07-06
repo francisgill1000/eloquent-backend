@@ -28,14 +28,16 @@ class LeadSearchService
      */
     public function search(Shop $shop, string $query, ?string $area): array
     {
-        $ttlDays = (int) config('leads.cache_ttl_days', 30);
+        $ttlDays = (int) config('leads.cache_ttl_days', 0);
         $queryKey = $this->queryKey($query, $area);
 
         // 1. Query cache — a repeat search is served free from the place cache.
+        // ttlDays <= 0 means the cache never expires (served forever until it's
+        // cleared manually); a positive value re-enables refresh after N days.
         $cached = DB::table('lead_search_cache')
             ->where('source', $this->source->key())
             ->where('query_key', $queryKey)
-            ->where('fetched_at', '>=', now()->subDays($ttlDays))
+            ->when($ttlDays > 0, fn ($q) => $q->where('fetched_at', '>=', now()->subDays($ttlDays)))
             ->first();
 
         if ($cached) {
