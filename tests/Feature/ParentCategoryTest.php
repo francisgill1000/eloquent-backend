@@ -20,7 +20,7 @@ class ParentCategoryTest extends TestCase
 
     public function test_shop_can_create_and_list_parent_categories(): void
     {
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $this->actAsShop($shop);
 
         $this->postJson('/api/shop/parent-categories', ['name' => 'Massage'])
@@ -34,7 +34,7 @@ class ParentCategoryTest extends TestCase
 
     public function test_parent_category_name_is_unique_per_shop(): void
     {
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $this->actAsShop($shop);
         ParentCategory::create(['shop_id' => $shop->id, 'name' => 'Massage']);
 
@@ -44,7 +44,7 @@ class ParentCategoryTest extends TestCase
 
     public function test_catalog_create_returns_nested_parent_category(): void
     {
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $this->actAsShop($shop);
         $cat = ParentCategory::create(['shop_id' => $shop->id, 'name' => 'Body Massage']);
 
@@ -62,8 +62,8 @@ class ParentCategoryTest extends TestCase
 
     public function test_shop_cannot_attach_another_shops_parent_category(): void
     {
-        $shopA = Shop::factory()->create();
-        $shopB = Shop::factory()->create();
+        $shopA = Shop::factory()->trialing()->create();
+        $shopB = Shop::factory()->trialing()->create();
         $catA = ParentCategory::create(['shop_id' => $shopA->id, 'name' => 'Massage']);
 
         // Shop B tries to attach shop A's category.
@@ -77,7 +77,7 @@ class ParentCategoryTest extends TestCase
 
     public function test_catalog_without_parent_category_still_works(): void
     {
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $this->actAsShop($shop);
 
         $this->postJson('/api/shop/catalogs', [
@@ -89,7 +89,7 @@ class ParentCategoryTest extends TestCase
 
     public function test_shop_can_update_a_parent_category_name(): void
     {
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $this->actAsShop($shop);
         $cat = ParentCategory::create(['shop_id' => $shop->id, 'name' => 'Massage']);
 
@@ -100,7 +100,7 @@ class ParentCategoryTest extends TestCase
 
     public function test_deleting_a_parent_category_uncategorises_its_services(): void
     {
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $this->actAsShop($shop);
         $cat = ParentCategory::create(['shop_id' => $shop->id, 'name' => 'Massage']);
         $catalog = $shop->catalogs()->create([
@@ -116,8 +116,8 @@ class ParentCategoryTest extends TestCase
 
     public function test_shop_cannot_update_another_shops_parent_category(): void
     {
-        $shopA = Shop::factory()->create();
-        $shopB = Shop::factory()->create();
+        $shopA = Shop::factory()->trialing()->create();
+        $shopB = Shop::factory()->trialing()->create();
         $catA = ParentCategory::create(['shop_id' => $shopA->id, 'name' => 'Massage']);
 
         $this->actAsShop($shopB);

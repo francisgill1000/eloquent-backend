@@ -16,6 +16,7 @@ class OwnerAssistantControllerTest extends TestCase
     private function authShop(): Shop
     {
         $shop = Shop::create(['name' => 'FreshPress', 'shop_code' => '1001', 'pin' => '1', 'status' => 'active', 'category_id' => 11]);
+        $this->startTrial($shop);
         Sanctum::actingAs($shop, ['*']);
         return $shop;
     }
