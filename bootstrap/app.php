@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'rbac.context' => \App\Http\Middleware\SetRbacContext::class,
             'can.perm' => \App\Http\Middleware\EnsurePermission::class,
             'subscription.active' => \App\Http\Middleware\EnsureSubscribed::class,
+            'module' => \App\Http\Middleware\EnsureShopModule::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
