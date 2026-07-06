@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 
@@ -10,6 +10,10 @@ export default function Home() {
   const navigate = useNavigate();
   const { shop } = useShop();
   const firstName = (shop?.name || '').trim().split(/\s+/)[0];
+
+  // A master account only operates the "All Businesses" view — send it there
+  // instead of the shop home.
+  if (shop?.is_master) return <Navigate to="/master" replace />;
 
   return (
     <div className="home-mic-screen">
