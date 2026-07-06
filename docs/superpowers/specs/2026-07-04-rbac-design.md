@@ -1,12 +1,12 @@
 # RBAC (Roles, Permissions & Users) — Design Spec
 
 - **Date:** 2026-07-04
-- **App:** Booking Lens (Laravel 12 API + React/TS admin SPA)
+- **App:** Business Lens (Laravel 12 API + React/TS admin SPA)
 - **Status:** Approved for planning
 
 ## 1. Goal
 
-Add full role-based access control to the Booking Lens: per-business **users** who log in individually, fully custom **roles** (CRUD) drawing from a predefined **permission catalog**, enforced on **both backend (source of truth) and frontend (UI gating)**. All management happens on **one admin page** (no separate routes per entity).
+Add full role-based access control to the Business Lens: per-business **users** who log in individually, fully custom **roles** (CRUD) drawing from a predefined **permission catalog**, enforced on **both backend (source of truth) and frontend (UI gating)**. All management happens on **one admin page** (no separate routes per entity).
 
 ## 2. Decisions (locked)
 

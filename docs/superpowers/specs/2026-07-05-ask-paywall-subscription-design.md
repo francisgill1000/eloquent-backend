@@ -6,7 +6,7 @@
 
 ## 1. Overview
 
-Booking Lens and the "Ask" voice assistant are today live, ungated, and free. This
+Business Lens and the "Ask" voice assistant are today live, ungated, and free. This
 feature puts the **entire product behind a paid subscription**, sold as a single bundled
 plan (the app + Ask together — never sold apart, because the voice AI is what makes the
 product worth paying for).
@@ -21,7 +21,7 @@ Payments / Checkout.com / Stripe).
 
 | Item | Value |
 | --- | --- |
-| Product | Booking Lens + Ask, bundled, one plan |
+| Product | Business Lens + Ask, bundled, one plan |
 | Monthly | **AED 149** → grants a **30-day** access pass |
 | Annual | **AED 1,000** → grants a **365-day** access pass |
 | Free trial | **30 days** for every newly created shop |
