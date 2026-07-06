@@ -5,6 +5,7 @@ import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { getMasterShops, updateMasterShop } from '@/lib/shops';
 import { shortDate } from '@/lib/format';
+import { shopHasModule, type Module } from '@/lib/modules';
 import type { MasterShop } from '@/types';
 
 function initial(name: string): string {
@@ -25,6 +26,7 @@ export default function MasterShopDetail() {
   const [savingPersona, setSavingPersona] = useState(false);
   const [personaSaved, setPersonaSaved] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
+  const [togglingModule, setTogglingModule] = useState<Module | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
 
@@ -76,6 +78,27 @@ export default function MasterShopDetail() {
       setError('Could not change visibility.');
     } finally {
       setTogglingStatus(false);
+    }
+  };
+
+  const toggleModule = async (module: Module) => {
+    if (!shop) return;
+    const current = (shop.modules ?? ['bookings']) as Module[];
+    const next = current.includes(module)
+      ? current.filter((m) => m !== module)
+      : [...current, module];
+    const prev = shop.modules;
+    setShop({ ...shop, modules: next }); // optimistic
+    setTogglingModule(module);
+    setError('');
+    try {
+      const updated = await updateMasterShop(shop.id, { modules: next });
+      setShop(updated);
+    } catch {
+      setShop({ ...shop, modules: prev }); // revert
+      setError('Could not change modules.');
+    } finally {
+      setTogglingModule(null);
     }
   };
 
@@ -150,6 +173,26 @@ export default function MasterShopDetail() {
             ? 'Hidden from the customer app — customers can’t find or book this business.'
             : 'Visible in the customer app.'}
         </p>
+      </div>
+
+      <div className="c-msd-section">
+        <h3 className="c-msd-h">Modules</h3>
+        {([
+          ['bookings', 'Bookings', 'Calendar, services, staff & working hours'],
+          ['leads', 'Business Hunt', 'Find & work B2B leads'],
+        ] as [Module, string, string][]).map(([key, label, sub]) => {
+          const on = shopHasModule(shop, key);
+          return (
+            <button key={key}
+              className={`c-btn-ghost c-msd-action${on ? '' : ' off'}`}
+              disabled={togglingModule === key}
+              onClick={() => void toggleModule(key)}>
+              {on ? `Disable ${label}` : `Enable ${label}`}
+              <span className="c-msd-help" style={{ display: 'block' }}>{sub}</span>
+            </button>
+          );
+        })}
+        <p className="c-msd-help">Controls which menus this business sees in the app.</p>
       </div>
 
       <div className="c-msd-section">

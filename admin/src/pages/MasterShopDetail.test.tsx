@@ -54,4 +54,11 @@ describe('MasterShopDetail', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: /hide from customer app/i }));
     expect(update).toHaveBeenCalledWith(7, { status: 'inactive' });
   });
+
+  it('toggling Business Hunt sends the updated modules', async () => {
+    const update = vi.spyOn(lib, 'updateMasterShop').mockResolvedValue({ ...shop, modules: ['bookings', 'leads'] });
+    setup();
+    await userEvent.setup().click(screen.getByRole('button', { name: /enable business hunt/i }));
+    expect(update).toHaveBeenCalledWith(7, { modules: ['bookings', 'leads'] });
+  });
 });
