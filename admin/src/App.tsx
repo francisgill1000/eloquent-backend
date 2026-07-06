@@ -7,6 +7,7 @@ import { ParticleField } from '@/components/ParticleField';
 import { MobileLayout } from '@/layout/MobileLayout';
 import { AppShell } from '@/layout/AppShell';
 import { RequireShop } from '@/layout/RequireShop';
+import { ModuleGuard } from '@/components/ModuleGuard';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPin from '@/pages/ForgotPin';
@@ -66,9 +67,11 @@ export default function App() {
           <Route path="/categories/new" element={<CategoryEdit />} />
           <Route path="/categories/:id/edit" element={<CategoryEdit />} />
           <Route path="/staff" element={<Staff />} />
-          <Route path="/leads" element={<Leads />} />
-          <Route path="/leads/messages" element={<LeadMessages />} />
-          <Route path="/leads/:id" element={<LeadDetail />} />
+          <Route element={<ModuleGuard module="leads" />}>
+            <Route path="/leads" element={<Leads />} />
+            <Route path="/leads/messages" element={<LeadMessages />} />
+            <Route path="/leads/:id" element={<LeadDetail />} />
+          </Route>
           <Route path="/settings/access" element={<AccessControl />} />
           <Route path="/working-hours" element={<WorkingHours />} />
           <Route path="/category-setup" element={<CategorySetup />} />
