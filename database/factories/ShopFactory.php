@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Shop;
+use App\Services\SubscriptionService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -21,5 +22,23 @@ class ShopFactory extends Factory
             'lat' => fake()->latitude(),
             'lon' => fake()->longitude(),
         ];
+    }
+
+    /**
+     * Give the shop an active 30-day trial subscription — the same access a
+     * real shop gets at registration via SubscriptionService::startTrial().
+     * Use this for tests hitting subscription-gated routes (the whole-app
+     * paywall) that aren't themselves exercising subscription states.
+     */
+    public function trialing(): static
+    {
+        return $this->afterCreating(function (Shop $shop) {
+            $shop->subscription()->create([
+                'status' => 'trialing',
+                'plan' => null,
+                'trial_ends_at' => now()->addDays(SubscriptionService::TRIAL_DAYS),
+                'access_until' => now()->addDays(SubscriptionService::TRIAL_DAYS),
+            ]);
+        });
     }
 }
