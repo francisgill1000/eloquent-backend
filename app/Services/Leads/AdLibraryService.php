@@ -22,9 +22,6 @@ class AdLibraryService
 {
     private const BASE = 'https://api.apify.com/v2';
 
-    /** How many ads to scrape per run (bounds Apify cost; ~40 ads → ~15-20 pages). */
-    private const AD_COUNT = 40;
-
     public function configured(): bool
     {
         return (bool) config('services.apify.token');
@@ -52,7 +49,12 @@ class AdLibraryService
                 'keyword' => $keyword,
                 'country' => 'AE',
                 'activeStatus' => 'active',
-                'count' => self::AD_COUNT,
+                // Hard cap on how many ads Apify collects per run — the direct
+                // cost lever (Apify bills per item). Kept low on purpose; after
+                // de-duping to one lead per advertiser this yields a handful of
+                // businesses as a bonus on top of the Google listings. Raise the
+                // LEAD_AD_SCRAPE_COUNT env var if fuller ad results are wanted.
+                'count' => max(1, (int) config('leads.ad_scrape_count', 10)),
                 'resolveAdvertiser' => false,
                 // Off, else a repeat identical search resumes as "already done"
                 // and returns an empty dataset. Each run must scrape fresh.
