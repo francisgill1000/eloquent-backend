@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
+import { useShop } from '@/context/ShopContext';
 import { WHATSAPP_ENABLED } from '@/lib/features';
 
 type Tab = { id: string; label: string; href: string; icon: keyof typeof Icons };
@@ -14,7 +15,9 @@ const ALL_TABS: Tab[] = [
   { id: 'settings', label: 'Settings', href: '/settings', icon: 'Sliders' },
   { id: 'profile', label: 'Profile', href: '/profile', icon: 'Store' },
 ];
-const tabs = ALL_TABS.filter((t) => WHATSAPP_ENABLED || t.id !== 'chats');
+// A master is the operator account — a single "All Businesses" tab, not the
+// shop-operational tabs.
+const MASTER_TABS: Tab[] = [{ id: 'master', label: 'All Businesses', href: '/master', icon: 'Key' }];
 
 function activeTab(path: string): string {
   if (path === '/') return 'home';
@@ -31,7 +34,11 @@ function activeTab(path: string): string {
 
 export function MobileLayout() {
   const { pathname } = useLocation();
-  const active = activeTab(pathname);
+  const { shop } = useShop();
+  const active = shop?.is_master ? 'master' : activeTab(pathname);
+  const tabs = shop?.is_master
+    ? MASTER_TABS
+    : ALL_TABS.filter((t) => WHATSAPP_ENABLED || t.id !== 'chats');
 
   return (
     <div className="mobile-app">
