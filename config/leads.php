@@ -25,4 +25,9 @@ return [
     // they self-refresh weekly. Users can also force a fresh scrape any time.
     'ad_cache_ttl_days' => (int) env('LEAD_AD_CACHE_TTL_DAYS', 7),
 
+    // Hard cap on how many ads the Apify scrape collects per run — the direct
+    // Apify cost lever (billed per item). Low by default; after de-duping to one
+    // lead per advertiser, expect a handful of businesses on top of Google.
+    'ad_scrape_count' => (int) env('LEAD_AD_SCRAPE_COUNT', 10),
+
 ];
