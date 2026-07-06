@@ -245,6 +245,8 @@ export type Lead = {
   is_mobile?: boolean;
   tel_url?: string | null;
   map_url?: string | null;
+  whatsapp_opening_url?: string | null;
+  whatsapp_followup_url?: string | null;
 };
 
 export type LeadFunnel = Record<LeadStatus, number>;
