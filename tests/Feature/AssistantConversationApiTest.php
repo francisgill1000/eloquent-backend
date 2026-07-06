@@ -17,6 +17,7 @@ class AssistantConversationApiTest extends TestCase
     private function authShop(string $code = '1001'): Shop
     {
         $shop = Shop::create(['name' => 'FreshPress'.$code, 'shop_code' => $code, 'pin' => '1', 'status' => 'active', 'category_id' => 11]);
+        $this->startTrial($shop);
         Sanctum::actingAs($shop, ['*']);
         return $shop;
     }

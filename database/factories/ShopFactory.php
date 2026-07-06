@@ -32,13 +32,8 @@ class ShopFactory extends Factory
      */
     public function trialing(): static
     {
-        return $this->afterCreating(function (Shop $shop) {
-            $shop->subscription()->create([
-                'status' => 'trialing',
-                'plan' => null,
-                'trial_ends_at' => now()->addDays(SubscriptionService::TRIAL_DAYS),
-                'access_until' => now()->addDays(SubscriptionService::TRIAL_DAYS),
-            ]);
-        });
+        return $this->afterCreating(
+            fn (Shop $shop) => app(SubscriptionService::class)->startTrial($shop),
+        );
     }
 }

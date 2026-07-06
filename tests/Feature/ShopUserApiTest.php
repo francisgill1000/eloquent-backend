@@ -32,7 +32,7 @@ class ShopUserApiTest extends TestCase
     public function test_owner_creates_user_with_role(): void
     {
         (new PermissionSeeder())->run();
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $token = $this->ownerToken($shop);
         setPermissionsTeamId($shop->id);
         $role = Role::create(['name' => 'Staff', 'guard_name' => 'web', 'team_id' => $shop->id]);
@@ -53,7 +53,7 @@ class ShopUserApiTest extends TestCase
     public function test_pin_must_be_unique_within_shop(): void
     {
         (new PermissionSeeder())->run();
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $token = $this->ownerToken($shop); // owner uses 0001
 
         $this->withHeaders(['Authorization' => "Bearer $token"])
@@ -64,8 +64,8 @@ class ShopUserApiTest extends TestCase
     public function test_users_are_tenant_isolated(): void
     {
         (new PermissionSeeder())->run();
-        $shopA = Shop::factory()->create();
-        $shopB = Shop::factory()->create();
+        $shopA = Shop::factory()->trialing()->create();
+        $shopB = Shop::factory()->trialing()->create();
         $foreign = ShopUser::factory()->create(['shop_id' => $shopB->id]);
 
         $token = $this->ownerToken($shopA);
@@ -78,7 +78,7 @@ class ShopUserApiTest extends TestCase
     public function test_cannot_delete_last_owner(): void
     {
         (new PermissionSeeder())->run();
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $token = $this->ownerToken($shop);
         $ownerId = $this->owner->id;
 

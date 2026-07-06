@@ -17,6 +17,7 @@ class OwnerAssistantConfirmGateTest extends TestCase
     {
         Storage::fake('public');
         $shop = Shop::create(['name' => 'A', 'shop_code' => '1', 'pin' => '1', 'status' => 'active', 'category_id' => 11]);
+        $this->startTrial($shop);
         Sanctum::actingAs($shop, ['*']);
         DB::table('bookings')->insert([
             'shop_id' => $shop->id, 'date' => now()->toDateString(), 'start_time' => '10:00',

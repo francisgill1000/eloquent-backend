@@ -29,7 +29,7 @@ class RoleApiTest extends TestCase
     public function test_owner_can_create_and_list_roles_scoped_to_shop(): void
     {
         (new PermissionSeeder())->run();
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $token = $this->actingOwner($shop);
 
         $this->withHeaders(['Authorization' => "Bearer $token"])
@@ -47,8 +47,8 @@ class RoleApiTest extends TestCase
     public function test_roles_are_tenant_isolated(): void
     {
         (new PermissionSeeder())->run();
-        $shopA = Shop::factory()->create();
-        $shopB = Shop::factory()->create();
+        $shopA = Shop::factory()->trialing()->create();
+        $shopB = Shop::factory()->trialing()->create();
 
         setPermissionsTeamId($shopB->id);
         $foreign = Role::create(['name' => 'BOnly', 'guard_name' => 'web', 'team_id' => $shopB->id]);
@@ -66,7 +66,7 @@ class RoleApiTest extends TestCase
     public function test_owner_role_cannot_be_edited_or_deleted(): void
     {
         (new PermissionSeeder())->run();
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $token = $this->actingOwner($shop);
         $owner = Role::where('team_id', $shop->id)->where('name', 'Owner')->first();
 
@@ -82,7 +82,7 @@ class RoleApiTest extends TestCase
     public function test_unknown_permission_is_rejected(): void
     {
         (new PermissionSeeder())->run();
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $token = $this->actingOwner($shop);
 
         $this->withHeaders(['Authorization' => "Bearer $token"])
