@@ -1,14 +1,32 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, type CSSProperties } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
 import { getLead, updateLeadStatus } from '@/lib/leads';
-import { LEAD_STATUSES } from '@/types';
 import type { Lead, LeadActivity, LeadStatus } from '@/types';
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
   new: 'New', sent: 'Sent', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Pass',
 };
+
+// Crisp knob marks (match BookingAction): Won = check, Pass = X.
+const KnobCheck = () => (
+  <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.2 4.2L19 6.5" /></svg>
+);
+const KnobX = () => (
+  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" /></svg>
+);
+
+// Vertical sliding-knob switch — top→bottom order = the funnel, Pass at the end.
+// Colours mirror the s-<status> --stage tokens in leads.css.
+const STAGE_OPTS: { status: LeadStatus; color: string }[] = [
+  { status: 'new', color: 'var(--text-4)' },
+  { status: 'sent', color: 'var(--info)' },
+  { status: 'replied', color: 'var(--mint-300)' },
+  { status: 'demo', color: 'var(--warn)' },
+  { status: 'won', color: 'var(--mint-500)' },
+  { status: 'pass', color: 'var(--danger)' },
+];
 
 // Main funnel path for the stepper. `pass` is the dead-end (out of funnel) and
 // isn't a step — it's flagged separately on the card.
@@ -92,6 +110,8 @@ export default function LeadDetail() {
 
   const wa = lead.whatsapp_url && lead.is_mobile ? lead.whatsapp_url : null;
   const passed = lead.status === 'pass';
+  const activeIndex = STAGE_OPTS.findIndex((o) => o.status === lead.status);
+  const stageColor = activeIndex >= 0 ? STAGE_OPTS[activeIndex].color : 'var(--text-4)';
 
   return (
     <div className="m-screen c-booking-action"><div className="m-scroll">
@@ -164,16 +184,33 @@ export default function LeadDetail() {
           </div>
         </div>
 
-        {/* Move stage — the primary action */}
+        {/* Move stage — vertical sliding-knob switch (like the booking status) */}
         <div className="ba-section">
           <div className="ba-section-title">Move stage</div>
-          <div className="ld-stages">
-            {LEAD_STATUSES.map((s) => (
-              <button key={s} className={`ld-stage s-${s}${lead.status === s ? ' on' : ''}`}
-                disabled={busy} onClick={() => void setStatus(s)}>
-                {lead.status === s && <Icons.Check size={13} />} {STATUS_LABEL[s]}
-              </button>
-            ))}
+          <div className="ba-card ld-switch-card">
+            <div className={`ba-switch ld-switch${passed ? ' cancelled' : ''}`}
+              style={{ '--active': activeIndex, '--stage': stageColor } as CSSProperties}>
+              <div className="ba-switch-opts">
+                {STAGE_OPTS.map((o) => {
+                  const on = o.status === lead.status;
+                  return (
+                    <button key={o.status} type="button" aria-label={STATUS_LABEL[o.status]}
+                      className={`ba-switch-opt${on ? ' on' : ''}`}
+                      style={{ '--optc': o.color } as CSSProperties}
+                      disabled={busy} onClick={() => void setStatus(o.status)}>
+                      <span className="ba-switch-optlabel">{STATUS_LABEL[o.status]}</span>
+                      <span className="ba-switch-optstate">{on ? 'Current' : 'Set'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="ba-switch-rail"><div className="ba-switch-fill" /></div>
+              <div className="ba-switch-knob">
+                {lead.status === 'won' ? <KnobCheck />
+                  : lead.status === 'pass' ? <KnobX />
+                  : <span className="ba-switch-dot" />}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -183,17 +220,19 @@ export default function LeadDetail() {
           {activities.length === 0 ? (
             <div className="ba-card ld-empty">No activity yet.</div>
           ) : (
-            <ol className="ld-log">
-              {activities.map((a) => (
-                <li key={a.id} className="ld-log-row">
-                  <span className="ld-log-dot" />
-                  <div className="ld-log-body">
-                    <span className="ld-log-text">{activityText(a)}</span>
-                    <span className="ld-log-time">{fmtDate(a.created_at)}</span>
-                  </div>
-                </li>
-              ))}
-            </ol>
+            <div className="ba-card ld-log-card">
+              <ol className="ld-log">
+                {activities.map((a) => (
+                  <li key={a.id} className="ld-log-row">
+                    <span className="ld-log-dot" />
+                    <div className="ld-log-body">
+                      <span className="ld-log-text">{activityText(a)}</span>
+                      <span className="ld-log-time">{fmtDate(a.created_at)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
           )}
         </div>
       </div>

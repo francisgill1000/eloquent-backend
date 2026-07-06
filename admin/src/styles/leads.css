@@ -657,24 +657,15 @@
 .ld-act:hover { border-color: var(--border-mint); background: var(--surface-2); }
 .ld-act.wa { border-color: var(--border-mint); background: var(--mint-soft); color: var(--mint-300); }
 
-/* Stage pills — the primary status action */
-.ld-stages { display: flex; flex-wrap: wrap; gap: 8px; }
-.ld-stage {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 9px 16px; border-radius: var(--r-pill);
-  border: 1px solid var(--border-1); background: var(--surface-1);
-  color: var(--text-3); font-size: 13px; font-weight: 700; cursor: pointer;
-  transition: border-color .14s ease, color .14s ease, background .14s ease;
-}
-.ld-stage:hover:not(:disabled) { border-color: var(--stage); color: var(--text-1); }
-.ld-stage.on {
-  border-color: var(--stage);
-  color: var(--stage);
-  background: color-mix(in srgb, var(--stage) 16%, transparent);
-}
-.ld-stage:disabled:not(.on) { opacity: 0.7; }
+/* Move-stage card — the vertical sliding-knob switch (reuses .ba-switch), but
+   sized for the 6 funnel stops (60px each) instead of the booking's 4. */
+.ld-switch-card { padding: 20px 8px; display: flex; justify-content: center; }
+.ld-switch { height: 360px; }
+.ld-switch .ba-switch-fill { height: calc(16px + var(--active) * 60px); }
+.ld-switch .ba-switch-knob { top: calc(30px + var(--active) * 60px); }
 
-/* Activity timeline */
+/* Activity timeline (wrapped in a card like every other section) */
+.ld-log-card { padding: 14px 18px; }
 .ld-log { list-style: none; margin: 0; padding: 2px 0 0; position: relative; }
 .ld-log::before {
   content: ''; position: absolute; left: 5px; top: 10px; bottom: 10px;
