@@ -253,3 +253,16 @@ export type LeadListResponse = {
   data: Lead[];
   funnel: LeadFunnel;
 };
+
+/** One row in a lead's activity history (status changes, notes, contacts). */
+export type LeadActivity = {
+  id: number;
+  type: 'status_change' | 'note' | 'contacted' | string;
+  payload?: { from?: string; to?: string; note?: string } | null;
+  created_at?: string | null;
+};
+
+export type LeadDetailResponse = {
+  lead: Lead;
+  activities: LeadActivity[];
+};
