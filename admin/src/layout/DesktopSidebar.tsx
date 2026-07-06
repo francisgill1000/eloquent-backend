@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { WHATSAPP_ENABLED } from '@/lib/features';
+import { navVisible, type Module } from '@/lib/modules';
 
 /**
  * Persistent desktop navigation rail. Rendered by AppShell for every
@@ -11,27 +12,31 @@ import { WHATSAPP_ENABLED } from '@/lib/features';
  * since desktop has the vertical room. Glass styling matches the app's other
  * frosted surfaces so the ambient background shows through.
  */
-type NavItem = { label: string; to: string; icon: keyof typeof Icons; end?: boolean };
+type NavItem = { label: string; to: string; icon: keyof typeof Icons; end?: boolean; modules: Module[] };
+
+const BOTH: Module[] = ['bookings', 'leads'];
 
 const BASE_NAV: NavItem[] = [
-  { label: 'Home', to: '/', icon: 'Mic', end: true },
-  { label: 'Overview', to: '/overview', icon: 'Chart' },
-  { label: 'Bookings', to: '/bookings', icon: 'Calendar' },
+  { label: 'Home', to: '/', icon: 'Mic', end: true, modules: BOTH },
+  { label: 'Overview', to: '/overview', icon: 'Chart', modules: BOTH },
+  { label: 'Bookings', to: '/bookings', icon: 'Calendar', modules: ['bookings'] },
   // WhatsApp Chats — hidden while WHATSAPP_ENABLED is off.
-  { label: 'Chats', to: '/chats', icon: 'Chat' },
-  { label: 'Business Hunt', to: '/leads', icon: 'Search' },
-  { label: 'Services', to: '/services', icon: 'Grid' },
-  { label: 'Staff', to: '/staff', icon: 'Users' },
-  { label: 'Working Hours', to: '/working-hours', icon: 'Clock' },
-  { label: 'Settings', to: '/settings', icon: 'Sliders' },
-  { label: 'Profile', to: '/profile', icon: 'Store' },
+  { label: 'Chats', to: '/chats', icon: 'Chat', modules: BOTH },
+  { label: 'Business Hunt', to: '/leads', icon: 'Search', modules: ['leads'] },
+  { label: 'Services', to: '/services', icon: 'Grid', modules: ['bookings'] },
+  { label: 'Staff', to: '/staff', icon: 'Users', modules: ['bookings'] },
+  { label: 'Working Hours', to: '/working-hours', icon: 'Clock', modules: ['bookings'] },
+  { label: 'Settings', to: '/settings', icon: 'Sliders', modules: BOTH },
+  { label: 'Profile', to: '/profile', icon: 'Store', modules: BOTH },
 ];
 
 export function DesktopSidebar() {
   const { shop, logoutShop } = useShop();
   const navigate = useNavigate();
 
-  const nav = BASE_NAV.filter((n) => WHATSAPP_ENABLED || n.to !== '/chats');
+  const nav = BASE_NAV
+    .filter((n) => WHATSAPP_ENABLED || n.to !== '/chats')
+    .filter((n) => navVisible(n.modules, shop));
   // A master is the operator account — it only manages other businesses, so it
   // gets a single menu item instead of the shop-operational nav.
   const items: NavItem[] = shop?.is_master

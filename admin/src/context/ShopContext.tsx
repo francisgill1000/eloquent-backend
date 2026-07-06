@@ -18,7 +18,7 @@ type ShopContextValue = {
   logoutShop: () => void;
 };
 
-const ShopContext = createContext<ShopContextValue | null>(null);
+export const ShopContext = createContext<ShopContextValue | null>(null);
 
 export function ShopProvider({ children }: { children: ReactNode }) {
   const [shop, setShop] = useState<Shop | null>(null);
