@@ -53,6 +53,8 @@ class MasterController extends Controller
         $data = $request->validate([
             'status' => ['sometimes', 'in:active,inactive'],
             'persona' => ['sometimes', 'nullable', 'string', 'max:20000'],
+            'modules' => ['sometimes', 'array'],
+            'modules.*' => ['string', 'in:bookings,leads'],
         ]);
 
         if (array_key_exists('persona', $data)) {
@@ -81,6 +83,7 @@ class MasterController extends Controller
             'status' => $shop->status,
             'persona' => $shop->persona,
             'is_master' => (bool) $shop->is_master,
+            'modules' => $shop->modules ?? ['bookings'],
             'subscription_status' => optional($shop->subscription)->status,
             'plan' => optional($shop->subscription)->plan,
             'access_until' => optional(optional($shop->subscription)->access_until)->toIso8601String(),
