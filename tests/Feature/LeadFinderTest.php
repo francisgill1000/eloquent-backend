@@ -159,10 +159,9 @@ class LeadFinderTest extends TestCase
         $leadA = Lead::where('shop_id', $shopA->id)->firstOrFail();
 
         // Shop B sees none of A's leads.
-        $this->auth($tokenB)
-            ->getJson('/api/shop/leads')
-            ->assertOk()
-            ->assertJsonCount(0, 'data');
+        $respB = $this->auth($tokenB)->getJson('/api/shop/leads');
+        dump(['shopA' => $shopA->id, 'shopB' => $shopB->id, 'leadA_shop' => $leadA->shop_id, 'B_data' => $respB->json('data')]);
+        $respB->assertOk()->assertJsonCount(0, 'data');
 
         // Shop B cannot mutate A's lead.
         $this->auth($tokenB)
