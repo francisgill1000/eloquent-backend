@@ -264,6 +264,28 @@ class LeadController extends Controller
     }
 
     /**
+     * POST /shop/leads/{lead}/followup
+     * Record a follow-up nudge: logs a `contacted` activity and bumps
+     * last_contacted_at. Does not change the funnel status.
+     */
+    public function logFollowup(Request $request, Lead $lead)
+    {
+        $shop = $this->shop($request);
+        abort_unless($lead->shop_id === $shop->id, 404);
+
+        $lead->last_contacted_at = now();
+        $lead->save();
+
+        $lead->activities()->create([
+            'type' => LeadActivity::TYPE_CONTACTED,
+            'payload' => ['channel' => 'whatsapp', 'kind' => 'followup'],
+            'user_id' => current_shop_user()?->id,
+        ]);
+
+        return response()->json(['data' => $lead->fresh()]);
+    }
+
+    /**
      * GET /shop/leads?status=&category=&search=&followups=due
      * The tenant's leads with filters, plus funnel counts per status.
      */
