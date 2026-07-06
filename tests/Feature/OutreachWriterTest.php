@@ -76,5 +76,9 @@ class OutreachWriterTest extends TestCase
         // The lead's real details were put into the prompt the model saw.
         $this->assertStringContainsString('Pak Cargo', $fake->lastSystem);
         $this->assertStringContainsString('Cargo', $fake->lastSystem);
+        // The prompt must forbid asking for a contact person's name (cold B2B
+        // outreach addresses the business by its business name).
+        $this->assertStringContainsString('business name', $fake->lastSystem);
+        $this->assertStringContainsString('not needed', $fake->lastSystem);
     }
 }
