@@ -30,4 +30,10 @@ return [
     // lead per advertiser, expect a handful of businesses on top of Google.
     'ad_scrape_count' => (int) env('LEAD_AD_SCRAPE_COUNT', 10),
 
+    // Second-stage enrichment: after the ad scrape finds advertisers, read each
+    // one's Facebook page for phone/website/address (~$0.013/page). Turn off to
+    // save that cost — ad leads then show name + link only. Bounded by the
+    // ad_scrape_count cap above and cached like everything else.
+    'ad_enrich' => (bool) env('LEAD_AD_ENRICH', true),
+
 ];
