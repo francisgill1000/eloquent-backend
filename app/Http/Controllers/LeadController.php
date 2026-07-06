@@ -8,6 +8,7 @@ use App\Models\Shop;
 use App\Services\Leads\AdLibraryService;
 use App\Services\Leads\Exceptions\SearchLimitReached;
 use App\Services\Leads\LeadSearchService;
+use App\Services\Leads\OutreachWriter;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -283,6 +284,30 @@ class LeadController extends Controller
         ]);
 
         return response()->json(['data' => $lead->fresh()]);
+    }
+
+    /**
+     * POST /shop/leads/{lead}/personalize
+     * AI-writes ONE ready-to-send message for this specific lead. Does not change
+     * status or log activity (that happens when the user opens WhatsApp).
+     */
+    public function personalize(Request $request, Lead $lead, OutreachWriter $writer)
+    {
+        $shop = $this->shop($request);
+        abort_unless($lead->shop_id === $shop->id, 404);
+
+        $data = $request->validate([
+            'kind' => ['required', Rule::in(['opening', 'followup'])],
+        ]);
+
+        try {
+            $message = $writer->personalizeForLead($shop, $lead, $data['kind']);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['message' => 'Could not generate right now. Please try again.'], 502);
+        }
+
+        return response()->json(['message' => $message, 'kind' => $data['kind']]);
     }
 
     /**

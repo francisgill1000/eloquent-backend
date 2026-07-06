@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Lead;
 use App\Models\Shop;
+use App\Services\Leads\OutreachWriter;
 use Illuminate\Http\Request;
 
 /**
@@ -48,6 +49,25 @@ class LeadMessageController extends Controller
         }
 
         return response()->json($this->payload($shop->fresh()));
+    }
+
+    /**
+     * POST /shop/lead-messages/generate
+     * AI-writes an opening + follow-up TEMPLATE from the shop profile. Not saved —
+     * the client fills the editor; the owner reviews, edits, then PUTs to save.
+     */
+    public function generate(Request $request, OutreachWriter $writer)
+    {
+        $shop = $this->shop($request);
+
+        try {
+            $out = $writer->templatesForShop($shop);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['message' => 'Could not generate right now. Please try again.'], 502);
+        }
+
+        return response()->json($out);
     }
 
     private function payload(Shop $shop): array
