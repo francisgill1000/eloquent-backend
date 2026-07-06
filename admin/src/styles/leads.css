@@ -684,5 +684,12 @@
 .ba-grid.ld-grid .ld-tile-address { grid-column: 1 / -1; }
 .ld-tile-address .ba-tile-v { white-space: normal; }
 @media (min-width: 1024px) {
-  .c-booking-action .ba-grid.ld-grid { grid-template-columns: repeat(3, 1fr); }
+  /* Let the details column fill the hero height (matches the stage switch) by
+     growing the grid and letting the Address row absorb the leftover space. */
+  .c-booking-action .ba-hero-main { display: flex; flex-direction: column; }
+  .c-booking-action .ba-grid.ld-grid {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: auto 1fr;
+    flex: 1;
+  }
 }
