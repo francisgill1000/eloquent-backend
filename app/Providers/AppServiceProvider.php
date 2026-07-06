@@ -6,6 +6,7 @@ use App\Macros\FilterByKeyMacro;
 use App\Macros\SearchMacro;
 use App\Services\Leads\Contracts\LeadSourceInterface;
 use App\Services\Leads\Sources\GooglePlacesSource;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\ServiceProvider;
 
@@ -39,6 +40,14 @@ class AppServiceProvider extends ServiceProvider
         // Register macros
         (new SearchMacro())();
         (new FilterByKeyMacro())();
+
+        // Hard stop against destructive DB commands (migrate:fresh, migrate:refresh,
+        // migrate:reset, db:wipe) — even with --force. Allowed ONLY where the env
+        // explicitly opts in (local + staging, on disposable databases). Read via
+        // config so it holds even when config is cached. See 2026-07-06 incident:
+        // a cached prod config made `artisan test` (RefreshDatabase) run
+        // migrate:fresh against production. Default false = blocked everywhere.
+        DB::prohibitDestructiveCommands(! config('app.allow_destructive_db', false));
 
         if ($this->app->environment('local')) {
             Http::globalOptions(['verify' => false]);

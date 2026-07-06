@@ -24,6 +24,9 @@
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
+        <!-- RefreshDatabase needs migrate:fresh; only ever runs on the in-memory
+             sqlite DB above, never on a real connection. -->
+        <env name="ALLOW_DESTRUCTIVE_DB" value="true"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
