@@ -54,4 +54,24 @@ describe('LeadMessages', () => {
 
     expect(save).toHaveBeenCalledWith(null, null);
   });
+
+  it('generates templates with AI and fills the fields without saving', async () => {
+    vi.spyOn(lib, 'getLeadMessages').mockResolvedValue({
+      opening: null, followup: null,
+      default_opening: 'Hi {name}, opening default', default_followup: 'Hi {name}, followup default',
+    });
+    const gen = vi.spyOn(lib, 'generateLeadMessages').mockResolvedValue({
+      opening: 'AI opening {name}', followup: 'AI followup {name}',
+    });
+    const save = vi.spyOn(lib, 'saveLeadMessages');
+
+    setup();
+    await screen.findByLabelText('Opening message');
+    await userEvent.click(screen.getByRole('button', { name: /generate with ai/i }));
+
+    expect(gen).toHaveBeenCalled();
+    expect((await screen.findByLabelText('Opening message') as HTMLTextAreaElement).value).toBe('AI opening {name}');
+    expect((screen.getByLabelText('Follow-up message') as HTMLTextAreaElement).value).toBe('AI followup {name}');
+    expect(save).not.toHaveBeenCalled(); // generate never auto-saves
+  });
 });

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
-import { getLeadMessages, saveLeadMessages } from '@/lib/leadMessages';
+import { getLeadMessages, saveLeadMessages, generateLeadMessages } from '@/lib/leadMessages';
 
 /**
  * Editable WhatsApp outreach templates for leads. `{name}` is replaced with the
@@ -13,6 +13,7 @@ export default function LeadMessages() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [opening, setOpening] = useState('');
@@ -49,15 +50,27 @@ export default function LeadMessages() {
       .finally(() => setSaving(false));
   };
 
+  const generate = () => {
+    setGenerating(true); setError(''); setNotice('');
+    generateLeadMessages()
+      .then((m) => {
+        setOpening(m.opening);
+        setFollowup(m.followup);
+        setNotice('Generated — review, edit, then Save.');
+      })
+      .catch(() => setError('Could not generate right now. Please try again.'))
+      .finally(() => setGenerating(false));
+  };
+
   return (
     <div className="m-screen"><div className="m-scroll">
       <div className="c-page-head" style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 className="c-page-title">Lead messages</h1>
           <p className="c-page-sub">
-            The WhatsApp messages drafted when you contact a lead. Use <code>{'{name}'}</code> for
-            the lead's business name and <code>{'{shop}'}</code> for your own. Leave a message
-            unchanged to keep using the default.
+            The WhatsApp messages drafted when you contact a lead. Placeholders: <code>{'{name}'}</code> the
+            lead's business, <code>{'{category}'}</code> their industry, <code>{'{area}'}</code> their location,
+            and <code>{'{shop}'}</code> your own. Or tap Generate with AI. Leave a message unchanged to keep the default.
           </p>
         </div>
         <button className="c-icon-btn" aria-label="Back to settings" onClick={() => navigate('/settings')}>
@@ -99,6 +112,11 @@ export default function LeadMessages() {
               />
             </div>
           </div>
+
+          <button className="c-btn-ghost" style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            disabled={generating || saving} onClick={() => generate()}>
+            <Icons.Sparkle size={16} /> {generating ? 'Generating…' : 'Generate with AI'}
+          </button>
 
           <button className="c-btn c-btn-block" disabled={saving} onClick={() => save()}>
             {saving ? 'Saving…' : 'Save messages'}
