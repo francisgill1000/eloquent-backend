@@ -18,3 +18,9 @@ export async function saveLeadMessages(opening: string | null, followup: string 
   const { data } = await api.put('/shop/lead-messages', { opening, followup });
   return data;
 }
+
+/** AI-generate opening + follow-up templates from the shop profile. Not saved. */
+export async function generateLeadMessages(): Promise<{ opening: string; followup: string }> {
+  const { data } = await api.post('/shop/lead-messages/generate');
+  return { opening: data?.opening ?? '', followup: data?.followup ?? '' };
+}
