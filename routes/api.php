@@ -178,6 +178,7 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->grou
     Route::post  ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'store']);
     Route::get   ('/shop/leads/{lead}',           [\App\Http\Controllers\LeadController::class, 'show']);
     Route::patch ('/shop/leads/{lead}/status',    [\App\Http\Controllers\LeadController::class, 'updateStatus']);
+    Route::post  ('/shop/leads/{lead}/followup',  [\App\Http\Controllers\LeadController::class, 'logFollowup']);
 });
 
 // Signed (not token-authed) so an <audio> element can load it directly; the
