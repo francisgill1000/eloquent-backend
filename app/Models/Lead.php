@@ -16,10 +16,10 @@ class Lead extends Model
     public const STATUSES = ['new', 'sent', 'replied', 'demo', 'won', 'pass'];
 
     /** Editable per shop (shops.lead_opening_template); this is the fallback. */
-    public const DEFAULT_OPENING = 'Hi {name}, this is Eloquent — we help UAE businesses take bookings and reply to customers on WhatsApp automatically. Could I share a quick demo?';
+    public const DEFAULT_OPENING = 'Hi {name}, this is Eloquent 👋 We find you new customers from across the internet and handle them end-to-end — AI WhatsApp replies, one-tap calls, automatic follow-ups, and bookings, with every lead tracked in one app. Worth a quick 2-min demo?';
 
     /** Editable per shop (shops.lead_followup_template); this is the fallback. */
-    public const DEFAULT_FOLLOWUP = 'Hi {name}, just following up on my earlier message — happy to send a short demo whenever suits you.';
+    public const DEFAULT_FOLLOWUP = 'Hi {name}, just circling back 🙂 Most businesses we set up start seeing new leads land in the first week. Happy to send a short demo whenever suits you.';
 
     protected $fillable = [
         'shop_id',
