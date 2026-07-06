@@ -655,6 +655,7 @@
   transition: border-color .14s ease, background .14s ease;
 }
 .ld-act:hover { border-color: var(--border-mint); background: var(--surface-2); }
+.ld-act:disabled { opacity: .55; pointer-events: none; }
 .ld-act.wa { border-color: var(--border-mint); background: var(--mint-soft); color: var(--mint-300); }
 
 /* Stage switch — reuses the booking .ba-switch (docked in the hero after the
