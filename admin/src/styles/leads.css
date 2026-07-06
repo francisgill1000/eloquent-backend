@@ -679,11 +679,3 @@
 .ld-log-text { font-size: 13.5px; color: var(--text-1); }
 .ld-log-time { font-size: 11.5px; color: var(--text-4); }
 .ld-empty { color: var(--text-3); font-size: 13px; text-align: center; padding: 18px; }
-
-/* Passed (dead-end) treatment on the stepper card */
-.ba-timeline-card.ld-passed { opacity: 0.9; }
-.ld-passed-note {
-  display: flex; align-items: center; gap: 7px; margin-top: 10px;
-  font-size: 12.5px; font-weight: 600; color: var(--danger);
-}
-.ld-passed-note span { font-weight: 800; }

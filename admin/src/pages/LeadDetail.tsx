@@ -32,7 +32,7 @@ const STAGE_OPTS: { status: LeadStatus; color: string }[] = [
 // isn't a step — it's flagged separately on the card.
 const FUNNEL: LeadStatus[] = ['new', 'sent', 'replied', 'demo', 'won'];
 
-type StepState = 'done' | 'current' | 'todo';
+type StepState = 'done' | 'current' | 'todo' | 'cancelled';
 
 function steps(status: LeadStatus, activities: LeadActivity[]): { label: string; state: StepState }[] {
   const active = FUNNEL.indexOf(status);
@@ -45,9 +45,9 @@ function steps(status: LeadStatus, activities: LeadActivity[]): { label: string;
     }));
   }
 
-  // Passed lead — there's no "current" stage, so show how far it actually got
-  // (the furthest funnel stage in its history) as Done. Every lead was New at
-  // creation, so it reached at least step 0.
+  // Not Interested — no "Won" outcome. Show the funnel up to where it actually
+  // got (from history; every lead starts at New), then a red terminal in place
+  // of Won. FUNNEL's last entry is 'won', which we drop and replace.
   let reached = 0;
   for (const a of activities) {
     if (a.type !== 'status_change') continue;
@@ -56,10 +56,12 @@ function steps(status: LeadStatus, activities: LeadActivity[]): { label: string;
       if (idx > reached) reached = idx;
     }
   }
-  return FUNNEL.map((s, i) => ({
+  const out: { label: string; state: StepState }[] = FUNNEL.slice(0, -1).map((s, i) => ({
     label: STATUS_LABEL[s],
     state: i <= reached ? 'done' : 'todo',
   }));
+  out.push({ label: STATUS_LABEL.pass, state: 'cancelled' });
+  return out;
 }
 
 function fmtDate(iso?: string | null): string {
@@ -139,23 +141,29 @@ export default function LeadDetail() {
         {error && <div className="c-error-box">{error}</div>}
 
         {/* Funnel stepper */}
-        <div className={`ba-card ba-timeline-card${passed ? ' ld-passed' : ''}`}>
+        <div className="ba-card ba-timeline-card">
           <ol className="ba-timeline">
             {steps(lead.status, activities).map((step, i) => (
               <li key={step.label} className={`ba-tstep ${step.state}`}>
                 <span className="ba-tstep-in">
-                  <span className="ba-tnode">{step.state === 'done' ? <Icons.Check size={16} /> : i + 1}</span>
+                  <span className="ba-tnode">
+                    {step.state === 'done' ? <Icons.Check size={16} />
+                      : step.state === 'cancelled' ? <span aria-hidden>✕</span>
+                      : i + 1}
+                  </span>
                   <span className="ba-tmeta">
                     <span className="ba-tlabel">{step.label}</span>
                     <span className="ba-tstate">
-                      {step.state === 'done' ? 'Done' : step.state === 'current' ? 'Current' : 'Pending'}
+                      {step.state === 'done' ? 'Done'
+                        : step.state === 'current' ? 'Current'
+                        : step.state === 'cancelled' ? 'Not interested'
+                        : 'Pending'}
                     </span>
                   </span>
                 </span>
               </li>
             ))}
           </ol>
-          {passed && <div className="ld-passed-note"><span aria-hidden>✕</span> This lead wasn't interested.</div>}
         </div>
 
         {/* Hero — identity, quick actions, details */}
