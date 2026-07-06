@@ -18,6 +18,16 @@
   padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Subscribe is a standalone screen (no bottom tab bar): drop the tab-bar
+   reserve and vertically centre its short plan cards. `safe` keeps the top
+   reachable if the content ever outgrows the viewport. */
+.c-subscribe .m-scroll {
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  padding-bottom: 16px;
+}
+
 /* Generic page scaffold reuse */
 .c-page { display: flex; flex-direction: column; height: 100%; }
 
