@@ -664,6 +664,16 @@
 .ld-switch .ba-switch-fill { height: calc(16px + var(--active) * 60px); }
 .ld-switch .ba-switch-knob { top: calc(30px + var(--active) * 60px); }
 
+/* Drag-to-set: the knob is a grab handle; the rail/knob swallow touch-scroll
+   so a vertical drag moves the knob instead of the page. While dragging, drop
+   the easing transition so the knob tracks the finger 1:1. */
+.ld-switch .ba-switch-knob { cursor: grab; touch-action: none; }
+.ld-switch .ba-switch-rail { touch-action: none; }
+.ld-switch.dragging { cursor: grabbing; }
+.ld-switch.dragging .ba-switch-knob { cursor: grabbing; }
+.ld-switch.dragging .ba-switch-knob,
+.ld-switch.dragging .ba-switch-fill { transition: none; }
+
 /* Activity timeline (wrapped in a card like every other section) */
 .ld-log-card { padding: 14px 18px; }
 .ld-log { list-style: none; margin: 0; padding: 2px 0 0; position: relative; }
