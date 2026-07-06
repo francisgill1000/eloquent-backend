@@ -1,6 +1,7 @@
 import api from './api';
 import type {
   Lead,
+  LeadDetailResponse,
   LeadListResponse,
   LeadResult,
   LeadSearchResponse,
@@ -115,6 +116,15 @@ export async function saveLeads(leads: LeadResult[]): Promise<{ leads: Lead[]; c
   return {
     leads: Array.isArray(data?.data) ? data.data : [],
     created: typeof data?.created === 'number' ? data.created : 0,
+  };
+}
+
+/** A single saved lead with its activity history, for the detail page. */
+export async function getLead(id: number): Promise<LeadDetailResponse> {
+  const { data } = await api.get(`/shop/leads/${id}`);
+  return {
+    lead: data?.data ?? data,
+    activities: Array.isArray(data?.activities) ? data.activities : [],
   };
 }
 

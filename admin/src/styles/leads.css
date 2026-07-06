@@ -636,3 +636,64 @@
 .lf-select:hover { border-color: color-mix(in srgb, var(--stage) 55%, var(--border-3)); }
 .lf-select:focus-visible { outline: none; border-color: var(--stage); box-shadow: 0 0 0 3px color-mix(in srgb, var(--stage) 22%, transparent); }
 .lf-select:disabled { opacity: 0.6; cursor: default; }
+
+/* --- Lead detail page ------------------------------------------------------ */
+
+/* Clickable pipeline card / table row → opens the detail page. */
+.lf-clickable { cursor: pointer; }
+.lf-card.lf-clickable { transition: transform .12s ease, border-color .12s ease; }
+.lf-card.lf-clickable:hover { transform: translateY(-2px); border-color: var(--border-mint); }
+.lf-row.lf-clickable:hover { background: var(--surface-2); }
+
+/* Hero quick actions */
+.ld-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+.ld-act {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 14px; border-radius: var(--r-pill);
+  border: 1px solid var(--border-1); background: var(--surface-1);
+  color: var(--text-2); font-size: 13px; font-weight: 600; text-decoration: none;
+  transition: border-color .14s ease, background .14s ease;
+}
+.ld-act:hover { border-color: var(--border-mint); background: var(--surface-2); }
+.ld-act.wa { border-color: var(--border-mint); background: var(--mint-soft); color: var(--mint-300); }
+
+/* Stage pills — the primary status action */
+.ld-stages { display: flex; flex-wrap: wrap; gap: 8px; }
+.ld-stage {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 16px; border-radius: var(--r-pill);
+  border: 1px solid var(--border-1); background: var(--surface-1);
+  color: var(--text-3); font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: border-color .14s ease, color .14s ease, background .14s ease;
+}
+.ld-stage:hover:not(:disabled) { border-color: var(--stage); color: var(--text-1); }
+.ld-stage.on {
+  border-color: var(--stage);
+  color: var(--stage);
+  background: color-mix(in srgb, var(--stage) 16%, transparent);
+}
+.ld-stage:disabled:not(.on) { opacity: 0.7; }
+
+/* Activity timeline */
+.ld-log { list-style: none; margin: 0; padding: 2px 0 0; position: relative; }
+.ld-log::before {
+  content: ''; position: absolute; left: 5px; top: 10px; bottom: 10px;
+  width: 2px; background: var(--border-1);
+}
+.ld-log-row { position: relative; display: flex; gap: 14px; padding: 8px 0; }
+.ld-log-dot {
+  position: relative; z-index: 1; flex: 0 0 auto; margin-top: 4px;
+  width: 12px; height: 12px; border-radius: 50%; background: var(--mint-300);
+}
+.ld-log-body { display: flex; flex-direction: column; gap: 2px; }
+.ld-log-text { font-size: 13.5px; color: var(--text-1); }
+.ld-log-time { font-size: 11.5px; color: var(--text-4); }
+.ld-empty { color: var(--text-3); font-size: 13px; text-align: center; padding: 18px; }
+
+/* Passed (dead-end) treatment on the stepper card */
+.ba-timeline-card.ld-passed { opacity: 0.9; }
+.ld-passed-note {
+  display: flex; align-items: center; gap: 7px; margin-top: 10px;
+  font-size: 12.5px; font-weight: 600; color: var(--danger);
+}
+.ld-passed-note span { font-weight: 800; }

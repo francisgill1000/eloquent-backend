@@ -209,6 +209,25 @@ class LeadController extends Controller
     }
 
     /**
+     * GET /shop/leads/{lead}
+     * A single lead with its activity history (newest first) for the detail page.
+     */
+    public function show(Request $request, Lead $lead)
+    {
+        $shop = $this->shop($request);
+        abort_unless($lead->shop_id === $shop->id, 404);
+
+        $activities = $lead->activities()
+            ->orderByDesc('id')
+            ->get(['id', 'type', 'payload', 'created_at']);
+
+        return response()->json([
+            'data' => $lead,
+            'activities' => $activities,
+        ]);
+    }
+
+    /**
      * PATCH /shop/leads/{lead}/status
      * Move a lead through the funnel: updates status, logs an activity row, and
      * bumps last_contacted_at.

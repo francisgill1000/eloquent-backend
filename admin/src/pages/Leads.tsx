@@ -390,6 +390,7 @@ function ResultCard({ r, selected, saved, onToggle }: { r: LeadResult; selected:
 // --- Pipeline ----------------------------------------------------------------
 
 function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; funnel: LeadFunnel; setFunnel: (f: LeadFunnel) => void }) {
+  const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -503,7 +504,8 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
           {view === 'cards' ? (
             <div className="lf-list">
               {pageLeads.map((l) => (
-                <LeadCard key={l.id} lead={l} busy={busyId === l.id} onStatus={(s) => void changeStatus(l, s)} />
+                <LeadCard key={l.id} lead={l} busy={busyId === l.id} onStatus={(s) => void changeStatus(l, s)}
+                  onOpen={() => navigate(`/leads/${l.id}`)} />
               ))}
             </div>
           ) : (
@@ -519,7 +521,8 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
                 </thead>
                 <tbody>
                   {pageLeads.map((l) => (
-                    <LeadRow key={l.id} lead={l} busy={busyId === l.id} onStatus={(s) => void changeStatus(l, s)} />
+                    <LeadRow key={l.id} lead={l} busy={busyId === l.id} onStatus={(s) => void changeStatus(l, s)}
+                      onOpen={() => navigate(`/leads/${l.id}`)} />
                   ))}
                 </tbody>
               </table>
@@ -555,16 +558,16 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
   );
 }
 
-function LeadRow({ lead, busy, onStatus }: { lead: Lead; busy: boolean; onStatus: (s: LeadStatus) => void }) {
+function LeadRow({ lead, busy, onStatus, onOpen }: { lead: Lead; busy: boolean; onStatus: (s: LeadStatus) => void; onOpen: () => void }) {
   const wa = lead.whatsapp_url && lead.is_mobile ? lead.whatsapp_url : null;
   const follow = followupLabel(lead.next_followup_at);
   return (
-    <tr className={`lf-row s-${lead.status}`}>
+    <tr className={`lf-row lf-clickable s-${lead.status}`} onClick={onOpen}>
       <td className="lf-row-name">
         <span className="lf-name">{lead.name}</span>
         {lead.address && <span className="lf-addr"><Icons.MapPin size={11} /> {lead.address}</span>}
       </td>
-      <td>
+      <td onClick={(e) => e.stopPropagation()}>
         <select className={`lf-select s-${lead.status}`} value={lead.status} disabled={busy}
           onChange={(e) => onStatus(e.target.value as LeadStatus)} aria-label="Change status">
           {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
@@ -575,7 +578,7 @@ function LeadRow({ lead, busy, onStatus }: { lead: Lead; busy: boolean; onStatus
           ? <span className={`lf-follow${follow.due ? ' due' : ''}`}><Icons.Bell size={11} /> {follow.text}</span>
           : <span className="lf-dash">—</span>}
       </td>
-      <td className="lf-row-actions">
+      <td className="lf-row-actions" onClick={(e) => e.stopPropagation()}>
         <div className="lf-actions">
           {wa && <a className="lf-act wa" href={wa} target="_blank" rel="noreferrer"><Icons.WhatsApp size={14} /></a>}
           {lead.tel_url && <a className="lf-act" href={lead.tel_url}><Icons.Phone size={14} /></a>}
@@ -587,11 +590,11 @@ function LeadRow({ lead, busy, onStatus }: { lead: Lead; busy: boolean; onStatus
   );
 }
 
-function LeadCard({ lead, busy, onStatus }: { lead: Lead; busy: boolean; onStatus: (s: LeadStatus) => void }) {
+function LeadCard({ lead, busy, onStatus, onOpen }: { lead: Lead; busy: boolean; onStatus: (s: LeadStatus) => void; onOpen: () => void }) {
   const wa = lead.whatsapp_url && lead.is_mobile ? lead.whatsapp_url : null;
   const follow = followupLabel(lead.next_followup_at);
   return (
-    <div className={`lf-card s-${lead.status}`}>
+    <div className={`lf-card lf-clickable s-${lead.status}`} onClick={onOpen}>
       <div className="lf-card-body">
         <div className="lf-card-top">
           <span className="lf-name">{lead.name}</span>
@@ -603,7 +606,7 @@ function LeadCard({ lead, busy, onStatus }: { lead: Lead; busy: boolean; onStatu
             <Icons.Bell size={11} /> {follow.text}
           </span>
         )}
-        <div className="lf-card-foot">
+        <div className="lf-card-foot" onClick={(e) => e.stopPropagation()}>
           <div className="lf-actions">
             {wa && <a className="lf-act wa" href={wa} target="_blank" rel="noreferrer"><Icons.WhatsApp size={14} /></a>}
             {lead.tel_url && <a className="lf-act" href={lead.tel_url}><Icons.Phone size={14} /></a>}
