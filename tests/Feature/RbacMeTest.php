@@ -16,7 +16,7 @@ class RbacMeTest extends TestCase
     public function test_me_returns_current_user_and_permissions(): void
     {
         (new PermissionSeeder())->run();
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         setPermissionsTeamId($shop->id);
         $role = Role::create(['name' => 'Cashier', 'guard_name' => 'web', 'team_id' => $shop->id]);
         $role->givePermissionTo('bookings.view');
@@ -36,7 +36,7 @@ class RbacMeTest extends TestCase
     public function test_untagged_token_is_owner_equivalent(): void
     {
         (new PermissionSeeder())->run();
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->trialing()->create();
         $token = $shop->createToken('t')->plainTextToken;
 
         $this->withHeaders(['Authorization' => 'Bearer ' . $token])
