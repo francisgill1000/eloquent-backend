@@ -23,7 +23,7 @@ import type { Lead, LeadFunnel, LeadResult, LeadStatus } from '@/types';
 type Mode = 'find' | 'pipeline';
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
-  new: 'New', sent: 'Sent', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Pass',
+  new: 'New', sent: 'Sent', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Not Interested',
 };
 
 const EMPTY_FUNNEL: LeadFunnel = { new: 0, sent: 0, replied: 0, demo: 0, won: 0, pass: 0 };

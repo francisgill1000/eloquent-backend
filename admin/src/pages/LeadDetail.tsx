@@ -6,7 +6,7 @@ import { getLead, updateLeadStatus } from '@/lib/leads';
 import type { Lead, LeadActivity, LeadStatus } from '@/types';
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
-  new: 'New', sent: 'Sent', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Pass',
+  new: 'New', sent: 'Sent', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Not Interested',
 };
 
 // Crisp knob marks (match BookingAction): Won = check, Pass = X.
@@ -155,7 +155,7 @@ export default function LeadDetail() {
               </li>
             ))}
           </ol>
-          {passed && <div className="ld-passed-note"><span aria-hidden>✕</span> This lead was passed on.</div>}
+          {passed && <div className="ld-passed-note"><span aria-hidden>✕</span> This lead wasn't interested.</div>}
         </div>
 
         {/* Hero — identity, quick actions, details */}
