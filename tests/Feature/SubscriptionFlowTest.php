@@ -89,11 +89,11 @@ class SubscriptionFlowTest extends TestCase
     {
         $expired = Shop::create(['name' => 'X', 'shop_code' => '900107', 'status' => 'active']);
         $expired->subscription()->create(['status' => 'expired', 'access_until' => now()->subDay()]);
-        $this->actingAs($expired)->getJson('/api/shop/assistant/history')->assertStatus(402);
+        $this->actingAs($expired)->getJson('/api/shop/assistant/conversations')->assertStatus(402);
 
         $active = Shop::create(['name' => 'Y', 'shop_code' => '900108', 'status' => 'active']);
         $active->subscription()->create(['status' => 'active', 'access_until' => now()->addDay()]);
-        $this->actingAs($active)->getJson('/api/shop/assistant/history')->assertStatus(200);
+        $this->actingAs($active)->getJson('/api/shop/assistant/conversations')->assertStatus(200);
     }
 
     public function test_webhook_marks_payment_paid_and_extends_access(): void

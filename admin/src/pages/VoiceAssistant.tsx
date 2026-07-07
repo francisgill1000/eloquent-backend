@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
-import { getHistory, clearHistory, postText, postVoice } from '@/lib/assistant';
+import {
+  getConversation, listConversations, renameConversation, deleteConversation,
+  postText, postVoice, type Conversation,
+} from '@/lib/assistant';
 import { useRecorder } from '@/hooks/useRecorder';
 
 type Msg = { role: 'user' | 'assistant'; content: string; audioUrl?: string | null };
@@ -96,43 +99,76 @@ function AudioBubble({ src, autoPlay = false }: { src: string; autoPlay?: boolea
 
 export default function VoiceAssistant() {
   const navigate = useNavigate();
+  const { conversationId: routeId } = useParams<{ conversationId?: string }>();
+  const cid = routeId ? Number(routeId) : null;
+
+  const [conversationId, setConversationId] = useState<number | null>(cid);
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(cid != null);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [threads, setThreads] = useState<Conversation[]>([]);
   const { recording, start, stop, supported } = useRecorder();
   const threadRef = useRef<HTMLDivElement>(null);
-  // Messages loaded from the server on open should not auto-play their audio;
-  // only notes added during this session do. Updated once history loads.
+  // Messages loaded from the server should not auto-play their audio; only
+  // notes added during this session do. Reset whenever we (re)load a thread.
   const restoredCount = useRef(0);
 
-  // Load this shop's conversation from the server on open. The server scopes by
-  // auth token, so there is no cross-shop leak and no local persistence.
+  // Load the thread named in the route, or start fresh when there is none.
   useEffect(() => {
     let alive = true;
-    getHistory()
+    setConversationId(cid);
+    if (cid == null) {
+      setMessages([]);
+      restoredCount.current = 0;
+      setLoadingHistory(false);
+      return;
+    }
+    setLoadingHistory(true);
+    getConversation(cid)
       .then((history) => {
         if (!alive) return;
         const msgs: Msg[] = history.map((m) => ({ role: m.role, content: m.content, audioUrl: m.audio_url }));
         restoredCount.current = msgs.length;
         setMessages(msgs);
       })
-      .catch(() => { if (alive) setError('Could not load your conversation.'); })
+      .catch(() => { if (alive) setError('Could not load this conversation.'); })
       .finally(() => { if (alive) setLoadingHistory(false); });
     return () => { alive = false; };
-  }, []);
+  }, [cid]);
 
   // Keep the latest message in view as the conversation grows.
   useEffect(() => {
     threadRef.current?.scrollTo?.({ top: threadRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, busy]);
 
-  async function clearConversation() {
-    setError('');
-    try { await clearHistory(); } catch { setError('Could not clear the conversation.'); return; }
-    setMessages([]);
-    restoredCount.current = 0;
+  async function openDrawer() {
+    setDrawerOpen(true);
+    try { setThreads(await listConversations()); } catch { setError('Could not load your chats.'); }
+  }
+
+  async function removeThread(id: number) {
+    if (!window.confirm('Delete this chat?')) return;
+    try { await deleteConversation(id); } catch { setError('Could not delete the chat.'); return; }
+    setThreads((t) => t.filter((c) => c.id !== id));
+    if (id === conversationId) navigate('/ask'); // deleting the open thread → new chat
+  }
+
+  async function renameThread(id: number, current: string) {
+    const next = window.prompt('Rename chat', current);
+    if (next == null || !next.trim()) return;
+    try { await renameConversation(id, next.trim()); } catch { setError('Could not rename the chat.'); return; }
+    setThreads((t) => t.map((c) => (c.id === id ? { ...c, title: next.trim() } : c)));
+  }
+
+  // After the first successful send in a new thread, adopt its id + route.
+  function adopt(id?: number) {
+    if (id != null && conversationId == null) {
+      setConversationId(id);
+      navigate(`/ask/${id}`, { replace: true });
+    }
   }
 
   async function send(text: string) {
@@ -141,8 +177,9 @@ export default function VoiceAssistant() {
     setMessages((m) => [...m, { role: 'user', content: text }]);
     setDraft('');
     try {
-      const res = await postText(text);
+      const res = await postText(text, conversationId ?? undefined);
       setMessages((m) => [...m, { role: 'assistant', content: res.reply_text, audioUrl: res.reply_audio_url }]);
+      adopt(res.conversation_id);
     } catch { setError('Could not reach the assistant.'); }
     finally { setBusy(false); }
   }
@@ -154,12 +191,13 @@ export default function VoiceAssistant() {
       if (!blob) { setBusy(false); return; }
       const voiceUrl = URL.createObjectURL(blob); // play back the owner's own note
       try {
-        const res = await postVoice(blob);
+        const res = await postVoice(blob, conversationId ?? undefined);
         setMessages((m) => [
           ...m,
           { role: 'user', content: res.transcript ?? '', audioUrl: voiceUrl },
           { role: 'assistant', content: res.reply_text, audioUrl: res.reply_audio_url },
         ]);
+        adopt(res.conversation_id);
       } catch {
         setMessages((m) => [...m, { role: 'user', content: '', audioUrl: voiceUrl }]);
         setError('Could not reach the assistant.');
@@ -179,11 +217,8 @@ export default function VoiceAssistant() {
           <span className="va-title">Ask about your business</span>
           <span className="va-sub">Ask a question — or tell me to change something</span>
         </div>
-        {messages.length > 0 && (
-          <button className="c-icon-btn" aria-label="Clear conversation" onClick={clearConversation}>
-            <Icons.Trash size={18} />
-          </button>
-        )}
+        <button className="c-icon-btn" aria-label="New chat" onClick={() => navigate('/ask')}><Icons.Plus size={18} /></button>
+        <button className="c-icon-btn" aria-label="History" onClick={() => void openDrawer()}><Icons.Clock size={18} /></button>
       </div>
 
       <div className="va-thread" ref={threadRef}>
@@ -219,6 +254,33 @@ export default function VoiceAssistant() {
           </button>
         )}
       </div>
+
+      {drawerOpen && (
+        <div className="va-drawer-backdrop" onClick={() => setDrawerOpen(false)}>
+          <div className="va-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="va-drawer-head">
+              <span className="va-drawer-title">Your chats</span>
+              <button className="c-icon-btn" aria-label="Close" onClick={() => setDrawerOpen(false)}><Icons.ChevronLeft size={18} /></button>
+            </div>
+            <button className="va-drawer-new" onClick={() => { setDrawerOpen(false); navigate('/ask'); }}>
+              <Icons.Plus size={16} /> New chat
+            </button>
+            <div className="va-drawer-list">
+              {threads.length === 0 && <p className="va-drawer-empty">No past chats yet.</p>}
+              {threads.map((c) => (
+                <div key={c.id} className={`va-drawer-row ${c.id === conversationId ? 'active' : ''}`}>
+                  <button className="va-drawer-open" onClick={() => { setDrawerOpen(false); navigate(`/ask/${c.id}`); }}>
+                    <span className="va-drawer-row-title">{c.title}</span>
+                    <span className="va-drawer-row-time">{new Date(c.updated_at).toLocaleDateString()}</span>
+                  </button>
+                  <button className="c-icon-btn" aria-label="Rename thread" onClick={() => void renameThread(c.id, c.title)}><Icons.Send size={14} /></button>
+                  <button className="c-icon-btn" aria-label="Delete thread" onClick={() => void removeThread(c.id)}><Icons.Trash size={14} /></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

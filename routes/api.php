@@ -187,10 +187,12 @@ Route::middleware('auth:sanctum')->group(function () {
 // tools enforce the acting user's permissions (owner/untagged tokens stay
 // all-allowed for backward compatibility).
 Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->group(function () {
-    Route::get('/shop/assistant/history',    [\App\Http\Controllers\OwnerAssistantController::class, 'history']);
-    Route::delete('/shop/assistant/history', [\App\Http\Controllers\OwnerAssistantController::class, 'clear']);
-    Route::post('/shop/assistant/text',      [\App\Http\Controllers\OwnerAssistantController::class, 'text']);
-    Route::post('/shop/assistant/voice',     [\App\Http\Controllers\OwnerAssistantController::class, 'voice']);
+    Route::get('/shop/assistant/conversations',                  [\App\Http\Controllers\OwnerAssistantController::class, 'conversations']);
+    Route::get('/shop/assistant/conversations/{conversation}',   [\App\Http\Controllers\OwnerAssistantController::class, 'messages']);
+    Route::patch('/shop/assistant/conversations/{conversation}', [\App\Http\Controllers\OwnerAssistantController::class, 'rename']);
+    Route::delete('/shop/assistant/conversations/{conversation}',[\App\Http\Controllers\OwnerAssistantController::class, 'destroy']);
+    Route::post('/shop/assistant/text',                          [\App\Http\Controllers\OwnerAssistantController::class, 'text']);
+    Route::post('/shop/assistant/voice',                         [\App\Http\Controllers\OwnerAssistantController::class, 'voice']);
 });
 
 // Lead Finder — search real UAE businesses, save + work them (WhatsApp/call).
