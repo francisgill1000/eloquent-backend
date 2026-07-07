@@ -35,15 +35,27 @@ abstract class MutatingTool extends AssistantModule
         return $this->applied($write($target));
     }
 
-    /** @param array<string, mixed> $changes */
+    /**
+     * A preview result. It must be impossible for the model to mistake this for
+     * success: `saved => false` plus an explicit `next` instruction keep the
+     * model from announcing a done change or inventing a reference number.
+     *
+     * @param array<string, mixed> $changes
+     */
     protected function preview(string $action, array $changes = []): array
     {
-        return ['preview' => true, 'action' => $action, 'changes' => $changes];
+        return [
+            'preview' => true,
+            'saved' => false,
+            'action' => $action,
+            'changes' => $changes,
+            'next' => 'NOT SAVED. Nothing has changed yet. Read this back to the owner and ask them to confirm. Only if they clearly agree, call this SAME tool again with confirmed=true. Do NOT tell the owner it is done, and do NOT state any reference number, until you receive a result with done=true.',
+        ];
     }
 
     /** @param array<string, mixed> $data */
     protected function applied(array $data = []): array
     {
-        return array_merge(['done' => true], $data);
+        return array_merge(['done' => true, 'saved' => true], $data);
     }
 }

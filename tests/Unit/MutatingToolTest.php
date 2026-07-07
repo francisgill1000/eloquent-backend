@@ -54,6 +54,11 @@ class MutatingToolTest extends TestCase
         $this->assertSame('Rename to New', $out['action']);
         $this->assertSame(['name' => 'Old → New'], $out['changes']);
         $this->assertSame('Old', $tool->store[1]); // NOT written
+        // The preview MUST explicitly signal that nothing was saved, so the
+        // model cannot mistake it for success and fabricate a confirmation.
+        $this->assertFalse($out['saved']);
+        $this->assertIsString($out['next']);
+        $this->assertStringContainsString('confirmed=true', $out['next']);
     }
 
     public function test_confirmed_call_performs_the_write(): void
@@ -62,6 +67,7 @@ class MutatingToolTest extends TestCase
         $out = $tool->run($this->call(confirmed: true));
 
         $this->assertTrue($out['done']);
+        $this->assertTrue($out['saved']); // unambiguous success marker
         $this->assertSame('New', $tool->store[1]); // written
     }
 
