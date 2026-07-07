@@ -69,6 +69,16 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 Route::get('/bookings', [BookingController::class, 'index']);
 
+// Booking reviews — public rating page (token-authorized, no login).
+Route::get('/reviews/{token}',  [\App\Http\Controllers\BookingReviewController::class, 'show']);
+Route::post('/reviews/{token}', [\App\Http\Controllers\BookingReviewController::class, 'submit'])
+    ->middleware('throttle:20,1');
+
+// Booking reviews — owner list + summary (tenant-scoped, bookings module only).
+Route::middleware(['auth:sanctum', 'module:bookings'])->group(function () {
+    Route::get('/shop/reviews', [\App\Http\Controllers\BookingReviewController::class, 'index']);
+});
+
 // Reports
 Route::get('/shop/reports/revenue',       [\App\Http\Controllers\ReportsController::class, 'revenue']);
 Route::get('/shop/reports/staff',         [\App\Http\Controllers\ReportsController::class, 'staff']);

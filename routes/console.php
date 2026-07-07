@@ -17,6 +17,9 @@ Schedule::command('leads:due-followups')->daily();
 // Bookings — customer WhatsApp reminders for appointments entering the 24h window.
 Schedule::command('bookings:send-reminders')->hourly()->withoutOverlapping();
 
+// Bookings — post-visit WhatsApp review requests for completed bookings.
+Schedule::command('reviews:send-requests')->hourly()->withoutOverlapping();
+
 Schedule::command('assistant:suggest-kb --days=7')
     ->weeklyOn(1, '03:00')
     ->withoutOverlapping()
