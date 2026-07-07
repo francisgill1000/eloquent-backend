@@ -667,6 +667,19 @@
 .c-chat-row-preview { font-size: 13px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .c-chat-unread { min-width: 20px; height: 20px; border-radius: 10px; background: var(--mint-500); color: #04261e; font-size: 11px; font-weight: 800; display: grid; place-items: center; padding: 0 6px; flex: 0 0 auto; box-shadow: 0 0 12px -2px var(--mint-500); }
 
+/* Ask conversations list — the "Chats" nav page. Reuses the glass .c-chat-row
+   surface (incl. the mint avatar override) with a single-line title + time and
+   inline rename/delete actions. */
+.conv-search { margin: 0 16px 12px; }
+.conv-search svg { color: var(--text-4); flex: 0 0 auto; }
+.conv-list { display: flex; flex-direction: column; padding-bottom: 16px; }
+.conv-row { gap: 10px; }
+.conv-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; color: inherit; text-align: left; font: inherit; }
+.conv-row .c-staff-avatar { width: 40px; height: 40px; }
+.conv-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv-time { font-size: 12px; color: var(--text-3); flex: 0 0 auto; }
+.conv-row .c-icon-btn { flex: 0 0 auto; }
+
 /* Thread (full-screen, glass) */
 .c-thread-screen { height: 100dvh; position: relative; background: radial-gradient(ellipse 80% 60% at 50% -10%, #0e1a16, #05080a 70%); }
 .c-thread-screen::before { content: ''; position: absolute; width: 320px; height: 320px; top: -60px; left: -80px; background: radial-gradient(circle, rgba(0,255,204,0.28), transparent 65%); filter: blur(40px); pointer-events: none; z-index: 0; }

@@ -18,6 +18,8 @@ const BOTH: Module[] = ['bookings', 'leads'];
 
 const BASE_NAV: NavItem[] = [
   { label: 'Home', to: '/', icon: 'Mic', end: true, modules: BOTH },
+  // Your past conversations with the Ask assistant.
+  { label: 'Chats', to: '/conversations', icon: 'Chat', modules: BOTH },
   { label: 'Overview', to: '/overview', icon: 'Chart', modules: BOTH },
   { label: 'Bookings', to: '/bookings', icon: 'Calendar', modules: ['bookings'] },
   // WhatsApp Chats — hidden while WHATSAPP_ENABLED is off.
