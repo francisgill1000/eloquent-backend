@@ -46,6 +46,13 @@ Route::get('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController
 Route::put('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'update']);
 Route::delete('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'destroy']);
 Route::post('/booking/{booking}/reassign', [\App\Http\Controllers\StaffController::class, 'reassign']);
+
+// Staff-level availability — weekly schedules + time-off (tenant-scoped to shop/staff).
+Route::get   ('/shops/{shop}/staff/{staff}/schedule',            [\App\Http\Controllers\StaffAvailabilityController::class, 'schedule']);
+Route::put   ('/shops/{shop}/staff/{staff}/schedule',            [\App\Http\Controllers\StaffAvailabilityController::class, 'setSchedule']);
+Route::get   ('/shops/{shop}/staff/{staff}/time-off',            [\App\Http\Controllers\StaffAvailabilityController::class, 'timeOffIndex']);
+Route::post  ('/shops/{shop}/staff/{staff}/time-off',            [\App\Http\Controllers\StaffAvailabilityController::class, 'addTimeOff']);
+Route::delete('/shops/{shop}/staff/{staff}/time-off/{timeOff}',  [\App\Http\Controllers\StaffAvailabilityController::class, 'deleteTimeOff']);
 Route::post('/shops/{shop}/favourite', [GuestFavouriteController::class, 'toggle']);
 Route::get('/shops/{shop}/customers/lookup', [ShopCustomerController::class, 'lookup']);
 Route::get('/shops/{shop}/customers', [ShopCustomerController::class, 'index']);

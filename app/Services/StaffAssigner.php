@@ -27,6 +27,12 @@ class StaffAssigner
             ->whereNotIn('id', $busyStaffIds)
             ->get();
 
+        // Drop staff who aren't working this slot (time-off / outside their shift).
+        $availability = app(StaffAvailabilityService::class);
+        $candidates = $candidates->filter(
+            fn (Staff $s) => $availability->isAvailable($s, $date, $startTime)
+        )->values();
+
         if ($candidates->isEmpty()) {
             return null;
         }
