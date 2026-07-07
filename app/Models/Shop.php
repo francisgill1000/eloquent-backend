@@ -292,6 +292,11 @@ class Shop extends Authenticatable
         return $this->hasOne(WaAccount::class);
     }
 
+    public function resources()
+    {
+        return $this->hasMany(Resource::class);
+    }
+
     public function subscription(): HasOne
     {
         return $this->hasOne(Subscription::class);

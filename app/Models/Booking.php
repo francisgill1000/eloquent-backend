@@ -15,6 +15,7 @@ class Booking extends Model
         'shop_id',
         'shop_customer_id',
         'staff_id',
+        'resource_id',
         'date',
         'start_time',
         'end_time',
