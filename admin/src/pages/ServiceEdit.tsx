@@ -6,13 +6,23 @@ import { getCatalog, createCatalog, updateCatalog } from '@/lib/catalogs';
 import { listParentCategories, createParentCategory } from '@/lib/parentCategories';
 import type { ParentCategory } from '@/types';
 
-type Form = { title: string; description: string; price: string };
+type Form = {
+  title: string;
+  description: string;
+  price: string;
+  duration_minutes: string;
+  buffer_minutes: string;
+  requires_resource_type: string;
+};
 
 export default function ServiceEdit() {
   const { id } = useParams<{ id: string }>();
   const isNew = !id;
   const navigate = useNavigate();
-  const [form, setForm] = useState<Form>({ title: '', description: '', price: '' });
+  const [form, setForm] = useState<Form>({
+    title: '', description: '', price: '',
+    duration_minutes: '', buffer_minutes: '', requires_resource_type: '',
+  });
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -31,7 +41,15 @@ export default function ServiceEdit() {
     if (isNew) return;
     getCatalog(Number(id))
       .then((d) => {
-        setForm({ title: d.title || d.name || '', description: d.description || '', price: String(d.price ?? '') });
+        const x = d as Record<string, unknown>;
+        setForm({
+          title: d.title || d.name || '',
+          description: d.description || '',
+          price: String(d.price ?? ''),
+          duration_minutes: x.duration_minutes != null ? String(x.duration_minutes) : '',
+          buffer_minutes: x.buffer_minutes != null ? String(x.buffer_minutes) : '',
+          requires_resource_type: typeof x.requires_resource_type === 'string' ? x.requires_resource_type : '',
+        });
         if (d.parent_category_id != null) setParentCategoryId(Number(d.parent_category_id));
       })
       .catch(() => setError('Failed to load service.'))
@@ -70,6 +88,9 @@ export default function ServiceEdit() {
         description: form.description.trim(),
         price: form.price,
         parent_category_id: parentCategoryId,
+        duration_minutes: form.duration_minutes.trim() ? Number(form.duration_minutes) : null,
+        buffer_minutes: form.buffer_minutes.trim() ? Number(form.buffer_minutes) : 0,
+        requires_resource_type: form.requires_resource_type.trim() || null,
       };
       if (isNew) await createCatalog(payload);
       else await updateCatalog(Number(id), payload);
@@ -149,6 +170,24 @@ export default function ServiceEdit() {
         <div className="c-input-row">
           <input id="price" type="number" inputMode="decimal" min="0" step="0.01" placeholder="0.00" value={form.price}
             onChange={(e) => { change('price', e.target.value); setError(''); }} />
+        </div>
+
+        <label className="c-field-label" htmlFor="duration">Duration (minutes, optional)</label>
+        <div className="c-input-row">
+          <input id="duration" type="number" inputMode="numeric" min="1" step="5" placeholder="e.g. 30 — blank uses the shop slot length" value={form.duration_minutes}
+            onChange={(e) => { change('duration_minutes', e.target.value); setError(''); }} />
+        </div>
+
+        <label className="c-field-label" htmlFor="buffer">Cleanup / buffer after (minutes, optional)</label>
+        <div className="c-input-row">
+          <input id="buffer" type="number" inputMode="numeric" min="0" step="5" placeholder="e.g. 15" value={form.buffer_minutes}
+            onChange={(e) => { change('buffer_minutes', e.target.value); setError(''); }} />
+        </div>
+
+        <label className="c-field-label" htmlFor="resType">Requires resource (optional)</label>
+        <div className="c-input-row">
+          <input id="resType" type="text" placeholder="e.g. room — must match a resource type; blank if none" value={form.requires_resource_type}
+            onChange={(e) => { change('requires_resource_type', e.target.value); setError(''); }} />
         </div>
 
         <button className="c-btn c-btn-block" disabled={saving} onClick={() => void handleSave()}>
