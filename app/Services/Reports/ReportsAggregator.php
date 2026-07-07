@@ -222,6 +222,88 @@ class ReportsAggregator
     }
 
     /**
+     * Retention & quality insights: status breakdown + no-show/cancellation/
+     * completion rates, new-vs-returning customers + repeat rate, and a review
+     * rating summary. Tenant-scoped by shop_id.
+     */
+    public function insightsSummary(int $shopId, Carbon $from, Carbon $to): array
+    {
+        $fromStr = $from->toDateString();
+        $toStr   = $to->toDateString();
+
+        $counts = Booking::where('shop_id', $shopId)
+            ->whereBetween('date', [$fromStr, $toStr])
+            ->selectRaw("
+                sum(case when lower(status) = 'completed' then 1 else 0 end) as completed,
+                sum(case when lower(status) = 'cancelled' then 1 else 0 end) as cancelled,
+                sum(case when lower(status) = 'no_show'   then 1 else 0 end) as no_show,
+                sum(case when lower(status) = 'booked'    then 1 else 0 end) as booked
+            ")
+            ->first();
+
+        $completed = (int) $counts->completed;
+        $cancelled = (int) $counts->cancelled;
+        $noShow    = (int) $counts->no_show;
+        $booked    = (int) $counts->booked;
+        $scheduled = $completed + $cancelled + $noShow + $booked; // excludes queued
+
+        $rate = fn (int $n) => $scheduled > 0 ? round($n / $scheduled * 100, 1) : 0.0;
+
+        // Customers with a booking in range (anonymous walk-ins excluded).
+        $customerIds = Booking::where('shop_id', $shopId)
+            ->whereBetween('date', [$fromStr, $toStr])
+            ->whereNotNull('shop_customer_id')
+            ->distinct()
+            ->pluck('shop_customer_id')
+            ->all();
+
+        $returningIds = empty($customerIds) ? [] : Booking::where('shop_id', $shopId)
+            ->whereIn('shop_customer_id', $customerIds)
+            ->whereDate('date', '<', $fromStr)
+            ->distinct()
+            ->pluck('shop_customer_id')
+            ->all();
+
+        $totalCustomers = count($customerIds);
+        $returning = count($returningIds);
+        $new = $totalCustomers - $returning;
+
+        // Review rating summary (rated within the range).
+        $reviewStats = DB::table('booking_reviews')
+            ->where('shop_id', $shopId)
+            ->whereNotNull('rating')
+            ->whereBetween('rated_at', [$from, $to])
+            ->selectRaw('count(*) as c, avg(rating) as a')
+            ->first();
+
+        return [
+            'range' => ['from' => $fromStr, 'to' => $toStr],
+            'bookings' => [
+                'scheduled' => $scheduled,
+                'booked'    => $booked,
+                'completed' => $completed,
+                'cancelled' => $cancelled,
+                'no_show'   => $noShow,
+            ],
+            'rates' => [
+                'completion'   => $rate($completed),
+                'cancellation' => $rate($cancelled),
+                'no_show'      => $rate($noShow),
+            ],
+            'customers' => [
+                'total'       => $totalCustomers,
+                'returning'   => $returning,
+                'new'         => $new,
+                'repeat_rate' => $totalCustomers > 0 ? round($returning / $totalCustomers * 100, 1) : 0.0,
+            ],
+            'reviews' => [
+                'count'   => (int) ($reviewStats->c ?? 0),
+                'average' => $reviewStats && $reviewStats->c ? round((float) $reviewStats->a, 2) : null,
+            ],
+        ];
+    }
+
+    /**
      * Internal: aggregate services across all non-cancelled bookings in range.
      */
     protected function aggregateServices(int $shopId, string $fromStr, string $toStr): array

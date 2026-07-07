@@ -20,7 +20,7 @@ class BookingStatusService
         $previousStaffId = $booking->staff_id;
         $newStatus = strtolower($newStatus);
 
-        $vacates = in_array($newStatus, ['cancelled', 'completed'], true)
+        $vacates = in_array($newStatus, ['cancelled', 'completed', 'no_show'], true)
             && $previousStatus === 'booked'
             && $previousStaffId !== null;
 
