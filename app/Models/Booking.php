@@ -24,6 +24,7 @@ class Booking extends Model
         'services',
         'notes',
         'booking_reference',
+        'recurring_series_id',
         'customer_name',
         'customer_whatsapp',
         'reminder_sent_at',

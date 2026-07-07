@@ -51,6 +51,7 @@ class BookingCreator
             'promo_code_id'         => $data['promo_code_id'] ?? null,
             'marketing_campaign_id' => $data['marketing_campaign_id'] ?? null,
             'discount_amount'       => $data['discount_amount'] ?? 0,
+            'recurring_series_id'   => $data['recurring_series_id'] ?? null,
         ]);
     }
 }
