@@ -23,6 +23,8 @@ import ServiceEdit from '@/pages/ServiceEdit';
 import Categories from '@/pages/Categories';
 import CategoryEdit from '@/pages/CategoryEdit';
 import Staff from '@/pages/Staff';
+import StaffAvailability from '@/pages/StaffAvailability';
+import RecurringBooking from '@/pages/RecurringBooking';
 import Resources from '@/pages/Resources';
 import Reviews from '@/pages/Reviews';
 import Insights from '@/pages/Insights';
@@ -71,6 +73,8 @@ export default function App() {
           <Route path="/categories/new" element={<CategoryEdit />} />
           <Route path="/categories/:id/edit" element={<CategoryEdit />} />
           <Route path="/staff" element={<Staff />} />
+          <Route path="/staff/:id/availability" element={<StaffAvailability />} />
+          <Route path="/bookings/recurring" element={<RecurringBooking />} />
           <Route path="/resources" element={<Resources />} />
           <Route path="/reviews" element={<Reviews />} />
           <Route path="/insights" element={<Insights />} />

@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
 import {
-  getBooking, setBookingStatus, reassignBooking, markInvoicePaid, invoicePdfUrl,
+  getBooking, setBookingStatus, reassignBooking, markInvoicePaid, invoicePdfUrl, updateBookingNotes,
 } from '@/lib/bookings';
 import { getStaff } from '@/lib/shops';
+import { getCustomer, updateCustomer, type CustomerDetail } from '@/lib/customers';
 import { statusKind } from '@/lib/calendar';
 import type { Booking, StaffMember } from '@/types';
 
@@ -54,6 +55,15 @@ export default function BookingAction() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  // Intake notes (per-visit) + the customer's durable notes/preferences.
+  const [visitNotes, setVisitNotes] = useState('');
+  const [visitSaving, setVisitSaving] = useState(false);
+  const [visitSaved, setVisitSaved] = useState(false);
+  const [customer, setCustomer] = useState<CustomerDetail | null>(null);
+  const [custNotes, setCustNotes] = useState('');
+  const [custSaving, setCustSaving] = useState(false);
+  const [custSaved, setCustSaved] = useState(false);
+
   const fetchBooking = useCallback(async () => {
     try {
       const b = await getBooking(bookingId);
@@ -72,6 +82,52 @@ export default function BookingAction() {
     if (!shopId) return;
     getStaff(shopId).then((list) => setStaff(list.filter((s) => s.is_active !== false))).catch(() => setStaff([]));
   }, [booking]);
+
+  // Initialise notes + load the customer's durable notes when the booking loads.
+  // Keyed on the booking id so status refreshes don't clobber unsaved edits.
+  const bookingKey = booking?.id;
+  useEffect(() => {
+    if (!booking) return;
+    setVisitNotes(String((booking as { notes?: string | null }).notes ?? ''));
+    const shopId = (booking as { shop_id?: number }).shop_id ?? booking.shop?.id;
+    const custId = (booking as { shop_customer_id?: number | null }).shop_customer_id;
+    if (shopId && custId) {
+      getCustomer(shopId, custId)
+        .then((c) => { setCustomer(c); setCustNotes(c.notes ?? ''); })
+        .catch(() => { /* non-fatal: no customer panel */ });
+    } else {
+      setCustomer(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingKey]);
+
+  const saveVisitNotes = async () => {
+    setVisitSaving(true);
+    setError('');
+    try {
+      await updateBookingNotes(bookingId, visitNotes);
+      setVisitSaved(true);
+    } catch {
+      setError('Could not save notes.');
+    } finally {
+      setVisitSaving(false);
+    }
+  };
+
+  const saveCustomerNotes = async () => {
+    const shopId = (booking as { shop_id?: number } | null)?.shop_id ?? booking?.shop?.id;
+    if (!shopId || !customer) return;
+    setCustSaving(true);
+    setError('');
+    try {
+      await updateCustomer(shopId, customer.id, { notes: custNotes });
+      setCustSaved(true);
+    } catch {
+      setError('Could not save customer notes.');
+    } finally {
+      setCustSaving(false);
+    }
+  };
 
   const updateStatus = async (status: string) => {
     if (!window.confirm(`Mark this booking as "${status}"?`)) return;
@@ -268,6 +324,41 @@ export default function BookingAction() {
           </div>
         </div>
       )}
+
+      {/* Intake notes — per-visit + the customer's durable notes/preferences */}
+      <div className="ba-section">
+        <div className="ba-section-title">Notes</div>
+        <div className="ba-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label className="c-field-label" htmlFor="visitNotes">This visit</label>
+          <textarea id="visitNotes" rows={3} placeholder="Notes for this appointment (intake, requests)…"
+            value={visitNotes}
+            onChange={(e) => { setVisitNotes(e.target.value); setVisitSaved(false); }}
+            style={{ width: '100%', background: 'none', border: '1px solid var(--line, #333)', borderRadius: 10, color: 'var(--text-1)', padding: 10, resize: 'vertical', font: 'inherit' }} />
+          <button className="c-btn" style={{ alignSelf: 'flex-start', padding: '8px 14px' }} disabled={visitSaving} onClick={() => void saveVisitNotes()}>
+            {visitSaving ? 'Saving…' : visitSaved ? 'Saved ✓' : 'Save visit notes'}
+          </button>
+
+          {customer && (
+            <>
+              <label className="c-field-label" htmlFor="custNotes" style={{ marginTop: 8 }}>About {customer.name || 'this customer'} (kept across visits)</label>
+              <textarea id="custNotes" rows={3} placeholder="Allergies, preferences, history…"
+                value={custNotes}
+                onChange={(e) => { setCustNotes(e.target.value); setCustSaved(false); }}
+                style={{ width: '100%', background: 'none', border: '1px solid var(--line, #333)', borderRadius: 10, color: 'var(--text-1)', padding: 10, resize: 'vertical', font: 'inherit' }} />
+              {customer.preferences && Object.keys(customer.preferences).length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {Object.entries(customer.preferences).map(([k, v]) => (
+                    <span key={k} className="c-chip c-chip-booked">{k}: {String(v)}</span>
+                  ))}
+                </div>
+              )}
+              <button className="c-btn" style={{ alignSelf: 'flex-start', padding: '8px 14px' }} disabled={custSaving} onClick={() => void saveCustomerNotes()}>
+                {custSaving ? 'Saving…' : custSaved ? 'Saved ✓' : 'Save customer notes'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
 
       {staff.length > 0 && (
         <div className="ba-section">
