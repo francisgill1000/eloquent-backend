@@ -89,6 +89,7 @@ export default function App() {
           <Route path="/category-setup" element={<CategorySetup />} />
           <Route path="/assistant" element={<Assistant />} />
           <Route path="/ask" element={<VoiceAssistant />} />
+          <Route path="/ask/:conversationId" element={<VoiceAssistant />} />
           <Route path="/master" element={<MasterShops />} />
           <Route path="/master/pricing" element={<MasterPricing />} />
           <Route path="/master/new" element={<MasterShopCreate />} />
