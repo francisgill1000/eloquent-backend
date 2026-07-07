@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\ShopUser;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 
 /**
  * Central permission logic. Owner role and untagged (null) sessions are
@@ -40,6 +41,14 @@ class Rbac
             return true;
         }
 
-        return $user->hasPermissionTo($permission);
+        // A route may still gate on a permission that's been removed from the
+        // catalog (e.g. Services/Staff/Working Hours). Spatie throws for an
+        // unknown permission — treat that as "denied" so the route 403s
+        // cleanly instead of 500-ing.
+        try {
+            return $user->hasPermissionTo($permission);
+        } catch (PermissionDoesNotExist) {
+            return false;
+        }
     }
 }
