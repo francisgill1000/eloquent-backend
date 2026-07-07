@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Macros\FilterByKeyMacro;
 use App\Macros\SearchMacro;
+use App\Services\Assistant\Support\AssistantActions;
 use App\Services\Leads\Contracts\LeadSourceInterface;
 use App\Services\Leads\Sources\GooglePlacesSource;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,10 @@ class AppServiceProvider extends ServiceProvider
             $class = self::LEAD_SOURCES[$key] ?? GooglePlacesSource::class;
             return $this->app->make($class);
         });
+
+        // One navigation-action sink per request, shared by the assistant tools
+        // and the owner assistant controller.
+        $this->app->singleton(AssistantActions::class);
     }
 
     /**
