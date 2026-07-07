@@ -27,6 +27,16 @@ class Staff extends Model
         return $this->hasMany(Booking::class);
     }
 
+    public function schedules()
+    {
+        return $this->hasMany(StaffSchedule::class);
+    }
+
+    public function timeOff()
+    {
+        return $this->hasMany(StaffTimeOff::class);
+    }
+
     protected static function newFactory()
     {
         return \Database\Factories\StaffFactory::new();
