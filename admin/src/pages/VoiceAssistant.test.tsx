@@ -63,6 +63,25 @@ describe('VoiceAssistant page', () => {
     expect(navigate).toHaveBeenCalledWith('/ask/9', { replace: true });
   });
 
+  it('navigates to the booking when the reply carries a navigate action', async () => {
+    asMock(postText).mockResolvedValue({ conversation_id: 9, title: 't', reply_text: 'Opening it.', reply_audio_url: null, action: { type: 'navigate', route: '/booking/7' } });
+    render(<VoiceAssistant />);
+    await screen.findByPlaceholderText(/type/i);
+    fireEvent.change(screen.getByPlaceholderText(/type/i), { target: { value: 'yes' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(screen.getByText('Opening it.')).toBeInTheDocument());
+    expect(navigate).toHaveBeenCalledWith('/booking/7');
+  });
+
+  it('does not navigate when the reply has no action', async () => {
+    render(<VoiceAssistant />);
+    await screen.findByPlaceholderText(/type/i);
+    fireEvent.change(screen.getByPlaceholderText(/type/i), { target: { value: 'how much' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(screen.getByText('You made 50 dirhams.')).toBeInTheDocument());
+    expect(navigate).not.toHaveBeenCalledWith(expect.stringContaining('/booking/'));
+  });
+
   it('opens the history drawer and lists threads', async () => {
     asMock(listConversations).mockResolvedValue([{ id: 3, title: 'Booking help', updated_at: '2026-07-07T10:00:00+00:00' }]);
     render(<VoiceAssistant />);

@@ -180,6 +180,7 @@ export default function VoiceAssistant() {
       const res = await postText(text, conversationId ?? undefined);
       setMessages((m) => [...m, { role: 'assistant', content: res.reply_text, audioUrl: res.reply_audio_url }]);
       adopt(res.conversation_id);
+      if (res.action?.type === 'navigate') navigate(res.action.route);
     } catch { setError('Could not reach the assistant.'); }
     finally { setBusy(false); }
   }
@@ -198,6 +199,7 @@ export default function VoiceAssistant() {
           { role: 'assistant', content: res.reply_text, audioUrl: res.reply_audio_url },
         ]);
         adopt(res.conversation_id);
+        if (res.action?.type === 'navigate') navigate(res.action.route);
       } catch {
         setMessages((m) => [...m, { role: 'user', content: '', audioUrl: voiceUrl }]);
         setError('Could not reach the assistant.');
