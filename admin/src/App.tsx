@@ -23,6 +23,10 @@ import ServiceEdit from '@/pages/ServiceEdit';
 import Categories from '@/pages/Categories';
 import CategoryEdit from '@/pages/CategoryEdit';
 import Staff from '@/pages/Staff';
+import Resources from '@/pages/Resources';
+import Reviews from '@/pages/Reviews';
+import Insights from '@/pages/Insights';
+import BookingNotifications from '@/pages/BookingNotifications';
 import WorkingHours from '@/pages/WorkingHours';
 import Profile from '@/pages/Profile';
 import Settings from '@/pages/Settings';
@@ -67,6 +71,10 @@ export default function App() {
           <Route path="/categories/new" element={<CategoryEdit />} />
           <Route path="/categories/:id/edit" element={<CategoryEdit />} />
           <Route path="/staff" element={<Staff />} />
+          <Route path="/resources" element={<Resources />} />
+          <Route path="/reviews" element={<Reviews />} />
+          <Route path="/insights" element={<Insights />} />
+          <Route path="/settings/notifications" element={<BookingNotifications />} />
           <Route element={<ModuleGuard module="leads" />}>
             <Route path="/leads" element={<Leads />} />
             <Route path="/leads/messages" element={<LeadMessages />} />
