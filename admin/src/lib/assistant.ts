@@ -8,6 +8,7 @@ export type AssistantReply = {
   transcript?: string;
   reply_text: string;
   reply_audio_url: string | null;
+  action?: { type: 'navigate'; route: string };
 };
 
 export async function listConversations(): Promise<Conversation[]> {
