@@ -124,10 +124,6 @@ export default function Login() {
           {submitting ? 'Logging in…' : 'Log In'}
         </button>
         </div>
-
-        <p className="c-muted-center">
-          Don't have a business? <Link className="c-link" to="/register">Create Account</Link>
-        </p>
       </div>
     </div></div>
   );
