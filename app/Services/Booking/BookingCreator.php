@@ -29,6 +29,12 @@ class BookingCreator
             $shop->id, $data['customer_whatsapp'] ?? null, $data['customer_name'] ?? null,
         );
 
+        // Duration honours per-service duration + buffer when configured, else
+        // falls back to the shop's global slot length (legacy behaviour).
+        $minutes = app(BookingDurationService::class)->computeMinutes(
+            $shop, $data['services'] ?? [], (int) $workingHour->slot_duration,
+        );
+
         return Booking::create([
             'status'                => $staff ? 'booked' : 'queued',
             'shop_id'               => $shop->id,
@@ -36,7 +42,7 @@ class BookingCreator
             'staff_id'              => $staff?->id,
             'date'                  => $date,
             'start_time'            => $startTime,
-            'end_time'              => $shop->getEndSlot($startTime, $workingHour->slot_duration),
+            'end_time'              => $shop->getEndSlot($startTime, $minutes),
             'device_id'             => $data['device_id'] ?? null,
             'charges'               => $data['charges'] ?? 0,
             'services'              => $data['services'] ?? [],
