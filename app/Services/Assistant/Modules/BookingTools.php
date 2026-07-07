@@ -2,6 +2,7 @@
 namespace App\Services\Assistant\Modules;
 
 use App\Models\Booking;
+use App\Services\Assistant\Support\AssistantActions;
 use App\Services\Assistant\Support\MutatingTool;
 use App\Services\Assistant\Support\ToolCall;
 use App\Services\Booking\BookingCreator;
@@ -18,12 +19,14 @@ class BookingTools extends MutatingTool
     public function __construct(
         protected BookingCreator $creator,
         protected BookingStatusService $status,
+        protected AssistantActions $actions,
     ) {}
 
     protected function permissions(): array
     {
         return [
             'find_booking'          => 'bookings.view',
+            'open_booking'          => 'bookings.view',
             'create_booking'        => 'bookings.create',
             'reschedule_booking'    => 'bookings.update',
             'update_booking_status' => 'bookings.update',
@@ -36,6 +39,7 @@ class BookingTools extends MutatingTool
     {
         return match ($call->tool) {
             'find_booking'          => $this->find($call),
+            'open_booking'          => $this->open($call),
             'create_booking'        => $this->create($call),
             'reschedule_booking'    => $this->reschedule($call),
             'update_booking_status' => $this->setStatus($call),
@@ -71,6 +75,17 @@ class BookingTools extends MutatingTool
             'status' => strtolower($booking->getRawOriginal('status')),
             'charges' => (float) $booking->charges,
         ];
+    }
+
+    /** Resolve a booking and hand the chat UI a directive to open its detail page. */
+    private function open(ToolCall $call): array
+    {
+        $booking = $this->resolveBooking($call);
+        if (! $booking) {
+            return $this->notFound('booking');
+        }
+        $this->actions->navigate("/booking/{$booking->id}");
+        return ['opening' => true, 'reference' => $booking->booking_reference];
     }
 
     private function cancel(ToolCall $call): array
@@ -177,6 +192,7 @@ class BookingTools extends MutatingTool
         $ref = ['reference' => ['type' => 'string', 'description' => 'Booking reference, e.g. BK00042']];
         return [
             ['name' => 'find_booking', 'description' => 'Look up one booking by its reference.', 'input_schema' => ['type' => 'object', 'properties' => $ref, 'required' => ['reference']]],
+            ['name' => 'open_booking', 'description' => 'Open a booking\'s detail page for the owner. Use ONLY after the owner agrees to view it. Pass its reference.', 'input_schema' => ['type' => 'object', 'properties' => $ref, 'required' => ['reference']]],
             ['name' => 'create_booking', 'description' => 'Create a booking. Requires customer_name, date (YYYY-MM-DD) and start_time (HH:MM); services is a list of service titles. Call with confirmed:true only after the owner confirms.', 'input_schema' => ['type' => 'object', 'properties' => [
                 'customer_name' => ['type' => 'string'],
                 'customer_whatsapp' => ['type' => 'string'],
