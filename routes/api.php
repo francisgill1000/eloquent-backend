@@ -56,10 +56,13 @@ Route::delete('/shops/{shop}/staff/{staff}/time-off/{timeOff}',  [\App\Http\Cont
 Route::post('/shops/{shop}/favourite', [GuestFavouriteController::class, 'toggle']);
 Route::get('/shops/{shop}/customers/lookup', [ShopCustomerController::class, 'lookup']);
 Route::get('/shops/{shop}/customers', [ShopCustomerController::class, 'index']);
+Route::get('/shops/{shop}/customers/{customer}', [ShopCustomerController::class, 'show']);
+Route::patch('/shops/{shop}/customers/{customer}', [ShopCustomerController::class, 'update']);
 Route::post('/shops/{shop}/book', [BookingController::class, 'bookSlot']);
 Route::get('/booking/{id}', [BookingController::class, 'show']);
 Route::put('/booking/{id}', [BookingController::class, 'update']);
 Route::post('/booking/{id}/mark-reminder-sent', [BookingController::class, 'markReminderSent']);
+Route::patch('/booking/{id}/notes', [BookingController::class, 'updateNotes']);
 Route::get('/booking/{booking}/invoice', [\App\Http\Controllers\BookingInvoiceController::class, 'show']);
 Route::get('/booking/{booking}/invoice/pdf', [\App\Http\Controllers\BookingInvoiceController::class, 'pdf']);
 Route::post('/booking/{booking}/invoice/pay', [\App\Http\Controllers\BookingInvoiceController::class, 'pay']);
