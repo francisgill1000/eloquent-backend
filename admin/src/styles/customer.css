@@ -392,26 +392,30 @@
 .ba-switch.none .ba-switch-knob::before { animation: none; background: none; }
 .ba-switch-dot { width: 13px; height: 13px; border-radius: 50%; background: #04140f; box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4); }
 
-/* "Drag me" hint — chevrons that bounce toward where the knob can slide. They
-   live inside the knob, so they ride along as it moves, and fade out on drag. */
+/* "Drag me" hint — a staggered stack of chevrons flowing toward where the knob
+   can slide. Lives inside the knob, so it rides along as it moves and fades on
+   drag. The stagger (per-chevron delay) makes it read as motion, not a static ↓. */
 .ba-switch-hint {
-  position: absolute; left: 50%; z-index: 4; pointer-events: none;
-  color: color-mix(in srgb, var(--stage) 78%, white 10%);
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  position: absolute; left: 50%; transform: translateX(-50%); z-index: 4;
+  display: flex; flex-direction: column; align-items: center; pointer-events: none;
+  color: color-mix(in srgb, var(--stage) 82%, white 12%);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
 }
-.ba-switch-hint.down { top: 100%; animation: ba-hint-down 1.4s ease-in-out infinite; }
-.ba-switch-hint.up { bottom: 100%; animation: ba-hint-up 1.4s ease-in-out infinite; }
+.ba-switch-hint.down { top: calc(100% + 3px); }
+.ba-switch-hint.up { bottom: calc(100% + 3px); flex-direction: column-reverse; }
 .ba-switch-hint.up svg { transform: rotate(180deg); }
-@keyframes ba-hint-down {
-  0%, 100% { transform: translate(-50%, 1px); opacity: .3; }
-  50% { transform: translate(-50%, 7px); opacity: .95; }
-}
-@keyframes ba-hint-up {
-  0%, 100% { transform: translate(-50%, -1px); opacity: .3; }
-  50% { transform: translate(-50%, -7px); opacity: .95; }
+.ba-switch-hint svg { display: block; margin-block: -7px; animation: ba-chev 1.3s ease-in-out infinite; }
+/* Cascade the pulse along the drag direction: the chevron nearest the knob
+   lights first, then the next, so the bright spot travels away from the knob. */
+.ba-switch-hint svg:nth-child(1) { animation-delay: 0s; }
+.ba-switch-hint svg:nth-child(2) { animation-delay: .16s; }
+.ba-switch-hint svg:nth-child(3) { animation-delay: .32s; }
+@keyframes ba-chev {
+  0%, 100% { opacity: .22; }
+  50% { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ba-switch-hint { animation: none; opacity: .7; }
+  .ba-switch-hint svg { animation: none; opacity: .75; }
 }
 /* Cancelled reads best as a crisp white X on the red knob (classic "stop"),
    with a slightly deeper red knob + glow for extra presence. */
