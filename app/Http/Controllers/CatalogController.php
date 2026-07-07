@@ -38,6 +38,8 @@ class CatalogController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
             'price' => ['required', 'numeric', 'min:0'],
+            'duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:1440'],
+            'buffer_minutes' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:480'],
             'image' => ['nullable'],
             'parent_category_id' => [
                 'sometimes', 'nullable', 'integer',
@@ -84,6 +86,8 @@ class CatalogController extends Controller
             'title' => ['sometimes', 'nullable', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'price' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:1440'],
+            'buffer_minutes' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:480'],
             'image' => ['sometimes', 'nullable'],
             'parent_category_id' => [
                 'sometimes', 'nullable', 'integer',
