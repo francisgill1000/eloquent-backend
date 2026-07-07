@@ -679,6 +679,9 @@
 .conv-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conv-time { font-size: 12px; color: var(--text-3); flex: 0 0 auto; }
 .conv-row .c-icon-btn { flex: 0 0 auto; }
+.conv-more { align-self: center; margin: 6px 16px 4px; padding: 9px 20px; border-radius: var(--r-pill); background: var(--mint-soft); border: 1px solid var(--border-mint); color: var(--mint-300); font-size: 13px; font-weight: 700; cursor: pointer; }
+.conv-more:disabled { opacity: 0.6; cursor: default; }
+.conv-more:active { transform: scale(0.98); }
 
 /* Thread (full-screen, glass) */
 .c-thread-screen { height: 100dvh; position: relative; background: radial-gradient(ellipse 80% 60% at 50% -10%, #0e1a16, #05080a 70%); }

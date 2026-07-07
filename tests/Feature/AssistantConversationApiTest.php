@@ -95,6 +95,36 @@ class AssistantConversationApiTest extends TestCase
         $this->getJson('/api/shop/assistant/conversations')->assertOk()->assertJsonCount(0, 'conversations');
     }
 
+    public function test_conversation_list_paginates_and_searches(): void
+    {
+        Storage::fake('local');
+        $shop = $this->authShop('1001');
+        // 25 plain threads + one searchable one (created directly; no Claude round-trips).
+        for ($i = 0; $i < 25; $i++) {
+            Conversation::create(['shop_id' => $shop->id, 'title' => "Thread {$i}"]);
+        }
+        Conversation::create(['shop_id' => $shop->id, 'title' => 'Special revenue']);
+
+        // Page 1: 20 items, more to come.
+        $this->getJson('/api/shop/assistant/conversations')
+            ->assertOk()
+            ->assertJsonCount(20, 'conversations')
+            ->assertJsonPath('has_more', true);
+
+        // Page 2: the remaining 6, no more.
+        $this->getJson('/api/shop/assistant/conversations?page=2')
+            ->assertOk()
+            ->assertJsonCount(6, 'conversations')
+            ->assertJsonPath('has_more', false);
+
+        // Server-side search finds the one matching thread across all pages.
+        $this->getJson('/api/shop/assistant/conversations?q=revenue')
+            ->assertOk()
+            ->assertJsonCount(1, 'conversations')
+            ->assertJsonPath('conversations.0.title', 'Special revenue')
+            ->assertJsonPath('has_more', false);
+    }
+
     public function test_rename_and_delete_are_shop_scoped(): void
     {
         Storage::fake('local');
