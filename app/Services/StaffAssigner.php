@@ -87,6 +87,9 @@ class StaffAssigner
                 $next->fresh()->toArray()
             );
 
+            // Tell the waitlisted customer their slot is confirmed (failure-isolated).
+            app(\App\Services\Booking\WaitlistNotifier::class)->notifyPromoted($next->fresh());
+
             $promoted[] = $next;
         }
 
