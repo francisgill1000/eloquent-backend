@@ -59,6 +59,7 @@ Route::get('/shops/{shop}/customers', [ShopCustomerController::class, 'index']);
 Route::get('/shops/{shop}/customers/{customer}', [ShopCustomerController::class, 'show']);
 Route::patch('/shops/{shop}/customers/{customer}', [ShopCustomerController::class, 'update']);
 Route::post('/shops/{shop}/book', [BookingController::class, 'bookSlot']);
+Route::post('/shops/{shop}/book-recurring', [BookingController::class, 'bookRecurring']);
 Route::get('/booking/{id}', [BookingController::class, 'show']);
 Route::put('/booking/{id}', [BookingController::class, 'update']);
 Route::post('/booking/{id}/mark-reminder-sent', [BookingController::class, 'markReminderSent']);

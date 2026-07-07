@@ -173,6 +173,50 @@ class BookingController extends Controller
         return response()->json(['data' => $booking->fresh()]);
     }
 
+    /**
+     * Create a recurring series of bookings (weekly regulars). Each occurrence
+     * runs through the normal booking pipeline (staff assignment / queue).
+     */
+    public function bookRecurring(Request $request, Shop $shop)
+    {
+        if (!$request->header('X-Device-Id')) {
+            return response()->json(['message' => 'Device ID missing'], 422);
+        }
+
+        $data = $request->validate([
+            'date'              => ['required', 'date'],
+            'start_time'        => ['required'],
+            'services'          => ['required', 'array', 'min:1'],
+            'charges'           => ['nullable', 'numeric', 'min:0'],
+            'customer_name'     => ['nullable', 'string', 'max:255'],
+            'customer_whatsapp' => ['nullable', 'string', 'max:32'],
+            'frequency'         => ['required', 'in:weekly,biweekly,monthly'],
+            'occurrences'       => ['required', 'integer', 'min:2', 'max:52'],
+        ]);
+
+        $result = app(\App\Services\Booking\RecurringBookingService::class)->createSeries(
+            $shop,
+            [
+                'date'              => Carbon::parse($data['date'])->format('Y-m-d'),
+                'start_time'        => $data['start_time'],
+                'services'          => $data['services'],
+                'charges'           => $data['charges'] ?? 0,
+                'customer_name'     => $data['customer_name'] ?? null,
+                'customer_whatsapp' => $data['customer_whatsapp'] ?? null,
+                'device_id'         => $request->header('X-Device-Id'),
+            ],
+            $data['frequency'],
+            (int) $data['occurrences'],
+        );
+
+        return response()->json([
+            'message'   => 'Recurring series created',
+            'series_id' => $result['series_id'],
+            'created'   => $result['created'],
+            'skipped'   => $result['skipped'],
+        ], 201);
+    }
+
     public function show($id)
     {
         $booking = Booking::with(['shop', 'staff:id,name,is_active', 'invoice'])->find($id);
