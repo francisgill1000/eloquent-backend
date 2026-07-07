@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, useCallback, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
@@ -8,6 +8,7 @@ import {
 import { getStaff } from '@/lib/shops';
 import { getCustomer, updateCustomer, type CustomerDetail } from '@/lib/customers';
 import { statusKind } from '@/lib/calendar';
+import { dragIndexFromPointer, snapIndex } from '@/lib/statusKnob';
 import type { Booking, StaffMember } from '@/types';
 
 // Crisp, bold marks for the switch knob (no inner circle — the knob is the
@@ -17,6 +18,16 @@ const KnobCheck = () => (
 );
 const KnobX = () => (
   <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" /></svg>
+);
+// Down-pointing chevron for the "drag me" hint (rotated 180° via CSS for the up
+// hint). Rendered as a staggered stack of three so the affordance reads clearly.
+const HintChevron = () => (
+  <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+);
+const HintStack = ({ dir }: { dir: 'up' | 'down' }) => (
+  <span className={`ba-switch-hint ${dir}`} aria-hidden="true">
+    <HintChevron /><HintChevron /><HintChevron />
+  </span>
 );
 
 // Vertical sliding-knob switch config — order = top→bottom on the rail.
@@ -54,6 +65,10 @@ export default function BookingAction() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  // Live fractional knob position while dragging the status switch (null = idle).
+  const [dragPos, setDragPos] = useState<number | null>(null);
+  const railTopRef = useRef(0); // .ba-switch top captured at pointer-down
 
   // Intake notes (per-visit) + the customer's durable notes/preferences.
   const [visitNotes, setVisitNotes] = useState('');
@@ -193,6 +208,40 @@ export default function BookingAction() {
   const switchIndex = SWITCH_OPTS.findIndex((o) => o.label.toLowerCase() === status.toLowerCase());
   const switchActive = switchIndex >= 0 ? switchIndex : 0;
   const switchColor = switchIndex >= 0 ? SWITCH_OPTS[switchIndex].color : 'var(--text-4)';
+  // While dragging, the knob/fill follow the pointer's fractional position.
+  const dragging = dragPos !== null;
+  const knobPos = dragging ? dragPos : switchActive;
+
+  // "Drag me" affordance: bounce chevrons toward where the knob can go, but only
+  // while the booking is still live (Queued/Booked). Completed/Cancelled are
+  // terminal, so no hint. It fades the moment a drag starts.
+  const kind = statusKind(status);
+  const showHint = !dragging && switchIndex >= 0 && (kind === 'queued' || kind === 'booked');
+  const hintDown = showHint; // forward is always available from Queued and Booked
+  const hintUp = showHint && kind === 'booked'; // Booked can also slide back up
+
+  // Drag-to-set: grab the knob and slide it up/down the rail. On release it snaps
+  // to the nearest status and commits via updateStatus (which confirms first), so a
+  // cancelled confirm springs the knob back to the real status. Uses Pointer Events
+  // for one mouse+touch path; setPointerCapture keeps tracking through fast moves.
+  const onKnobDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (busy) return;
+    const rail = e.currentTarget.closest('.ba-switch');
+    railTopRef.current = rail ? rail.getBoundingClientRect().top : 0;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragPos(switchActive);
+  };
+  const onKnobMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragPos === null) return;
+    setDragPos(dragIndexFromPointer(e.clientY, railTopRef.current));
+  };
+  const onKnobUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragPos === null) return;
+    const idx = snapIndex(dragPos);
+    setDragPos(null);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    if (idx !== switchIndex) void updateStatus(SWITCH_OPTS[idx].label);
+  };
 
   // Invoice state is driven off status (the source of truth): payable only when
   // issued/overdue — never paid or cancelled.
@@ -272,8 +321,8 @@ export default function BookingAction() {
         </div>
 
         {/* Sliding-knob status switch */}
-        <div className={`ba-switch ${statusKind(status)}${switchIndex < 0 ? ' none' : ''}`}
-          style={{ '--active': switchActive, '--stage': switchColor } as CSSProperties}>
+        <div className={`ba-switch ${statusKind(status)}${switchIndex < 0 ? ' none' : ''}${dragging ? ' dragging' : ''}`}
+          style={{ '--active': knobPos, '--stage': switchColor } as CSSProperties}>
           <div className="ba-switch-opts">
             {SWITCH_OPTS.map((o) => {
               const on = o.label.toLowerCase() === status.toLowerCase();
@@ -291,7 +340,12 @@ export default function BookingAction() {
           <div className="ba-switch-rail">
             <div className="ba-switch-fill" />
           </div>
-          <div className="ba-switch-knob">
+          <div className="ba-switch-knob" role="slider" aria-label="Drag to set status"
+            aria-valuemin={0} aria-valuemax={SWITCH_OPTS.length - 1} aria-valuenow={switchActive}
+            aria-valuetext={switchIndex >= 0 ? status : undefined}
+            onPointerDown={onKnobDown} onPointerMove={onKnobMove} onPointerUp={onKnobUp} onPointerCancel={onKnobUp}>
+            {hintUp && <HintStack dir="up" />}
+            {hintDown && <HintStack dir="down" />}
             {status.toLowerCase() === 'completed' ? <KnobCheck />
               : status.toLowerCase() === 'cancelled' ? <KnobX />
               : status.toLowerCase() === 'queued' ? <Icons.Clock size={18} />
