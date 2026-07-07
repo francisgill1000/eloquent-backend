@@ -4,6 +4,7 @@ namespace App\Services\Booking;
 use App\Models\Booking;
 use App\Models\Shop;
 use App\Models\ShopCustomer;
+use App\Services\ResourceAssigner;
 use App\Services\StaffAssigner;
 use Carbon\Carbon;
 
@@ -29,6 +30,16 @@ class BookingCreator
             $shop->id, $data['customer_whatsapp'] ?? null, $data['customer_name'] ?? null,
         );
 
+        // Resource assignment: a booking is only "booked" when a free staff AND
+        // (if a service requires one) a free resource are both available.
+        $resourceAssigner = app(ResourceAssigner::class);
+        $requiredType = $resourceAssigner->requiredType($shop->id, $data['services'] ?? []);
+        $resource = ($staff && $requiredType)
+            ? $resourceAssigner->pickResourceForSlot($shop->id, $date, $startTime, $requiredType)
+            : null;
+
+        $confirmed = $staff && ($requiredType === null || $resource !== null);
+
         // Duration honours per-service duration + buffer when configured, else
         // falls back to the shop's global slot length (legacy behaviour).
         $minutes = app(BookingDurationService::class)->computeMinutes(
@@ -36,10 +47,11 @@ class BookingCreator
         );
 
         return Booking::create([
-            'status'                => $staff ? 'booked' : 'queued',
+            'status'                => $confirmed ? 'booked' : 'queued',
             'shop_id'               => $shop->id,
             'shop_customer_id'      => $shopCustomer?->id,
-            'staff_id'              => $staff?->id,
+            'staff_id'              => $confirmed ? $staff?->id : null,
+            'resource_id'           => $confirmed ? $resource?->id : null,
             'date'                  => $date,
             'start_time'            => $startTime,
             'end_time'              => $shop->getEndSlot($startTime, $minutes),

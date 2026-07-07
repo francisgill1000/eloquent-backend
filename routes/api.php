@@ -47,6 +47,12 @@ Route::put('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController
 Route::delete('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'destroy']);
 Route::post('/booking/{booking}/reassign', [\App\Http\Controllers\StaffController::class, 'reassign']);
 
+// Bookable resources (rooms / chairs / machines) — owner CRUD, tenant-scoped.
+Route::get   ('/shops/{shop}/resources',             [\App\Http\Controllers\ResourceController::class, 'index']);
+Route::post  ('/shops/{shop}/resources',             [\App\Http\Controllers\ResourceController::class, 'store']);
+Route::put   ('/shops/{shop}/resources/{resource}',  [\App\Http\Controllers\ResourceController::class, 'update']);
+Route::delete('/shops/{shop}/resources/{resource}',  [\App\Http\Controllers\ResourceController::class, 'destroy']);
+
 // Staff-level availability — weekly schedules + time-off (tenant-scoped to shop/staff).
 Route::get   ('/shops/{shop}/staff/{staff}/schedule',            [\App\Http\Controllers\StaffAvailabilityController::class, 'schedule']);
 Route::put   ('/shops/{shop}/staff/{staff}/schedule',            [\App\Http\Controllers\StaffAvailabilityController::class, 'setSchedule']);
