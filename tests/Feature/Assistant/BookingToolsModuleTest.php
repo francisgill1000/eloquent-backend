@@ -5,6 +5,7 @@ use App\Models\Booking;
 use App\Models\Shop;
 use App\Models\Staff;
 use App\Services\Assistant\Modules\BookingTools;
+use App\Services\Assistant\Support\AssistantActions;
 use App\Services\Assistant\Support\ToolCall;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -71,5 +72,39 @@ class BookingToolsModuleTest extends TestCase
         $this->booking($other, 'BK09999');
         $out = app(BookingTools::class)->run($this->toolCall($shop, 'cancel_booking', ['reference' => 'BK09999'], true));
         $this->assertSame('not_found', $out['error']); // scoped to acting shop
+    }
+
+    public function test_open_booking_records_navigation_and_returns_opening(): void
+    {
+        $shop = $this->shop();
+        $b = $this->booking($shop, 'BK00042');
+        $actions = app(AssistantActions::class);
+
+        $out = app(BookingTools::class)->run($this->toolCall($shop, 'open_booking', ['reference' => 'BK00042'], false));
+
+        $this->assertTrue($out['opening']);
+        $this->assertSame('BK00042', $out['reference']);
+        $this->assertSame(['type' => 'navigate', 'route' => "/booking/{$b->id}"], $actions->pending());
+    }
+
+    public function test_open_unknown_booking_is_not_found_and_records_nothing(): void
+    {
+        $shop = $this->shop();
+        $actions = app(AssistantActions::class);
+
+        $out = app(BookingTools::class)->run($this->toolCall($shop, 'open_booking', ['reference' => 'NOPE'], false));
+
+        $this->assertSame('not_found', $out['error']);
+        $this->assertNull($actions->pending());
+    }
+
+    public function test_open_booking_from_another_shop_is_not_found(): void
+    {
+        $shop = $this->shop();
+        $other = Shop::create(['name' => 'O', 'shop_code' => '8298', 'pin' => '0', 'status' => 'active', 'category_id' => 11]);
+        $this->booking($other, 'BK08888');
+
+        $out = app(BookingTools::class)->run($this->toolCall($shop, 'open_booking', ['reference' => 'BK08888'], false));
+        $this->assertSame('not_found', $out['error']);
     }
 }
