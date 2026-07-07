@@ -192,7 +192,7 @@ class BookingTools extends MutatingTool
         $ref = ['reference' => ['type' => 'string', 'description' => 'Booking reference, e.g. BK00042']];
         return [
             ['name' => 'find_booking', 'description' => 'Look up one booking by its reference.', 'input_schema' => ['type' => 'object', 'properties' => $ref, 'required' => ['reference']]],
-            ['name' => 'open_booking', 'description' => 'Open a booking\'s detail page for the owner. Use ONLY after the owner agrees to view it. Pass its reference.', 'input_schema' => ['type' => 'object', 'properties' => $ref, 'required' => ['reference']]],
+            ['name' => 'open_booking', 'description' => 'Open/show a booking\'s detail page for the owner in the app (this redirects them to it). Use whenever the owner asks to open, show, view, see, or be taken/redirected to a booking. Pass its reference — reuse the one already mentioned in the conversation if you have it.', 'input_schema' => ['type' => 'object', 'properties' => $ref, 'required' => ['reference']]],
             ['name' => 'create_booking', 'description' => 'Create a booking. Requires customer_name, date (YYYY-MM-DD) and start_time (HH:MM); services is a list of service titles. Call with confirmed:true only after the owner confirms.', 'input_schema' => ['type' => 'object', 'properties' => [
                 'customer_name' => ['type' => 'string'],
                 'customer_whatsapp' => ['type' => 'string'],
