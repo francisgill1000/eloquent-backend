@@ -37,3 +37,30 @@ export async function markReminderSent(id: number): Promise<void> {
 export async function markInvoicePaid(invoiceId: number): Promise<void> {
   await api.post(`/invoice/${invoiceId}/mark-paid`);
 }
+
+export async function updateBookingNotes(id: number, notes: string): Promise<void> {
+  await api.patch(`/booking/${id}/notes`, { notes });
+}
+
+export type RecurringPayload = {
+  date: string;
+  start_time: string;
+  services: Array<Record<string, unknown>>;
+  charges?: number;
+  customer_name?: string;
+  customer_whatsapp?: string;
+  frequency: 'weekly' | 'biweekly' | 'monthly';
+  occurrences: number;
+};
+
+export async function bookRecurring(
+  shopId: number,
+  payload: RecurringPayload,
+): Promise<{ series_id: string; created: Booking[]; skipped: Array<{ date: string; reason: string }> }> {
+  const { data } = await api.post(`/shops/${shopId}/book-recurring`, payload);
+  return {
+    series_id: data?.series_id,
+    created: Array.isArray(data?.created) ? data.created : [],
+    skipped: Array.isArray(data?.skipped) ? data.skipped : [],
+  };
+}

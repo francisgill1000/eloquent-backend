@@ -137,6 +137,9 @@ export default function Staff() {
                           </span>
                         </td>
                         <td className="c-dt-act">
+                          <button className="c-icon-btn" aria-label="Schedule" title="Schedule & time off" onClick={() => navigate(`/staff/${m.id}/availability`)}>
+                            <Icons.Calendar size={15} />
+                          </button>
                           <button className="c-icon-btn" aria-label="Rename" disabled={busyId === m.id} onClick={() => void rename(m)}>
                             <Icons.Edit size={15} />
                           </button>
@@ -164,6 +167,9 @@ export default function Staff() {
                     </span>
                   </div>
                   <div className="c-staff-actions">
+                    <button className="c-icon-btn" aria-label="Schedule" title="Schedule & time off" onClick={() => navigate(`/staff/${m.id}/availability`)}>
+                      <Icons.Calendar size={15} />
+                    </button>
                     <button className="c-icon-btn" aria-label="Rename" disabled={busyId === m.id} onClick={() => void rename(m)}>
                       <Icons.Edit size={15} />
                     </button>
