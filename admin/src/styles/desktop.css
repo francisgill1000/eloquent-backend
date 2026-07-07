@@ -864,13 +864,16 @@
   /* ── Subscribe / paywall (desktop): two plan cards side-by-side in a
         comfortably-narrow, LEFT-aligned column so the heading sits on the left
         and the cards align beneath it. ── */
-  .c-subscribe .c-page-head { max-width: 760px; }
+  .c-subscribe .c-page-head { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; text-align: left; }
   .c-subscribe .svc-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
     align-items: start;
+    width: 100%;
     max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
     padding: 0 16px;
   }
   .c-subscribe .svc-grid .c-svc-card {
