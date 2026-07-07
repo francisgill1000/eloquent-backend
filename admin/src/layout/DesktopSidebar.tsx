@@ -7,10 +7,10 @@ import { navVisible, type Module } from '@/lib/modules';
 /**
  * Persistent desktop navigation rail. Rendered by AppShell for every
  * authenticated screen but only *visible* at ≥1024px (see desktop.css). It
- * replaces the bottom tab bar on large screens and surfaces the screens that
- * live under Settings on mobile (Services / Staff / Working Hours) directly,
- * since desktop has the vertical room. Glass styling matches the app's other
- * frosted surfaces so the ambient background shows through.
+ * replaces the bottom tab bar on large screens. Services / Staff / Working
+ * Hours are reached through Settings (as on mobile), so they aren't top-level
+ * rail items. Glass styling matches the app's other frosted surfaces so the
+ * ambient background shows through.
  */
 type NavItem = { label: string; to: string; icon: keyof typeof Icons; end?: boolean; modules: Module[] };
 
@@ -25,9 +25,8 @@ const BASE_NAV: NavItem[] = [
   // WhatsApp Chats — hidden while WHATSAPP_ENABLED is off.
   { label: 'Chats', to: '/chats', icon: 'Chat', modules: BOTH },
   { label: 'Business Hunt', to: '/leads', icon: 'Search', modules: ['leads'] },
-  { label: 'Services', to: '/services', icon: 'Grid', modules: ['bookings'] },
-  { label: 'Staff', to: '/staff', icon: 'Users', modules: ['bookings'] },
-  { label: 'Working Hours', to: '/working-hours', icon: 'Clock', modules: ['bookings'] },
+  // Services / Staff / Working Hours are reached via Settings (like on mobile),
+  // so they're intentionally not surfaced as top-level sidebar items.
   { label: 'Settings', to: '/settings', icon: 'Sliders', modules: BOTH },
   { label: 'Profile', to: '/profile', icon: 'Store', modules: BOTH },
 ];
