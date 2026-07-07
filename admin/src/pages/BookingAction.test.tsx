@@ -62,6 +62,33 @@ describe('BookingAction', () => {
     await waitFor(() => expect(setStatus).toHaveBeenCalledWith(3, 'Completed'));
   });
 
+  it('shows both drag hints for a live (Booked) booking', async () => {
+    vi.spyOn(bookingsLib, 'getBooking').mockResolvedValue({ id: 3, status: 'Booked', customer: { name: 'Sam' }, shop: { id: 7 } });
+    vi.spyOn(shopsLib, 'getStaff').mockResolvedValue([]);
+
+    const { container } = setup();
+    await screen.findByText('Sam');
+
+    expect(container.querySelector('.ba-switch-hint.down')).toBeInTheDocument();
+    expect(container.querySelector('.ba-switch-hint.up')).toBeInTheDocument();
+  });
+
+  it('shows only the down hint at Queued and none once Completed', async () => {
+    vi.spyOn(shopsLib, 'getStaff').mockResolvedValue([]);
+
+    vi.spyOn(bookingsLib, 'getBooking').mockResolvedValue({ id: 3, status: 'Queued', customer: { name: 'Sam' }, shop: { id: 7 } });
+    const queued = setup();
+    await screen.findByText('Sam');
+    expect(queued.container.querySelector('.ba-switch-hint.down')).toBeInTheDocument();
+    expect(queued.container.querySelector('.ba-switch-hint.up')).not.toBeInTheDocument();
+    queued.unmount();
+
+    vi.spyOn(bookingsLib, 'getBooking').mockResolvedValue({ id: 3, status: 'Completed', customer: { name: 'Sam' }, shop: { id: 7 } });
+    const done = setup();
+    await screen.findByText('Sam');
+    expect(done.container.querySelector('.ba-switch-hint')).not.toBeInTheDocument();
+  });
+
   it('does not commit when released back on the current status', async () => {
     vi.spyOn(bookingsLib, 'getBooking').mockResolvedValue({ id: 3, status: 'Booked', customer: { name: 'Sam' }, shop: { id: 7 } });
     vi.spyOn(shopsLib, 'getStaff').mockResolvedValue([]);
