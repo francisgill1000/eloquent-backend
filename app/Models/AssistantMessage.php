@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Storage;
 
 class AssistantMessage extends Model
 {
-    protected $fillable = ['shop_id', 'role', 'content', 'audio_path', 'audio_mime'];
+    protected $fillable = ['shop_id', 'conversation_id', 'role', 'content', 'audio_path', 'audio_mime'];
 
     protected static function booted(): void
     {
@@ -22,5 +22,10 @@ class AssistantMessage extends Model
     public function shop(): BelongsTo
     {
         return $this->belongsTo(Shop::class);
+    }
+
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(Conversation::class);
     }
 }
