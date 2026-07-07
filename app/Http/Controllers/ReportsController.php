@@ -39,6 +39,12 @@ class ReportsController extends Controller
         return response()->json($this->aggregator->timePatternsSummary($shopId, $from, $to));
     }
 
+    public function insights(Request $request)
+    {
+        [$shopId, $from, $to] = $this->validated($request);
+        return response()->json($this->aggregator->insightsSummary($shopId, $from, $to));
+    }
+
     public function export(Request $request)
     {
         $request->validate([
