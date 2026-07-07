@@ -22,7 +22,6 @@ const ALL_OPTIONS: Option[] = [
   { label: 'Services', sub: 'Add or edit what you offer', to: '/services', icon: 'Grid', modules: ['bookings'] },
   { label: 'Staff', sub: 'Add & manage your team', to: '/staff', icon: 'Users', modules: ['bookings'] },
   { label: 'Recurring booking', sub: 'Set up a regular weekly or monthly appointment', to: '/bookings/recurring', icon: 'Calendar', modules: ['bookings'] },
-  { label: 'Rooms & Resources', sub: 'Rooms, chairs & equipment for bookings', to: '/resources', icon: 'Store', modules: ['bookings'] },
   { label: 'Booking notifications', sub: 'Reminders, reviews & waitlist messages', to: '/settings/notifications', icon: 'Bell', modules: ['bookings'] },
   { label: 'Reviews', sub: 'Customer ratings & feedback', to: '/reviews', icon: 'Heart', modules: ['bookings'] },
   { label: 'Insights', sub: 'No-show, repeat & rating analytics', to: '/insights', icon: 'Chart', modules: ['bookings'] },

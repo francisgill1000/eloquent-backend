@@ -27,9 +27,6 @@ class BookingStatusService
         $updateData = ['status' => $newStatus];
         if ($vacates) {
             $updateData['staff_id'] = null;
-            // Free any held resource (room/chair/machine) so the slot's resource
-            // becomes available to the waitlist sweep below.
-            $updateData['resource_id'] = null;
         }
         $booking->update($updateData);
 

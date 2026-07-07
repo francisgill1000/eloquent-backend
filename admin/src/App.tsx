@@ -24,7 +24,6 @@ import CategoryEdit from '@/pages/CategoryEdit';
 import Staff from '@/pages/Staff';
 import StaffAvailability from '@/pages/StaffAvailability';
 import RecurringBooking from '@/pages/RecurringBooking';
-import Resources from '@/pages/Resources';
 import Reviews from '@/pages/Reviews';
 import Insights from '@/pages/Insights';
 import BookingNotifications from '@/pages/BookingNotifications';
@@ -75,7 +74,6 @@ export default function App() {
           <Route path="/staff" element={<Staff />} />
           <Route path="/staff/:id/availability" element={<StaffAvailability />} />
           <Route path="/bookings/recurring" element={<RecurringBooking />} />
-          <Route path="/resources" element={<Resources />} />
           <Route path="/reviews" element={<Reviews />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/settings/notifications" element={<BookingNotifications />} />

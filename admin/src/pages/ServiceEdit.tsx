@@ -12,7 +12,6 @@ type Form = {
   price: string;
   duration_minutes: string;
   buffer_minutes: string;
-  requires_resource_type: string;
 };
 
 export default function ServiceEdit() {
@@ -21,7 +20,7 @@ export default function ServiceEdit() {
   const navigate = useNavigate();
   const [form, setForm] = useState<Form>({
     title: '', description: '', price: '',
-    duration_minutes: '', buffer_minutes: '', requires_resource_type: '',
+    duration_minutes: '', buffer_minutes: '',
   });
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -48,7 +47,6 @@ export default function ServiceEdit() {
           price: String(d.price ?? ''),
           duration_minutes: x.duration_minutes != null ? String(x.duration_minutes) : '',
           buffer_minutes: x.buffer_minutes != null ? String(x.buffer_minutes) : '',
-          requires_resource_type: typeof x.requires_resource_type === 'string' ? x.requires_resource_type : '',
         });
         if (d.parent_category_id != null) setParentCategoryId(Number(d.parent_category_id));
       })
@@ -90,7 +88,6 @@ export default function ServiceEdit() {
         parent_category_id: parentCategoryId,
         duration_minutes: form.duration_minutes.trim() ? Number(form.duration_minutes) : null,
         buffer_minutes: form.buffer_minutes.trim() ? Number(form.buffer_minutes) : 0,
-        requires_resource_type: form.requires_resource_type.trim() || null,
       };
       if (isNew) await createCatalog(payload);
       else await updateCatalog(Number(id), payload);
@@ -182,12 +179,6 @@ export default function ServiceEdit() {
         <div className="c-input-row">
           <input id="buffer" type="number" inputMode="numeric" min="0" step="5" placeholder="e.g. 15" value={form.buffer_minutes}
             onChange={(e) => { change('buffer_minutes', e.target.value); setError(''); }} />
-        </div>
-
-        <label className="c-field-label" htmlFor="resType">Requires resource (optional)</label>
-        <div className="c-input-row">
-          <input id="resType" type="text" placeholder="e.g. room — must match a resource type; blank if none" value={form.requires_resource_type}
-            onChange={(e) => { change('requires_resource_type', e.target.value); setError(''); }} />
         </div>
 
         <button className="c-btn c-btn-block" disabled={saving} onClick={() => void handleSave()}>

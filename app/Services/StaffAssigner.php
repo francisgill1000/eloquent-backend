@@ -75,19 +75,8 @@ class StaffAssigner
             $staff = $this->pickStaffForSlot($shopId, $date, $startTime);
             if (!$staff) break;
 
-            // Resource-aware: if the queued booking's services require a resource,
-            // it can only be promoted when a free resource is also available.
-            $resourceAssigner = app(ResourceAssigner::class);
-            $requiredType = $resourceAssigner->requiredType($shopId, $next->services);
-            $resource = null;
-            if ($requiredType) {
-                $resource = $resourceAssigner->pickResourceForSlot($shopId, $date, $startTime, $requiredType);
-                if (!$resource) break; // resource still busy — wait for it to free
-            }
-
             $next->update([
                 'staff_id' => $staff->id,
-                'resource_id' => $resource?->id,
                 'status' => 'booked',
             ]);
 
