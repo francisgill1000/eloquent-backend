@@ -16,6 +16,12 @@ class ShopCustomer extends Model
         'name',
         'whatsapp',
         'whatsapp_normalized',
+        'notes',
+        'preferences',
+    ];
+
+    protected $casts = [
+        'preferences' => 'array',
     ];
 
     public function shop(): BelongsTo

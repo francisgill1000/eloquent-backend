@@ -154,6 +154,25 @@ class BookingController extends Controller
         }
     }
 
+    /**
+     * Set a booking's per-visit intake notes.
+     */
+    public function updateNotes(Request $request, $id)
+    {
+        $booking = Booking::find($id);
+        if (!$booking) {
+            return response()->json(['message' => 'Booking not found'], 404);
+        }
+
+        $data = $request->validate([
+            'notes' => ['present', 'nullable', 'string', 'max:5000'],
+        ]);
+
+        $booking->update(['notes' => $data['notes']]);
+
+        return response()->json(['data' => $booking->fresh()]);
+    }
+
     public function show($id)
     {
         $booking = Booking::with(['shop', 'staff:id,name,is_active', 'invoice'])->find($id);

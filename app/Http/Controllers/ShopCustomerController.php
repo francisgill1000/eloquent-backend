@@ -51,6 +51,46 @@ class ShopCustomerController extends Controller
     }
 
     /**
+     * Customer detail incl. notes, preferences, and a small booking summary.
+     */
+    public function show(Shop $shop, ShopCustomer $customer)
+    {
+        abort_unless((int) $customer->shop_id === (int) $shop->id, 404);
+
+        return response()->json([
+            'data' => [
+                'id'              => $customer->id,
+                'name'            => $customer->name,
+                'whatsapp'        => $customer->whatsapp,
+                'notes'           => $customer->notes,
+                'preferences'     => $customer->preferences,
+                'bookings_count'  => $customer->bookings()->count(),
+                'last_visit_date' => $customer->bookings()->max('date'),
+                'total_spent'     => (float) $customer->bookings()
+                    ->whereRaw("lower(status) != 'cancelled'")->sum('charges'),
+            ],
+        ]);
+    }
+
+    /**
+     * Update a customer's durable notes / preferences (and name). Tenant-scoped.
+     */
+    public function update(Request $request, Shop $shop, ShopCustomer $customer)
+    {
+        abort_unless((int) $customer->shop_id === (int) $shop->id, 404);
+
+        $data = $request->validate([
+            'name'        => ['sometimes', 'nullable', 'string', 'max:255'],
+            'notes'       => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'preferences' => ['sometimes', 'nullable', 'array'],
+        ]);
+
+        $customer->update($data);
+
+        return response()->json(['data' => $customer->fresh()]);
+    }
+
+    /**
      * Look up an existing shop customer by WhatsApp number for the booking modal.
      */
     public function lookup(Request $request, Shop $shop)
@@ -82,6 +122,8 @@ class ShopCustomerController extends Controller
             'id'              => $customer->id,
             'name'            => $customer->name,
             'whatsapp'        => $customer->whatsapp,
+            'notes'           => $customer->notes,
+            'preferences'     => $customer->preferences,
             'bookings_count'  => $bookingsCount,
             'last_visit_date' => $lastVisit,
         ]);

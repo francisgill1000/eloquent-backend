@@ -22,6 +22,7 @@ class Booking extends Model
         'device_id',
         'charges',
         'services',
+        'notes',
         'booking_reference',
         'customer_name',
         'customer_whatsapp',
