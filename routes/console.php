@@ -14,6 +14,9 @@ Schedule::command('invoices:update-overdue-status')->daily();
 // Lead Finder — surface leads whose follow-up is due today.
 Schedule::command('leads:due-followups')->daily();
 
+// Bookings — customer WhatsApp reminders for appointments entering the 24h window.
+Schedule::command('bookings:send-reminders')->hourly()->withoutOverlapping();
+
 Schedule::command('assistant:suggest-kb --days=7')
     ->weeklyOn(1, '03:00')
     ->withoutOverlapping()

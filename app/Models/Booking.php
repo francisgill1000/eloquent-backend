@@ -26,6 +26,7 @@ class Booking extends Model
         'customer_name',
         'customer_whatsapp',
         'reminder_sent_at',
+        'reminder_customer_sent_at',
         'promo_code_id',
         'marketing_campaign_id',
         'discount_amount',
@@ -37,6 +38,7 @@ class Booking extends Model
         'end_time' => 'datetime:H:i',
         'services' => 'array',
         'reminder_sent_at' => 'datetime',
+        'reminder_customer_sent_at' => 'datetime',
     ];
 
     protected $appends = [
