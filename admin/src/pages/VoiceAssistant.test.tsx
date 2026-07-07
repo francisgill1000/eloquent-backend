@@ -7,9 +7,16 @@ import VoiceAssistant from './VoiceAssistant';
 
 const navigate = vi.fn();
 let params: { conversationId?: string } = {};
+// Shop context: default to a normal (non-master) shop; individual tests flip
+// `shopValue.is_master` to exercise the master-redirect guard.
+let shopValue: { is_master?: boolean } | null = { is_master: false };
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigate,
   useParams: () => params,
+  Navigate: ({ to }: { to: string }) => <div>REDIRECT:{to}</div>,
+}));
+vi.mock('@/context/ShopContext', () => ({
+  useShop: () => ({ shop: shopValue }),
 }));
 vi.mock('@/lib/assistant', () => ({
   getConversation: vi.fn().mockResolvedValue([]),
@@ -34,6 +41,7 @@ describe('VoiceAssistant page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     params = {};
+    shopValue = { is_master: false };
     asMock(getConversation).mockResolvedValue([]);
     asMock(listConversations).mockResolvedValue([]);
     asMock(postText).mockResolvedValue({ conversation_id: 9, title: 'how much', reply_text: 'You made 50 dirhams.', reply_audio_url: null });
@@ -43,6 +51,13 @@ describe('VoiceAssistant page', () => {
     render(<VoiceAssistant />);
     await screen.findByPlaceholderText(/type/i);
     expect(getConversation).not.toHaveBeenCalled();
+  });
+
+  it('redirects a master account to /master instead of showing the assistant', async () => {
+    shopValue = { is_master: true };
+    render(<VoiceAssistant />);
+    expect(await screen.findByText('REDIRECT:/master')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/type/i)).not.toBeInTheDocument();
   });
 
   it('loads an existing thread from the route param', async () => {

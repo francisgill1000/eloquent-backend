@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
+import { useShop } from '@/context/ShopContext';
 import {
   getConversation, listConversations, renameConversation, deleteConversation,
   postText, postVoice, type Conversation,
@@ -99,6 +100,7 @@ function AudioBubble({ src, autoPlay = false }: { src: string; autoPlay?: boolea
 
 export default function VoiceAssistant() {
   const navigate = useNavigate();
+  const { shop } = useShop();
   const { conversationId: routeId } = useParams<{ conversationId?: string }>();
   const cid = routeId ? Number(routeId) : null;
 
@@ -211,13 +213,17 @@ export default function VoiceAssistant() {
     }
   }
 
+  // A master account operates the "All Businesses" view, not a single shop's
+  // assistant — send it there instead of the (now home) Ask screen.
+  if (shop?.is_master) return <Navigate to="/master" replace />;
+
   return (
     <div className="m-screen va-screen">
       <div className="va-head">
         <button className="c-icon-btn" aria-label="Back" onClick={() => navigate(-1)}><Icons.ChevronLeft size={18} /></button>
         <div className="va-head-text">
-          <span className="va-title">Ask about your business</span>
-          <span className="va-sub">Ask a question — or tell me to change something</span>
+          <span className="va-title">Ask me anything</span>
+          <span className="va-sub">Ask anything — or tell me to do something</span>
         </div>
         <button className="c-icon-btn" aria-label="New chat" onClick={() => navigate('/ask')}><Icons.Plus size={18} /></button>
         <button className="c-icon-btn" aria-label="History" onClick={() => void openDrawer()}><Icons.Clock size={18} /></button>

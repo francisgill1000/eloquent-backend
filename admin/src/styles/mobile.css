@@ -1993,9 +1993,10 @@
   margin-top: 7px;
 }
 
-/* Voice assistant */
-/* Voice assistant — dedicated full-screen page */
-.va-screen { display: flex; flex-direction: column; height: 100dvh; }
+/* Voice assistant — the home screen, living inside the tabbed layout. Fills the
+   content area (100%) rather than the whole viewport (100dvh) so the bottom tab
+   bar stays visible beneath it. */
+.va-screen { display: flex; flex-direction: column; height: 100%; }
 .va-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border-1); flex: 0 0 auto; }
 .va-head-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .va-title { font-weight: 800; color: var(--text-1); }

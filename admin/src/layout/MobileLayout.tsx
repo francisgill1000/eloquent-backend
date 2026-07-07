@@ -10,6 +10,8 @@ const BOTH: Module[] = ['bookings', 'leads'];
 
 const ALL_TABS: Tab[] = [
   { id: 'home', label: 'Home', href: '/', icon: 'Mic', modules: BOTH },
+  // Past conversations with the Ask assistant.
+  { id: 'conversations', label: 'Chats', href: '/conversations', icon: 'Chat', modules: BOTH },
   { id: 'overview', label: 'Overview', href: '/overview', icon: 'Chart', modules: BOTH },
   { id: 'bookings', label: 'Bookings', href: '/bookings', icon: 'Calendar', modules: ['bookings'] },
   // WhatsApp Chats — hidden temporarily behind WHATSAPP_ENABLED.
@@ -24,6 +26,7 @@ const MASTER_TABS: Tab[] = [{ id: 'master', label: 'All Businesses', href: '/mas
 
 function activeTab(path: string): string {
   if (path === '/') return 'home';
+  if (path.startsWith('/conversations')) return 'conversations';
   if (path.startsWith('/overview')) return 'overview';
   if (path.startsWith('/bookings') || path.startsWith('/booking')) return 'bookings';
   if (path.startsWith('/chats')) return 'chats';
@@ -46,7 +49,9 @@ export function MobileLayout() {
   return (
     <div className="mobile-app">
       <main className="mobile-main"><Outlet /></main>
-      <div className="m-tabbar">
+      {/* Size the grid to the actual tab count so the bar stays a single row
+          however many tabs a shop has (5, the new 6 with Chats, or a master's 1). */}
+      <div className="m-tabbar" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>
         {tabs.map((tab) => {
           const Icon = Icons[tab.icon];
           return (

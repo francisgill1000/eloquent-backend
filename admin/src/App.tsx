@@ -13,7 +13,6 @@ import Register from '@/pages/Register';
 import ForgotPin from '@/pages/ForgotPin';
 import Web from '@/pages/Web';
 import ScanApprove from '@/pages/ScanApprove';
-import Home from '@/pages/Home';
 import Dashboard from '@/pages/Dashboard';
 import Bookings from '@/pages/Bookings';
 import BookingAction from '@/pages/BookingAction';
@@ -40,6 +39,7 @@ import MasterShopDetail from '@/pages/MasterShopDetail';
 import CategorySetup from '@/pages/CategorySetup';
 import Assistant from '@/pages/Assistant';
 import VoiceAssistant from '@/pages/VoiceAssistant';
+import Conversations from '@/pages/Conversations';
 import Chats from '@/pages/Chats';
 import ChatThread from '@/pages/ChatThread';
 import WhatsAppSetup from '@/pages/WhatsAppSetup';
@@ -88,8 +88,6 @@ export default function App() {
           <Route path="/working-hours" element={<WorkingHours />} />
           <Route path="/category-setup" element={<CategorySetup />} />
           <Route path="/assistant" element={<Assistant />} />
-          <Route path="/ask" element={<VoiceAssistant />} />
-          <Route path="/ask/:conversationId" element={<VoiceAssistant />} />
           <Route path="/master" element={<MasterShops />} />
           <Route path="/master/pricing" element={<MasterPricing />} />
           <Route path="/master/new" element={<MasterShopCreate />} />
@@ -99,7 +97,14 @@ export default function App() {
 
           {/* Authenticated tabbed */}
           <Route element={<MobileLayout />}>
-            <Route path="/" element={<Home />} />
+            {/* The Ask assistant is the home screen; /ask stays as an alias so
+                old links/bookmarks keep working. Both sit inside the tabbed
+                layout so the bottom bar stays visible. */}
+            <Route path="/" element={<VoiceAssistant />} />
+            <Route path="/ask" element={<VoiceAssistant />} />
+            <Route path="/ask/:conversationId" element={<VoiceAssistant />} />
+            {/* Full-page list of the shop's Ask conversations (sits below Home in the nav). */}
+            <Route path="/conversations" element={<Conversations />} />
             <Route path="/overview" element={<Dashboard />} />
             <Route path="/bookings" element={<Bookings />} />
             <Route path="/chats" element={<Chats />} />
