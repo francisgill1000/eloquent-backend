@@ -28,21 +28,13 @@ class PermissionCatalog
                 'bookings.update' => 'Update bookings',
                 'bookings.delete' => 'Delete bookings',
             ]],
-            'services' => ['label' => 'Services', 'permissions' => [
-                'services.view'   => 'View services',
-                'services.manage' => 'Add, edit & delete services',
-            ]],
-            'staff' => ['label' => 'Staff', 'permissions' => [
-                'staff.view'   => 'View staff',
-                'staff.manage' => 'Add, edit & delete staff',
-            ]],
+            // Services, Staff & Working Hours were removed from the primary nav
+            // (they live under Settings, owner-managed), so they're no longer
+            // grantable per-role. Their routes stay owner-gated; see
+            // EnsurePermission (Owner bypasses) and the seeder's prune step.
             'customers' => ['label' => 'Customers', 'permissions' => [
                 'customers.view'   => 'View customers',
                 'customers.manage' => 'Manage customers',
-            ]],
-            'working_hours' => ['label' => 'Working Hours', 'permissions' => [
-                'working_hours.view'   => 'View working hours',
-                'working_hours.manage' => 'Edit working hours',
             ]],
             'assistant' => ['label' => 'AI Assistant', 'permissions' => [
                 'assistant.use'    => 'Use the assistant',

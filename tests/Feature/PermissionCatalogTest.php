@@ -20,7 +20,8 @@ class PermissionCatalogTest extends TestCase
             $this->assertDatabaseHas('permissions', ['name' => $name, 'guard_name' => 'web']);
         }
 
-        $this->assertGreaterThanOrEqual(20, Permission::count());
+        // The table mirrors the catalog exactly (seeder prunes extras).
+        $this->assertSame(count(PermissionCatalog::all()), Permission::count());
     }
 
     public function test_seeder_is_idempotent(): void
@@ -28,6 +29,18 @@ class PermissionCatalogTest extends TestCase
         (new PermissionSeeder())->run();
         (new PermissionSeeder())->run();
 
+        $this->assertSame(count(PermissionCatalog::all()), Permission::count());
+    }
+
+    public function test_seeder_prunes_permissions_removed_from_the_catalog(): void
+    {
+        // A stray permission from a previous catalog (e.g. the removed
+        // Services/Staff/Working Hours ones) must be cleaned up on re-seed.
+        Permission::create(['name' => 'staff.manage', 'guard_name' => 'web']);
+
+        (new PermissionSeeder())->run();
+
+        $this->assertDatabaseMissing('permissions', ['name' => 'staff.manage']);
         $this->assertSame(count(PermissionCatalog::all()), Permission::count());
     }
 }

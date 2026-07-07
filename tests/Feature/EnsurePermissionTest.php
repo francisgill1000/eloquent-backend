@@ -56,6 +56,22 @@ class EnsurePermissionTest extends TestCase
             ->assertOk();
     }
 
+    public function test_unknown_permission_denies_cleanly_without_500(): void
+    {
+        // A route gated on a permission that no longer exists in the catalog
+        // (e.g. a removed Services/Staff/Working Hours perm) must 403, not 500.
+        Route::middleware(['auth:sanctum', 'rbac.context', 'can.perm:ghost.permission'])
+            ->get('/api/_test/ghost', fn () => response()->json(['ok' => true]));
+
+        (new PermissionSeeder())->run(); // catalog does not contain ghost.permission
+        $shop = Shop::factory()->create();
+        $u = ShopUser::factory()->create(['shop_id' => $shop->id]);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $this->tokenFor($u)])
+            ->getJson('/api/_test/ghost')
+            ->assertStatus(403);
+    }
+
     public function test_owner_bypasses(): void
     {
         (new PermissionSeeder())->run();
