@@ -368,7 +368,13 @@
     inset 0 2px 5px rgba(255, 255, 255, 0.55),
     inset 0 -4px 8px rgba(0, 0, 0, 0.38);
   transition: top .38s cubic-bezier(.34, 1.56, .5, 1), background .2s ease;
+  cursor: grab; touch-action: none;
 }
+/* Drag-to-set: while grabbing, the knob + fill track the pointer 1:1 (no easing);
+   releasing re-enables the transitions so the snap animates. */
+.ba-switch.dragging .ba-switch-knob { cursor: grabbing; }
+.ba-switch.dragging .ba-switch-knob,
+.ba-switch.dragging .ba-switch-fill { transition: background .2s ease; }
 /* Breathing halo behind the knob */
 .ba-switch-knob::before {
   content: ''; position: absolute; inset: -7px; border-radius: 50%; z-index: -1;
