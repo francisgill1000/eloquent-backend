@@ -28,3 +28,6 @@ php
 /admin/dist
 /customer/node_modules
 /customer/dist
+
+# Local-only account credentials (never commit)
+ACCOUNT-CREDENTIALS.txt
