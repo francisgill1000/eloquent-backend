@@ -54,6 +54,10 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Base URL of the customer-facing SPA (used to build public links such as
+    // the booking-review page). Tenant-neutral; per-shop context rides in the token.
+    'customer_url' => env('CUSTOMER_APP_URL', 'https://rezzy.eloquentservice.com'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

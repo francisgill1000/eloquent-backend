@@ -53,6 +53,10 @@ class BookingStatusService
                 // booking makes it billable (and markable-as-paid) again.
                 $invoice->update(['status' => 'issued', 'issued_at' => $invoice->issued_at ?? now()]);
             }
+
+            // Queue a post-visit review request (guarded; actual WhatsApp send is
+            // done by the reviews:send-requests scheduled command).
+            app(BookingReviewService::class)->createRequestFor($booking);
         }
 
         if ($newStatus === 'cancelled') {
