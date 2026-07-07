@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\Shop;
 use App\Services\Assistant\AssistantToolRegistry;
 use App\Services\Assistant\ConversationStore;
+use App\Services\Assistant\Support\AssistantActions;
 use App\Services\Wa\ClaudeClient;
 use App\Services\Wa\Speech;
 use App\Services\Wa\Transcriber;
@@ -26,6 +27,7 @@ class OwnerAssistantController extends Controller
         protected Speech $speech,
         protected Transcriber $transcriber,
         protected ConversationStore $store,
+        protected AssistantActions $actions,
     ) {}
 
     public function conversations(Request $request)
@@ -148,6 +150,9 @@ class OwnerAssistantController extends Controller
             'reply_text' => $replyText,
             'reply_audio_url' => $this->store->signedUrl($assistantMsg),
         ];
+        if ($action = $this->actions->pending()) {
+            $payload['action'] = $action;
+        }
         if ($transcript !== null) {
             $payload['transcript'] = $transcript;
         }
