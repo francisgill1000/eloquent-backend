@@ -20,19 +20,43 @@ class ConversationStore
         ]);
     }
 
-    /** Threads for the drawer, newest activity first. */
-    public function list(Shop $shop): array
+    /**
+     * One page of the shop's threads, newest activity first, optionally filtered
+     * by a title search. Fetches one row beyond the page to report whether more
+     * exist — cheaper than a separate count query.
+     *
+     * @return array{conversations: list<array{id:int,title:string,updated_at:?string}>, has_more: bool}
+     */
+    public function list(Shop $shop, int $page = 1, int $perPage = 20, ?string $q = null): array
     {
-        return Conversation::where('shop_id', $shop->id)
-            ->orderByDesc('updated_at')
+        $page = max(1, $page);
+        $query = Conversation::where('shop_id', $shop->id);
+
+        $q = $q !== null ? trim($q) : '';
+        if ($q !== '') {
+            // Escape LIKE wildcards so a literal % or _ in the search can't widen it.
+            $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q);
+            $query->where('title', 'like', '%' . $escaped . '%');
+        }
+
+        $rows = $query->orderByDesc('updated_at')
             ->orderByDesc('id')
-            ->get(['id', 'title', 'updated_at'])
+            ->skip(($page - 1) * $perPage)
+            ->take($perPage + 1) // one extra row → tells us another page exists
+            ->get(['id', 'title', 'updated_at']);
+
+        $hasMore = $rows->count() > $perPage;
+
+        $conversations = $rows->take($perPage)
             ->map(fn (Conversation $c) => [
                 'id' => $c->id,
                 'title' => $c->title,
                 'updated_at' => $c->updated_at?->toIso8601String(),
             ])
+            ->values()
             ->all();
+
+        return ['conversations' => $conversations, 'has_more' => $hasMore];
     }
 
     /** Last $limit turns of ONE thread, chronological, shaped for the Claude API. */

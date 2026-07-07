@@ -10,6 +10,12 @@ import { useRecorder } from '@/hooks/useRecorder';
 
 type Msg = { role: 'user' | 'assistant'; content: string; audioUrl?: string | null };
 
+// Past this many messages a thread is "long" — we nudge the owner to start a
+// fresh chat so conversations stay focused. (The model only ever sees the last
+// ~20 messages regardless — see ConversationStore::contextFor — so this is a
+// UX prompt, not a hard limit.)
+const LONG_CHAT = 40;
+
 // Rotating status words shown while the assistant is working, so the wait
 // feels alive instead of a dead row of dots. Business-flavoured on purpose.
 const THINKING_WORDS = [
@@ -148,7 +154,7 @@ export default function VoiceAssistant() {
 
   async function openDrawer() {
     setDrawerOpen(true);
-    try { setThreads(await listConversations()); } catch { setError('Could not load your chats.'); }
+    try { setThreads((await listConversations()).conversations); } catch { setError('Could not load your chats.'); }
   }
 
   async function removeThread(id: number) {
@@ -248,6 +254,13 @@ export default function VoiceAssistant() {
         {busy && <ThinkingBubble />}
         {error && <div className="c-error-box">{error}</div>}
       </div>
+
+      {messages.length >= LONG_CHAT && (
+        <div className="va-nudge">
+          <span>This chat is getting long — start a fresh one for the best answers.</span>
+          <button className="va-nudge-btn" onClick={() => navigate('/ask')}>Start new chat</button>
+        </div>
+      )}
 
       <div className="va-controls">
         <input className="va-input" placeholder="Type a question…" value={draft}

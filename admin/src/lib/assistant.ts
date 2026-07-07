@@ -11,9 +11,15 @@ export type AssistantReply = {
   action?: { type: 'navigate'; route: string };
 };
 
-export async function listConversations(): Promise<Conversation[]> {
-  const { data } = await api.get('/shop/assistant/conversations');
-  return data.conversations as Conversation[];
+export type ConversationPage = { conversations: Conversation[]; has_more: boolean };
+
+/** One page (20) of the shop's threads, newest first. `q` filters by title
+ *  server-side so search spans every page, not just the loaded ones. */
+export async function listConversations(opts: { page?: number; q?: string } = {}): Promise<ConversationPage> {
+  const { data } = await api.get('/shop/assistant/conversations', {
+    params: { page: opts.page ?? 1, q: opts.q?.trim() || undefined },
+  });
+  return { conversations: (data.conversations ?? []) as Conversation[], has_more: !!data.has_more };
 }
 
 export async function getConversation(id: number): Promise<AssistantMsg[]> {

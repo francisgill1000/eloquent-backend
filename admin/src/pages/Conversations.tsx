@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { EmptyState } from '@/components/EmptyState';
@@ -19,25 +19,51 @@ function whenLabel(iso: string): string {
 
 /**
  * "Chats" — the full-page list of the shop's past conversations with the Ask
- * assistant. Mirrors the history drawer inside the Ask page, but reachable
- * directly from the nav (below Home) so it works as a first-class destination
- * on both desktop and mobile. Open a row to resume it at /ask/:id.
+ * assistant. Reachable directly from the nav (below Home) on desktop and
+ * mobile. Loads 20 at a time via "Load more" and searches server-side so the
+ * query spans every page, not just the loaded ones. Open a row to resume it.
  */
 export default function Conversations() {
   const navigate = useNavigate();
   const [items, setItems] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);      // initial load + search reloads
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [booted, setBooted] = useState(false);       // first response has landed
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
 
+  // First load, then a debounced server-side search whenever the query changes.
   useEffect(() => {
     let alive = true;
-    listConversations()
-      .then((c) => { if (alive) setItems(c); })
-      .catch(() => { if (alive) setError('Could not load your chats.'); })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, []);
+    setLoading(true);
+    setError('');
+    const t = setTimeout(() => {
+      listConversations({ page: 1, q: query })
+        .then((res) => {
+          if (!alive) return;
+          setItems(res.conversations);
+          setHasMore(res.has_more);
+          setPage(1);
+        })
+        .catch(() => { if (alive) setError('Could not load your chats.'); })
+        .finally(() => { if (alive) { setLoading(false); setBooted(true); } });
+    }, booted ? 300 : 0); // instant first load; debounce subsequent keystrokes
+    return () => { alive = false; clearTimeout(t); };
+  }, [query]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadMore() {
+    const next = page + 1;
+    setLoadingMore(true);
+    try {
+      const res = await listConversations({ page: next, q: query });
+      setItems((cur) => [...cur, ...res.conversations]);
+      setHasMore(res.has_more);
+      setPage(next);
+    } catch { setError('Could not load more chats.'); }
+    finally { setLoadingMore(false); }
+  }
 
   async function remove(id: number) {
     if (!window.confirm('Delete this chat?')) return;
@@ -52,11 +78,9 @@ export default function Conversations() {
     setItems((t) => t.map((c) => (c.id === id ? { ...c, title: next.trim() } : c)));
   }
 
-  const q = query.trim().toLowerCase();
-  const filtered = useMemo(
-    () => (q ? items.filter((c) => (c.title || '').toLowerCase().includes(q)) : items),
-    [items, q],
-  );
+  const searching = query.trim() !== '';
+  // The shop has no chats at all (not merely a search miss): hide the search box.
+  const noChatsAtAll = booted && !loading && !searching && items.length === 0;
 
   return (
     <div className="m-screen"><div className="m-scroll">
@@ -67,9 +91,9 @@ export default function Conversations() {
 
       {error && <div className="c-error-box">{error}</div>}
 
-      {loading ? (
+      {!booted ? (
         <Spinner label="Loading chats…" />
-      ) : items.length === 0 ? (
+      ) : noChatsAtAll ? (
         <EmptyState
           icon={<Icons.Chat size={28} />}
           title="No chats yet"
@@ -88,11 +112,13 @@ export default function Conversations() {
             />
           </div>
 
-          {filtered.length === 0 ? (
+          {loading ? (
+            <Spinner label="Searching…" />
+          ) : items.length === 0 ? (
             <EmptyState icon={<Icons.Search size={26} />} title="No matches" subtitle="Try a different search." />
           ) : (
             <div className="conv-list">
-              {filtered.map((c) => (
+              {items.map((c) => (
                 <div key={c.id} className="c-chat-row conv-row">
                   <button className="conv-main" onClick={() => navigate(`/ask/${c.id}`)}>
                     <span className="c-staff-avatar" aria-hidden="true"><Icons.Chat size={20} /></span>
@@ -103,6 +129,11 @@ export default function Conversations() {
                   <button className="c-icon-btn" aria-label="Delete chat" onClick={() => void remove(c.id)}><Icons.Trash size={16} /></button>
                 </div>
               ))}
+              {hasMore && (
+                <button className="conv-more" onClick={() => void loadMore()} disabled={loadingMore}>
+                  {loadingMore ? 'Loading…' : 'Load more'}
+                </button>
+              )}
             </div>
           )}
         </>

@@ -97,10 +97,53 @@ class ConversationStoreTest extends TestCase
         // Make $new the most recently updated.
         $store->append($new, 'user', 'x');
 
-        $list = $store->list($shop);
+        $result = $store->list($shop);
+        $this->assertFalse($result['has_more']);
+        $list = $result['conversations'];
         $this->assertSame(['id', 'title', 'updated_at'], array_keys($list[0]));
         $this->assertSame($new->id, $list[0]['id']);
         $this->assertSame($old->id, $list[1]['id']);
+    }
+
+    public function test_list_paginates_with_has_more_flag(): void
+    {
+        $shop = $this->shop();
+        $store = app(ConversationStore::class);
+        for ($i = 0; $i < 25; $i++) {
+            $this->conv($shop, "T{$i}");
+        }
+
+        $p1 = $store->list($shop, 1, 20);
+        $this->assertCount(20, $p1['conversations']);
+        $this->assertTrue($p1['has_more']);
+
+        $p2 = $store->list($shop, 2, 20);
+        $this->assertCount(5, $p2['conversations']);
+        $this->assertFalse($p2['has_more']);
+    }
+
+    public function test_list_filters_by_title_search(): void
+    {
+        $shop = $this->shop();
+        $store = app(ConversationStore::class);
+        $this->conv($shop, 'Revenue question');
+        $this->conv($shop, 'Booking help');
+        $this->conv($shop, 'Another revenue thread');
+
+        $titles = array_column($store->list($shop, 1, 20, 'revenue')['conversations'], 'title');
+        $this->assertContains('Revenue question', $titles);
+        $this->assertContains('Another revenue thread', $titles);
+        $this->assertNotContains('Booking help', $titles);
+    }
+
+    public function test_list_search_escapes_like_wildcards(): void
+    {
+        $shop = $this->shop();
+        $store = app(ConversationStore::class);
+        $this->conv($shop, 'Booking help');
+        // A bare "%" must match literally, not act as a wildcard that returns all.
+        $titles = array_column($store->list($shop, 1, 20, '%')['conversations'], 'title');
+        $this->assertNotContains('Booking help', $titles);
     }
 
     public function test_messages_for_returns_chronological_api_shape(): void

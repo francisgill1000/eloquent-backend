@@ -32,7 +32,15 @@ class OwnerAssistantController extends Controller
 
     public function conversations(Request $request)
     {
-        return response()->json(['conversations' => $this->store->list($request->user())]);
+        $data = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'q' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        // Returns { conversations: [...], has_more: bool } — 20 per page, newest first.
+        return response()->json(
+            $this->store->list($request->user(), $data['page'] ?? 1, 20, $data['q'] ?? null),
+        );
     }
 
     public function messages(Request $request, Conversation $conversation)

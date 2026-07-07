@@ -9,12 +9,19 @@ vi.mock('./api', () => ({ default: { get: vi.fn(), post: vi.fn(), patch: vi.fn()
 describe('assistant lib', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('listConversations returns the conversations array', async () => {
-    (api.get as any).mockResolvedValue({ data: { conversations: [{ id: 3, title: 'Booking help', updated_at: '2026-07-07T10:00:00+00:00' }] } });
-    const list = await listConversations();
-    expect(api.get).toHaveBeenCalledWith('/shop/assistant/conversations');
-    expect(list).toHaveLength(1);
-    expect(list[0].title).toBe('Booking help');
+  it('listConversations returns a page of conversations with the has_more flag', async () => {
+    (api.get as any).mockResolvedValue({ data: { conversations: [{ id: 3, title: 'Booking help', updated_at: '2026-07-07T10:00:00+00:00' }], has_more: true } });
+    const page = await listConversations({ page: 2, q: '  revenue ' });
+    expect(api.get).toHaveBeenCalledWith('/shop/assistant/conversations', { params: { page: 2, q: 'revenue' } });
+    expect(page.conversations).toHaveLength(1);
+    expect(page.conversations[0].title).toBe('Booking help');
+    expect(page.has_more).toBe(true);
+  });
+
+  it('listConversations defaults to page 1 and omits an empty query', async () => {
+    (api.get as any).mockResolvedValue({ data: { conversations: [], has_more: false } });
+    await listConversations();
+    expect(api.get).toHaveBeenCalledWith('/shop/assistant/conversations', { params: { page: 1, q: undefined } });
   });
 
   it('getConversation fetches one thread by id', async () => {
