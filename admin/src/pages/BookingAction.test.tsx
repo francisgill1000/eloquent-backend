@@ -69,8 +69,11 @@ describe('BookingAction', () => {
     const { container } = setup();
     await screen.findByText('Sam');
 
-    expect(container.querySelector('.ba-switch-hint.down')).toBeInTheDocument();
+    const down = container.querySelector('.ba-switch-hint.down');
+    expect(down).toBeInTheDocument();
     expect(container.querySelector('.ba-switch-hint.up')).toBeInTheDocument();
+    // Rendered as a stack of chevrons so the affordance is prominent.
+    expect(down?.querySelectorAll('svg').length).toBe(3);
   });
 
   it('shows only the down hint at Queued and none once Completed', async () => {

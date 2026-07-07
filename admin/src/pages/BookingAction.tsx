@@ -19,9 +19,15 @@ const KnobCheck = () => (
 const KnobX = () => (
   <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" /></svg>
 );
-// Down-pointing chevron for the "drag me" hint (rotated 180° via CSS for the up hint).
+// Down-pointing chevron for the "drag me" hint (rotated 180° via CSS for the up
+// hint). Rendered as a staggered stack of three so the affordance reads clearly.
 const HintChevron = () => (
-  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+  <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+);
+const HintStack = ({ dir }: { dir: 'up' | 'down' }) => (
+  <span className={`ba-switch-hint ${dir}`} aria-hidden="true">
+    <HintChevron /><HintChevron /><HintChevron />
+  </span>
 );
 
 // Vertical sliding-knob switch config — order = top→bottom on the rail.
@@ -338,8 +344,8 @@ export default function BookingAction() {
             aria-valuemin={0} aria-valuemax={SWITCH_OPTS.length - 1} aria-valuenow={switchActive}
             aria-valuetext={switchIndex >= 0 ? status : undefined}
             onPointerDown={onKnobDown} onPointerMove={onKnobMove} onPointerUp={onKnobUp} onPointerCancel={onKnobUp}>
-            {hintUp && <span className="ba-switch-hint up" aria-hidden="true"><HintChevron /></span>}
-            {hintDown && <span className="ba-switch-hint down" aria-hidden="true"><HintChevron /></span>}
+            {hintUp && <HintStack dir="up" />}
+            {hintDown && <HintStack dir="down" />}
             {status.toLowerCase() === 'completed' ? <KnobCheck />
               : status.toLowerCase() === 'cancelled' ? <KnobX />
               : status.toLowerCase() === 'queued' ? <Icons.Clock size={18} />
