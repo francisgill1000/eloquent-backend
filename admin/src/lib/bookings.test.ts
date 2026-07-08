@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import api from './api';
-import { getShopBookings, setBookingStatus } from './bookings';
+import { getShopBookings, setBookingStatus, createBooking } from './bookings';
 
 describe('bookings wrappers', () => {
   beforeEach(() => vi.restoreAllMocks());
@@ -23,5 +23,13 @@ describe('bookings wrappers', () => {
     const put = vi.spyOn(api, 'put').mockResolvedValue({ data: {} });
     await setBookingStatus(3, 'confirmed');
     expect(put).toHaveBeenCalledWith('/booking/3', { status: 'confirmed' });
+  });
+
+  it('creates a booking and unwraps the returned record', async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { data: { id: 42, status: 'Booked' } } });
+    const payload = { date: '2026-07-09', start_time: '09:30', services: [{ title: 'Hair Cut', price: '150.00' }], charges: 150, customer_name: 'Sarah', customer_whatsapp: '055 010 2030' };
+    const b = await createBooking(7, payload);
+    expect(post).toHaveBeenCalledWith('/shops/7/book', payload);
+    expect(b.id).toBe(42);
   });
 });

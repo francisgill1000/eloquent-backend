@@ -42,6 +42,22 @@ export async function updateBookingNotes(id: number, notes: string): Promise<voi
   await api.patch(`/booking/${id}/notes`, { notes });
 }
 
+export type BookSlotPayload = {
+  date: string;
+  start_time: string;
+  services: Array<Record<string, unknown>>;
+  charges?: number;
+  customer_name?: string;
+  customer_whatsapp: string;
+};
+
+/** Create a real booking via the same public endpoint the app/customer use.
+ *  Returns the created booking (with its id). */
+export async function createBooking(shopId: number, payload: BookSlotPayload): Promise<Booking> {
+  const { data } = await api.post(`/shops/${shopId}/book`, payload);
+  return data?.data ?? data;
+}
+
 export type RecurringPayload = {
   date: string;
   start_time: string;
