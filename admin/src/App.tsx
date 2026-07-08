@@ -16,6 +16,7 @@ import ScanApprove from '@/pages/ScanApprove';
 import Dashboard from '@/pages/Dashboard';
 import Bookings from '@/pages/Bookings';
 import BookingAction from '@/pages/BookingAction';
+import BookingPreview from '@/pages/BookingPreview';
 import Reminders from '@/pages/Reminders';
 import Services from '@/pages/Services';
 import ServiceEdit from '@/pages/ServiceEdit';
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="/subscribe" element={<Subscribe />} />
           <Route element={<AppShell />}>
           <Route element={<RequireSubscription />}>
+          <Route path="/booking/preview" element={<BookingPreview />} />
           <Route path="/booking/:id" element={<BookingAction />} />
           <Route path="/services/new" element={<ServiceEdit />} />
           <Route path="/services/:id/edit" element={<ServiceEdit />} />
