@@ -276,6 +276,9 @@ class ReportsAggregator
             ->selectRaw('count(*) as c, avg(rating) as a')
             ->first();
 
+        // Per-day time series (zero-filled) so the report can chart a trend.
+        $daily = $this->dailyBreakdown($shopId, $from, $to, $fromStr, $toStr);
+
         return [
             'range' => ['from' => $fromStr, 'to' => $toStr],
             'bookings' => [
@@ -300,7 +303,57 @@ class ReportsAggregator
                 'count'   => (int) ($reviewStats->c ?? 0),
                 'average' => $reviewStats && $reviewStats->c ? round((float) $reviewStats->a, 2) : null,
             ],
+            'daily' => $daily,
         ];
+    }
+
+    /**
+     * Per-day booking outcome counts across [from, to], inclusive and
+     * zero-filled so charts get a continuous series. Capped at 366 days to
+     * keep the payload bounded; longer ranges are downsampled client-side.
+     */
+    protected function dailyBreakdown(int $shopId, Carbon $from, Carbon $to, string $fromStr, string $toStr): array
+    {
+        $rows = Booking::where('shop_id', $shopId)
+            ->whereBetween('date', [$fromStr, $toStr])
+            ->selectRaw("
+                date,
+                sum(case when lower(status) = 'completed' then 1 else 0 end) as completed,
+                sum(case when lower(status) = 'cancelled' then 1 else 0 end) as cancelled,
+                sum(case when lower(status) = 'no_show'   then 1 else 0 end) as no_show,
+                sum(case when lower(status) = 'booked'    then 1 else 0 end) as booked
+            ")
+            ->groupBy('date')
+            ->get()
+            ->keyBy(fn ($r) => Carbon::parse($r->date)->toDateString());
+
+        $daily = [];
+        $cursor = $from->copy()->startOfDay();
+        $end = $to->copy()->startOfDay();
+        $guard = 0;
+
+        while ($cursor->lte($end) && $guard < 366) {
+            $key = $cursor->toDateString();
+            $row = $rows->get($key);
+            $completed = (int) ($row->completed ?? 0);
+            $cancelled = (int) ($row->cancelled ?? 0);
+            $noShow    = (int) ($row->no_show ?? 0);
+            $booked    = (int) ($row->booked ?? 0);
+
+            $daily[] = [
+                'date'      => $key,
+                'completed' => $completed,
+                'cancelled' => $cancelled,
+                'no_show'   => $noShow,
+                'booked'    => $booked,
+                'total'     => $completed + $cancelled + $noShow + $booked,
+            ];
+
+            $cursor->addDay();
+            $guard++;
+        }
+
+        return $daily;
     }
 
     /**
