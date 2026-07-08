@@ -22,6 +22,7 @@ const BASE_NAV: NavItem[] = [
   { label: 'Chats', to: '/conversations', icon: 'Chat', modules: BOTH },
   { label: 'Overview', to: '/overview', icon: 'Chart', modules: BOTH },
   { label: 'Bookings', to: '/bookings', icon: 'Calendar', modules: ['bookings'] },
+  { label: 'Customers', to: '/customers', icon: 'Users', modules: ['bookings'] },
   // WhatsApp Chats — hidden while WHATSAPP_ENABLED is off.
   { label: 'Chats', to: '/chats', icon: 'Chat', modules: BOTH },
   { label: 'Business Hunt', to: '/leads', icon: 'Search', modules: ['leads'] },
