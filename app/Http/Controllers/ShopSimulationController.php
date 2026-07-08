@@ -11,7 +11,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * Per-shop demo-simulation script. This drives a client-side, dry-run replay
  * of a voice booking for recording marketing videos — it NEVER creates a real
  * booking. Only the script config is stored here. Null = use a default built
- * from the shop's own services/staff (no hardcoded tenant identity).
+ * from the shop's own catalogs/staff (no hardcoded tenant identity).
  */
 class ShopSimulationController extends Controller
 {

@@ -8,9 +8,10 @@ use Illuminate\Support\Facades\Http;
 
 /**
  * Text-to-speech for the in-app assistant. Reuses the OpenAI TTS the chat
- * already uses (voice "nova"), returning MP3 for broad browser support. The
- * API key stays server-side; identical text is cached for a day so repeated
- * greetings/replies aren't re-billed.
+ * already uses (the configured default voice, or a whitelisted "voice" from
+ * the request: nova, shimmer, coral, sage, alloy), returning MP3 for broad
+ * browser support. The API key stays server-side; identical text is cached
+ * for a day so repeated greetings/replies aren't re-billed.
  */
 class TtsController extends Controller
 {
