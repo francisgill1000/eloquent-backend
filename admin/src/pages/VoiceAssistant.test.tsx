@@ -62,6 +62,19 @@ describe('VoiceAssistant page', () => {
     expect(getConversation).not.toHaveBeenCalled();
   });
 
+  it('shows the new-chat prompt on a fresh chat', async () => {
+    render(<VoiceAssistant />);
+    expect(await screen.findByText(/tap the mic/i)).toBeInTheDocument();
+  });
+
+  it('hides the new-chat prompt when opening an existing chat', async () => {
+    params = { conversationId: '7' };
+    asMock(getConversation).mockResolvedValueOnce([]); // existing thread, no messages loaded
+    render(<VoiceAssistant />);
+    await screen.findByPlaceholderText(/type/i);
+    expect(screen.queryByText(/tap the mic/i)).not.toBeInTheDocument();
+  });
+
   it('redirects a master account to /master instead of showing the assistant', async () => {
     shopValue = { is_master: true };
     render(<VoiceAssistant />);

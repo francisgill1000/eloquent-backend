@@ -285,7 +285,10 @@ export default function VoiceAssistant() {
 
       <div className="va-thread" ref={threadRef}>
         {loadingHistory && <div className="va-bubble va-ai va-typing">…</div>}
-        {!loadingHistory && messages.length === 0 && !busy && (
+        {/* The "new chat" prompt only belongs on a fresh chat — not when opening
+            an existing conversation (which may briefly, or genuinely, have no
+            messages loaded). */}
+        {!loadingHistory && messages.length === 0 && !busy && conversationId == null && (
           <div className="va-empty">
             <div className="va-empty-mic"><Icons.Mic size={26} /></div>
             <p className="va-hint">Tap the mic and ask or tell me, e.g.<br />"How much did I make this month?" or "Cancel Sarah's 3 o'clock"</p>
