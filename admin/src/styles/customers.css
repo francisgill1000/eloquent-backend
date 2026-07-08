@@ -1,0 +1,42 @@
+/* Customer detail — hero header. Reuses the app's glass + mint tokens. */
+.cust-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  border-radius: var(--r-lg);
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-mint);
+}
+.cust-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--mint-300);
+  background: var(--mint-soft);
+  border: 1px solid var(--border-mint);
+}
+.cust-hero-body { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cust-hero-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--text-1);
+}
+.cust-hero-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-3);
+  text-decoration: none;
+}
+.cust-hero-num:hover { color: var(--mint-300); }
