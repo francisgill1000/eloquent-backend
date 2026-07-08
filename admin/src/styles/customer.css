@@ -434,7 +434,20 @@
     position: relative; display: flex; flex-direction: column; gap: 10px;
     height: auto; width: 100%; align-self: stretch; padding-right: 0;
   }
-  .c-booking-action .ba-switch-hint { display: none !important; }
+
+  /* "Drag me" chevrons flow horizontally now: to the right of the knob toward
+     the next status, to the left toward the previous. */
+  .c-booking-action .ba-switch-hint.down {
+    top: 50%; bottom: auto; left: calc(100% + 3px); right: auto;
+    transform: translateY(-50%); flex-direction: row;
+  }
+  .c-booking-action .ba-switch-hint.up {
+    top: 50%; bottom: auto; right: calc(100% + 3px); left: auto;
+    transform: translateY(-50%); flex-direction: row-reverse;
+  }
+  .c-booking-action .ba-switch-hint svg { margin-block: 0; margin-inline: -7px; }
+  .c-booking-action .ba-switch-hint.down svg { transform: rotate(-90deg); } /* ▾ → ▸ */
+  .c-booking-action .ba-switch-hint.up svg { transform: rotate(90deg); }    /* ▾ → ◂ */
 
   .c-booking-action .ba-switch-rail {
     position: relative; order: 1;
