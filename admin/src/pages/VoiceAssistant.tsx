@@ -7,6 +7,7 @@ import {
   postText, postVoice, type Conversation,
 } from '@/lib/assistant';
 import { getSimulation, speak, type SimScript } from '@/lib/simulation';
+import { createBooking } from '@/lib/bookings';
 import { useRecorder } from '@/hooks/useRecorder';
 
 type Msg = { role: 'user' | 'assistant'; content: string; audioUrl?: string | null; autoPlay?: boolean };
@@ -168,7 +169,23 @@ export default function VoiceAssistant() {
       });
       await wait(400); // brief gap between voice notes
     }
-    navigate('/booking/preview', { state: { booking: simScript.booking } });
+    // Record the booking for real so the demo ends on the true detail page
+    // (full status/timeline/fields), exactly like a genuine booking. Falls back
+    // to the read-only preview if the create call fails, so a take never dead-ends.
+    const b = simScript.booking;
+    try {
+      const created = await createBooking(shop!.id, {
+        customer_name: b.customer_name,
+        customer_whatsapp: b.customer_phone,
+        date: b.date,
+        start_time: b.start_time,
+        services: [{ title: b.service, price: b.price }],
+        charges: Number(b.price) || 0,
+      });
+      navigate(`/booking/${created.id}`);
+    } catch {
+      navigate('/booking/preview', { state: { booking: b } });
+    }
   }
 
   // Load the thread named in the route, or start fresh when there is none.
