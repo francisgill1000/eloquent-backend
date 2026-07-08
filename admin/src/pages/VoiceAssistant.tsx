@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, Navigate } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import {
   getConversation, listConversations, renameConversation, deleteConversation,
   postText, postVoice, type Conversation,
 } from '@/lib/assistant';
+import { getSimulation, speak, type SimScript } from '@/lib/simulation';
 import { useRecorder } from '@/hooks/useRecorder';
 
-type Msg = { role: 'user' | 'assistant'; content: string; audioUrl?: string | null };
+type Msg = { role: 'user' | 'assistant'; content: string; audioUrl?: string | null; autoPlay?: boolean };
 
 // Past this many messages a thread is "long" — we nudge the owner to start a
 // fresh chat so conversations stay focused. (The model only ever sees the last
@@ -57,7 +58,7 @@ function fmtTime(s: number): string {
  * track, and elapsed time. Auto-plays once on mount when autoPlay is set; the
  * button replays it any number of times afterwards.
  */
-function AudioBubble({ src, autoPlay = false }: { src: string; autoPlay?: boolean }) {
+function AudioBubble({ src, autoPlay = false, onEnded }: { src: string; autoPlay?: boolean; onEnded?: () => void }) {
   const ref = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -92,7 +93,7 @@ function AudioBubble({ src, autoPlay = false }: { src: string; autoPlay?: boolea
         preload="metadata"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onEnded={() => { setPlaying(false); setProgress(0); setElapsed(0); }}
+        onEnded={() => { setPlaying(false); setProgress(0); setElapsed(0); onEnded?.(); }}
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
         onTimeUpdate={(e) => {
           const a = e.currentTarget;
@@ -123,6 +124,45 @@ export default function VoiceAssistant() {
   // Messages loaded from the server should not auto-play their audio; only
   // notes added during this session do. Reset whenever we (re)load a thread.
   const restoredCount = useRef(0);
+
+  const [params] = useSearchParams();
+  const simMode = params.get('sim') === '1';
+  const [simScript, setSimScript] = useState<SimScript | null>(null);
+  const [simStarted, setSimStarted] = useState(false);
+  const [simThinking, setSimThinking] = useState(false);
+  // Resolves when the currently-playing sim bubble finishes.
+  const audioDone = useRef<(() => void) | null>(null);
+
+  // Load the script when entering sim mode.
+  useEffect(() => {
+    if (!simMode) return;
+    let alive = true;
+    getSimulation().then((s) => { if (alive) setSimScript(s); }).catch(() => { if (alive) setError('Could not load the simulation.'); });
+    return () => { alive = false; };
+  }, [simMode]);
+
+  async function runSimulation() {
+    if (!simScript) return;
+    setSimStarted(true);
+    setMessages([]);
+    const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    for (const turn of simScript.turns) {
+      if (turn.who === 'assistant') {
+        setSimThinking(true);
+        await wait(simScript.thinking_ms);
+        setSimThinking(false);
+      }
+      let url = '';
+      try { url = await speak(turn.text, simScript.voices[turn.who]); } catch { /* show text only */ }
+      await new Promise<void>((resolve) => {
+        audioDone.current = resolve;
+        setMessages((m) => [...m, { role: turn.who === 'assistant' ? 'assistant' : 'user', content: turn.text, audioUrl: url || null, autoPlay: !!url }]);
+        if (!url) resolve(); // nothing to play — advance after a beat
+      });
+      await wait(400); // brief gap between voice notes
+    }
+    navigate('/booking/preview', { state: { booking: simScript.booking } });
+  }
 
   // Load the thread named in the route, or start fresh when there is none.
   useEffect(() => {
@@ -235,6 +275,14 @@ export default function VoiceAssistant() {
         <button className="c-icon-btn" aria-label="History" onClick={() => void openDrawer()}><Icons.Clock size={18} /></button>
       </div>
 
+      {simMode && !simStarted && (
+        <div className="va-drawer-backdrop" style={{ zIndex: 20 }}>
+          <button className="c-btn" style={{ padding: '14px 28px', fontSize: 16 }} disabled={!simScript} onClick={() => void runSimulation()}>
+            ▶ Start simulation
+          </button>
+        </div>
+      )}
+
       <div className="va-thread" ref={threadRef}>
         {loadingHistory && <div className="va-bubble va-ai va-typing">…</div>}
         {!loadingHistory && messages.length === 0 && !busy && (
@@ -246,12 +294,16 @@ export default function VoiceAssistant() {
         {messages.map((m, i) => (
           <div key={i} className={`va-bubble ${m.role === 'user' ? 'va-user' : 'va-ai'}`}>
             {m.audioUrl && (
-              <AudioBubble src={m.audioUrl} autoPlay={m.role === 'assistant' && i >= restoredCount.current} />
+              <AudioBubble
+                src={m.audioUrl}
+                autoPlay={m.autoPlay ?? (m.role === 'assistant' && i >= restoredCount.current)}
+                onEnded={() => { if (audioDone.current) { const done = audioDone.current; audioDone.current = null; done(); } }}
+              />
             )}
             {m.content && <div className="va-text">{m.content}</div>}
           </div>
         ))}
-        {busy && <ThinkingBubble />}
+        {(busy || simThinking) && <ThinkingBubble />}
         {error && <div className="c-error-box">{error}</div>}
       </div>
 
@@ -262,19 +314,21 @@ export default function VoiceAssistant() {
         </div>
       )}
 
-      <div className="va-controls">
-        <input className="va-input" placeholder="Type a question…" value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') void send(draft); }} disabled={busy} />
-        <button className="c-btn" aria-label="Send" disabled={busy || !draft.trim()} onClick={() => void send(draft)}>
-          <Icons.Send size={16} />
-        </button>
-        {supported && (
-          <button className={`va-mic ${recording ? 'recording' : ''}`} aria-label="Microphone" disabled={busy && !recording} onClick={() => void toggleMic()}>
-            <Icons.Mic size={20} />
+      {!simMode && (
+        <div className="va-controls">
+          <input className="va-input" placeholder="Type a question…" value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') void send(draft); }} disabled={busy} />
+          <button className="c-btn" aria-label="Send" disabled={busy || !draft.trim()} onClick={() => void send(draft)}>
+            <Icons.Send size={16} />
           </button>
-        )}
-      </div>
+          {supported && (
+            <button className={`va-mic ${recording ? 'recording' : ''}`} aria-label="Microphone" disabled={busy && !recording} onClick={() => void toggleMic()}>
+              <Icons.Mic size={20} />
+            </button>
+          )}
+        </div>
+      )}
 
       {drawerOpen && (
         <div className="va-drawer-backdrop" onClick={() => setDrawerOpen(false)}>

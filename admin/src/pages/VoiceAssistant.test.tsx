@@ -1,19 +1,30 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import {
   getConversation, listConversations, renameConversation, deleteConversation, postText,
 } from '@/lib/assistant';
+import * as sim from '@/lib/simulation';
 import VoiceAssistant from './VoiceAssistant';
+
+vi.mock('@/lib/simulation');
 
 const navigate = vi.fn();
 let params: { conversationId?: string } = {};
+// Query params for the current route; individual tests set this to exercise
+// `?sim=1` sim mode. Defaults to none so existing tests are unaffected.
+let searchParams = new URLSearchParams();
 // Shop context: default to a normal (non-master) shop; individual tests flip
 // `shopValue.is_master` to exercise the master-redirect guard.
 let shopValue: { is_master?: boolean } | null = { is_master: false };
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigate,
   useParams: () => params,
+  useSearchParams: () => [searchParams, vi.fn()],
   Navigate: ({ to }: { to: string }) => <div>REDIRECT:{to}</div>,
+  MemoryRouter: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  Routes: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  Route: ({ element }: { element: React.ReactNode }) => <>{element}</>,
 }));
 vi.mock('@/context/ShopContext', () => ({
   useShop: () => ({ shop: shopValue }),
@@ -41,6 +52,7 @@ describe('VoiceAssistant page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     params = {};
+    searchParams = new URLSearchParams();
     shopValue = { is_master: false };
     asMock(getConversation).mockResolvedValue([]);
     asMock(listConversations).mockResolvedValue({ conversations: [], has_more: false });
@@ -153,5 +165,32 @@ describe('VoiceAssistant page', () => {
     await screen.findByText('Booking help');
     fireEvent.click(screen.getByRole('button', { name: /rename thread/i }));
     await waitFor(() => expect(renameConversation).toHaveBeenCalledWith(3, 'New name'));
+  });
+
+  it('sim mode plays the script and ends on the booking preview', async () => {
+    // jsdom has no real audio — make play() resolve and let us fire `ended`.
+    window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+    window.HTMLMediaElement.prototype.pause = vi.fn();
+    searchParams = new URLSearchParams('sim=1');
+
+    const script = {
+      turns: [{ who: 'owner', text: 'Book Sarah.' }, { who: 'assistant', text: 'Done.' }],
+      booking: { customer_name: 'Sarah', customer_phone: '055 010 2030', service: 'Hair Cut', price: '150.00', date: '2026-07-09', start_time: '09:30', end_time: '10:00', staff_name: 'Aisha' },
+      voices: { owner: 'shimmer', assistant: 'nova' }, thinking_ms: 0,
+    };
+    (sim.getSimulation as ReturnType<typeof vi.fn>).mockResolvedValue(script);
+    (sim.speak as ReturnType<typeof vi.fn>).mockResolvedValue('blob:audio');
+
+    render(
+      <MemoryRouter initialEntries={['/ask?sim=1']}>
+        <Routes><Route path="/ask" element={<VoiceAssistant />} /></Routes>
+      </MemoryRouter>,
+    );
+
+    // Tap the Start overlay (user gesture for autoplay).
+    fireEvent.click(await screen.findByRole('button', { name: /start/i }));
+
+    // First line requested in the owner voice.
+    await waitFor(() => expect(sim.speak).toHaveBeenCalledWith('Book Sarah.', 'shimmer'));
   });
 });
