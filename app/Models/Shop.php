@@ -31,6 +31,7 @@ class Shop extends Authenticatable
     protected $casts = [
         'last_login_at' => 'datetime',
         'modules' => 'array',
+        'simulation_script' => 'array',
     ];
 
     protected static function booted()
