@@ -424,31 +424,47 @@
 .ba-switch-opt.on .ba-switch-optlabel { text-shadow: 0 0 14px color-mix(in srgb, var(--optc) 55%, transparent); }
 
 /* ── Booking status control on phone/tablet (< desktop) ──
-   The vertical drag-slider is a desktop affordance; on smaller screens it renders
-   as a tall, mostly-empty vertical rail. Replace it with a compact 2×2 grid of
-   tappable status chips (tapping already sets the status via updateStatus). */
+   The status switch is a vertical drag-slider built for the desktop docked
+   layout; on smaller screens that tall vertical rail wastes space. Lay the same
+   slider out HORIZONTALLY: rail on top (full width), the four labels in a row
+   beneath, and the knob sliding left→right. Drag still works (BookingAction
+   picks the axis from the rail's shape), and tapping a label still sets it. */
 @media (max-width: 1023px) {
   .c-booking-action .ba-switch {
-    position: static; height: auto; width: 100%; align-self: stretch; padding-right: 0;
+    position: relative; display: flex; flex-direction: column; gap: 10px;
+    height: auto; width: 100%; align-self: stretch; padding-right: 0;
   }
-  .c-booking-action .ba-switch-rail,
-  .c-booking-action .ba-switch-knob,
   .c-booking-action .ba-switch-hint { display: none !important; }
+
+  .c-booking-action .ba-switch-rail {
+    position: relative; order: 1;
+    left: auto; right: auto; top: auto; bottom: auto;
+    width: 100%; height: 46px; border-radius: 24px;
+  }
+  .c-booking-action .ba-switch-fill {
+    top: 0; bottom: 0; left: 0; right: auto;
+    height: auto; width: calc((var(--active) + 0.5) / 4 * 100%);
+    transition: width .38s cubic-bezier(.34, 1.56, .5, 1), background .2s ease;
+  }
+  .c-booking-action .ba-switch-fill::after {
+    left: auto; right: 0; top: 0; bottom: 0; height: auto; width: 16px;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--stage) 95%, white 12%));
+  }
+  .c-booking-action .ba-switch-knob {
+    top: 23px; right: auto; bottom: auto;
+    left: calc((var(--active) + 0.5) / 4 * 100%);
+    transform: translate(-50%, -50%);
+    transition: left .38s cubic-bezier(.34, 1.56, .5, 1), background .2s ease;
+  }
+  .c-booking-action .ba-switch.dragging .ba-switch-knob { transition: background .2s ease; }
+
   .c-booking-action .ba-switch-opts {
-    position: static; inset: auto; flex-direction: row; flex-wrap: wrap; gap: 8px;
+    position: static; inset: auto; order: 2;
+    flex-direction: row;
   }
   .c-booking-action .ba-switch-opt {
-    flex: 1 1 calc(50% - 4px); min-width: 0;
-    align-items: center; justify-content: center; text-align: center; gap: 3px;
-    padding: 12px 8px; border-radius: 12px;
-    border: 1px solid var(--border-1); background: var(--surface-2);
+    flex: 1; min-width: 0; align-items: center; text-align: center; padding: 0 2px;
   }
-  .c-booking-action .ba-switch-opt.on {
-    border-color: var(--optc);
-    background: color-mix(in srgb, var(--optc) 14%, var(--surface-2));
-    box-shadow: inset 0 0 0 1px var(--optc);
-  }
-  .c-booking-action .ba-switch-optlabel { font-size: 14px; }
 }
 .ba-status-btn {
   height: 46px; border-radius: var(--r-md);

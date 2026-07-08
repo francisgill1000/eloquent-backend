@@ -27,6 +27,23 @@ export function dragIndexFromPointer(
   return clamp(raw, 0, geo.count - 1);
 }
 
+/**
+ * Fractional knob index for a horizontal rail (mobile/tablet layout), where the
+ * options are laid left→right in `count` equal segments and each option centres
+ * at (index + 0.5)/count of the rail width. Matches the knob's CSS left position.
+ * `pointerX` and `railLeft` are viewport-relative (clientX / rect.left).
+ */
+export function dragIndexHorizontal(
+  pointerX: number,
+  railLeft: number,
+  railWidth: number,
+  count: number = SWITCH_RAIL.count,
+): number {
+  if (railWidth <= 0) return 0;
+  const raw = ((pointerX - railLeft) / railWidth) * count - 0.5;
+  return clamp(raw, 0, count - 1);
+}
+
 /** Nearest whole status index for a (possibly fractional) position. */
 export function snapIndex(position: number, geo: RailGeometry = SWITCH_RAIL): number {
   return Math.round(clamp(position, 0, geo.count - 1));

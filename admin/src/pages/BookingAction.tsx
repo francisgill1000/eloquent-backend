@@ -8,7 +8,7 @@ import {
 import { getStaff } from '@/lib/shops';
 import { getCustomer, updateCustomer, type CustomerDetail } from '@/lib/customers';
 import { statusKind } from '@/lib/calendar';
-import { dragIndexFromPointer, snapIndex } from '@/lib/statusKnob';
+import { dragIndexFromPointer, dragIndexHorizontal, snapIndex } from '@/lib/statusKnob';
 import type { Booking, StaffMember } from '@/types';
 
 // Crisp, bold marks for the switch knob (no inner circle — the knob is the
@@ -68,7 +68,8 @@ export default function BookingAction() {
 
   // Live fractional knob position while dragging the status switch (null = idle).
   const [dragPos, setDragPos] = useState<number | null>(null);
-  const railTopRef = useRef(0); // .ba-switch top captured at pointer-down
+  // .ba-switch rect captured at pointer-down (drives both vertical + horizontal drag).
+  const railRef = useRef({ top: 0, left: 0, width: 0, height: 0 });
 
   // Intake notes (per-visit) + the customer's durable notes/preferences.
   const [visitNotes, setVisitNotes] = useState('');
@@ -227,13 +228,22 @@ export default function BookingAction() {
   const onKnobDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (busy) return;
     const rail = e.currentTarget.closest('.ba-switch');
-    railTopRef.current = rail ? rail.getBoundingClientRect().top : 0;
+    const r = rail ? rail.getBoundingClientRect() : null;
+    railRef.current = r
+      ? { top: r.top, left: r.left, width: r.width, height: r.height }
+      : { top: 0, left: 0, width: 0, height: 0 };
     e.currentTarget.setPointerCapture(e.pointerId);
     setDragPos(switchActive);
   };
   const onKnobMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (dragPos === null) return;
-    setDragPos(dragIndexFromPointer(e.clientY, railTopRef.current));
+    const { top, left, width, height } = railRef.current;
+    // The rail is horizontal on mobile/tablet (wider than tall) and vertical on
+    // desktop — pick the axis from its shape so drag tracks the right direction.
+    const pos = width > height
+      ? dragIndexHorizontal(e.clientX, left, width)
+      : dragIndexFromPointer(e.clientY, top);
+    setDragPos(pos);
   };
   const onKnobUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (dragPos === null) return;
