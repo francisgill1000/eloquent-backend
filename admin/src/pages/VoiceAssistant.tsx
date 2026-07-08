@@ -300,10 +300,11 @@ export default function VoiceAssistant() {
       </div>
 
       {simMode && !simStarted && (
-        <div className="va-drawer-backdrop" style={{ zIndex: 20 }}>
-          <button className="c-btn" style={{ padding: '14px 28px', fontSize: 16 }} disabled={!simScript} onClick={() => void runSimulation()}>
-            ▶ Start simulation
+        <div className="va-sim-overlay">
+          <button className="va-sim-start" aria-label="Start simulation" disabled={!simScript} onClick={() => void runSimulation()}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
           </button>
+          <span className="va-sim-cap">{simScript ? 'Tap to start' : 'Loading…'}</span>
         </div>
       )}
 

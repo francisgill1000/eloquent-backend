@@ -2068,6 +2068,27 @@
   display: flex; justify-content: flex-end;
   background: rgba(0,0,0,0.45);
 }
+
+/* Demo-simulation start overlay — a compact, centered play control. */
+.va-sim-overlay {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: rgba(6,10,9,0.55);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+}
+.va-sim-start {
+  width: 68px; height: 68px; border-radius: 50%; border: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #04140d;
+  background: linear-gradient(150deg, var(--mint-300), var(--mint-400));
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35), 0 0 0 6px rgba(255,255,255,0.06);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.va-sim-start svg { margin-left: 3px; } /* optically center the play triangle */
+.va-sim-start:hover { transform: translateY(-1px) scale(1.03); }
+.va-sim-start:active { transform: scale(0.96); }
+.va-sim-start:disabled { opacity: 0.5; cursor: default; transform: none; }
+.va-sim-cap { font-size: 13px; color: var(--text-3); letter-spacing: 0.2px; }
 .va-drawer {
   width: min(88vw, 340px); height: 100%;
   display: flex; flex-direction: column;
