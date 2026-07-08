@@ -54,7 +54,7 @@ export default function SimulationSettings() {
       <div className="c-page-head" style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 className="c-page-title">Demo simulation</h1>
-          <p className="c-page-sub">A scripted voice booking for recording videos. Nothing here creates a real booking.</p>
+          <p className="c-page-sub">A scripted voice booking for recording demo videos. Playing it creates a real booking you can delete afterwards.</p>
         </div>
         <button className="c-icon-btn" aria-label="Back to settings" onClick={() => navigate('/settings')}><Icons.ChevronLeft size={18} /></button>
       </div>
