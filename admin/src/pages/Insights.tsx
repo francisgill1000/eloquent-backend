@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { getInsights, type Insights as InsightsData, type InsightsDaily } from '@/lib/insights';
+import { getShopBookings } from '@/lib/bookings';
+import type { Booking } from '@/types';
 import '@/styles/insights.css';
 
 /* ---------- date helpers ---------------------------------------------------- */
@@ -16,6 +18,14 @@ const daysBetween = (from: string, to: string) =>
 const fmtLong = (s: string) => { const d = parseISO(s); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
 const fmtShort = (s: string) => { const d = parseISO(s); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
 const fmtNum = (n: number) => n.toLocaleString();
+const dateOf = (b: Booking) => String(b.date ?? '').slice(0, 10);
+function fmtTime(t?: string): string {
+  if (!t) return 'TBD';
+  try {
+    const norm = t.length === 5 ? `${t}:00` : t;
+    return new Date(`1970-01-01T${norm}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } catch { return t; }
+}
 
 type PresetKey = '7d' | '30d' | '90d' | 'mtd' | 'lastmonth' | 'ytd' | 'custom';
 const PRESETS: { key: Exclude<PresetKey, 'custom'>; label: string }[] = [
@@ -34,7 +44,7 @@ function presetRange(key: Exclude<PresetKey, 'custom'>, today: Date): { from: st
     case '7d': return { from: iso(addDays(today, -6)), to: iso(today) };
     case '30d': return { from: iso(addDays(today, -29)), to: iso(today) };
     case '90d': return { from: iso(addDays(today, -89)), to: iso(today) };
-    case 'mtd': return { from: iso(new Date(y, m, 1)), to: iso(today) };
+    case 'mtd': return { from: iso(new Date(y, m, 1)), to: iso(new Date(y, m + 1, 0)) };
     case 'lastmonth': return { from: iso(new Date(y, m - 1, 1)), to: iso(new Date(y, m, 0)) };
     case 'ytd': return { from: iso(new Date(y, 0, 1)), to: iso(today) };
   }
@@ -292,6 +302,7 @@ export default function Insights() {
   const [prev, setPrev] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [bookings, setBookings] = useState<Booking[]>([]);
 
   const choosePreset = (key: Exclude<PresetKey, 'custom'>) => {
     const r = presetRange(key, today);
@@ -326,7 +337,26 @@ export default function Insights() {
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
+  // Upcoming bookings are inherently forward-looking, so they load once
+  // (independent of the report's date range) — same view as the Overview page.
+  useEffect(() => {
+    if (!shop?.id) return;
+    let alive = true;
+    getShopBookings(shop.id).then((r) => { if (alive) setBookings(r.data); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [shop?.id]);
+
   const rangeLen = daysBetween(nf, nt);
+  const todayISO = iso(today);
+  const upcoming = bookings
+    .filter((b) => {
+      const s = String(b.status).toLowerCase();
+      return dateOf(b) >= todayISO && s !== 'cancelled' && s !== 'completed' && s !== 'no_show';
+    })
+    .sort((a, b) => (dateOf(a) === dateOf(b)
+      ? (a.start_time ?? '').localeCompare(b.start_time ?? '')
+      : dateOf(a).localeCompare(dateOf(b))))
+    .slice(0, 6);
 
   return (
     <div className="m-screen"><div className="m-scroll">
@@ -350,7 +380,7 @@ export default function Insights() {
             <input className="ins-date-input" type="date" value={from} max={to}
               onChange={(e) => { setFrom(e.target.value); setPreset('custom'); }} aria-label="From date" />
             <span className="ins-date-dash">→</span>
-            <input className="ins-date-input" type="date" value={to} min={from} max={iso(today)}
+            <input className="ins-date-input" type="date" value={to} min={from}
               onChange={(e) => { setTo(e.target.value); setPreset('custom'); }} aria-label="To date" />
             <span className="ins-active"><b>{fmtLong(nf)}</b> – <b>{fmtLong(nt)}</b> · {rangeLen} day{rangeLen === 1 ? '' : 's'}</span>
           </div>
@@ -380,6 +410,33 @@ export default function Insights() {
             {/* Trend — full width */}
             <ChartCard icon="Chart" title="Bookings over time" sub={rangeLen > 62 ? 'Weekly totals' : 'Daily totals'} span2>
               <TrendChart daily={data.daily} />
+            </ChartCard>
+
+            {/* Upcoming bookings — forward-looking, like the Overview page */}
+            <ChartCard icon="Calendar" title="Upcoming bookings"
+              sub={upcoming.length ? `Next ${upcoming.length} appointment${upcoming.length === 1 ? '' : 's'}` : 'Scheduled ahead'} span2>
+              {upcoming.length === 0 ? (
+                <EmptyState text="No upcoming bookings scheduled." />
+              ) : (
+                <div className="ins-up-list">
+                  {upcoming.map((b) => {
+                    const name = b.customer?.name || b.customer_name || 'Guest';
+                    const services = b.services?.map((s) => s.title || s.name).filter(Boolean).join(', ') || 'Service';
+                    const when = b.start_time ? fmtTime(b.start_time) : (b.show_date ?? 'TBD');
+                    const isToday = dateOf(b) === todayISO;
+                    return (
+                      <button key={b.id} className="ins-up-row" onClick={() => navigate(`/booking/${b.id}`)}>
+                        <span className="ins-up-when">{isToday ? 'Today' : fmtShort(dateOf(b))}<em>{when}</em></span>
+                        <span className="ins-up-body">
+                          <span className="ins-up-name">{name}</span>
+                          <span className="ins-up-sub">{services}</span>
+                        </span>
+                        <span className="ins-up-price">AED {b.charges ?? 0}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </ChartCard>
 
             <div className="ins-grid">
