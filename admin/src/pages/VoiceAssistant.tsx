@@ -155,9 +155,16 @@ export default function VoiceAssistant() {
       let url = '';
       try { url = await speak(turn.text, simScript.voices[turn.who]); } catch { /* show text only */ }
       await new Promise<void>((resolve) => {
-        audioDone.current = resolve;
+        let settled = false;
+        const finish = () => { if (settled) return; settled = true; audioDone.current = null; resolve(); };
+        audioDone.current = finish;
         setMessages((m) => [...m, { role: turn.who === 'assistant' ? 'assistant' : 'user', content: turn.text, audioUrl: url || null, autoPlay: !!url }]);
-        if (!url) resolve(); // nothing to play — advance after a beat
+        if (!url) { finish(); return; } // nothing to play — advance after a beat
+        // Failsafe: if the audio never signals 'ended' (silent playback failure),
+        // advance anyway so a recording never hangs. Scaled to line length; only a
+        // fallback — normal playback resolves via onEnded well before this.
+        const cap = Math.max(15000, turn.text.length * 120);
+        setTimeout(finish, cap);
       });
       await wait(400); // brief gap between voice notes
     }
