@@ -5,10 +5,16 @@ import { Icons } from '@/components/Icons';
 export function VoiceAssistantFab() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  // Don't show the mic on the assistant itself — the home/new-chat screen (`/`,
-  // `/ask`) or an open conversation (`/ask/:id`). Otherwise it overlaps the
-  // chat composer.
-  if (pathname === '/' || pathname === '/ask' || pathname.startsWith('/ask/')) return null;
+  // Hide the mic where it would overlap content instead of helping:
+  //  - the assistant itself (`/`, `/ask`, `/ask/:id`)
+  //  - the booking detail page (`/booking/:id`), a focused page with no bottom
+  //    tab bar, where the FAB (positioned above the tab bar) floats over the
+  //    Save / Assign buttons.
+  if (
+    pathname === '/' ||
+    pathname === '/ask' || pathname.startsWith('/ask/') ||
+    pathname.startsWith('/booking/')
+  ) return null;
   return (
     <button className="va-fab" aria-label="Voice assistant" onClick={() => navigate('/ask')}>
       <Icons.Mic size={22} />

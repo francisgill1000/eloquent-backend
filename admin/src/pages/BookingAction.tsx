@@ -412,7 +412,7 @@ export default function BookingAction() {
               {customer.preferences && Object.keys(customer.preferences).length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {Object.entries(customer.preferences).map(([k, v]) => (
-                    <span key={k} className="c-chip c-chip-booked">{k}: {String(v)}</span>
+                    <span key={k} className="c-chip c-chip-booked">{k.replace(/_/g, ' ')}: {String(v)}</span>
                   ))}
                 </div>
               )}

@@ -18,7 +18,7 @@ describe('VoiceAssistantFab', () => {
     expect(navigate).toHaveBeenCalledWith('/ask');
   });
 
-  it.each(['/', '/ask', '/ask/5'])('is hidden on the assistant path %s', (p) => {
+  it.each(['/', '/ask', '/ask/5', '/booking/12'])('is hidden on %s (overlap-prone page)', (p) => {
     pathname = p;
     render(<VoiceAssistantFab />);
     expect(screen.queryByRole('button', { name: /assistant/i })).not.toBeInTheDocument();
