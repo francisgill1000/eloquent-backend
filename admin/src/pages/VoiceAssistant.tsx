@@ -2,10 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
-import {
-  getConversation, listConversations, renameConversation, deleteConversation,
-  postText, postVoice, type Conversation,
-} from '@/lib/assistant';
+import { getConversation, postText, postVoice } from '@/lib/assistant';
 import { getSimulation, speak, type SimScript } from '@/lib/simulation';
 import { createBooking } from '@/lib/bookings';
 import { useRecorder } from '@/hooks/useRecorder';
@@ -118,8 +115,6 @@ export default function VoiceAssistant() {
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [threads, setThreads] = useState<Conversation[]>([]);
   const { recording, start, stop, supported } = useRecorder();
   const threadRef = useRef<HTMLDivElement>(null);
   // Messages loaded from the server should not auto-play their audio; only
@@ -216,25 +211,6 @@ export default function VoiceAssistant() {
     threadRef.current?.scrollTo?.({ top: threadRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, busy]);
 
-  async function openDrawer() {
-    setDrawerOpen(true);
-    try { setThreads((await listConversations()).conversations); } catch { setError('Could not load your chats.'); }
-  }
-
-  async function removeThread(id: number) {
-    if (!window.confirm('Delete this chat?')) return;
-    try { await deleteConversation(id); } catch { setError('Could not delete the chat.'); return; }
-    setThreads((t) => t.filter((c) => c.id !== id));
-    if (id === conversationId) navigate('/ask'); // deleting the open thread → new chat
-  }
-
-  async function renameThread(id: number, current: string) {
-    const next = window.prompt('Rename chat', current);
-    if (next == null || !next.trim()) return;
-    try { await renameConversation(id, next.trim()); } catch { setError('Could not rename the chat.'); return; }
-    setThreads((t) => t.map((c) => (c.id === id ? { ...c, title: next.trim() } : c)));
-  }
-
   // After the first successful send in a new thread, adopt its id + route.
   function adopt(id?: number) {
     if (id != null && conversationId == null) {
@@ -296,7 +272,6 @@ export default function VoiceAssistant() {
           <span className="va-sub">Ask anything — or tell me to do something</span>
         </div>
         <button className="c-icon-btn" aria-label="New chat" onClick={() => navigate('/ask')}><Icons.Plus size={18} /></button>
-        <button className="c-icon-btn" aria-label="History" onClick={() => void openDrawer()}><Icons.Clock size={18} /></button>
       </div>
 
       {simMode && !simStarted && (
@@ -355,32 +330,6 @@ export default function VoiceAssistant() {
         </div>
       )}
 
-      {drawerOpen && (
-        <div className="va-drawer-backdrop" onClick={() => setDrawerOpen(false)}>
-          <div className="va-drawer" onClick={(e) => e.stopPropagation()}>
-            <div className="va-drawer-head">
-              <span className="va-drawer-title">Your chats</span>
-              <button className="c-icon-btn" aria-label="Close" onClick={() => setDrawerOpen(false)}><Icons.ChevronLeft size={18} /></button>
-            </div>
-            <button className="va-drawer-new" onClick={() => { setDrawerOpen(false); navigate('/ask'); }}>
-              <Icons.Plus size={16} /> New chat
-            </button>
-            <div className="va-drawer-list">
-              {threads.length === 0 && <p className="va-drawer-empty">No past chats yet.</p>}
-              {threads.map((c) => (
-                <div key={c.id} className={`va-drawer-row ${c.id === conversationId ? 'active' : ''}`}>
-                  <button className="va-drawer-open" onClick={() => { setDrawerOpen(false); navigate(`/ask/${c.id}`); }}>
-                    <span className="va-drawer-row-title">{c.title}</span>
-                    <span className="va-drawer-row-time">{new Date(c.updated_at).toLocaleDateString()}</span>
-                  </button>
-                  <button className="c-icon-btn" aria-label="Rename thread" onClick={() => void renameThread(c.id, c.title)}><Icons.Send size={14} /></button>
-                  <button className="c-icon-btn" aria-label="Delete thread" onClick={() => void removeThread(c.id)}><Icons.Trash size={14} /></button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

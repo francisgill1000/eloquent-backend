@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import {
-  getConversation, listConversations, renameConversation, deleteConversation, postText,
-} from '@/lib/assistant';
+import { getConversation, postText } from '@/lib/assistant';
 import * as sim from '@/lib/simulation';
 import VoiceAssistant from './VoiceAssistant';
 
@@ -55,7 +53,6 @@ describe('VoiceAssistant page', () => {
     searchParams = new URLSearchParams();
     shopValue = { is_master: false };
     asMock(getConversation).mockResolvedValue([]);
-    asMock(listConversations).mockResolvedValue({ conversations: [], has_more: false });
     asMock(postText).mockResolvedValue({ conversation_id: 9, title: 'how much', reply_text: 'You made 50 dirhams.', reply_audio_url: null });
   });
 
@@ -126,45 +123,6 @@ describe('VoiceAssistant page', () => {
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
     await waitFor(() => expect(screen.getByText('You made 50 dirhams.')).toBeInTheDocument());
     expect(navigate).not.toHaveBeenCalledWith(expect.stringContaining('/booking/'));
-  });
-
-  it('opens the history drawer and lists threads', async () => {
-    asMock(listConversations).mockResolvedValue({ conversations: [{ id: 3, title: 'Booking help', updated_at: '2026-07-07T10:00:00+00:00' }], has_more: false });
-    render(<VoiceAssistant />);
-    await screen.findByPlaceholderText(/type/i);
-    fireEvent.click(screen.getByRole('button', { name: /history/i }));
-    expect(await screen.findByText('Booking help')).toBeInTheDocument();
-  });
-
-  it('navigates to a thread when picked from the drawer', async () => {
-    asMock(listConversations).mockResolvedValue({ conversations: [{ id: 3, title: 'Booking help', updated_at: '2026-07-07T10:00:00+00:00' }], has_more: false });
-    render(<VoiceAssistant />);
-    await screen.findByPlaceholderText(/type/i);
-    fireEvent.click(screen.getByRole('button', { name: /history/i }));
-    fireEvent.click(await screen.findByText('Booking help'));
-    expect(navigate).toHaveBeenCalledWith('/ask/3');
-  });
-
-  it('deletes a thread from the drawer', async () => {
-    asMock(listConversations).mockResolvedValue({ conversations: [{ id: 3, title: 'Booking help', updated_at: '2026-07-07T10:00:00+00:00' }], has_more: false });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    render(<VoiceAssistant />);
-    await screen.findByPlaceholderText(/type/i);
-    fireEvent.click(screen.getByRole('button', { name: /history/i }));
-    await screen.findByText('Booking help');
-    fireEvent.click(screen.getByRole('button', { name: /delete thread/i }));
-    await waitFor(() => expect(deleteConversation).toHaveBeenCalledWith(3));
-  });
-
-  it('renames a thread from the drawer', async () => {
-    asMock(listConversations).mockResolvedValue({ conversations: [{ id: 3, title: 'Booking help', updated_at: '2026-07-07T10:00:00+00:00' }], has_more: false });
-    vi.spyOn(window, 'prompt').mockReturnValue('New name');
-    render(<VoiceAssistant />);
-    await screen.findByPlaceholderText(/type/i);
-    fireEvent.click(screen.getByRole('button', { name: /history/i }));
-    await screen.findByText('Booking help');
-    fireEvent.click(screen.getByRole('button', { name: /rename thread/i }));
-    await waitFor(() => expect(renameConversation).toHaveBeenCalledWith(3, 'New name'));
   });
 
   it('sim mode plays the script and ends on the booking preview', async () => {
