@@ -22,7 +22,7 @@ const ALL_OPTIONS: Option[] = [
   { label: 'Services', sub: 'Add or edit what you offer', to: '/services', icon: 'Grid', modules: ['bookings'] },
   { label: 'Staff', sub: 'Add & manage your team', to: '/staff', icon: 'Users', modules: ['bookings'] },
   { label: 'Customers', sub: 'Your customer list & visit history', to: '/customers', icon: 'User', modules: ['bookings'] },
-  { label: 'Demo simulation', sub: 'Record a scripted voice booking — no real booking made', to: '/settings/simulation', icon: 'Mic', modules: ['bookings'] },
+  { label: 'Demo simulation', sub: 'Play a scripted voice booking to record demo videos', to: '/settings/simulation', icon: 'Mic', modules: ['bookings'] },
   { label: 'Recurring booking', sub: 'Set up a regular weekly or monthly appointment', to: '/bookings/recurring', icon: 'Calendar', modules: ['bookings'] },
   { label: 'Booking notifications', sub: 'Reminders, reviews & waitlist messages', to: '/settings/notifications', icon: 'Bell', modules: ['bookings'] },
   { label: 'Reviews', sub: 'Customer ratings & feedback', to: '/reviews', icon: 'Heart', modules: ['bookings'] },
