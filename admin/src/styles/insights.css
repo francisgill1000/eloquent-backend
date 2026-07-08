@@ -132,12 +132,12 @@
   gap: 12px;
 }
 .ins-card {
-  background: var(--surface-1);
-  border: 1px solid var(--border-2);
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-mint);
   border-radius: var(--r-lg);
   padding: 16px;
   backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-2);
+  box-shadow: 0 12px 40px -22px var(--mint-glow);
   min-width: 0;
 }
 .ins-card.span2 { grid-column: 1 / -1; }
