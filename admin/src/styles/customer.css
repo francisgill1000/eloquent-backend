@@ -516,7 +516,9 @@
   display: grid; place-items: center; font-size: 13px; font-weight: 800;
   border: 2px solid var(--border-2); background: var(--surface-1); color: var(--text-4);
 }
-.ba-tstep.current .ba-tnode { border-color: var(--mint-300); color: var(--mint-300); box-shadow: 0 0 0 4px var(--mint-soft); }
+/* Current step reads as reached: filled like a done step, but kept distinct by
+   its glow ring (and it shows the step number rather than a check). */
+.ba-tstep.current .ba-tnode { border-color: var(--mint-300); background: var(--mint-300); color: #001410; box-shadow: 0 0 0 4px var(--mint-soft); }
 .ba-tstep.done .ba-tnode { border-color: var(--mint-300); background: var(--mint-300); color: #001410; }
 .ba-tstep.cancelled .ba-tnode { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
 .ba-tmeta { display: flex; flex-direction: column; gap: 2px; }
