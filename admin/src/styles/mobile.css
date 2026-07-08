@@ -1996,10 +1996,15 @@
 /* Voice assistant — the home screen, living inside the tabbed layout. Fills the
    content area (100%) rather than the whole viewport (100dvh) so the bottom tab
    bar stays visible beneath it. */
-/* Fill the flex parent (.mobile-main) directly. A percentage height collapses
-   here because .mobile-app is sized with min-height, not a definite height —
-   flex:1 makes the thread grow so the input row pins to the bottom. */
-.va-screen { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+/* Fill the flex parent (.mobile-main) directly — flex:1 makes the thread grow so
+   the input row pins to the bottom (a percentage height collapses here because
+   .mobile-app is sized with min-height, not a definite height). The bottom
+   padding reserves space for the FIXED tab bar so the composer isn't hidden
+   behind it — same clearance .m-scroll uses. */
+.va-screen {
+  display: flex; flex-direction: column; flex: 1; min-height: 0;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
 .va-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border-1); flex: 0 0 auto; }
 .va-head-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .va-title { font-weight: 800; color: var(--text-1); }
