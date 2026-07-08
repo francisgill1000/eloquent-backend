@@ -1,5 +1,15 @@
 import api from './api';
 
+export type CustomerBooking = {
+  id: number;
+  reference: string | null;
+  date: string | null;
+  start_time: string | null;
+  status: string;
+  charges: number;
+  services: Array<{ id?: number; title?: string; name?: string; price?: number | string }> | null;
+};
+
 export type CustomerDetail = {
   id: number;
   name: string | null;
@@ -7,8 +17,15 @@ export type CustomerDetail = {
   notes: string | null;
   preferences: Record<string, unknown> | null;
   bookings_count: number;
-  last_visit_date: string | null;
+  completed_count: number;
+  cancelled_count: number;
+  no_show_count: number;
+  upcoming_count: number;
   total_spent: number;
+  avg_spent: number;
+  first_visit_date: string | null;
+  last_visit_date: string | null;
+  bookings: CustomerBooking[];
 };
 
 export async function getCustomer(shopId: number, customerId: number): Promise<CustomerDetail> {

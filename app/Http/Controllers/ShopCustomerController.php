@@ -57,17 +57,55 @@ class ShopCustomerController extends Controller
     {
         abort_unless((int) $customer->shop_id === (int) $shop->id, 404);
 
+        $agg = $customer->bookings()
+            ->selectRaw("
+                count(*) as total,
+                sum(case when lower(status) = 'completed' then 1 else 0 end) as completed,
+                sum(case when lower(status) = 'cancelled' then 1 else 0 end) as cancelled,
+                sum(case when lower(status) = 'no_show'   then 1 else 0 end) as no_show,
+                sum(case when lower(status) = 'booked'    then 1 else 0 end) as upcoming,
+                sum(case when lower(status) != 'cancelled' then charges else 0 end) as total_spent,
+                min(date) as first_visit,
+                max(date) as last_visit
+            ")
+            ->first();
+
+        $total       = (int) ($agg->total ?? 0);
+        $cancelled   = (int) ($agg->cancelled ?? 0);
+        $totalSpent  = (float) ($agg->total_spent ?? 0);
+        $nonCancelled = $total - $cancelled;
+
+        $recent = $customer->bookings()
+            ->orderByDesc('date')->orderByDesc('start_time')
+            ->limit(30)
+            ->get(['id', 'booking_reference', 'date', 'start_time', 'status', 'charges', 'services'])
+            ->map(fn ($b) => [
+                'id'         => $b->id,
+                'reference'  => $b->booking_reference,
+                'date'       => $b->date,
+                'start_time' => $b->getRawOriginal('start_time') ? substr((string) $b->getRawOriginal('start_time'), 0, 5) : null,
+                'status'     => strtolower((string) $b->getRawOriginal('status')),
+                'charges'    => (float) $b->charges,
+                'services'   => $b->services,
+            ]);
+
         return response()->json([
             'data' => [
-                'id'              => $customer->id,
-                'name'            => $customer->name,
-                'whatsapp'        => $customer->whatsapp,
-                'notes'           => $customer->notes,
-                'preferences'     => $customer->preferences,
-                'bookings_count'  => $customer->bookings()->count(),
-                'last_visit_date' => $customer->bookings()->max('date'),
-                'total_spent'     => (float) $customer->bookings()
-                    ->whereRaw("lower(status) != 'cancelled'")->sum('charges'),
+                'id'               => $customer->id,
+                'name'             => $customer->name,
+                'whatsapp'         => $customer->whatsapp,
+                'notes'            => $customer->notes,
+                'preferences'      => $customer->preferences,
+                'bookings_count'   => $total,
+                'completed_count'  => (int) ($agg->completed ?? 0),
+                'cancelled_count'  => $cancelled,
+                'no_show_count'    => (int) ($agg->no_show ?? 0),
+                'upcoming_count'   => (int) ($agg->upcoming ?? 0),
+                'total_spent'      => $totalSpent,
+                'avg_spent'        => $nonCancelled > 0 ? round($totalSpent / $nonCancelled, 2) : 0.0,
+                'first_visit_date' => $agg->first_visit,
+                'last_visit_date'  => $agg->last_visit,
+                'bookings'         => $recent,
             ],
         ]);
     }
