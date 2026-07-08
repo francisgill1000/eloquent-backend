@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { dragIndexFromPointer, snapIndex, SWITCH_RAIL } from './statusKnob';
+import { dragIndexFromPointer, dragIndexHorizontal, snapIndex, SWITCH_RAIL } from './statusKnob';
 
 // railTop = 0 keeps pointerY equal to the position within the rail.
 describe('dragIndexFromPointer', () => {
@@ -27,6 +27,27 @@ describe('dragIndexFromPointer', () => {
 
   it('clamps below the last option', () => {
     expect(dragIndexFromPointer(999, 0)).toBe(SWITCH_RAIL.count - 1);
+  });
+});
+
+// A 400px-wide rail: option centres at 12.5/37.5/62.5/87.5% → 50/150/250/350px.
+describe('dragIndexHorizontal', () => {
+  it('maps each option centre to its exact whole index', () => {
+    expect(dragIndexHorizontal(50, 0, 400)).toBe(0);
+    expect(dragIndexHorizontal(150, 0, 400)).toBe(1);
+    expect(dragIndexHorizontal(250, 0, 400)).toBe(2);
+    expect(dragIndexHorizontal(350, 0, 400)).toBe(3);
+  });
+
+  it('returns fractional positions and honours the rail left offset', () => {
+    expect(dragIndexHorizontal(100, 0, 400)).toBeCloseTo(0.5);
+    expect(dragIndexHorizontal(250, 200, 400)).toBeCloseTo(0); // 250-200=50 → index 0
+  });
+
+  it('clamps outside the rail and guards a zero width', () => {
+    expect(dragIndexHorizontal(-99, 0, 400)).toBe(0);
+    expect(dragIndexHorizontal(9999, 0, 400)).toBe(SWITCH_RAIL.count - 1);
+    expect(dragIndexHorizontal(10, 0, 0)).toBe(0);
   });
 });
 
