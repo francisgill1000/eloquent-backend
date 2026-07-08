@@ -29,7 +29,12 @@ class TtsController extends Controller
         }
 
         $model = (string) config('services.openai.tts_model', 'gpt-4o-mini-tts');
-        $voice = (string) config('services.openai.tts_voice', 'nova');
+        $default = (string) config('services.openai.tts_voice', 'nova');
+
+        // Optional caller-chosen voice, whitelisted to the voices the demo uses.
+        $allowed = ['nova', 'shimmer', 'coral', 'sage', 'alloy'];
+        $requested = (string) $request->input('voice', '');
+        $voice = in_array($requested, $allowed, true) ? $requested : $default;
 
         $cacheKey = 'tts:' . md5($model . '|' . $voice . '|' . $text);
         $audio = Cache::get($cacheKey);
