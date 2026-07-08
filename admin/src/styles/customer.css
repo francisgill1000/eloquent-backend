@@ -553,6 +553,17 @@
 }
 .ba-invoice-view:hover { border-color: var(--border-mint); color: var(--mint-300); background: var(--mint-soft); }
 
+/* On phone/tablet the two invoice actions are wider than the card and, being
+   non-shrinking, "Mark as Paid" spilled outside it. Stack them full-width so each
+   label stays on one line and both sit cleanly inside the card. */
+@media (max-width: 1023px) {
+  .c-booking-action .ba-invoice-actions {
+    width: 100%; flex-direction: column; align-items: stretch;
+  }
+  .c-booking-action .ba-invoice-view,
+  .c-booking-action .ba-invoice-btn { width: 100%; justify-content: center; }
+}
+
 .ba-staff-list {
   background: var(--mint-soft); border: 1px solid var(--border-mint);
   border-radius: var(--r-lg); box-shadow: var(--shadow-1); overflow: hidden;
