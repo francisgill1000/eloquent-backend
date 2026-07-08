@@ -47,6 +47,7 @@ import WhatsAppSetup from '@/pages/WhatsAppSetup';
 import Leads from '@/pages/Leads';
 import LeadDetail from '@/pages/LeadDetail';
 import LeadMessages from '@/pages/LeadMessages';
+import SimulationSettings from '@/pages/SimulationSettings';
 
 export default function App() {
   return (
@@ -89,6 +90,7 @@ export default function App() {
             <Route path="/leads/:id" element={<LeadDetail />} />
           </Route>
           <Route path="/settings/access" element={<AccessControl />} />
+          <Route path="/settings/simulation" element={<SimulationSettings />} />
           <Route path="/working-hours" element={<WorkingHours />} />
           <Route path="/category-setup" element={<CategorySetup />} />
           <Route path="/assistant" element={<Assistant />} />
