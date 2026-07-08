@@ -476,8 +476,12 @@
     flex-direction: row;
   }
   .c-booking-action .ba-switch-opt {
-    flex: 1; min-width: 0; align-items: center; text-align: center; padding: 0 2px;
+    flex: 1; min-width: 0; align-items: center; text-align: center; padding: 0 3px;
   }
+  /* Four labels must share a narrow row — shrink them so "Completed"/"Cancelled"
+     don't collide, and keep the sub-state line compact. */
+  .c-booking-action .ba-switch-optlabel { font-size: 12px; letter-spacing: -0.01em; line-height: 1.15; }
+  .c-booking-action .ba-switch-optstate { font-size: 8px; letter-spacing: .04em; }
 }
 .ba-status-btn {
   height: 46px; border-radius: var(--r-md);
