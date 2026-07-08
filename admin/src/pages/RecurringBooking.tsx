@@ -37,6 +37,7 @@ export default function RecurringBooking() {
     const svc = services.find((s) => String(s.id) === serviceId);
     if (!svc) { setError('Please choose a service.'); return; }
     if (!date) { setError('Please choose a start date.'); return; }
+    if (!customerWhatsapp.trim()) { setError('Please enter the customer contact number.'); return; }
     const n = Number(occurrences);
     if (!Number.isInteger(n) || n < 2 || n > 52) { setError('Occurrences must be between 2 and 52.'); return; }
 
@@ -50,7 +51,7 @@ export default function RecurringBooking() {
         services: [{ id: svc.id, title: svc.title ?? svc.name, price: svc.price }],
         charges: Number(svc.price ?? 0),
         customer_name: customerName || undefined,
-        customer_whatsapp: customerWhatsapp || undefined,
+        customer_whatsapp: customerWhatsapp.trim(),
         frequency,
         occurrences: n,
       });
@@ -112,8 +113,8 @@ export default function RecurringBooking() {
           <label className="c-field-label">Customer name</label>
           <div className="c-input-row"><input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="e.g. Riya" /></div>
 
-          <label className="c-field-label">Customer WhatsApp</label>
-          <div className="c-input-row"><input type="text" value={customerWhatsapp} onChange={(e) => setCustomerWhatsapp(e.target.value)} placeholder="9715XXXXXXXX" /></div>
+          <label className="c-field-label">Customer contact number *</label>
+          <div className="c-input-row"><input type="tel" required value={customerWhatsapp} onChange={(e) => setCustomerWhatsapp(e.target.value)} placeholder="9715XXXXXXXX" /></div>
 
           <label className="c-field-label">Start date</label>
           <div className="c-input-row"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} /></div>

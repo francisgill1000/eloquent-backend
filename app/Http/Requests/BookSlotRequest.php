@@ -30,7 +30,7 @@ class BookSlotRequest extends FormRequest
             'charges'           => ['nullable', 'numeric', 'min:0'],
             'services'          => ['required', 'array', 'min:1'],
             'customer_name'     => ['nullable', 'string', 'max:255'],
-            'customer_whatsapp' => ['nullable', 'string', 'max:32'],
+            'customer_whatsapp' => ['required', 'string', 'max:32'],
             'promo_code'        => ['nullable', 'string', 'max:32'],
         ];
     }
@@ -43,6 +43,7 @@ class BookSlotRequest extends FormRequest
             'services.required' => 'Please select at least one service',
             'services.min' => 'Please select at least one service',
             'services.array' => 'Please select at least one service',
+            'customer_whatsapp.required' => 'A customer contact number is required',
         ];
     }
 }

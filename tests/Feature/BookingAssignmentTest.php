@@ -31,6 +31,7 @@ class BookingAssignmentTest extends TestCase
                 'start_time' => '10:00:00',
                 'services' => [['title' => 'Cut', 'price' => '50.00']],
                 'charges' => 50.0,
+                'customer_whatsapp' => '971500000000',
             ]);
 
         $response->assertStatus(201);
@@ -60,6 +61,7 @@ class BookingAssignmentTest extends TestCase
                 'start_time' => '10:00:00',
                 'services' => [['title' => 'Cut', 'price' => '50.00']],
                 'charges' => 50.0,
+                'customer_whatsapp' => '971500000000',
             ]);
 
         $response->assertStatus(201);
@@ -71,5 +73,22 @@ class BookingAssignmentTest extends TestCase
             'start_time' => '10:00:00',
             'device_id' => 'dev-2',
         ]);
+    }
+
+    public function test_book_slot_rejects_missing_contact_number(): void
+    {
+        $shop = Shop::factory()->create();
+        Staff::factory()->create(['shop_id' => $shop->id]);
+
+        $response = $this->withHeaders(['X-Device-Id' => 'dev-3'])
+            ->postJson("/api/shops/{$shop->id}/book", [
+                'date' => '2026-05-11',
+                'start_time' => '10:00:00',
+                'services' => [['title' => 'Cut', 'price' => '50.00']],
+                'charges' => 50.0,
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('bookings', 0);
     }
 }

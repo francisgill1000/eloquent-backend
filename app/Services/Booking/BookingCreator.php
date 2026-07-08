@@ -6,6 +6,7 @@ use App\Models\Shop;
 use App\Models\ShopCustomer;
 use App\Services\StaffAssigner;
 use Carbon\Carbon;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * The core "create a booking" logic (working hours + staff assignment + customer
@@ -16,6 +17,13 @@ class BookingCreator
 {
     public function create(Shop $shop, array $data): Booking
     {
+        // A contact number is mandatory: every booking must map to a customer,
+        // so a booking is never stored anonymously (no null shop_customer_id).
+        $normalizedWhatsapp = ShopCustomer::normalize($data['customer_whatsapp'] ?? null);
+        if (strlen($normalizedWhatsapp) < 7) {
+            throw new HttpException(422, 'A valid contact number is required to create a booking.');
+        }
+
         $date = Carbon::parse($data['date'])->format('Y-m-d');
         $startTime = $data['start_time'];
 
