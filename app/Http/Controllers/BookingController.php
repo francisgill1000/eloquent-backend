@@ -189,7 +189,7 @@ class BookingController extends Controller
             'services'          => ['required', 'array', 'min:1'],
             'charges'           => ['nullable', 'numeric', 'min:0'],
             'customer_name'     => ['nullable', 'string', 'max:255'],
-            'customer_whatsapp' => ['nullable', 'string', 'max:32'],
+            'customer_whatsapp' => ['required', 'string', 'max:32'],
             'frequency'         => ['required', 'in:weekly,biweekly,monthly'],
             'occurrences'       => ['required', 'integer', 'min:2', 'max:52'],
         ]);

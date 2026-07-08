@@ -193,14 +193,14 @@ class BookingTools extends MutatingTool
         return [
             ['name' => 'find_booking', 'description' => 'Look up one booking by its reference.', 'input_schema' => ['type' => 'object', 'properties' => $ref, 'required' => ['reference']]],
             ['name' => 'open_booking', 'description' => 'Open/show a booking\'s detail page for the owner in the app (this redirects them to it). Use whenever the owner asks to open, show, view, see, or be taken/redirected to a booking. Pass its reference — reuse the one already mentioned in the conversation if you have it.', 'input_schema' => ['type' => 'object', 'properties' => $ref, 'required' => ['reference']]],
-            ['name' => 'create_booking', 'description' => 'Create a booking. Requires customer_name, date (YYYY-MM-DD) and start_time (HH:MM); services is a list of service titles. Call with confirmed:true only after the owner confirms.', 'input_schema' => ['type' => 'object', 'properties' => [
+            ['name' => 'create_booking', 'description' => 'Create a booking. Requires customer_name, customer_whatsapp (the customer\'s contact number — always ask for it, a booking cannot be created without it), date (YYYY-MM-DD) and start_time (HH:MM); services is a list of service titles. Call with confirmed:true only after the owner confirms.', 'input_schema' => ['type' => 'object', 'properties' => [
                 'customer_name' => ['type' => 'string'],
-                'customer_whatsapp' => ['type' => 'string'],
+                'customer_whatsapp' => ['type' => 'string', 'description' => 'The customer\'s contact/WhatsApp number — required'],
                 'date' => ['type' => 'string', 'description' => 'YYYY-MM-DD'],
                 'start_time' => ['type' => 'string', 'description' => 'HH:MM 24h'],
                 'services' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Service titles'],
                 'confirmed' => ['type' => 'boolean'],
-            ], 'required' => ['customer_name', 'date', 'start_time']]],
+            ], 'required' => ['customer_name', 'customer_whatsapp', 'date', 'start_time']]],
             ['name' => 'reschedule_booking', 'description' => 'Move a booking to a new date and/or time. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => array_merge($ref, [
                 'date' => ['type' => 'string', 'description' => 'YYYY-MM-DD'],
                 'start_time' => ['type' => 'string', 'description' => 'HH:MM 24h'],

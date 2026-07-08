@@ -50,11 +50,25 @@ class BookingCreatorTest extends TestCase
     {
         $shop = $this->shopWithHours(); // no staff created
         $booking = app(BookingCreator::class)->create($shop, [
-            'customer_name' => 'Sara', 'customer_whatsapp' => null,
+            'customer_name' => 'Sara', 'customer_whatsapp' => '971500000001',
             'date' => now()->toDateString(), 'start_time' => '10:00',
             'services' => [], 'charges' => 0.0,
         ]);
         $this->assertSame('queued', strtolower($booking->getRawOriginal('status')));
         $this->assertNull($booking->staff_id);
+    }
+
+    public function test_create_without_contact_number_is_rejected(): void
+    {
+        $shop = $this->shopWithHours();
+        Staff::create(['shop_id' => $shop->id, 'name' => 'Ali', 'is_active' => true]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+
+        app(BookingCreator::class)->create($shop, [
+            'customer_name' => 'Sara', 'customer_whatsapp' => null,
+            'date' => now()->toDateString(), 'start_time' => '10:00',
+            'services' => [], 'charges' => 0.0,
+        ]);
     }
 }
