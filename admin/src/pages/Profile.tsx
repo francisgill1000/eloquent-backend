@@ -31,6 +31,7 @@ export default function Profile() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [copied, setCopied] = useState(false);
+  const [appCopied, setAppCopied] = useState(false);
   const logoInput = useRef<HTMLInputElement>(null);
   const heroInput = useRef<HTMLInputElement>(null);
   const qrCanvasWrap = useRef<HTMLDivElement>(null);
@@ -54,6 +55,9 @@ export default function Profile() {
   const shopCode = (shop?.shop_code as string) || '';
   const pin = (shop?.pin as string) || '';
   const qrTarget = shop?.id ? `${CUSTOMER_WEB}/shop/${shop.id}` : '';
+  // The admin app's own URL for the current environment (staging vs prod), so
+  // scanning opens this same app on a phone to sign in with the business code + PIN.
+  const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const heroPreview = form.hero_image || (shop?.hero_image as string) || null;
   const logoPreview = form.logo || (shop?.logo as string) || null;
 
@@ -147,6 +151,15 @@ export default function Profile() {
       await navigator.clipboard.writeText(qrTarget);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
+    } catch { /* clipboard blocked */ }
+  };
+
+  const copyAppLink = async () => {
+    if (!appUrl) return;
+    try {
+      await navigator.clipboard.writeText(appUrl);
+      setAppCopied(true);
+      setTimeout(() => setAppCopied(false), 1800);
     } catch { /* clipboard blocked */ }
   };
 
@@ -277,6 +290,23 @@ export default function Profile() {
             {/* Offscreen high-res canvas (no logo) used only for PNG export. */}
             <div ref={qrCanvasWrap} aria-hidden style={{ position: 'absolute', left: -99999, top: 0, pointerEvents: 'none' }}>
               <QRCodeCanvas value={qrTarget} size={1024} level="M" marginSize={2} bgColor="#ffffff" fgColor="#0a0e0c" />
+            </div>
+          </>
+        )}
+
+        {/* App QR — scan to open this admin app on a phone and sign in. */}
+        {appUrl && (
+          <>
+            <div className="c-section-title">App QR Code</div>
+            <div className="c-card c-qr-card">
+              <div className="c-qr-frame">
+                <QRCodeSVG value={appUrl} size={188} level="M" bgColor="#ffffff" fgColor="#0a0e0c" />
+              </div>
+              <div className="c-qr-name">Open the app</div>
+              <p className="c-qr-hint">Scan to open Business Lens on your phone, then sign in with your business code &amp; PIN.</p>
+              <button className="c-btn-ghost" onClick={() => void copyAppLink()}>
+                <Icons.Copy size={16} /> {appCopied ? 'Copied!' : 'Copy link'}
+              </button>
             </div>
           </>
         )}
