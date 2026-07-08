@@ -1,37 +1,43 @@
-/* Customer detail — hero header. Reuses the app's glass + mint tokens. */
+/* ============================================================================
+   Customer profile — professional detail layout (glass + mint tokens).
+   ========================================================================== */
+
+/* --- Hero header ----------------------------------------------------------- */
 .cust-hero {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 16px;
+  padding: 18px;
   margin-bottom: 14px;
   border-radius: var(--r-lg);
   background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
   border: 1px solid var(--border-mint);
 }
 .cust-avatar {
-  width: 52px;
-  height: 52px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   flex: none;
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--mint-300);
   background: var(--mint-soft);
   border: 1px solid var(--border-mint);
 }
-.cust-hero-body { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cust-hero-body { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .cust-hero-name {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 800;
   color: var(--text-1);
+  letter-spacing: -0.01em;
 }
-.cust-hero-num {
+.cust-hero-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.cust-hero-num, .cust-hero-since {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -40,3 +46,109 @@
   text-decoration: none;
 }
 .cust-hero-num:hover { color: var(--mint-300); }
+
+/* --- Stat grid ------------------------------------------------------------- */
+.cust-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.cust-stat {
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-mint);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.cust-stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); font-weight: 700; }
+.cust-stat-value { font-size: 22px; font-weight: 800; color: var(--text-1); letter-spacing: -0.01em; line-height: 1.1; }
+.cust-stat-value.sm { font-size: 15px; }
+
+/* --- Reliability pills ----------------------------------------------------- */
+.cust-rel { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.cust-rel-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
+  font-size: 12px;
+  color: var(--text-2);
+}
+.cust-rel-pill b { color: var(--text-1); font-weight: 800; }
+.cust-rel-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+/* --- Section header -------------------------------------------------------- */
+.cust-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  margin: 0 2px 10px;
+}
+
+/* --- Booking history ------------------------------------------------------- */
+.cust-bk-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.cust-bk-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.cust-bk-row:hover { background: var(--surface-2); border-color: var(--border-2); }
+.cust-bk-when {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  background: var(--mint-soft);
+  border: 1px solid var(--border-mint);
+  color: var(--mint-300);
+  flex: none;
+  min-width: 58px;
+}
+.cust-bk-day { font-size: 14px; font-weight: 800; line-height: 1; }
+.cust-bk-mon { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.cust-bk-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cust-bk-svc { font-size: 13.5px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cust-bk-ref { font-size: 11px; color: var(--text-4); }
+.cust-bk-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.cust-bk-amount { font-size: 13px; font-weight: 800; color: var(--text-2); white-space: nowrap; }
+
+/* Status chips (self-contained so every booking status has one) */
+.cust-chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: var(--r-pill);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: capitalize;
+  border: 1px solid transparent;
+}
+.cust-chip.completed { background: var(--mint-soft); color: var(--mint-300); border-color: var(--border-mint); }
+.cust-chip.booked    { background: var(--info-soft); color: var(--info); }
+.cust-chip.queued    { background: var(--neutral-soft); color: var(--text-3); }
+.cust-chip.cancelled { background: var(--warn-soft); color: var(--warn); }
+.cust-chip.no_show   { background: var(--danger-soft); color: var(--danger); }
+
+@media (min-width: 720px) {
+  .cust-stats { grid-template-columns: repeat(4, 1fr); }
+}
