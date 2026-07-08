@@ -364,6 +364,26 @@ export default function BookingAction() {
         </div>
       </div>
 
+      {staff.length > 0 && (
+        <div className="ba-section">
+          <div className="ba-section-title">Assign staff</div>
+          <div className="ba-staff-list">
+            {staff.map((m) => {
+              const assigned = booking.staff?.id === m.id;
+              return (
+                <button key={m.id} className={`ba-staff-row${assigned ? ' on' : ''}`} disabled={busy} onClick={() => void assign(m)}>
+                  <span className="ba-staff-av">{(m.name || '?').charAt(0).toUpperCase()}</span>
+                  <span className="ba-staff-name">{m.name}</span>
+                  {assigned
+                    ? <span className="ba-staff-tag"><Icons.Check size={14} /> Assigned</span>
+                    : <span className="ba-staff-assign">Assign <Icons.ArrowRight size={13} /></span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {booking.invoice && (
         <div className="ba-section">
           <div className="ba-section-title">Invoice</div>
@@ -423,26 +443,6 @@ export default function BookingAction() {
           )}
         </div>
       </div>
-
-      {staff.length > 0 && (
-        <div className="ba-section">
-          <div className="ba-section-title">Assign staff</div>
-          <div className="ba-staff-list">
-            {staff.map((m) => {
-              const assigned = booking.staff?.id === m.id;
-              return (
-                <button key={m.id} className={`ba-staff-row${assigned ? ' on' : ''}`} disabled={busy} onClick={() => void assign(m)}>
-                  <span className="ba-staff-av">{(m.name || '?').charAt(0).toUpperCase()}</span>
-                  <span className="ba-staff-name">{m.name}</span>
-                  {assigned
-                    ? <span className="ba-staff-tag"><Icons.Check size={14} /> Assigned</span>
-                    : <span className="ba-staff-assign">Assign <Icons.ArrowRight size={13} /></span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
       </div>
     </div></div>
   );
