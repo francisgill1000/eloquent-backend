@@ -11,6 +11,9 @@ export type BookingFields = {
 export type AssistantReply = {
   transcript?: string;
   reply_text: string;
+  // Base64 MP3 of reply_text, voiced server-side so the client can play it
+  // without a second /tts round trip. Absent if TTS was unavailable.
+  reply_audio?: string;
   fields: BookingFields;
   ready: boolean;
 };
@@ -38,6 +41,7 @@ function normalize(d: unknown): AssistantReply {
   return {
     transcript: typeof o.transcript === 'string' ? o.transcript : undefined,
     reply_text: typeof o.reply_text === 'string' ? o.reply_text : '',
+    reply_audio: typeof o.reply_audio === 'string' && o.reply_audio ? o.reply_audio : undefined,
     fields,
     ready: !!o.ready,
   };
