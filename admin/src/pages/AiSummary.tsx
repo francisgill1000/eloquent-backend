@@ -99,10 +99,12 @@ function AiInsightsCard({ data, loading, refreshing, onRefresh }: {
 export default function AiSummary() {
   const { shop } = useShop();
 
-  // Fixed, glanceable window — the last 30 days. No date picker needed.
+  // Fixed, glanceable window — the 30 complete days ending yesterday (today is
+  // still in progress). Matches the overnight job so the morning load is served
+  // from the pre-generated summary, not a fresh Claude call. No date picker.
   const { from, to } = useMemo(() => {
-    const today = new Date();
-    return { from: iso(addDays(today, -29)), to: iso(today) };
+    const yesterday = addDays(new Date(), -1);
+    return { from: iso(addDays(yesterday, -29)), to: iso(yesterday) };
   }, []);
 
   const [data, setData] = useState<AiInsights | null>(null);
