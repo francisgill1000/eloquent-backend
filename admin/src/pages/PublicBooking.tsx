@@ -59,8 +59,17 @@ export default function PublicBooking() {
   const playCtxRef = useRef<AudioContext | null>(null);
   const playSrcRef = useRef<AudioBufferSourceNode | null>(null);
 
-  // Tap recorder — no auto-stop: the customer ends their own turn by tapping.
-  const { recording, start, stop, supported, level } = useRecorder({ meter: true });
+  // Tap to record; the customer taps again to send. Safety net: if they go
+  // quiet for AUTO_STOP_MS after speaking (and forget to tap), we send for them.
+  // The window is long and measured on the real audio level (not the flaky Web
+  // Speech API), so a normal mid-sentence pause won't trip it — and a tap still
+  // sends immediately.
+  const AUTO_STOP_MS = 3000;
+  const { recording, start, stop, supported, level } = useRecorder({
+    meter: true,
+    onSilence: () => { void finishTurn(); },
+    silenceMs: AUTO_STOP_MS,
+  });
   const finishingRef = useRef(false);
 
   useEffect(() => {
@@ -292,7 +301,7 @@ export default function PublicBooking() {
 
   const subhint = micDenied ? 'Allow the microphone in your browser, then tap the mic.'
     : micState === 'speaking' ? 'Tap the circle to interrupt.'
-    : micState === 'listening' ? 'Speak, then tap to send.'
+    : micState === 'listening' ? "Speak — I'll send when you pause, or tap."
     : micState === 'thinking' ? ''
     : !started ? `Tap the mic and tell me what you'd like to book${shop ? ` at ${shop.name}` : ''}.`
     : 'Tap the mic to reply.';

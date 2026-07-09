@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import * as pub from '@/lib/publicBooking';
@@ -10,11 +10,16 @@ import PublicBooking from './PublicBooking';
 
 vi.mock('@/lib/simulation', () => ({ speak: vi.fn() }));
 
+// Captures the onSilence safety-net the page wires into the recorder, so a test
+// can fire it to simulate the customer going quiet without tapping.
+const rec = vi.hoisted(() => ({ onSilence: null as null | (() => void) }));
+
 // A stateful mock recorder: start() flips recording on, stop() flips it off and
 // returns a fake blob — enough to drive the tap → record → send flow without a
 // real MediaRecorder (absent in jsdom).
 vi.mock('@/hooks/useRecorder', () => ({
-  useRecorder: () => {
+  useRecorder: (opts?: { onSilence?: () => void }) => {
+    rec.onSilence = opts?.onSilence ?? null;
     const [recording, setRecording] = React.useState(false);
     return {
       recording,
@@ -72,6 +77,23 @@ describe('PublicBooking (voice-only)', () => {
       customer_name: 'Sara', customer_whatsapp: '0501234567',
     })));
     await screen.findByText(/you're booked/i);
+  });
+
+  it('auto-sends the turn when the customer goes quiet without tapping stop', async () => {
+    vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
+    const voice = vi.spyOn(pub, 'bookAssistantVoice').mockResolvedValue({
+      reply_text: 'What day works?', ready: false, fields: { service: 'Classic Haircut' },
+    });
+
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /speak to book/i }));   // start recording
+
+    // The customer stops talking and forgets to tap — the recorder's silence
+    // safety-net fires, which should end the turn and send it for them.
+    await act(async () => { rec.onSilence?.(); });
+
+    await waitFor(() => expect(voice).toHaveBeenCalled());
   });
 
   it('the End button returns the screen to the start state', async () => {
