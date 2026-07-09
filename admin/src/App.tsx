@@ -13,7 +13,6 @@ import Register from '@/pages/Register';
 import ForgotPin from '@/pages/ForgotPin';
 import Web from '@/pages/Web';
 import ScanApprove from '@/pages/ScanApprove';
-import Dashboard from '@/pages/Dashboard';
 import Bookings from '@/pages/Bookings';
 import BookingAction from '@/pages/BookingAction';
 import BookingPreview from '@/pages/BookingPreview';
@@ -29,6 +28,7 @@ import Customers from '@/pages/Customers';
 import CustomerDetail from '@/pages/CustomerDetail';
 import Reviews from '@/pages/Reviews';
 import Insights from '@/pages/Insights';
+import AiSummary from '@/pages/AiSummary';
 import BookingNotifications from '@/pages/BookingNotifications';
 import WorkingHours from '@/pages/WorkingHours';
 import Profile from '@/pages/Profile';
@@ -113,7 +113,7 @@ export default function App() {
             <Route path="/ask/:conversationId" element={<VoiceAssistant />} />
             {/* Full-page list of the shop's Ask conversations (sits below Home in the nav). */}
             <Route path="/conversations" element={<Conversations />} />
-            <Route path="/overview" element={<Dashboard />} />
+            <Route path="/ai-summary" element={<AiSummary />} />
             <Route path="/bookings" element={<Bookings />} />
             <Route path="/chats" element={<Chats />} />
             <Route path="/reminders" element={<Reminders />} />
