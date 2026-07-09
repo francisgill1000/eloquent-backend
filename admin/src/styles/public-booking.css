@@ -28,88 +28,26 @@
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: background 150ms ease, color 150ms ease; }
 .pb-end:hover { background: rgba(255,90,90,0.16); color: #ff8a8a; border-color: rgba(255,90,90,0.4); }
 
-/* ── The mic orb ──────────────────────────────────────────────────────────
-   Each state sets its own --accent (colour), so listening / thinking / speaking
-   read at a glance. In tap mode the scale + glow also track the caller's voice
-   (--lvl, 0–1, smoothed in useRecorder). */
-.pb-mic { --accent: var(--mint-400, #00d1a0);
-  position: relative; width: 164px; height: 164px; border-radius: 50%; border: none; cursor: pointer;
-  display: grid; place-items: center; color: #06231b;
-  background: radial-gradient(circle at 50% 36%,
-    color-mix(in srgb, var(--accent) 55%, #ffffff) 0%, var(--accent) 60%,
-    color-mix(in srgb, var(--accent) 78%, #000000) 100%);
-  transform: scale(calc(1 + (var(--lvl, 0) * 0.4)));
-  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.30),
-              0 0 calc(20px + (var(--lvl, 0) * 70px)) color-mix(in srgb, var(--accent) calc(35% + (var(--lvl, 0) * 45%)), transparent);
-  transition: transform 130ms ease-out, box-shadow 130ms ease-out, background 300ms ease; }
+/* ── The mic ──────────────────────────────────────────────────────────────
+   Matches the home page's centre mic (mobile.css .va-empty-mic): a clean
+   mint-soft circle with a mint border and icon — not a saturated orb. Active
+   states add a soft mint pulse ring, exactly like .va-mic.recording on home.
+   In tap mode it swells slightly to the caller's voice (--lvl). */
+.pb-mic { position: relative; width: 128px; height: 128px; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center;
+  background: var(--mint-soft, rgba(0,209,160,0.12)); color: var(--mint-300, #4fe3c1);
+  border: 1px solid var(--border-mint, rgba(0,209,160,0.35));
+  transform: scale(calc(1 + (var(--lvl, 0) * 0.22)));
+  transition: transform 140ms ease-out, background 200ms ease, color 200ms ease; }
 .pb-mic:disabled { opacity: 0.6; cursor: default; }
-.pb-mic > svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15)); }
 
-.pb-mic-idle      { --accent: var(--mint-400, #00d1a0); }
-.pb-mic-listening { --accent: #10d99a; }
-.pb-mic-thinking  { --accent: #f5b942; color: #3a2a00; }
-.pb-mic-speaking  { --accent: #7c6cff; color: #ffffff; }
+/* Active states: the same soft mint pulse the home mic uses when recording. */
+.pb-mic-listening, .pb-mic-thinking, .pb-mic-speaking { animation: pb-pulse 1.5s ease-in-out infinite; }
+.pb-mic-thinking { animation-duration: 1s; }
 
-.pb-mic-ring { position: absolute; inset: -12px; border-radius: 50%; border: 2px solid var(--accent);
-  opacity: calc(0.14 + (var(--lvl, 0) * 0.5)); transform: scale(calc(1 + (var(--lvl, 0) * 0.45)));
-  transition: transform 170ms ease-out, opacity 170ms ease-out; pointer-events: none; }
-.pb-mic-ring2 { inset: -26px; opacity: calc(0.08 + (var(--lvl, 0) * 0.38)); }
+@keyframes pb-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 209, 160, 0.45); }
+  50%      { box-shadow: 0 0 0 16px rgba(0, 209, 160, 0); } }
 
-/* idle: slow inviting breathe */
-.pb-mic-idle { animation: pb-breathe 3s ease-in-out infinite; }
-
-/* listening: steady live glow + halos rippling out, plus the equalizer inside */
-.pb-mic-listening { animation: pb-glow 1.8s ease-in-out infinite; }
-.pb-mic-listening .pb-mic-ring { animation: pb-halo 2.1s ease-out infinite; }
-.pb-mic-listening .pb-mic-ring2 { animation-delay: 1.05s; }
-
-/* thinking: gentle quick shimmer + bouncing dots */
-.pb-mic-thinking { animation: pb-glow 0.9s ease-in-out infinite; }
-
-/* speaking: lively voice pulse with strong ripples radiating outward */
-.pb-mic-speaking { animation: pb-speak 1.3s ease-in-out infinite; }
-.pb-mic-speaking .pb-mic-ring { animation: pb-ripple 1.5s ease-out infinite; }
-.pb-mic-speaking .pb-mic-ring2 { animation-delay: 0.75s; }
-
-/* ── Per-state indicator: equalizer (listening) / dots (thinking) / icon ──── */
-.pb-eq, .pb-dots { display: none; align-items: center; justify-content: center; gap: 5px; height: 48px; }
-.pb-eq i { width: 5px; height: 14px; border-radius: 3px; background: currentColor;
-  animation: pb-eqbar 0.9s ease-in-out infinite; }
-.pb-eq i:nth-child(1) { animation-delay: 0s; }
-.pb-eq i:nth-child(2) { animation-delay: 0.15s; }
-.pb-eq i:nth-child(3) { animation-delay: 0.30s; }
-.pb-eq i:nth-child(4) { animation-delay: 0.45s; }
-.pb-eq i:nth-child(5) { animation-delay: 0.60s; }
-.pb-dots i { width: 10px; height: 10px; border-radius: 50%; background: currentColor;
-  animation: pb-dot 1s ease-in-out infinite; }
-.pb-dots i:nth-child(2) { animation-delay: 0.16s; }
-.pb-dots i:nth-child(3) { animation-delay: 0.32s; }
-.pb-mic-listening .pb-eq { display: flex; }
-.pb-mic-listening > svg { display: none; }
-.pb-mic-thinking .pb-dots { display: flex; }
-.pb-mic-thinking > svg { display: none; }
-
-@keyframes pb-breathe {
-  0%, 100% { box-shadow: 0 12px 38px rgba(0,0,0,0.30), 0 0 18px color-mix(in srgb, var(--accent) 25%, transparent); }
-  50%      { box-shadow: 0 14px 46px rgba(0,0,0,0.32), 0 0 44px color-mix(in srgb, var(--accent) 55%, transparent); } }
-@keyframes pb-glow {
-  0%, 100% { box-shadow: 0 12px 38px rgba(0,0,0,0.30), 0 0 24px color-mix(in srgb, var(--accent) 42%, transparent); }
-  50%      { box-shadow: 0 14px 50px rgba(0,0,0,0.34), 0 0 62px color-mix(in srgb, var(--accent) 75%, transparent); } }
-@keyframes pb-speak {
-  0%, 100% { transform: scale(1);    box-shadow: 0 12px 38px rgba(0,0,0,0.30), 0 0 28px color-mix(in srgb, var(--accent) 55%, transparent); }
-  50%      { transform: scale(1.06); box-shadow: 0 16px 56px rgba(0,0,0,0.34), 0 0 74px color-mix(in srgb, var(--accent) 88%, transparent); } }
-@keyframes pb-halo {
-  0%   { transform: scale(0.95); opacity: 0.4; }
-  100% { transform: scale(1.6); opacity: 0; } }
-@keyframes pb-ripple {
-  0%   { transform: scale(0.9); opacity: 0.7; border-width: 3px; }
-  100% { transform: scale(2.1); opacity: 0; border-width: 1px; } }
-@keyframes pb-eqbar {
-  0%, 100% { height: 12px; }
-  50%      { height: 40px; } }
-@keyframes pb-dot {
-  0%, 100% { transform: translateY(0); opacity: 0.5; }
-  50%      { transform: translateY(-8px); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .pb-mic, .pb-mic-ring, .pb-eq i, .pb-dots i {
-    animation: none !important; transition: none; transform: none; } }
+  .pb-mic { animation: none !important; transition: none; transform: none; } }
