@@ -26,9 +26,9 @@ describe('DesktopSidebar module gating', () => {
     expect(screen.getByText('Business Hunt')).toBeTruthy();
     expect(screen.queryByText('Bookings')).toBeNull();
   });
-  it('always shows Home, Overview, Settings, Profile', () => {
+  it('always shows Home, Settings, Profile', () => {
     renderWith(['leads']);
-    ['Home', 'Overview', 'Settings', 'Profile'].forEach((l) =>
+    ['Home', 'Settings', 'Profile'].forEach((l) =>
       expect(screen.getByText(l)).toBeTruthy());
   });
 });

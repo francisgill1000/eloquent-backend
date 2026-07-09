@@ -12,7 +12,7 @@ const ALL_TABS: Tab[] = [
   { id: 'home', label: 'Home', href: '/', icon: 'Mic', modules: BOTH },
   // Past conversations with the Ask assistant.
   { id: 'conversations', label: 'Chats', href: '/conversations', icon: 'Chat', modules: BOTH },
-  { id: 'overview', label: 'Overview', href: '/overview', icon: 'Chart', modules: BOTH },
+  { id: 'ai-summary', label: 'AI Summary', href: '/ai-summary', icon: 'Sparkle', modules: BOTH },
   { id: 'bookings', label: 'Bookings', href: '/bookings', icon: 'Calendar', modules: ['bookings'] },
   // WhatsApp Chats — hidden temporarily behind WHATSAPP_ENABLED.
   { id: 'chats', label: 'Chats', href: '/chats', icon: 'Chat', modules: BOTH },
@@ -27,7 +27,7 @@ const MASTER_TABS: Tab[] = [{ id: 'master', label: 'All Businesses', href: '/mas
 function activeTab(path: string): string {
   if (path === '/') return 'home';
   if (path.startsWith('/conversations')) return 'conversations';
-  if (path.startsWith('/overview')) return 'overview';
+  if (path.startsWith('/ai-summary')) return 'ai-summary';
   if (path.startsWith('/bookings') || path.startsWith('/booking')) return 'bookings';
   if (path.startsWith('/chats')) return 'chats';
   if (path.startsWith('/reminders')) return 'reminders';

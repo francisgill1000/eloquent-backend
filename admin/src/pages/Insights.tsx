@@ -3,9 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { getInsights, type Insights as InsightsData, type InsightsDaily } from '@/lib/insights';
-import { getAiInsights, type AiInsights } from '@/lib/aiInsights';
-import { getShopBookings } from '@/lib/bookings';
-import type { Booking } from '@/types';
 import '@/styles/insights.css';
 
 /* ---------- date helpers ---------------------------------------------------- */
@@ -19,14 +16,6 @@ const daysBetween = (from: string, to: string) =>
 const fmtLong = (s: string) => { const d = parseISO(s); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
 const fmtShort = (s: string) => { const d = parseISO(s); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
 const fmtNum = (n: number) => n.toLocaleString();
-const dateOf = (b: Booking) => String(b.date ?? '').slice(0, 10);
-function fmtTime(t?: string): string {
-  if (!t) return 'TBD';
-  try {
-    const norm = t.length === 5 ? `${t}:00` : t;
-    return new Date(`1970-01-01T${norm}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  } catch { return t; }
-}
 
 type PresetKey = '7d' | '30d' | '90d' | 'mtd' | 'lastmonth' | 'ytd' | 'custom';
 const PRESETS: { key: Exclude<PresetKey, 'custom'>; label: string }[] = [
@@ -283,58 +272,6 @@ function Skeleton() {
   );
 }
 
-/* ---------- AI Insights card ------------------------------------------------ */
-function AiInsightsCard({ data, loading, refreshing, onRefresh }: {
-  data: AiInsights | null; loading: boolean; refreshing: boolean; onRefresh: () => void;
-}) {
-  return (
-    <div className="ins-card span2 ins-ai">
-      <div className="ins-card-head">
-        <span className="ins-card-ic"><Icons.Sparkle size={17} /></span>
-        <span className="ins-card-titles">
-          <span className="ins-card-title">AI summary</span>
-          <span className="ins-card-sub">Plain-language read on this period</span>
-        </span>
-        <button className="ins-ai-refresh" onClick={onRefresh} disabled={loading || refreshing}
-          aria-label="Refresh AI summary">
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="ins-ai-body">
-          <div className="ins-skel" style={{ height: 16, marginBottom: 8 }} />
-          <div className="ins-skel" style={{ height: 16, width: '80%', marginBottom: 16 }} />
-          <div className="ins-skel" style={{ height: 48 }} />
-        </div>
-      ) : !data || data.state === 'error' ? (
-        <div className="ins-ai-body">
-          <p className="ins-ai-msg">{data?.message || 'Could not generate the AI summary right now.'}</p>
-          <button className="ins-ai-retry" onClick={onRefresh}>Try again</button>
-        </div>
-      ) : data.state === 'low_data' ? (
-        <div className="ins-ai-body"><p className="ins-ai-msg">{data.message}</p></div>
-      ) : (
-        <div className={`ins-ai-body${refreshing ? ' is-refreshing' : ''}`}>
-          <p className="ins-ai-summary">{data.summary}</p>
-          {data.patterns.length > 0 && (
-            <div className="ins-ai-block">
-              <span className="ins-ai-label">Patterns</span>
-              <ul className="ins-ai-list">{data.patterns.map((p, i) => <li key={i}>{p}</li>)}</ul>
-            </div>
-          )}
-          {data.recommendations.length > 0 && (
-            <div className="ins-ai-block">
-              <span className="ins-ai-label">Recommendations</span>
-              <ul className="ins-ai-list">{data.recommendations.map((r, i) => <li key={i}>{r}</li>)}</ul>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ---------- page ----------------------------------------------------------- */
 const pctChange = (cur: number, prev: number): number | null => {
   if (prev === 0) return cur === 0 ? 0 : null;
@@ -355,7 +292,6 @@ export default function Insights() {
   const [prev, setPrev] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [bookings, setBookings] = useState<Booking[]>([]);
 
   const choosePreset = (key: Exclude<PresetKey, 'custom'>) => {
     const r = presetRange(key, today);
@@ -365,26 +301,6 @@ export default function Insights() {
   // Normalised, so an inverted custom range still behaves.
   const nf = from <= to ? from : to;
   const nt = from <= to ? to : from;
-
-  const [aiData, setAiData] = useState<AiInsights | null>(null);
-  const [aiLoading, setAiLoading] = useState(true);
-  const [aiRefreshing, setAiRefreshing] = useState(false);
-
-  const fetchAi = useCallback(async (refresh = false) => {
-    if (!shop?.id) return;
-    refresh ? setAiRefreshing(true) : setAiLoading(true);
-    try {
-      const res = await getAiInsights(shop.id, nf, nt, refresh);
-      setAiData(res);
-    } catch {
-      setAiData({ state: 'error', summary: '', patterns: [], recommendations: [],
-        message: 'Could not generate the AI summary right now.', generated_at: '', cached: false });
-    } finally {
-      setAiLoading(false); setAiRefreshing(false);
-    }
-  }, [shop?.id, nf, nt]);
-
-  useEffect(() => { void fetchAi(false); }, [fetchAi]);
 
   const fetchData = useCallback(async () => {
     if (!shop?.id) return;
@@ -410,30 +326,11 @@ export default function Insights() {
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
-  // Upcoming bookings are inherently forward-looking, so they load once
-  // (independent of the report's date range) — same view as the Overview page.
-  useEffect(() => {
-    if (!shop?.id) return;
-    let alive = true;
-    getShopBookings(shop.id).then((r) => { if (alive) setBookings(r.data); }).catch(() => undefined);
-    return () => { alive = false; };
-  }, [shop?.id]);
-
   const rangeLen = daysBetween(nf, nt);
-  const todayISO = iso(today);
-  const upcoming = bookings
-    .filter((b) => {
-      const s = String(b.status).toLowerCase();
-      return dateOf(b) >= todayISO && s !== 'cancelled' && s !== 'completed' && s !== 'no_show';
-    })
-    .sort((a, b) => (dateOf(a) === dateOf(b)
-      ? (a.start_time ?? '').localeCompare(b.start_time ?? '')
-      : dateOf(a).localeCompare(dateOf(b))))
-    .slice(0, 6);
 
   return (
     <div className="m-screen"><div className="m-scroll">
-      <button className="c-back" onClick={() => navigate('/overview')}><Icons.ChevronLeft size={16} /> Back</button>
+      <button className="c-back" onClick={() => navigate('/settings')}><Icons.ChevronLeft size={16} /> Back</button>
       <div className="c-page-head">
         <h1 className="c-page-title">Insights</h1>
         <p className="c-page-sub">A full report on your bookings, customers & quality.</p>
@@ -459,9 +356,6 @@ export default function Insights() {
           </div>
         </div>
 
-        <AiInsightsCard data={aiData} loading={aiLoading} refreshing={aiRefreshing}
-          onRefresh={() => fetchAi(true)} />
-
         {error && <div className="c-error-box">{error}</div>}
 
         {loading ? <Skeleton /> : data ? (
@@ -483,39 +377,10 @@ export default function Insights() {
                   display={prev && prev.reviews.average != null && data.reviews.average != null ? Math.abs(+(data.reviews.average - prev.reviews.average).toFixed(1)).toFixed(1) : ''} goodDir="up" />} />
             </div>
 
-            {/* Trend + Upcoming — two-up row */}
-            <div className="ins-grid">
-              <ChartCard icon="Chart" title="Bookings over time" sub={rangeLen > 62 ? 'Weekly totals' : 'Daily totals'}>
-                <TrendChart daily={data.daily} />
-              </ChartCard>
-
-              {/* Upcoming bookings — forward-looking, like the Overview page */}
-              <ChartCard icon="Calendar" title="Upcoming bookings"
-                sub={upcoming.length ? `Next ${upcoming.length} appointment${upcoming.length === 1 ? '' : 's'}` : 'Scheduled ahead'}>
-                {upcoming.length === 0 ? (
-                  <EmptyState text="No upcoming bookings scheduled." />
-                ) : (
-                  <div className="ins-up-list">
-                    {upcoming.map((b) => {
-                      const name = b.customer?.name || b.customer_name || 'Guest';
-                      const services = b.services?.map((s) => s.title || s.name).filter(Boolean).join(', ') || 'Service';
-                      const when = b.start_time ? fmtTime(b.start_time) : (b.show_date ?? 'TBD');
-                      const isToday = dateOf(b) === todayISO;
-                      return (
-                        <button key={b.id} className="ins-up-row" onClick={() => navigate(`/booking/${b.id}`)}>
-                          <span className="ins-up-when">{isToday ? 'Today' : fmtShort(dateOf(b))}<em>{when}</em></span>
-                          <span className="ins-up-body">
-                            <span className="ins-up-name">{name}</span>
-                            <span className="ins-up-sub">{services}</span>
-                          </span>
-                          <span className="ins-up-price">AED {b.charges ?? 0}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </ChartCard>
-            </div>
+            {/* Trend — full width */}
+            <ChartCard icon="Chart" title="Bookings over time" sub={rangeLen > 62 ? 'Weekly totals' : 'Daily totals'} span2>
+              <TrendChart daily={data.daily} />
+            </ChartCard>
 
             <div className="ins-grid">
               <ChartCard icon="Calendar" title="Outcomes" sub="How scheduled bookings ended">
