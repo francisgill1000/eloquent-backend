@@ -28,9 +28,17 @@ function canonicalUaeMobile(raw?: string): string | null {
   return /^05\d{8}$/.test(d) ? d : null;
 }
 
+// Hands-free turn-taking: after the caller stops making sound, wait this long
+// before treating the turn as finished — long enough to ride out a mid-sentence
+// breath, short enough not to feel laggy.
+const END_SILENCE_MS = 900;
+// After we finish speaking, wait this long before re-opening the mic so the tail
+// of our own audio isn't heard as the caller starting to talk.
+const RESUME_GAP_MS = 300;
+
 /* ---- Minimal Web Speech API typings (not uniformly in lib.dom) ------------ */
 type SRResult = ArrayLike<{ transcript: string }> & { isFinal: boolean };
-type SREvent = { results: ArrayLike<SRResult> };
+type SREvent = { results: ArrayLike<SRResult>; resultIndex: number };
 type SR = {
   lang: string; continuous: boolean; interimResults: boolean;
   start: () => void; stop: () => void; abort: () => void;
@@ -81,6 +89,14 @@ export default function PublicBooking() {
   const wantListenRef = useRef(false);   // we intend to be listening (restart on onend)
   const processingRef = useRef(false);   // a turn is being handled — ignore new results
   const bookedRef = useRef(false);
+  // Turn-taking buffers. speakingRef mirrors the `speaking` state for the
+  // recognition callbacks (which capture stale state otherwise); the transcript
+  // accumulates across pauses until END_SILENCE_MS of quiet ends the turn.
+  const speakingRef = useRef(false);
+  const bufferRef = useRef('');          // finalised speech so far this turn
+  const interimRef = useRef('');         // latest not-yet-final words (fallback)
+  const finalizeTimerRef = useRef<number | null>(null);
+  const onUtteranceRef = useRef<(t: string) => void>(() => {});
 
   // Fallback (tap) recorder with voice-activity auto-stop.
   const { recording, start, stop, supported, level } = useRecorder({
@@ -101,8 +117,13 @@ export default function PublicBooking() {
   useEffect(() => () => {
     wantListenRef.current = false;
     try { srRef.current?.abort(); } catch { /* ignore */ }
+    if (finalizeTimerRef.current) window.clearTimeout(finalizeTimerRef.current);
     playCtxRef.current?.close().catch(() => undefined);
   }, []);
+
+  // Keep the recognition callbacks pointing at the latest onUtterance so a turn
+  // never fires with stale shop / fields / state.
+  useEffect(() => { onUtteranceRef.current = onUtterance; });
 
   const priceFor = (title?: string): number => {
     const c = (shop?.catalogs ?? []).find((x) => x.title.toLowerCase() === (title ?? '').toLowerCase());
@@ -137,13 +158,14 @@ export default function PublicBooking() {
           const src = ctx.createBufferSource();
           src.buffer = buffer;
           src.connect(ctx.destination);
-          src.onended = () => { setSpeaking(false); resolve(); };
+          src.onended = () => { speakingRef.current = false; setSpeaking(false); resolve(); };
           playSrcRef.current = src;
+          speakingRef.current = true;
           setSpeaking(true);
           if (ctx.state === 'suspended') await ctx.resume();
           src.start(0);
         })
-        .catch(() => { setSpeaking(false); resolve(); });
+        .catch(() => { speakingRef.current = false; setSpeaking(false); resolve(); });
     });
   }
 
@@ -217,6 +239,19 @@ export default function PublicBooking() {
 
   /* ---- hands-free (continuous) mode ------------------------------------- */
 
+  // End the turn once the caller has been quiet for END_SILENCE_MS. Uses refs
+  // only, so it's safe to call from the (once-created) recognition callback.
+  function scheduleFinalize() {
+    if (finalizeTimerRef.current) window.clearTimeout(finalizeTimerRef.current);
+    finalizeTimerRef.current = window.setTimeout(() => {
+      finalizeTimerRef.current = null;
+      const text = (bufferRef.current || interimRef.current).trim();
+      bufferRef.current = '';
+      interimRef.current = '';
+      if (text) void onUtteranceRef.current(text);
+    }, END_SILENCE_MS);
+  }
+
   function startListening() {
     const SRClass = getSRClass();
     if (!SRClass) return;
@@ -224,12 +259,24 @@ export default function PublicBooking() {
       const sr = new SRClass();
       sr.lang = 'en-US';
       sr.continuous = true;
-      sr.interimResults = false;
+      sr.interimResults = true;   // hear the caller mid-sentence, not only when they stop
       sr.onresult = (e: SREvent) => {
-        const last = e.results[e.results.length - 1];
-        if (!last || !last.isFinal) return;
-        const text = (last[0]?.transcript || '').trim();
-        if (text) void onUtterance(text);
+        // Ignore anything picked up while we're thinking or speaking (e.g. the
+        // tail of our own reply) so it can't start or corrupt a turn.
+        if (processingRef.current || speakingRef.current) return;
+        let heard = false, interim = '';
+        for (let i = e.resultIndex ?? 0; i < e.results.length; i++) {
+          const res = e.results[i];
+          const t = res[0]?.transcript || '';
+          if (!t.trim()) continue;
+          heard = true;
+          if (res.isFinal) bufferRef.current = (bufferRef.current + ' ' + t).trim();
+          else interim += t;
+        }
+        interimRef.current = interim.trim();
+        // Any sound — even interim — means they're still talking: hold off and
+        // reset the clock. We only act after END_SILENCE_MS of true quiet.
+        if (heard) scheduleFinalize();
       };
       sr.onerror = (e: { error: string }) => {
         if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { setMicDenied(true); wantListenRef.current = false; }
@@ -244,11 +291,14 @@ export default function PublicBooking() {
 
   function stopListening() {
     wantListenRef.current = false;
-    try { srRef.current?.stop(); } catch { /* ignore */ }
+    if (finalizeTimerRef.current) { window.clearTimeout(finalizeTimerRef.current); finalizeTimerRef.current = null; }
+    bufferRef.current = '';
+    interimRef.current = '';
+    try { srRef.current?.abort(); } catch { /* ignore */ }
   }
 
   async function onUtterance(text: string) {
-    if (processingRef.current || speaking || bookedRef.current || !shop) return;
+    if (processingRef.current || speakingRef.current || bookedRef.current || !shop) return;
     if (/\b(cancel|never mind|forget it|stop booking)\b/i.test(text)) {
       stopListening();
       await speakReply('No problem — cancelled. Tap start whenever you want to book.');
@@ -266,7 +316,11 @@ export default function PublicBooking() {
     } finally {
       setBusy(false);
       processingRef.current = false;
-      if (!bookedRef.current) startListening();   // back to listening for the next turn
+      // Re-open the mic after a short gap so the tail of our own audio isn't
+      // heard as the caller talking (which used to cut the reply / mis-fire).
+      if (!bookedRef.current) window.setTimeout(() => {
+        if (!processingRef.current && !speakingRef.current && !bookedRef.current) startListening();
+      }, RESUME_GAP_MS);
     }
   }
 
