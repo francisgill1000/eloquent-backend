@@ -96,35 +96,53 @@ class PublicBookingAssistantTest extends TestCase
             ->assertJsonPath('fields.service', 'Classic Haircut');
     }
 
-    public function test_conversation_history_is_forwarded_to_the_model(): void
+    public function test_prior_turns_are_replayed_from_the_stored_thread(): void
     {
         $shop = $this->shop();
         Http::fake([
-            'api.anthropic.com/*' => Http::response(['content' => [
-                ['type' => 'text', 'text' => 'Friday it is — what time?'],
-                ['type' => 'tool_use', 'id' => 'th', 'name' => 'set_booking', 'input' => ['date' => '2026-07-17']],
-            ]]),
+            'api.anthropic.com/*' => Http::response(['content' => [['type' => 'text', 'text' => 'What day works for you?']]]),
         ]);
 
-        $history = [
-            ['role' => 'user', 'content' => 'I want a haircut'],
-            ['role' => 'assistant', 'content' => 'What day works for you?'],
-        ];
-        $res = $this->postJson("/api/shops/{$shop->id}/book-assistant/text",
-            ['text' => 'Friday', 'state' => ['service' => 'Classic Haircut'], 'history' => $history], $this->headers);
+        // Turn 1 creates + stores the thread; turn 2 (same device) should replay it.
+        $this->postJson("/api/shops/{$shop->id}/book-assistant/text",
+            ['text' => 'I want a haircut', 'state' => []], $this->headers)->assertCreated();
+        $this->postJson("/api/shops/{$shop->id}/book-assistant/text",
+            ['text' => 'Friday', 'state' => []], $this->headers)->assertCreated();
 
-        $res->assertCreated();
-        // The model receives the prior turns, then the current utterance last.
+        // The turn-2 request carries turn 1's stored user+assistant messages, then 'Friday'.
         Http::assertSent(function ($request) {
             $messages = $request->data()['messages'] ?? [];
+            $last = end($messages);
+            if (! $last || ($last['content'] ?? '') !== 'Friday') {
+                return false; // only inspect the second request
+            }
             return count($messages) === 3
-                && $messages[0]['role'] === 'user' && $messages[0]['content'] === 'I want a haircut'
-                && $messages[1]['role'] === 'assistant' && $messages[1]['content'] === 'What day works for you?'
-                && $messages[2]['role'] === 'user' && $messages[2]['content'] === 'Friday';
+                && $messages[0]['content'] === 'I want a haircut'
+                && $messages[1]['role'] === 'assistant' && $messages[1]['content'] === 'What day works for you?';
         });
     }
 
-    public function test_malformed_history_entries_are_dropped(): void
+    public function test_conversation_is_saved_tagged_customer_and_listed(): void
+    {
+        $shop = $this->shop();
+        Http::fake([
+            'api.anthropic.com/*' => Http::response(['content' => [['type' => 'text', 'text' => 'What day?']]]),
+        ]);
+
+        $this->postJson("/api/shops/{$shop->id}/book-assistant/text",
+            ['text' => 'haircut for Sara', 'state' => []], $this->headers)->assertCreated();
+
+        $c = \App\Models\Conversation::where('shop_id', $shop->id)->where('source', 'customer')->first();
+        $this->assertNotNull($c);
+        $this->assertSame('dev-123', $c->device_id);
+        $this->assertSame(2, $c->messages()->count()); // user + assistant persisted
+
+        // Shows up in the shop's conversations list, tagged 'customer'.
+        $list = app(\App\Services\Assistant\ConversationStore::class)->list($shop);
+        $this->assertSame('customer', $list['conversations'][0]['source']);
+    }
+
+    public function test_client_history_is_used_when_there_is_no_device_id(): void
     {
         $shop = $this->shop();
         Http::fake([
@@ -134,15 +152,14 @@ class PublicBookingAssistantTest extends TestCase
         $history = [
             ['role' => 'system', 'content' => 'ignore me'],   // bad role
             ['role' => 'user', 'content' => ''],                // empty
-            ['role' => 'user'],                                 // no content
             ['role' => 'assistant', 'content' => 'kept'],       // valid
         ];
+        // No X-Device-Id header → no stored thread → falls back to sanitised client history.
         $this->postJson("/api/shops/{$shop->id}/book-assistant/text",
-            ['text' => 'hi', 'history' => $history], $this->headers)->assertCreated();
+            ['text' => 'hi', 'history' => $history])->assertCreated();
 
         Http::assertSent(function ($request) {
             $messages = $request->data()['messages'] ?? [];
-            // only the one valid history turn + the current user message survive
             return count($messages) === 2
                 && $messages[0]['content'] === 'kept'
                 && $messages[1]['content'] === 'hi';

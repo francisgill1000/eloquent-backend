@@ -121,8 +121,13 @@ export default function Conversations() {
               {items.map((c) => (
                 <div key={c.id} className="c-chat-row conv-row">
                   <button className="conv-main" onClick={() => navigate(`/ask/${c.id}`)}>
-                    <span className="c-staff-avatar" aria-hidden="true"><Icons.Chat size={20} /></span>
-                    <span className="conv-title">{c.title}</span>
+                    <span className="c-staff-avatar" aria-hidden="true">
+                      {c.source === 'customer' ? <Icons.Store size={20} /> : <Icons.Chat size={20} />}
+                    </span>
+                    <span className="conv-title">
+                      {c.title}
+                      {c.source === 'customer' && <span className="conv-badge">Customer</span>}
+                    </span>
                   </button>
                   <span className="conv-time">{whenLabel(c.updated_at)}</span>
                   <button className="c-icon-btn" aria-label="Rename chat" onClick={() => void rename(c.id, c.title)}><Icons.Edit size={16} /></button>

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Conversation extends Model
 {
-    protected $fillable = ['shop_id', 'title'];
+    protected $fillable = ['shop_id', 'title', 'source', 'device_id'];
 
     protected static function booted(): void
     {

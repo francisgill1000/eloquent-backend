@@ -755,6 +755,8 @@
 .conv-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; color: inherit; text-align: left; font: inherit; }
 .conv-row .c-staff-avatar { width: 40px; height: 40px; }
 .conv-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv-badge { margin-left: 8px; padding: 1px 8px; border-radius: var(--r-pill); font-size: 11px; font-weight: 700; vertical-align: middle;
+  background: var(--mint-soft); border: 1px solid var(--border-mint); color: var(--mint-300); }
 .conv-time { font-size: 12px; color: var(--text-3); flex: 0 0 auto; }
 .conv-row .c-icon-btn { flex: 0 0 auto; }
 .conv-more { align-self: center; margin: 6px 16px 4px; padding: 9px 20px; border-radius: var(--r-pill); background: var(--mint-soft); border: 1px solid var(--border-mint); color: var(--mint-300); font-size: 13px; font-weight: 700; cursor: pointer; }
