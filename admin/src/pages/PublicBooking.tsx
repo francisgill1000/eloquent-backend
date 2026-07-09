@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
-import { getPublicShop, type BookingFields, type PublicShop } from '@/lib/publicBooking';
+import { getPublicShop, bookAssistantText, bookAssistantVoice, type BookingFields, type PublicShop } from '@/lib/publicBooking';
 import { createBooking } from '@/lib/bookings';
+import { useRecorder } from '@/hooks/useRecorder';
+import { speak } from '@/lib/simulation';
 import '@/styles/public-booking.css';
 
 type Created = { service: string; date: string; start_time: string; customer_name: string };
+
+function todayIso(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mm}-${dd}`;
+}
 
 export default function PublicBooking() {
   const { shopId } = useParams<{ shopId: string }>();
@@ -13,10 +23,16 @@ export default function PublicBooking() {
 
   const [shop, setShop] = useState<PublicShop | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [fields, setFields] = useState<BookingFields>({});
+  const [fields, setFields] = useState<BookingFields>({ date: todayIso() });
   const [booking, setBooking] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState<Created | null>(null);
+
+  const { recording, start, stop, supported, level } = useRecorder({ meter: true });
+  const [busy, setBusy] = useState(false);
+  const [reply, setReply] = useState('');
+  const [speaking, setSpeaking] = useState(false);
+  const [draft, setDraft] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -27,6 +43,46 @@ export default function PublicBooking() {
   }, [id]);
 
   const set = <K extends keyof BookingFields>(k: K, v: BookingFields[K]) => setFields((f) => ({ ...f, [k]: v }));
+
+  async function applyReply(r: { reply_text: string; fields: BookingFields }) {
+    setFields((f) => ({ ...f, ...r.fields }));
+    setReply(r.reply_text);
+    if (r.reply_text) {
+      try {
+        const url = await speak(r.reply_text, 'nova');
+        setSpeaking(true);
+        const a = new Audio(url);
+        a.onended = () => { setSpeaking(false); URL.revokeObjectURL(url); };
+        a.onerror = () => setSpeaking(false);
+        await a.play();
+      } catch { setSpeaking(false); }
+    }
+  }
+
+  async function sendText() {
+    if (!draft.trim() || busy || !shop) return;
+    setBusy(true); setError('');
+    try { await applyReply(await bookAssistantText(shop.id, draft, fields)); setDraft(''); }
+    catch { setError('Could not reach the assistant.'); }
+    finally { setBusy(false); }
+  }
+
+  async function toggleMic() {
+    if (!shop) return;
+    if (recording) {
+      setBusy(true);
+      const blob = await stop();
+      if (!blob) { setBusy(false); return; }
+      try { await applyReply(await bookAssistantVoice(shop.id, blob, fields)); }
+      catch { setError('Could not reach the assistant.'); }
+      finally { setBusy(false); }
+    } else {
+      setError('');
+      try { await start(); } catch { setError('Microphone permission needed.'); }
+    }
+  }
+
+  const micState = recording ? 'listening' : busy ? 'thinking' : speaking ? 'speaking' : 'idle';
 
   const catalogs = shop?.catalogs ?? [];
   const priceFor = (title?: string): number => {
@@ -73,7 +129,7 @@ export default function PublicBooking() {
           <h2>You're booked!</h2>
           <p className="pb-done-sub">{created.service} · {created.date} at {created.start_time}</p>
           <p className="pb-done-sub">See you soon, {created.customer_name} — {shop.name}.</p>
-          <button className="c-btn c-btn-block" onClick={() => { setCreated(null); setFields({}); }}>
+          <button className="c-btn c-btn-block" onClick={() => { setCreated(null); setFields({ date: todayIso() }); }}>
             Book another
           </button>
         </div>
@@ -88,8 +144,33 @@ export default function PublicBooking() {
         <div><div className="pb-title">Book with {shop.name}</div><div className="pb-sub">Pick your service and time, or use the mic.</div></div>
       </header>
 
-      <div className="pb-body">
-        {/* Voice mic is added in Task 5; the form works on its own. */}
+      <div className="pb-body pb-has-mic">
+        <div className="pb-voice">
+          <button
+            className={`pb-mic pb-mic-${micState}`}
+            style={{ ['--lvl' as string]: recording ? level.toFixed(3) : 0 }}
+            aria-label={recording ? 'Stop' : 'Speak to book'}
+            disabled={!supported || (busy && !recording)}
+            onClick={() => void toggleMic()}
+          >
+            <span className="pb-mic-ring" aria-hidden />
+            <span className="pb-mic-ring pb-mic-ring2" aria-hidden />
+            <Icons.Mic size={34} />
+          </button>
+          <p className="pb-voice-cap">
+            {micState === 'listening' ? 'Listening…' : micState === 'thinking' ? 'One sec…' : micState === 'speaking' ? 'Speaking…' : 'Tap and tell me what you need'}
+          </p>
+          {reply && <p className="pb-voice-reply">{reply}</p>}
+          <div className="pb-voice-type">
+            <input className="pb-input" placeholder="…or tell me what you'd like to book"
+              value={draft} onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void sendText(); }} disabled={busy} />
+            <button className="c-btn" aria-label="Send" disabled={busy || !draft.trim()} onClick={() => void sendText()}>
+              <Icons.Send size={16} />
+            </button>
+          </div>
+        </div>
+
         <div className="pb-form">
           <label className="c-field-label">Service</label>
           <div className="pb-chips">
