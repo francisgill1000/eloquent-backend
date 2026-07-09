@@ -96,6 +96,7 @@ Route::get('/shop/reports/staff',         [\App\Http\Controllers\ReportsControll
 Route::get('/shop/reports/services',      [\App\Http\Controllers\ReportsController::class, 'services']);
 Route::get('/shop/reports/time-patterns', [\App\Http\Controllers\ReportsController::class, 'timePatterns']);
 Route::get('/shop/reports/insights',      [\App\Http\Controllers\ReportsController::class, 'insights']);
+Route::get('/shop/reports/ai-summary',    [\App\Http\Controllers\ReportsController::class, 'aiSummary']);
 Route::get('/shop/reports/export',        [\App\Http\Controllers\ReportsController::class, 'export']);
 
 // Marketing — campaigns + promo codes
