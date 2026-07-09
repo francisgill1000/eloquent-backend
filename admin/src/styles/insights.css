@@ -329,6 +329,14 @@
   border: 1px solid var(--border-3); cursor: pointer;
 }
 .ins-ai-refresh:disabled { opacity: 0.5; cursor: default; }
+.ins-ai-actions { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+.ins-ai-listen {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  color: var(--bg-1); background: var(--mint-300);
+  border: 1px solid var(--mint-300); cursor: pointer;
+}
+.ins-ai-listen:disabled { opacity: 0.6; cursor: default; }
 .ins-ai-body { padding-top: 4px; transition: opacity 0.2s ease; }
 .ins-ai-body.is-refreshing { opacity: 0.5; }
 .ins-ai-summary { font-size: 15px; line-height: 1.55; color: var(--text-1); margin: 0 0 14px; }
