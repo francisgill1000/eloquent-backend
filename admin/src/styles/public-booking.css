@@ -5,6 +5,15 @@
 .pb-empty { min-height: 60dvh; display: grid; place-items: center; gap: 10px; text-align: center; color: var(--text-4); }
 .pb-hint { margin-top: 18px; font-size: 14px; color: var(--text-4); text-align: center; max-width: 300px; }
 
+.pb-services { margin-top: 26px; width: 100%; max-width: 340px; }
+.pb-services-title { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-4); margin-bottom: 8px; }
+.pb-services-list { list-style: none; margin: 0; padding: 0;
+  background: var(--bg-2); border: 1px solid var(--border-1); border-radius: 12px; overflow: hidden; }
+.pb-services-list li { display: flex; justify-content: space-between; gap: 12px; padding: 11px 14px;
+  font-size: 14px; color: var(--text-2); border-top: 1px solid var(--border-1); }
+.pb-services-list li:first-child { border-top: none; }
+.pb-services-price { color: var(--mint-300); font-variant-numeric: tabular-nums; }
+
 .pb-done { max-width: 420px; text-align: center; }
 .pb-done-tick { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center;
   background: var(--mint-400); color: #06231b; }

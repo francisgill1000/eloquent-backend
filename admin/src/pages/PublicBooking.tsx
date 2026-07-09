@@ -20,6 +20,16 @@ function todayIso(): string {
   return `${y}-${mm}-${dd}`;
 }
 
+// Normalise a spoken/typed number to a canonical UAE mobile (05XXXXXXXX), or
+// return null if it isn't a valid UAE mobile. Voice transcription of numbers is
+// noisy, so we're lenient about the input shape but strict about the result.
+function canonicalUaeMobile(raw?: string): string | null {
+  let d = (raw || '').replace(/\D+/g, '');
+  if (d.startsWith('971')) d = d.slice(3);          // strip country code
+  if (d.length === 9 && d.startsWith('5')) d = '0' + d; // 5XXXXXXXX -> 05XXXXXXXX
+  return /^05\d{8}$/.test(d) ? d : null;
+}
+
 /* ---- Minimal Web Speech API typings (not uniformly in lib.dom) ------------ */
 type SRResult = ArrayLike<{ transcript: string }> & { isFinal: boolean };
 type SREvent = { results: ArrayLike<SRResult> };
@@ -183,6 +193,17 @@ export default function PublicBooking() {
 
     const complete = !!(merged.service && merged.date && merged.start_time && merged.customer_name && merged.customer_phone);
     if (r.ready && complete) {
+      // Guard the phone before booking so a mis-heard number gets a clear,
+      // spoken correction instead of a generic "couldn't book".
+      const phone = canonicalUaeMobile(merged.customer_phone);
+      if (!phone) {
+        fieldsRef.current = { ...merged, customer_phone: undefined };
+        log({ err: 'invalid phone: ' + (merged.customer_phone || '') });
+        await speakReply("That phone number doesn't look right. Please say your mobile number again slowly — it should start with zero-five and have ten digits, like oh five oh, one two three, four five six seven.");
+        return;
+      }
+      merged.customer_phone = phone;
+      fieldsRef.current = merged;
       await speakReply(r.reply_text || 'Perfect, booking that now.');
       await book(merged);
     } else {
@@ -336,6 +357,17 @@ export default function PublicBooking() {
 
       {showStart && <p className="pb-hint">Tap to start — then just talk</p>}
       {micDenied && <p className="pb-hint">Microphone blocked. Allow it in your browser, then tap to start again.</p>}
+
+      {(shop?.catalogs?.length ?? 0) > 0 && (
+        <div className="pb-services">
+          <div className="pb-services-title">Our services</div>
+          <ul className="pb-services-list">
+            {shop!.catalogs!.map((c) => (
+              <li key={c.id}><span>{c.title}</span><span className="pb-services-price">AED {c.price}</span></li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {DEBUG && (
         <div style={{ marginTop: 24, width: '100%', maxWidth: 340, fontSize: 13, lineHeight: 1.5,
