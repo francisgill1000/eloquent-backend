@@ -9,10 +9,10 @@ type Tab = { id: string; label: string; href: string; icon: keyof typeof Icons; 
 const BOTH: Module[] = ['bookings', 'leads'];
 
 const ALL_TABS: Tab[] = [
-  { id: 'home', label: 'Home', href: '/', icon: 'Mic', modules: BOTH },
+  { id: 'ai-summary', label: 'AI Summary', href: '/ai-summary', icon: 'Sparkle', modules: BOTH },
+  { id: 'home', label: 'Home', href: '/', icon: 'Home', modules: BOTH },
   // Past conversations with the Ask assistant.
   { id: 'conversations', label: 'Chats', href: '/conversations', icon: 'Chat', modules: BOTH },
-  { id: 'ai-summary', label: 'AI Summary', href: '/ai-summary', icon: 'Sparkle', modules: BOTH },
   { id: 'bookings', label: 'Bookings', href: '/bookings', icon: 'Calendar', modules: ['bookings'] },
   // WhatsApp Chats — hidden temporarily behind WHATSAPP_ENABLED.
   { id: 'chats', label: 'Chats', href: '/chats', icon: 'Chat', modules: BOTH },
