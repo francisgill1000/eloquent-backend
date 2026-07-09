@@ -95,16 +95,13 @@ export default function PublicBooking() {
     } catch { /* Web Audio unavailable */ }
   }
 
-  // Speak text; resolves when playback finishes.
-  function speakReply(text: string): Promise<void> {
+  // Decode + play raw audio bytes on the primed context; resolves when done.
+  function playBytes(bytes: ArrayBuffer): Promise<void> {
     return new Promise((resolve) => {
       const ctx = playCtxRef.current;
-      if (!text || !ctx) { resolve(); return; }
-      speak(text, 'nova')
-        .then(async (url) => {
-          const bytes = await (await fetch(url)).arrayBuffer();
-          URL.revokeObjectURL(url);
-          const buffer = await ctx.decodeAudioData(bytes.slice(0));
+      if (!ctx) { resolve(); return; }
+      ctx.decodeAudioData(bytes.slice(0))
+        .then(async (buffer) => {
           try { playSrcRef.current?.stop(); } catch { /* nothing playing */ }
           const src = ctx.createBufferSource();
           src.buffer = buffer;
@@ -117,6 +114,36 @@ export default function PublicBooking() {
         })
         .catch(() => { setSpeaking(false); resolve(); });
     });
+  }
+
+  // Speak text via a /tts round trip. Used for lines we compose on the client
+  // (the booking confirmation, phone-error and closed prompts) that the server
+  // didn't pre-voice.
+  function speakReply(text: string): Promise<void> {
+    if (!text || !playCtxRef.current) return Promise.resolve();
+    return speak(text, 'nova')
+      .then(async (url) => {
+        const bytes = await (await fetch(url)).arrayBuffer();
+        URL.revokeObjectURL(url);
+        return playBytes(bytes);
+      })
+      .catch(() => { setSpeaking(false); });
+  }
+
+  // Speak the assistant's own reply. The server voices it and returns the audio
+  // inline (reply_audio), so play that directly — no extra round trip. Fall back
+  // to a /tts synth only when the inline audio is missing.
+  function speakServerReply(r: AssistantReply): Promise<void> {
+    const b64 = r.reply_audio;
+    if (b64 && playCtxRef.current) {
+      try {
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return playBytes(bytes.buffer);
+      } catch { /* corrupt payload — fall back to synth */ }
+    }
+    return speakReply(r.reply_text);
   }
 
   // Interrupt the current spoken reply. Stopping the source fires its onended,
@@ -182,7 +209,7 @@ export default function PublicBooking() {
         await speakReply(`Perfect, you're booked! Your reference is ${reference}. Please keep it for when you arrive.`);
       }
     } else {
-      await speakReply(r.reply_text);
+      await speakServerReply(r);
     }
   }
 

@@ -96,6 +96,28 @@ class PublicBookingAssistantTest extends TestCase
             ->assertJsonPath('fields.service', 'Classic Haircut');
     }
 
+    public function test_voice_reply_includes_inline_audio(): void
+    {
+        $shop = $this->shop();
+        Http::fake([
+            'api.openai.com/v1/audio/transcriptions' => Http::response(['text' => 'a haircut']),
+            'api.openai.com/v1/audio/speech' => Http::response('MP3BYTES', 200, ['Content-Type' => 'audio/mpeg']),
+            'api.anthropic.com/*' => Http::response(['content' => [
+                ['type' => 'text', 'text' => 'What day works?'],
+            ]]),
+        ]);
+
+        $audio = UploadedFile::fake()->createWithContent('voice.webm', 'BYTES', 'audio/webm');
+        $res = $this->post("/api/shops/{$shop->id}/book-assistant/voice",
+            ['audio' => $audio, 'state' => json_encode([])], $this->headers);
+
+        // The spoken reply is voiced server-side and returned inline (base64
+        // MP3), so the client needn't make a separate /tts call.
+        $res->assertCreated()
+            ->assertJsonPath('reply_text', 'What day works?')
+            ->assertJsonPath('reply_audio', base64_encode('MP3BYTES'));
+    }
+
     public function test_prior_turns_are_replayed_from_the_stored_thread(): void
     {
         $shop = $this->shop();

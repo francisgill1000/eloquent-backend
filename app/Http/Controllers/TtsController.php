@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Tts\TtsSynthesizer;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 
 /**
  * Text-to-speech for the in-app assistant. Reuses the OpenAI TTS the chat
@@ -15,47 +14,21 @@ use Illuminate\Support\Facades\Http;
  */
 class TtsController extends Controller
 {
+    public function __construct(private TtsSynthesizer $tts) {}
+
     public function speak(Request $request)
     {
         $text = trim((string) $request->input('text'));
         if ($text === '') {
             return response()->json(['message' => 'text required'], 422);
         }
-        // Guard cost/abuse — replies are short; cap the spoken length.
-        $text = mb_substr($text, 0, 800);
-
-        $key = config('services.openai.key');
-        if (empty($key)) {
+        if (empty(config('services.openai.key'))) {
             return response()->json(['message' => 'TTS not configured'], 503);
         }
 
-        $model = (string) config('services.openai.tts_model', 'gpt-4o-mini-tts');
-        $default = (string) config('services.openai.tts_voice', 'nova');
-
-        // Optional caller-chosen voice, whitelisted to the voices the demo uses.
-        $allowed = ['nova', 'shimmer', 'coral', 'sage', 'alloy'];
-        $requested = (string) $request->input('voice', '');
-        $voice = in_array($requested, $allowed, true) ? $requested : $default;
-
-        $cacheKey = 'tts:' . md5($model . '|' . $voice . '|' . $text);
-        $audio = Cache::get($cacheKey);
-
+        $audio = $this->tts->mp3($text, (string) $request->input('voice', ''));
         if ($audio === null) {
-            $resp = Http::withToken($key)
-                ->timeout(60)
-                ->post('https://api.openai.com/v1/audio/speech', [
-                    'model'           => $model,
-                    'voice'           => $voice,
-                    'input'           => $text,
-                    'response_format' => 'mp3',
-                ]);
-
-            if (! $resp->successful()) {
-                return response()->json(['message' => 'TTS failed'], 502);
-            }
-
-            $audio = $resp->body();
-            Cache::put($cacheKey, $audio, now()->addDay());
+            return response()->json(['message' => 'TTS failed'], 502);
         }
 
         return response($audio, 200)

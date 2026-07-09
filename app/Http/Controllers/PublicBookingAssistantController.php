@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Shop;
 use App\Services\Assistant\ConversationStore;
+use App\Services\Tts\TtsSynthesizer;
 use App\Services\Wa\ClaudeClient;
 use App\Services\Wa\Transcriber;
 use App\Support\Assistant\PublicBookingPrompt;
@@ -22,6 +23,7 @@ class PublicBookingAssistantController extends Controller
         protected ClaudeClient $claude,
         protected Transcriber $transcriber,
         protected ConversationStore $store,
+        protected TtsSynthesizer $tts,
     ) {}
 
     public function text(Request $request, Shop $shop): JsonResponse
@@ -114,6 +116,14 @@ class PublicBookingAssistantController extends Controller
         $payload = ['reply_text' => $reply, 'fields' => (object) $fields, 'ready' => $ready];
         if ($transcript !== null) {
             $payload['transcript'] = $transcript;
+        }
+        // Voice the reply here and return it inline (base64 MP3) so the client
+        // plays it straight away instead of making a second /tts round trip —
+        // one fewer mobile network hop per turn. Best-effort: if TTS is down the
+        // client falls back to its own /tts call.
+        $audio = $this->tts->mp3($reply, 'nova');
+        if ($audio !== null) {
+            $payload['reply_audio'] = base64_encode($audio);
         }
         return response()->json($payload, 201);
     }
