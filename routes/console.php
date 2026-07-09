@@ -25,3 +25,11 @@ Schedule::command('assistant:suggest-kb --days=7')
     ->withoutOverlapping()
     ->onOneServer();
 
+// AI summaries — pre-generate each active shop's performance summary overnight
+// (03:00 Asia/Dubai) for the 30 days ending yesterday, so it loads instantly
+// from the DB in the morning instead of triggering a live Claude call.
+Schedule::command('ai:daily-summaries')
+    ->dailyAt('03:00')
+    ->withoutOverlapping()
+    ->onOneServer();
+
