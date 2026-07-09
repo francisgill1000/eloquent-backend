@@ -53,6 +53,14 @@
     display: none !important;
   }
 
+  /* The Ask/assistant screen reserves 72px at the bottom to clear the fixed
+     mobile tab bar. That bar is hidden here, so the reservation is dead space
+     that pushes the composer too far up. Shrink it to a clean, small gap so the
+     input + send/mic row sits comfortably near the bottom edge. */
+  .va-screen {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+
   /* ── Sidebar (frosted glass, matches the app's other glass surfaces) ── */
   .ds-rail {
     display: flex;
