@@ -483,37 +483,39 @@ export default function Insights() {
                   display={prev && prev.reviews.average != null && data.reviews.average != null ? Math.abs(+(data.reviews.average - prev.reviews.average).toFixed(1)).toFixed(1) : ''} goodDir="up" />} />
             </div>
 
-            {/* Trend — full width */}
-            <ChartCard icon="Chart" title="Bookings over time" sub={rangeLen > 62 ? 'Weekly totals' : 'Daily totals'} span2>
-              <TrendChart daily={data.daily} />
-            </ChartCard>
+            {/* Trend + Upcoming — two-up row */}
+            <div className="ins-grid">
+              <ChartCard icon="Chart" title="Bookings over time" sub={rangeLen > 62 ? 'Weekly totals' : 'Daily totals'}>
+                <TrendChart daily={data.daily} />
+              </ChartCard>
 
-            {/* Upcoming bookings — forward-looking, like the Overview page */}
-            <ChartCard icon="Calendar" title="Upcoming bookings"
-              sub={upcoming.length ? `Next ${upcoming.length} appointment${upcoming.length === 1 ? '' : 's'}` : 'Scheduled ahead'} span2>
-              {upcoming.length === 0 ? (
-                <EmptyState text="No upcoming bookings scheduled." />
-              ) : (
-                <div className="ins-up-list">
-                  {upcoming.map((b) => {
-                    const name = b.customer?.name || b.customer_name || 'Guest';
-                    const services = b.services?.map((s) => s.title || s.name).filter(Boolean).join(', ') || 'Service';
-                    const when = b.start_time ? fmtTime(b.start_time) : (b.show_date ?? 'TBD');
-                    const isToday = dateOf(b) === todayISO;
-                    return (
-                      <button key={b.id} className="ins-up-row" onClick={() => navigate(`/booking/${b.id}`)}>
-                        <span className="ins-up-when">{isToday ? 'Today' : fmtShort(dateOf(b))}<em>{when}</em></span>
-                        <span className="ins-up-body">
-                          <span className="ins-up-name">{name}</span>
-                          <span className="ins-up-sub">{services}</span>
-                        </span>
-                        <span className="ins-up-price">AED {b.charges ?? 0}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </ChartCard>
+              {/* Upcoming bookings — forward-looking, like the Overview page */}
+              <ChartCard icon="Calendar" title="Upcoming bookings"
+                sub={upcoming.length ? `Next ${upcoming.length} appointment${upcoming.length === 1 ? '' : 's'}` : 'Scheduled ahead'}>
+                {upcoming.length === 0 ? (
+                  <EmptyState text="No upcoming bookings scheduled." />
+                ) : (
+                  <div className="ins-up-list">
+                    {upcoming.map((b) => {
+                      const name = b.customer?.name || b.customer_name || 'Guest';
+                      const services = b.services?.map((s) => s.title || s.name).filter(Boolean).join(', ') || 'Service';
+                      const when = b.start_time ? fmtTime(b.start_time) : (b.show_date ?? 'TBD');
+                      const isToday = dateOf(b) === todayISO;
+                      return (
+                        <button key={b.id} className="ins-up-row" onClick={() => navigate(`/booking/${b.id}`)}>
+                          <span className="ins-up-when">{isToday ? 'Today' : fmtShort(dateOf(b))}<em>{when}</em></span>
+                          <span className="ins-up-body">
+                            <span className="ins-up-name">{name}</span>
+                            <span className="ins-up-sub">{services}</span>
+                          </span>
+                          <span className="ins-up-price">AED {b.charges ?? 0}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </ChartCard>
+            </div>
 
             <div className="ins-grid">
               <ChartCard icon="Calendar" title="Outcomes" sub="How scheduled bookings ended">
