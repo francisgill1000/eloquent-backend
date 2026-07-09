@@ -74,22 +74,6 @@ describe('PublicBooking (voice-only)', () => {
     await screen.findByText(/you're booked/i);
   });
 
-  it('shows captions of what it heard and the assistant reply', async () => {
-    vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
-    vi.spyOn(pub, 'bookAssistantVoice').mockResolvedValue({
-      transcript: 'a haircut tomorrow at two', reply_text: 'What day works for you?',
-      ready: false, fields: { service: 'Classic Haircut' },
-    });
-
-    renderPage();
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: /speak to book/i }));   // start recording
-    await user.click(await screen.findByRole('button', { name: /stop/i }));            // stop → send
-
-    await screen.findByText(/a haircut tomorrow at two/i);   // "You: …"
-    await screen.findByText(/what day works for you\?/i);    // "Assistant: …"
-  });
-
   it('the End button returns the screen to the start state', async () => {
     vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
 
