@@ -149,6 +149,13 @@ Route::post('/ai/search', [\App\Http\Controllers\AiController::class, 'search'])
 Route::get('/ai/categories', [\App\Http\Controllers\AiController::class, 'categories'])
     ->middleware('throttle:120,1');
 
+// Public customer booking assistant — field extraction only (no auth, no owner
+// tools). Keyed by X-Device-Id; throttled since each hits Claude/Whisper.
+Route::post('/shops/{shop}/book-assistant/text',  [\App\Http\Controllers\PublicBookingAssistantController::class, 'text'])
+    ->middleware('throttle:20,1');
+Route::post('/shops/{shop}/book-assistant/voice', [\App\Http\Controllers\PublicBookingAssistantController::class, 'voice'])
+    ->middleware('throttle:20,1');
+
 // WhatsApp Cloud API — public webhook (routed per shop by phone_number_id).
 // Auto-replies are generated in-app by the ProcessWaReply job.
 Route::get('/wa/webhook', [\App\Http\Controllers\WaWebhookController::class, 'verify']);
