@@ -15,6 +15,9 @@ export type AssistantReply = {
   ready: boolean;
 };
 
+/** One prior conversation turn, sent so the assistant remembers context. */
+export type Turn = { role: 'user' | 'assistant'; content: string };
+
 export type PublicShop = {
   id: number;
   name: string;
@@ -40,15 +43,16 @@ function normalize(d: unknown): AssistantReply {
   };
 }
 
-export async function bookAssistantText(shopId: number, text: string, state: BookingFields): Promise<AssistantReply> {
-  const { data } = await api.post(`/shops/${shopId}/book-assistant/text`, { text, state });
+export async function bookAssistantText(shopId: number, text: string, state: BookingFields, history: Turn[] = []): Promise<AssistantReply> {
+  const { data } = await api.post(`/shops/${shopId}/book-assistant/text`, { text, state, history });
   return normalize(data);
 }
 
-export async function bookAssistantVoice(shopId: number, audio: Blob, state: BookingFields): Promise<AssistantReply> {
+export async function bookAssistantVoice(shopId: number, audio: Blob, state: BookingFields, history: Turn[] = []): Promise<AssistantReply> {
   const fd = new FormData();
   fd.append('audio', audio, 'voice.webm');
   fd.append('state', JSON.stringify(state));
+  fd.append('history', JSON.stringify(history));
   // Override the shared api's JSON default so the FormData is sent as multipart
   // (otherwise axios serializes it as JSON and the audio Blob is dropped).
   const { data } = await api.post(`/shops/${shopId}/book-assistant/voice`, fd, {
