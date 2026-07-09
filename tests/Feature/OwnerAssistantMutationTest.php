@@ -14,7 +14,7 @@ class OwnerAssistantMutationTest extends TestCase
 
     private function tools(): OwnerAssistantTools
     {
-        return new OwnerAssistantTools(app(ReportsAggregator::class));
+        return app(OwnerAssistantTools::class);
     }
 
     public function test_cancel_booking_sets_status_and_is_shop_scoped(): void
