@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Models\AiSummary;
 use App\Services\Wa\ClaudeClient;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -41,7 +42,8 @@ class AiInsightsWriter
         }
 
         try {
-            $payload = $this->buildPayload($shopId, $from, $to, $insights);
+            $recent = $this->recentSummaries($shopId);
+            $payload = $this->buildPayload($shopId, $from, $to, $insights, $recent);
             $reply = $this->claude->reply($this->systemPrompt(), [
                 ['role' => 'user', 'content' => json_encode($payload, JSON_UNESCAPED_UNICODE)],
             ]);
@@ -66,11 +68,51 @@ class AiInsightsWriter
         ];
 
         Cache::put($key, $result, self::CACHE_TTL);
+        $this->persistDaily($shopId, $from, $to, $parsed);
 
         return $result;
     }
 
-    protected function buildPayload(int $shopId, Carbon $from, Carbon $to, array $insights): array
+    /**
+     * The shop's most recent stored summaries — fed to the model so a new day's
+     * summary is framed differently from earlier ones (never repetitive).
+     *
+     * @return array<int, string>
+     */
+    protected function recentSummaries(int $shopId): array
+    {
+        return AiSummary::where('shop_id', $shopId)
+            ->orderByDesc('summary_date')
+            ->limit(3)
+            ->pluck('summary')
+            ->all();
+    }
+
+    /**
+     * Upsert one row per shop per day. Failure here must never break the reply.
+     *
+     * @param array{summary: string, patterns: string[], recommendations: string[]} $parsed
+     */
+    protected function persistDaily(int $shopId, Carbon $from, Carbon $to, array $parsed): void
+    {
+        try {
+            AiSummary::updateOrCreate(
+                ['shop_id' => $shopId, 'summary_date' => Carbon::now()->toDateString()],
+                [
+                    'period_from'     => $from->toDateString(),
+                    'period_to'       => $to->toDateString(),
+                    'summary'         => $parsed['summary'],
+                    'patterns'        => $parsed['patterns'],
+                    'recommendations' => $parsed['recommendations'],
+                    'model'           => (string) config('services.anthropic.model'),
+                ],
+            );
+        } catch (\Throwable $e) {
+            Log::warning('AiInsightsWriter persist failed', ['shop_id' => $shopId, 'error' => $e->getMessage()]);
+        }
+    }
+
+    protected function buildPayload(int $shopId, Carbon $from, Carbon $to, array $insights, array $recentSummaries = []): array
     {
         $lengthDays = $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1;
         $prevTo   = $from->copy()->subDay()->endOfDay();
@@ -99,6 +141,8 @@ class AiInsightsWriter
                 'gross_revenue'     => $prevRevenue['kpis']['gross_revenue'],
                 'avg_booking_value' => $prevRevenue['kpis']['avg_booking_value'],
             ],
+            // Earlier summaries you wrote — vary your framing from these.
+            'recent_summaries' => $recentSummaries,
         ];
     }
 
@@ -160,8 +204,9 @@ You will receive a JSON object of computed metrics for the selected period and t
 Write a short, encouraging but honest performance summary for the shop owner, who is NOT technical.
 
 STRICT RULES:
-- Use ONLY the numbers provided. Never invent figures, names, or trends the data does not show.
+- Use ONLY the numbers provided. Never invent figures, names, or trends the data does not show. Every statement must be supported by the actual performance numbers.
 - Compare "current" vs "previous" to describe direction (up / down / flat). If a previous value is zero, describe it as a new or first-of-period result rather than citing a percentage change.
+- If "recent_summaries" is provided, those are summaries you wrote on earlier days. Do NOT reuse their opening, wording, or framing — take a fresh angle and lead with what has changed. Never invent facts just to seem different; accuracy to the numbers always wins over novelty.
 - No jargon. Refer to money as AED.
 - Keep it concise.
 
