@@ -17,8 +17,6 @@ function todayIso(): string {
   return `${y}-${mm}-${dd}`;
 }
 
-// A 0-length silent WAV, used only to "unlock" the audio element inside a tap.
-const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=';
 
 /**
  * Voice-only self-service booking. The whole screen is one big mic: the
@@ -43,11 +41,12 @@ export default function PublicBooking() {
   // assistant remembers what it already asked.
   const fieldsRef = useRef<BookingFields>({ date: todayIso() });
   const historyRef = useRef<Turn[]>([]);
-  // One reused <audio> element, unlocked inside the first tap so the spoken
-  // reply — which only arrives after the network round-trips — can still play
-  // on mobile (iOS/Safari block audio not started within a user gesture).
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioPrimedRef = useRef(false);
+  // A playback AudioContext resumed inside the mic tap. Once a gesture unlocks
+  // it, it can play the spoken reply at any later time — an HTMLAudioElement
+  // play() started after the network round-trip is blocked on iOS/Safari and
+  // would only fire on the *next* tap.
+  const playCtxRef = useRef<AudioContext | null>(null);
+  const playSrcRef = useRef<AudioBufferSourceNode | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -57,48 +56,48 @@ export default function PublicBooking() {
     return () => { alive = false; };
   }, [id]);
 
+  // Close the audio context when leaving the page.
+  useEffect(() => () => { playCtxRef.current?.close().catch(() => undefined); }, []);
+
   const priceFor = (title?: string): number => {
     const c = (shop?.catalogs ?? []).find((x) => x.title.toLowerCase() === (title ?? '').toLowerCase());
     return c ? Number(c.price) || 0 : 0;
   };
 
-  function getAudioEl(): HTMLAudioElement {
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-      audioRef.current.preload = 'auto';
-    }
-    return audioRef.current;
-  }
-
-  // Must run synchronously inside a user gesture (the mic tap): playing a silent
-  // clip marks the element user-activated, so a later programmatic play() is allowed.
+  // Must run synchronously inside a user gesture (the mic tap) so the context
+  // is created/resumed while a gesture is active, keeping it unlocked afterwards.
   function primeAudio() {
-    if (audioPrimedRef.current) return;
-    const el = getAudioEl();
     try {
-      el.muted = true;
-      el.src = SILENT_WAV;
-      const p = el.play();
-      const done = () => { audioPrimedRef.current = true; el.pause(); el.muted = false; };
-      if (p && typeof p.then === 'function') p.then(done).catch(() => { el.muted = false; });
-      else done();
-    } catch { /* best-effort */ }
+      if (!playCtxRef.current) {
+        const Ctx: typeof AudioContext = window.AudioContext
+          || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        playCtxRef.current = new Ctx();
+      }
+      void playCtxRef.current.resume();
+    } catch { /* Web Audio unavailable — reply just won't be spoken */ }
   }
 
-  // Speak the assistant's reply aloud on the reused, unlocked element.
-  function speakReply(text: string) {
-    if (!text) return;
-    speak(text, 'nova')
-      .then((url) => {
-        const el = getAudioEl();
-        el.muted = false;
-        el.src = url;                       // setting src interrupts any prior clip
-        setSpeaking(true);
-        el.onended = () => { setSpeaking(false); URL.revokeObjectURL(url); };
-        el.onerror = () => setSpeaking(false);
-        return el.play();
-      })
-      .catch(() => setSpeaking(false));
+  // Speak the assistant's reply by decoding the TTS clip and playing it through
+  // the already-unlocked context, so it sounds immediately (not on the next tap).
+  async function speakReply(text: string) {
+    const ctx = playCtxRef.current;
+    if (!text || !ctx) return;
+    try {
+      const url = await speak(text, 'nova');
+      const bytes = await (await fetch(url)).arrayBuffer();
+      URL.revokeObjectURL(url);
+      const buffer = await ctx.decodeAudioData(bytes);
+      try { playSrcRef.current?.stop(); } catch { /* nothing playing */ }
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ctx.destination);
+      src.onended = () => setSpeaking(false);
+      playSrcRef.current = src;
+      setSpeaking(true);
+      src.start(0);
+    } catch {
+      setSpeaking(false);
+    }
   }
 
   async function book(f: BookingFields) {
