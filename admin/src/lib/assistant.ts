@@ -1,7 +1,7 @@
 import api from './api';
 
 export type AssistantMsg = { id: number; role: 'user' | 'assistant'; content: string; audio_url: string | null };
-export type Conversation = { id: number; title: string; updated_at: string };
+export type Conversation = { id: number; title: string; updated_at: string; source?: 'owner' | 'customer' };
 export type AssistantReply = {
   conversation_id?: number;
   title?: string;

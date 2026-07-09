@@ -21,6 +21,19 @@ class ConversationStore
     }
 
     /**
+     * Load-or-create the customer's public-booking thread for this device, so
+     * every visitor's conversation is saved to the shop's list (tagged
+     * 'customer') exactly like the owner's own Ask threads.
+     */
+    public function forCustomer(Shop $shop, string $deviceId, string $firstUserText): Conversation
+    {
+        return Conversation::firstOrCreate(
+            ['shop_id' => $shop->id, 'source' => 'customer', 'device_id' => $deviceId],
+            ['title' => 'Booking — ' . $this->titleFrom($firstUserText)],
+        );
+    }
+
+    /**
      * One page of the shop's threads, newest activity first, optionally filtered
      * by a title search. Fetches one row beyond the page to report whether more
      * exist — cheaper than a separate count query.
@@ -43,7 +56,7 @@ class ConversationStore
             ->orderByDesc('id')
             ->skip(($page - 1) * $perPage)
             ->take($perPage + 1) // one extra row → tells us another page exists
-            ->get(['id', 'title', 'updated_at']);
+            ->get(['id', 'title', 'updated_at', 'source']);
 
         $hasMore = $rows->count() > $perPage;
 
@@ -52,6 +65,7 @@ class ConversationStore
                 'id' => $c->id,
                 'title' => $c->title,
                 'updated_at' => $c->updated_at?->toIso8601String(),
+                'source' => $c->source ?? 'owner',
             ])
             ->values()
             ->all();

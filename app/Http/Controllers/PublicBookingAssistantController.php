@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Shop;
+use App\Services\Assistant\ConversationStore;
 use App\Services\Wa\ClaudeClient;
 use App\Services\Wa\Transcriber;
 use App\Support\Assistant\PublicBookingPrompt;
@@ -20,12 +21,13 @@ class PublicBookingAssistantController extends Controller
     public function __construct(
         protected ClaudeClient $claude,
         protected Transcriber $transcriber,
+        protected ConversationStore $store,
     ) {}
 
     public function text(Request $request, Shop $shop): JsonResponse
     {
         $data = $request->validate(['text' => ['required', 'string', 'max:1000']]);
-        return $this->respond($shop, $data['text'], null, $this->readState($request), $this->readHistory($request));
+        return $this->respond($shop, $data['text'], null, $this->readState($request), $this->readHistory($request), $this->deviceId($request));
     }
 
     public function voice(Request $request, Shop $shop): JsonResponse
@@ -54,21 +56,26 @@ class PublicBookingAssistantController extends Controller
             ], 201);
         }
 
-        return $this->respond($shop, $transcript, $transcript, $this->readState($request), $this->readHistory($request));
+        return $this->respond($shop, $transcript, $transcript, $this->readState($request), $this->readHistory($request), $this->deviceId($request));
     }
 
     /**
      * @param array<string,mixed> $state
      * @param array<int,array{role:string,content:string}> $history prior turns, oldest first
      */
-    protected function respond(Shop $shop, string $text, ?string $transcript, array $state, array $history = []): JsonResponse
+    protected function respond(Shop $shop, string $text, ?string $transcript, array $state, array $history, string $deviceId): JsonResponse
     {
         $shop->loadMissing('catalogs');
         $system = PublicBookingPrompt::for($shop, $state);
 
-        // Give the model the conversation so far so it doesn't re-ask what the
-        // customer already answered, then the current turn last.
-        $messages = array_merge($history, [['role' => 'user', 'content' => $text]]);
+        // Persist the conversation (tagged 'customer') so it shows in the shop's
+        // Conversations list, exactly like the owner's own threads. When we have a
+        // stored thread we rebuild context from it — more reliable than trusting
+        // the browser to send history — falling back to the client history only
+        // when there's no device id to key the thread by.
+        $conversation = $deviceId !== '' ? $this->store->forCustomer($shop, $deviceId, $text) : null;
+        $context = $conversation ? $this->store->contextFor($conversation) : $history;
+        $messages = array_merge($context, [['role' => 'user', 'content' => $text]]);
 
         $fields = [];
         $ready = false;
@@ -94,11 +101,26 @@ class PublicBookingAssistantController extends Controller
             $reply = $this->fallbackReply(array_merge($state, $fields));
         }
 
+        // Save the turn (both sides). Once we learn the customer's name, use it as
+        // the thread title so the owner's list reads well.
+        if ($conversation) {
+            $this->store->append($conversation, 'user', $text);
+            $this->store->append($conversation, 'assistant', $reply);
+            if (! empty($fields['customer_name']) && ! str_contains((string) $conversation->title, (string) $fields['customer_name'])) {
+                $conversation->update(['title' => 'Booking — ' . $fields['customer_name']]);
+            }
+        }
+
         $payload = ['reply_text' => $reply, 'fields' => (object) $fields, 'ready' => $ready];
         if ($transcript !== null) {
             $payload['transcript'] = $transcript;
         }
         return response()->json($payload, 201);
+    }
+
+    private function deviceId(Request $request): string
+    {
+        return trim((string) $request->header('X-Device-Id'));
     }
 
     /** @param array<string,mixed> $f */
