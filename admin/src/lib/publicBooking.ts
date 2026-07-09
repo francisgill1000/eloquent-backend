@@ -49,6 +49,10 @@ export async function bookAssistantVoice(shopId: number, audio: Blob, state: Boo
   const fd = new FormData();
   fd.append('audio', audio, 'voice.webm');
   fd.append('state', JSON.stringify(state));
-  const { data } = await api.post(`/shops/${shopId}/book-assistant/voice`, fd);
+  // Override the shared api's JSON default so the FormData is sent as multipart
+  // (otherwise axios serializes it as JSON and the audio Blob is dropped).
+  const { data } = await api.post(`/shops/${shopId}/book-assistant/voice`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return normalize(data);
 }
