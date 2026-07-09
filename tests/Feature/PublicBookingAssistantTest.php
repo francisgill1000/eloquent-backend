@@ -142,6 +142,35 @@ class PublicBookingAssistantTest extends TestCase
         $this->assertSame('customer', $list['conversations'][0]['source']);
     }
 
+    public function test_record_booking_appends_reference_to_the_conversation(): void
+    {
+        $shop = $this->shop();
+        $booking = \App\Models\Booking::create([
+            'shop_id' => $shop->id,
+            'date' => '2026-07-12',
+            'start_time' => '15:00',
+            'end_time' => '15:30',
+            'status' => 'Scheduled',
+            'services' => [['title' => 'Classic Haircut', 'price' => 30]],
+            'customer_name' => 'Sara',
+            'customer_whatsapp' => '0501234567',
+            'charges' => 30,
+        ]);
+
+        $res = $this->postJson("/api/shops/{$shop->id}/book-assistant/booked",
+            ['booking_id' => $booking->id], $this->headers);
+
+        $res->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('reference', $booking->booking_reference);
+
+        $c = \App\Models\Conversation::where('shop_id', $shop->id)->where('source', 'customer')->first();
+        $this->assertNotNull($c);
+        $last = $c->messages()->orderByDesc('id')->first();
+        $this->assertStringContainsString($booking->booking_reference, (string) $last->content);
+        $this->assertStringContainsString('Booked', (string) $last->content);
+    }
+
     public function test_client_history_is_used_when_there_is_no_device_id(): void
     {
         $shop = $this->shop();

@@ -123,6 +123,32 @@ class PublicBookingAssistantController extends Controller
         return trim((string) $request->header('X-Device-Id'));
     }
 
+    /**
+     * Record the confirmed booking's reference as a final line in the customer's
+     * saved conversation, so staff reviewing the thread can tie it to the actual
+     * booking. Best-effort: never errors the customer's flow.
+     */
+    public function recordBooking(Request $request, Shop $shop): JsonResponse
+    {
+        $data = $request->validate(['booking_id' => ['required', 'integer']]);
+        $deviceId = $this->deviceId($request);
+
+        $booking = \App\Models\Booking::where('shop_id', $shop->id)->find($data['booking_id']);
+        if (! $booking || $deviceId === '') {
+            return response()->json(['ok' => false]);
+        }
+
+        $ref = $booking->booking_reference ?: ('#' . $booking->id);
+        $services = collect($booking->services ?? [])->pluck('title')->filter()->implode(', ') ?: 'Appointment';
+        $time = substr((string) $booking->getRawOriginal('start_time'), 0, 5);
+        $note = "✅ Booked — Reference {$ref}. {$services} on {$booking->date} at {$time} for {$booking->customer_name} ({$booking->customer_whatsapp}).";
+
+        $conversation = $this->store->forCustomer($shop, $deviceId, 'Booking');
+        $this->store->append($conversation, 'assistant', $note);
+
+        return response()->json(['ok' => true, 'reference' => $ref]);
+    }
+
     /** @param array<string,mixed> $f */
     private function fallbackReply(array $f): string
     {

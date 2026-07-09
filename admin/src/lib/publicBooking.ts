@@ -48,6 +48,12 @@ export async function bookAssistantText(shopId: number, text: string, state: Boo
   return normalize(data);
 }
 
+/** Record the confirmed booking's reference into the saved conversation (best-effort). */
+export async function recordBooking(shopId: number, bookingId: number): Promise<{ ok: boolean; reference?: string }> {
+  const { data } = await api.post(`/shops/${shopId}/book-assistant/booked`, { booking_id: bookingId });
+  return { ok: !!data?.ok, reference: typeof data?.reference === 'string' ? data.reference : undefined };
+}
+
 export async function bookAssistantVoice(shopId: number, audio: Blob, state: BookingFields, history: Turn[] = []): Promise<AssistantReply> {
   const fd = new FormData();
   fd.append('audio', audio, 'voice.webm');

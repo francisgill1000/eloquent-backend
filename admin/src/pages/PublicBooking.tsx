@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
-import { getPublicShop, bookAssistantText, bookAssistantVoice, type AssistantReply, type BookingFields, type PublicShop, type Turn } from '@/lib/publicBooking';
+import { getPublicShop, bookAssistantText, bookAssistantVoice, recordBooking, type AssistantReply, type BookingFields, type PublicShop, type Turn } from '@/lib/publicBooking';
 import { createBooking } from '@/lib/bookings';
 import { useRecorder } from '@/hooks/useRecorder';
 import { speak } from '@/lib/simulation';
 import '@/styles/public-booking.css';
 
-type Created = { service: string; date: string; start_time: string; customer_name: string };
+type Created = { service: string; date: string; start_time: string; customer_name: string; reference: string };
 
 function todayIso(): string {
   const d = new Date();
@@ -148,10 +148,12 @@ export default function PublicBooking() {
 
   /* ---- booking ----------------------------------------------------------- */
 
-  async function book(f: BookingFields): Promise<boolean> {
-    if (!shop) return false;
+  // Create the booking; returns its reference (BK…) so we can tell the customer
+  // and record it in the conversation, or null on failure.
+  async function book(f: BookingFields): Promise<string | null> {
+    if (!shop) return null;
     try {
-      await createBooking(shop.id, {
+      const b = await createBooking(shop.id, {
         services: [{ title: f.service!, price: priceFor(f.service) }],
         charges: priceFor(f.service),
         date: f.date!,
@@ -159,15 +161,19 @@ export default function PublicBooking() {
         customer_name: f.customer_name!,
         customer_whatsapp: f.customer_phone!,
       });
+      const bookingId = (b as { id?: number }).id;
+      const reference = (b as { booking_reference?: string }).booking_reference || (bookingId ? `#${bookingId}` : '');
       bookedRef.current = true;
-      setCreated({ service: f.service!, date: f.date!, start_time: f.start_time!, customer_name: f.customer_name! });
-      return true;
+      setCreated({ service: f.service!, date: f.date!, start_time: f.start_time!, customer_name: f.customer_name!, reference });
+      // Record the reference into the saved conversation so staff can refer to it.
+      if (bookingId) { try { await recordBooking(shop.id, bookingId); } catch { /* best-effort */ } }
+      return reference;
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
       await speakReply(msg && /closed/i.test(msg)
         ? "Sorry, we're closed then — please tell me another time."
         : "Sorry, I couldn't book that — please try again.");
-      return false;
+      return null;
     }
   }
 
@@ -192,8 +198,10 @@ export default function PublicBooking() {
       }
       merged.customer_phone = phone;
       fieldsRef.current = merged;
-      await speakReply(r.reply_text || 'Perfect, booking that now.');
-      await book(merged);
+      const reference = await book(merged);
+      if (reference) {
+        await speakReply(`Perfect, you're booked! Your reference is ${reference}. Please keep it for when you arrive.`);
+      }
     } else {
       await speakReply(r.reply_text);
     }
@@ -312,6 +320,7 @@ export default function PublicBooking() {
         <div className="pb-done">
           <div className="pb-done-tick"><Icons.Check size={30} /></div>
           <h2>You're booked!</h2>
+          {created.reference && <div className="pb-done-ref">Reference <b>{created.reference}</b></div>}
           <p className="pb-done-sub">{created.service} · {created.date} at {created.start_time}</p>
           <p className="pb-done-sub">See you soon, {created.customer_name}{shop ? ` — ${shop.name}` : ''}.</p>
           <button className="c-btn c-btn-block" onClick={reset}>Book another</button>

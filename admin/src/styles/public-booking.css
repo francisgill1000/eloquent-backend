@@ -8,6 +8,10 @@
 .pb-done { max-width: 420px; text-align: center; }
 .pb-done-tick { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center;
   background: var(--mint-400); color: #06231b; }
+.pb-done-ref { margin: 6px auto 10px; display: inline-block; padding: 6px 14px; border-radius: var(--r-pill, 999px);
+  background: var(--mint-soft, rgba(0,209,160,0.12)); border: 1px solid var(--border-mint, rgba(0,209,160,0.35));
+  color: var(--mint-300); font-size: 15px; letter-spacing: 0.02em; }
+.pb-done-ref b { letter-spacing: 0.06em; }
 .pb-done-sub { color: var(--text-4); margin: 4px 0; }
 .pb-done .c-btn { margin-top: 18px; }
 
