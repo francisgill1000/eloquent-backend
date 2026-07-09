@@ -116,7 +116,7 @@ class PublicBookingAssistantController extends Controller
                 return $question;
             }
         }
-        return 'Great — tap Confirm to book.';
+        return "Perfect — I'm booking that for you now.";
     }
 
     private function readState(Request $request): array
