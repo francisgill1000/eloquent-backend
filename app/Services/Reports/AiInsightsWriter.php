@@ -33,6 +33,14 @@ class AiInsightsWriter
             if (is_array($cached)) {
                 return array_merge($cached, ['cached' => true]);
             }
+
+            // Durable fallback: the nightly job (ai:daily-summaries) stores each
+            // shop's summary, so a normal morning load serves it straight from
+            // the DB — surviving cache flushes (e.g. a deploy) with no live call.
+            $stored = $this->latestStored($shopId);
+            if ($stored !== null) {
+                return $this->fromStored($stored);
+            }
         }
 
         $insights = $this->aggregator->insightsSummary($shopId, $from, $to);
@@ -86,6 +94,29 @@ class AiInsightsWriter
             ->limit(3)
             ->pluck('summary')
             ->all();
+    }
+
+    /** The shop's most recently stored summary, or null if none exists yet. */
+    protected function latestStored(int $shopId): ?AiSummary
+    {
+        return AiSummary::where('shop_id', $shopId)
+            ->orderByDesc('summary_date')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /** Shape a stored row into the same response contract as a fresh generation. */
+    protected function fromStored(AiSummary $row): array
+    {
+        return [
+            'state'           => 'ok',
+            'summary'         => $row->summary,
+            'patterns'        => is_array($row->patterns) ? $row->patterns : [],
+            'recommendations' => is_array($row->recommendations) ? $row->recommendations : [],
+            'message'         => '',
+            'generated_at'    => optional($row->updated_at)->toIso8601String() ?? Carbon::now()->toIso8601String(),
+            'cached'          => true,
+        ];
     }
 
     /**

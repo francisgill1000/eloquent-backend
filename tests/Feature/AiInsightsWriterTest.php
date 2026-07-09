@@ -125,6 +125,25 @@ class AiInsightsWriterTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    public function test_serves_stored_summary_from_db_without_calling_claude(): void
+    {
+        $shop = $this->shop();
+        $this->seedBookings($shop, 6);
+        $this->fakeClaude(['summary' => 'Stored summary.', 'patterns' => ['a'], 'recommendations' => ['b']]);
+
+        // First call generates + persists a row (and warms the 24h cache).
+        $this->writer()->summary($shop->id, now()->startOfMonth(), now()->endOfMonth());
+        \Illuminate\Support\Facades\Cache::flush(); // simulate a deploy clearing the cache
+
+        // A normal (non-refresh) load now serves the stored row — no new call.
+        $out = $this->writer()->summary($shop->id, now()->startOfMonth(), now()->endOfMonth());
+
+        $this->assertSame('ok', $out['state']);
+        $this->assertSame('Stored summary.', $out['summary']);
+        $this->assertTrue($out['cached']);
+        Http::assertSentCount(1);
+    }
+
     public function test_scoped_to_shop(): void
     {
         $shop = $this->shop('7001');
