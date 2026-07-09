@@ -20,10 +20,17 @@ class GenerateDailyAiSummariesTest extends TestCase
 
     private function shop(string $code, string $status = 'active'): Shop
     {
-        return Shop::create([
+        $shop = Shop::create([
             'name' => 'Shop ' . $code, 'shop_code' => $code, 'pin' => '0000',
-            'status' => $status, 'category_id' => 11,
+            'category_id' => 11,
         ]);
+        // Shop::creating() forces status=active, so a deactivated shop is one
+        // that was updated after creation — mirror that here.
+        if ($status !== 'active') {
+            $shop->update(['status' => $status]);
+        }
+
+        return $shop;
     }
 
     /** Seed $count bookings dated $daysAgo days back (inside the 30-day window by default). */
