@@ -27,11 +27,19 @@ export function useRecorder(opts?: { meter?: boolean }) {
       analyser.fftSize = 256;
       ctx.createMediaStreamSource(stream).connect(analyser);
       const buf = new Uint8Array(analyser.frequencyBinCount);
+      // Smooth the raw RMS with an asymmetric envelope follower — quick to rise
+      // when the caller speaks, slow to fall — so the mic swells and settles
+      // instead of flickering frame-to-frame. Only push a new value when it
+      // moves enough to matter, letting the CSS transition glide between them.
+      let smoothed = 0;
+      let lastEmit = -1;
       const tick = () => {
         analyser.getByteTimeDomainData(buf);
         let sum = 0;
         for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
-        setLevel(Math.min(1, Math.sqrt(sum / buf.length) * 2.4));
+        const target = Math.min(1, Math.sqrt(sum / buf.length) * 2.6);
+        smoothed += (target - smoothed) * (target > smoothed ? 0.35 : 0.12);
+        if (Math.abs(smoothed - lastEmit) > 0.012) { lastEmit = smoothed; setLevel(smoothed); }
         rafRef.current = requestAnimationFrame(tick);
       };
       tick();

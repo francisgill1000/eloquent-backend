@@ -1,48 +1,37 @@
-.pb-screen { min-height: 100dvh; max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; color: var(--text-1); }
-.pb-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-.pb-logo { width: 46px; height: 46px; border-radius: 12px; object-fit: cover; }
-.pb-logo-empty { display: grid; place-items: center; background: var(--mint-900, #0f2a22); color: var(--mint-300); font-weight: 700; }
-.pb-title { font-size: 18px; font-weight: 700; }
-.pb-sub { font-size: 13px; color: var(--text-4); }
-
-/* Side-by-side on desktop, stacked (mic on top) on mobile — the mic column is
-   added in Task 5; the form spans full width until then. */
-.pb-body { display: grid; gap: 20px; grid-template-columns: 1fr; }
-@media (min-width: 1024px) { .pb-body.pb-has-mic { grid-template-columns: 360px 1fr; align-items: start; } }
-
-.pb-form { display: flex; flex-direction: column; }
-.pb-input { width: 100%; margin-bottom: 14px; padding: 12px 14px; border-radius: 12px;
-  background: var(--bg-2); border: 1px solid var(--border-1); color: var(--text-1); font-size: 15px; }
-.pb-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-.pb-chip { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border-radius: 999px;
-  background: var(--bg-2); border: 1px solid var(--border-1); color: var(--text-2); font-size: 14px; cursor: pointer; }
-.pb-chip.is-on { background: var(--mint-400); border-color: var(--mint-400); color: #06231b; font-weight: 600; }
-.pb-chip-price { font-size: 12px; opacity: 0.75; }
+.pb-screen { min-height: 100dvh; margin: 0 auto; padding: 20px 16px 40px; color: var(--text-1); }
+/* Voice-only screen: one big mic, dead-centre. */
+.pb-solo { max-width: 720px; display: grid; place-items: center; }
 
 .pb-empty { min-height: 60dvh; display: grid; place-items: center; gap: 10px; text-align: center; color: var(--text-4); }
-.pb-done { max-width: 420px; margin: 8dvh auto 0; text-align: center; }
+
+.pb-done { max-width: 420px; text-align: center; }
 .pb-done-tick { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center;
   background: var(--mint-400); color: #06231b; }
 .pb-done-sub { color: var(--text-4); margin: 4px 0; }
 .pb-done .c-btn { margin-top: 18px; }
 
-.pb-voice { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;
-  padding: 18px 8px; }
-.pb-mic { position: relative; width: 120px; height: 120px; border-radius: 50%; border: none; cursor: pointer;
+/* The mic is the entire interface. Its scale and glow track the caller's voice
+   (--lvl, 0–1, smoothed in useRecorder) and glide via the transition so the
+   motion swells and settles instead of flickering. */
+.pb-mic { position: relative; width: 148px; height: 148px; border-radius: 50%; border: none; cursor: pointer;
   display: grid; place-items: center; color: #06231b; background: var(--mint-400);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25); transition: transform 80ms linear;
-  transform: scale(calc(1 + (var(--lvl, 0) * 0.35))); }
-.pb-mic:disabled { opacity: 0.5; cursor: default; }
-.pb-mic-ring { position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--mint-400);
-  opacity: calc(0.15 + (var(--lvl, 0) * 0.6)); transform: scale(calc(1 + (var(--lvl, 0) * 0.5))); pointer-events: none; }
-.pb-mic-ring2 { inset: -14px; opacity: calc(0.08 + (var(--lvl, 0) * 0.4)); }
-.pb-mic-idle { animation: pb-breathe 2.6s ease-in-out infinite; }
+  transform: scale(calc(1 + (var(--lvl, 0) * 0.4)));
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25),
+              0 0 calc(16px + (var(--lvl, 0) * 70px)) rgba(0, 209, 160, calc(0.2 + (var(--lvl, 0) * 0.55)));
+  transition: transform 130ms ease-out, box-shadow 130ms ease-out; }
+.pb-mic:disabled { opacity: 0.55; cursor: default; }
+.pb-mic-ring { position: absolute; inset: -8px; border-radius: 50%; border: 2px solid var(--mint-400);
+  opacity: calc(0.14 + (var(--lvl, 0) * 0.55)); transform: scale(calc(1 + (var(--lvl, 0) * 0.45)));
+  transition: transform 170ms ease-out, opacity 170ms ease-out; pointer-events: none; }
+.pb-mic-ring2 { inset: -18px; opacity: calc(0.08 + (var(--lvl, 0) * 0.4)); }
+
+/* Ambient states when NOT reacting to the caller's voice. */
+.pb-mic-idle { animation: pb-breathe 2.8s ease-in-out infinite; }
 .pb-mic-thinking { animation: pb-spin-pulse 1s ease-in-out infinite; }
-.pb-mic-speaking { animation: pb-breathe 1.1s ease-in-out infinite; }
-@keyframes pb-breathe { 0%,100% { box-shadow: 0 10px 30px rgba(0,0,0,0.25); } 50% { box-shadow: 0 10px 42px rgba(0, 209, 160, 0.5); } }
-@keyframes pb-spin-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
-@media (prefers-reduced-motion: reduce) { .pb-mic, .pb-mic-ring { animation: none; transition: none; } }
-.pb-voice-cap { font-size: 13px; color: var(--text-4); }
-.pb-voice-reply { font-size: 15px; color: var(--text-2); max-width: 320px; }
-.pb-voice-type { display: flex; gap: 8px; width: 100%; max-width: 340px; margin-top: 6px; }
-.pb-voice-type .pb-input { margin-bottom: 0; }
+.pb-mic-speaking { animation: pb-breathe 1.2s ease-in-out infinite; }
+@keyframes pb-breathe {
+  0%, 100% { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), 0 0 18px rgba(0, 209, 160, 0.25); }
+  50%      { box-shadow: 0 10px 40px rgba(0, 0, 0, 0.28), 0 0 46px rgba(0, 209, 160, 0.55); } }
+@keyframes pb-spin-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) {
+  .pb-mic, .pb-mic-ring { animation: none; transition: none; transform: none; } }
