@@ -7,9 +7,6 @@ import { useRecorder } from '@/hooks/useRecorder';
 import { speak } from '@/lib/simulation';
 import '@/styles/public-booking.css';
 
-// TEMPORARY on-screen diagnostics — remove once the flow is confirmed on mobile.
-const DEBUG = true;
-
 type Created = { service: string; date: string; start_time: string; customer_name: string };
 
 function todayIso(): string {
@@ -69,12 +66,6 @@ export default function PublicBooking() {
   const [micDenied, setMicDenied] = useState(false);
 
   const handsFree = getSRClass() !== null;
-
-  // TEMPORARY diagnostics
-  const [dbg, setDbg] = useState<{ status: string; heard: string; reply: string; err: string }>(
-    { status: 'ready', heard: '', reply: '', err: '' });
-  const log = (patch: Partial<{ status: string; heard: string; reply: string; err: string }>) =>
-    setDbg((d) => ({ ...d, ...patch }));
 
   // Booking details + conversation so far (kept in refs; the UI shows neither).
   const fieldsRef = useRef<BookingFields>({ date: todayIso() });
@@ -136,7 +127,6 @@ export default function PublicBooking() {
     return new Promise((resolve) => {
       const ctx = playCtxRef.current;
       if (!text || !ctx) { resolve(); return; }
-      log({ status: 'speaking…' });
       speak(text, 'nova')
         .then(async (url) => {
           const bytes = await (await fetch(url)).arrayBuffer();
@@ -152,7 +142,7 @@ export default function PublicBooking() {
           if (ctx.state === 'suspended') await ctx.resume();
           src.start(0);
         })
-        .catch((e: unknown) => { setSpeaking(false); log({ err: 'audio: ' + ((e as Error)?.message || String(e)) }); resolve(); });
+        .catch(() => { setSpeaking(false); resolve(); });
     });
   }
 
@@ -184,7 +174,6 @@ export default function PublicBooking() {
   // Merge the assistant's fields, remember the turn, speak the reply, and book
   // when everything is known. `userText` is what the customer just said.
   async function applyReply(userText: string, r: AssistantReply) {
-    log({ heard: userText, reply: r.reply_text || '(no reply)', err: '' });
     const merged = { ...fieldsRef.current, ...r.fields };
     fieldsRef.current = merged;
     if (userText) historyRef.current.push({ role: 'user', content: userText });
@@ -198,7 +187,6 @@ export default function PublicBooking() {
       const phone = canonicalUaeMobile(merged.customer_phone);
       if (!phone) {
         fieldsRef.current = { ...merged, customer_phone: undefined };
-        log({ err: 'invalid phone: ' + (merged.customer_phone || '') });
         await speakReply("That phone number doesn't look right. Please say your mobile number again slowly — it should start with zero-five and have ten digits, like oh five oh, one two three, four five six seven.");
         return;
       }
@@ -229,14 +217,13 @@ export default function PublicBooking() {
       };
       sr.onerror = (e: { error: string }) => {
         if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { setMicDenied(true); wantListenRef.current = false; }
-        else log({ err: 'speech: ' + e.error });
       };
       // Recognition ends itself periodically — restart while we still want to listen.
       sr.onend = () => { if (wantListenRef.current) { try { srRef.current?.start(); } catch { /* already running */ } } };
       srRef.current = sr;
     }
     wantListenRef.current = true;
-    try { srRef.current.start(); log({ status: 'listening…' }); } catch { /* already started */ }
+    try { srRef.current.start(); } catch { /* already started */ }
   }
 
   function stopListening() {
@@ -255,12 +242,10 @@ export default function PublicBooking() {
     processingRef.current = true;
     stopListening();               // pause so we don't transcribe our own reply
     setBusy(true);
-    log({ status: 'thinking…' });
     try {
       const r = await bookAssistantText(shop.id, text, fieldsRef.current, historyRef.current);
       await applyReply(text, r);
-    } catch (e: unknown) {
-      log({ err: 'request: ' + ((e as Error)?.message || String(e)) });
+    } catch {
       await speakReply('Sorry, I didn\'t catch that — please say it again.');
     } finally {
       setBusy(false);
@@ -284,16 +269,13 @@ export default function PublicBooking() {
     if (finishingRef.current || !recording || !shop) return;
     finishingRef.current = true;
     setBusy(true);
-    log({ status: 'stopping…' });
     const blob = await stop();
     finishingRef.current = false;
-    if (!blob) { setBusy(false); log({ err: 'no audio recorded' }); return; }
+    if (!blob) { setBusy(false); return; }
     try {
-      log({ status: `sending ${blob.size}B…` });
       const r = await bookAssistantVoice(shop.id, blob, fieldsRef.current, historyRef.current);
       await applyReply(r.transcript || '', r);
-    } catch (e: unknown) {
-      log({ err: 'request: ' + ((e as Error)?.message || String(e)) });
+    } catch {
       await speakReply("Sorry, I didn't catch that — please try again.");
     } finally {
       setBusy(false);
@@ -304,7 +286,7 @@ export default function PublicBooking() {
     if (!shop || busy) return;
     primeAudio();
     if (recording) { void finishTurn(); }
-    else { log({ status: 'listening…', err: '' }); try { await start(); } catch { log({ err: 'mic permission denied' }); } }
+    else { try { await start(); } catch { /* mic permission denied */ } }
   }
 
   /* ---- render ------------------------------------------------------------ */
@@ -357,29 +339,6 @@ export default function PublicBooking() {
 
       {showStart && <p className="pb-hint">Tap to start — then just talk</p>}
       {micDenied && <p className="pb-hint">Microphone blocked. Allow it in your browser, then tap to start again.</p>}
-
-      {(shop?.catalogs?.length ?? 0) > 0 && (
-        <div className="pb-services">
-          <div className="pb-services-title">Our services</div>
-          <ul className="pb-services-list">
-            {shop!.catalogs!.map((c) => (
-              <li key={c.id}><span>{c.title}</span><span className="pb-services-price">AED {c.price}</span></li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {DEBUG && (
-        <div style={{ marginTop: 24, width: '100%', maxWidth: 340, fontSize: 13, lineHeight: 1.5,
-          fontFamily: 'monospace', color: 'var(--text-2)', textAlign: 'left',
-          background: 'var(--bg-2)', border: '1px solid var(--border-1)', borderRadius: 12, padding: 12 }}>
-          <div><b>mode:</b> {handsFree ? 'hands-free' : 'tap'}</div>
-          <div><b>status:</b> {dbg.status}</div>
-          <div><b>heard:</b> {dbg.heard || '—'}</div>
-          <div><b>reply:</b> {dbg.reply || '—'}</div>
-          <div style={{ color: dbg.err ? 'var(--danger)' : 'inherit' }}><b>error:</b> {dbg.err || 'none'}</div>
-        </div>
-      )}
     </div>
   );
 }
