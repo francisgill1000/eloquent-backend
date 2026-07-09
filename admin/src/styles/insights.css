@@ -319,3 +319,28 @@
   .ins-kpis { grid-template-columns: repeat(4, 1fr); }
   .ins-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ---------- AI summary card ------------------------------------------------ */
+.ins-ai .ins-card-head { align-items: center; }
+.ins-ai-refresh {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  color: var(--mint-300); background: var(--neutral-soft);
+  border: 1px solid var(--border-3); cursor: pointer;
+}
+.ins-ai-refresh:disabled { opacity: 0.5; cursor: default; }
+.ins-ai-body { padding-top: 4px; transition: opacity 0.2s ease; }
+.ins-ai-body.is-refreshing { opacity: 0.5; }
+.ins-ai-summary { font-size: 15px; line-height: 1.55; color: var(--text-1); margin: 0 0 14px; }
+.ins-ai-block { margin-top: 12px; }
+.ins-ai-label {
+  display: block; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-3); margin-bottom: 6px;
+}
+.ins-ai-list { margin: 0; padding-left: 18px; }
+.ins-ai-list li { font-size: 14px; line-height: 1.5; color: var(--text-2); margin-bottom: 4px; }
+.ins-ai-msg { font-size: 14px; color: var(--text-2); margin: 0 0 12px; }
+.ins-ai-retry {
+  font-size: 13px; font-weight: 600; color: var(--mint-300);
+  background: none; border: none; padding: 0; cursor: pointer;
+}
