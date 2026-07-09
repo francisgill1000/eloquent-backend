@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
+import { VoiceOrb } from '@/components/VoiceOrb';
 import { getPublicShop, bookAssistantText, bookAssistantVoice, recordBooking, type AssistantReply, type BookingFields, type PublicShop, type Turn } from '@/lib/publicBooking';
 import { createBooking } from '@/lib/bookings';
 import { useRecorder } from '@/hooks/useRecorder';
@@ -64,6 +65,9 @@ export default function PublicBooking() {
   const [speaking, setSpeaking] = useState(false);
   const [started, setStarted] = useState(false);   // hands-free: Start tapped
   const [micDenied, setMicDenied] = useState(false);
+  // Live captions so the customer can see the exchange, not just hear it.
+  const [heard, setHeard] = useState('');
+  const [reply, setReply] = useState('');
 
   const handsFree = getSRClass() !== null;
 
@@ -146,6 +150,19 @@ export default function PublicBooking() {
     });
   }
 
+  // Speak AND caption it, so the reply is on screen as well as spoken.
+  function say(text: string): Promise<void> {
+    setReply(text);
+    return speakReply(text);
+  }
+
+  // Interrupt: stop the current spoken reply. Stopping the source fires its
+  // onended, which resolves the pending speakReply and lets the flow resume
+  // (hands-free goes straight back to listening).
+  function stopSpeaking() {
+    try { playSrcRef.current?.stop(); } catch { /* nothing playing */ }
+  }
+
   /* ---- booking ----------------------------------------------------------- */
 
   // Create the booking; returns its reference (BK…) so we can tell the customer
@@ -170,7 +187,7 @@ export default function PublicBooking() {
       return reference;
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      await speakReply(msg && /closed/i.test(msg)
+      await say(msg && /closed/i.test(msg)
         ? "Sorry, we're closed then — please tell me another time."
         : "Sorry, I couldn't book that — please try again.");
       return null;
@@ -180,6 +197,7 @@ export default function PublicBooking() {
   // Merge the assistant's fields, remember the turn, speak the reply, and book
   // when everything is known. `userText` is what the customer just said.
   async function applyReply(userText: string, r: AssistantReply) {
+    if (userText) setHeard(userText);
     const merged = { ...fieldsRef.current, ...r.fields };
     fieldsRef.current = merged;
     if (userText) historyRef.current.push({ role: 'user', content: userText });
@@ -193,17 +211,17 @@ export default function PublicBooking() {
       const phone = canonicalUaeMobile(merged.customer_phone);
       if (!phone) {
         fieldsRef.current = { ...merged, customer_phone: undefined };
-        await speakReply("That phone number doesn't look right. Please say your mobile number again slowly — it should start with zero-five and have ten digits, like oh five oh, one two three, four five six seven.");
+        await say("That phone number doesn't look right. Please say your mobile number again slowly — it should start with zero-five and have ten digits, like oh five oh, one two three, four five six seven.");
         return;
       }
       merged.customer_phone = phone;
       fieldsRef.current = merged;
       const reference = await book(merged);
       if (reference) {
-        await speakReply(`Perfect, you're booked! Your reference is ${reference}. Please keep it for when you arrive.`);
+        await say(`Perfect, you're booked! Your reference is ${reference}. Please keep it for when you arrive.`);
       }
     } else {
-      await speakReply(r.reply_text);
+      await say(r.reply_text);
     }
   }
 
@@ -243,10 +261,11 @@ export default function PublicBooking() {
     if (processingRef.current || speaking || bookedRef.current || !shop) return;
     if (/\b(cancel|never mind|forget it|stop booking)\b/i.test(text)) {
       stopListening();
-      await speakReply('No problem — cancelled. Tap start whenever you want to book.');
+      await say('No problem — cancelled. Tap start whenever you want to book.');
       setStarted(false);
       return;
     }
+    setHeard(text);
     processingRef.current = true;
     stopListening();               // pause so we don't transcribe our own reply
     setBusy(true);
@@ -254,7 +273,7 @@ export default function PublicBooking() {
       const r = await bookAssistantText(shop.id, text, fieldsRef.current, historyRef.current);
       await applyReply(text, r);
     } catch {
-      await speakReply('Sorry, I didn\'t catch that — please say it again.');
+      await say('Sorry, I didn\'t catch that — please say it again.');
     } finally {
       setBusy(false);
       processingRef.current = false;
@@ -267,8 +286,19 @@ export default function PublicBooking() {
     primeAudio();
     setStarted(true);
     setMicDenied(false);
-    await speakReply(`Hi! Welcome to ${shop.name}. What would you like to book?`);
+    setHeard('');
+    await say(`Hi! Welcome to ${shop.name}. What would you like to book?`);
     startListening();
+  }
+
+  // End the whole session and return to the Start screen. Tears down listening,
+  // any in-flight speech, and the tap recorder.
+  async function endSession() {
+    stopListening();
+    stopSpeaking();
+    processingRef.current = false;
+    try { if (recording) await stop(); } catch { /* already stopped */ }
+    reset();
   }
 
   /* ---- fallback (tap) mode ---------------------------------------------- */
@@ -284,7 +314,7 @@ export default function PublicBooking() {
       const r = await bookAssistantVoice(shop.id, blob, fieldsRef.current, historyRef.current);
       await applyReply(r.transcript || '', r);
     } catch {
-      await speakReply("Sorry, I didn't catch that — please try again.");
+      await say("Sorry, I didn't catch that — please try again.");
     } finally {
       setBusy(false);
     }
@@ -295,6 +325,14 @@ export default function PublicBooking() {
     primeAudio();
     if (recording) { void finishTurn(); }
     else { try { await start(); } catch { /* mic permission denied */ } }
+  }
+
+  // One tap handler for the orb: start when idle, interrupt when speaking,
+  // record in tap mode. In hands-free listening/thinking it's a no-op.
+  function onOrbTap() {
+    if (showStart) { void onStart(); return; }
+    if (speaking) { stopSpeaking(); return; }
+    if (!handsFree) { void onMicTap(); }
   }
 
   /* ---- render ------------------------------------------------------------ */
@@ -308,6 +346,8 @@ export default function PublicBooking() {
     bookedRef.current = false;
     setCreated(null);
     setStarted(false);
+    setHeard('');
+    setReply('');
   }
 
   if (loadError) {
@@ -331,32 +371,56 @@ export default function PublicBooking() {
 
   // Hands-free: a Start button first (grants mic), then a hands-free listening orb.
   const showStart = handsFree && !started;
+  const orbState = showStart ? 'idle' : micState;
+  const liveSession = started || recording || speaking || busy;
 
-  const hint = micDenied ? 'Microphone blocked — allow it in your browser, then tap to start.'
-    : showStart ? 'Tap to start — then just talk'
-    : micState === 'thinking' ? 'One moment…'
-    : micState === 'speaking' ? 'Speaking…'
-    : micState === 'listening' ? 'Listening… just speak'
-    : !handsFree ? 'Tap the mic and speak' : '';
+  const status = micDenied ? 'Mic blocked'
+    : showStart ? 'Tap to start'
+    : micState === 'thinking' ? 'Thinking…'
+    : micState === 'speaking' ? 'Speaking'
+    : micState === 'listening' ? 'Listening'
+    : 'Tap the mic';
+
+  const subhint = micDenied ? 'Allow the microphone in your browser, then tap to start.'
+    : showStart ? 'Tap once, then just talk — I’ll listen and reply.'
+    : micState === 'speaking' ? 'Tap the circle to interrupt.'
+    : micState === 'listening' ? 'Just speak — I’m listening.'
+    : (!handsFree && micState === 'idle') ? 'Tap the mic and speak.'
+    : '';
+
+  const orbLabel = showStart ? 'Start'
+    : speaking ? 'Tap to interrupt'
+    : handsFree ? 'Listening'
+    : (recording ? 'Stop' : 'Speak to book');
 
   return (
     <div className="pb-screen pb-live">
+      {liveSession && (
+        <button className="pb-end" aria-label="End" onClick={() => void endSession()}>End</button>
+      )}
+
       <div className="pb-stage">
-        <button
-          className={`pb-mic pb-mic-${showStart ? 'idle' : micState}`}
-          style={{ ['--lvl' as string]: recording ? level.toFixed(3) : 0 }}
-          aria-label={showStart ? 'Start' : handsFree ? 'Listening' : (recording ? 'Stop' : 'Speak to book')}
+        <VoiceOrb
+          state={orbState}
+          level={recording ? level : 0}
+          ariaLabel={orbLabel}
           disabled={!shop || (!handsFree && !supported) || (busy && !recording && !started)}
-          onClick={() => { if (showStart) void onStart(); else if (!handsFree) void onMicTap(); }}
-        >
-          <span className="pb-mic-ring" aria-hidden />
-          <span className="pb-mic-ring pb-mic-ring2" aria-hidden />
-          <Icons.Mic size={46} />
-        </button>
+          onTap={onOrbTap}
+        />
+
+        <div className={`pb-status pb-status-${orbState}`} aria-live="polite">
+          {micState === 'listening' && !showStart && <span className="pb-status-dot" aria-hidden />}
+          <span className="pb-status-word">{status}</span>
+        </div>
+
+        <div className="pb-captions" aria-live="polite">
+          {heard && <p className="pb-cap pb-cap-you"><span className="pb-cap-who">You</span>{heard}</p>}
+          {reply && <p className="pb-cap pb-cap-bot"><span className="pb-cap-who">{shop?.name || 'Assistant'}</span>{reply}</p>}
+        </div>
       </div>
 
       <div className="pb-foot">
-        {hint && <p className="pb-hint">{hint}</p>}
+        {subhint && <p className="pb-hint">{subhint}</p>}
       </div>
     </div>
   );
