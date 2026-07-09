@@ -9,7 +9,7 @@ type Tab = { id: string; label: string; href: string; icon: keyof typeof Icons; 
 const BOTH: Module[] = ['bookings', 'leads'];
 
 const ALL_TABS: Tab[] = [
-  { id: 'ai-summary', label: 'AI Summary', href: '/ai-summary', icon: 'Sparkle', modules: BOTH },
+  { id: 'ai-summary', label: 'Summary', href: '/ai-summary', icon: 'Sparkle', modules: BOTH },
   { id: 'home', label: 'Home', href: '/', icon: 'Home', modules: BOTH },
   // Past conversations with the Ask assistant.
   { id: 'conversations', label: 'Chats', href: '/conversations', icon: 'Chat', modules: BOTH },

@@ -861,6 +861,15 @@
   text-decoration: none;
   cursor: pointer;
 }
+/* Keep every label on a single line so no tab grows taller than its
+   neighbours — with 6 tabs the longest labels would otherwise wrap and
+   break the row alignment. */
+.m-tabbar .tab span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .m-tabbar .tab .icon { display: grid; place-items: center; height: 22px; }
 .m-tabbar .tab.active { color: var(--mint-300); }
 .m-tabbar .tab.active::before {
