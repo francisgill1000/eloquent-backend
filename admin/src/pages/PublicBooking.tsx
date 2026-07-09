@@ -64,7 +64,7 @@ export default function PublicBooking() {
   // The window is long and measured on the real audio level (not the flaky Web
   // Speech API), so a normal mid-sentence pause won't trip it — and a tap still
   // sends immediately.
-  const AUTO_STOP_MS = 3000;
+  const AUTO_STOP_MS = 1500;
   const { recording, start, stop, supported, level } = useRecorder({
     meter: true,
     onSilence: () => { void finishTurn(); },
