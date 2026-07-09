@@ -4,8 +4,9 @@ export type OrbState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 /**
  * Presentational voice mic, styled like the home page's centre mic: a clean
- * mint-soft circle with a mic icon. Active states pulse; `level` (0–1) makes it
- * swell slightly to the caller's voice in tap mode.
+ * mint-soft circle. While listening it shows the mic icon with a sonar ring;
+ * while the assistant is replying it swaps to voice bars so it's obviously the
+ * AI's turn. `level` (0–1) makes it swell slightly to the caller's voice.
  */
 export function VoiceOrb({ state, level, ariaLabel, disabled, onTap }: {
   state: OrbState;
@@ -22,7 +23,9 @@ export function VoiceOrb({ state, level, ariaLabel, disabled, onTap }: {
       disabled={disabled}
       onClick={onTap}
     >
-      <Icons.Mic size={44} />
+      {state === 'speaking'
+        ? <span className="pb-bars" aria-hidden><i /><i /><i /><i /><i /></span>
+        : <Icons.Mic size={44} />}
     </button>
   );
 }

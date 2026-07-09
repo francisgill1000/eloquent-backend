@@ -41,13 +41,32 @@
   transition: transform 140ms ease-out, background 200ms ease, color 200ms ease; }
 .pb-mic:disabled { opacity: 0.6; cursor: default; }
 
-/* Active states: a soft mint glow that gently breathes — a blurred halo fading
-   in and out, not a hard ring shooting outward, so it reads as calm not jumpy. */
-.pb-mic-listening, .pb-mic-thinking, .pb-mic-speaking { animation: pb-breathe 2.4s ease-in-out infinite; }
+/* Listening (and the brief thinking beat): a single sonar ring drifts outward
+   and fades — one smooth direction, no snapping back. */
+.pb-mic-listening::after, .pb-mic-thinking::after {
+  content: ''; position: absolute; inset: -2px; border-radius: 50%; pointer-events: none;
+  border: 2px solid var(--mint-300, #4fe3c1); animation: pb-sonar 2.2s ease-out infinite; }
+.pb-mic-thinking::after { animation-duration: 1.5s; }
 
-@keyframes pb-breathe {
-  0%, 100% { box-shadow: 0 0 9px 0 rgba(0, 209, 160, 0.16); }
-  50%      { box-shadow: 0 0 26px 5px rgba(0, 209, 160, 0.42); } }
+@keyframes pb-sonar {
+  0%   { transform: scale(1);    opacity: 0.5; }
+  100% { transform: scale(1.55); opacity: 0; } }
+
+/* Replying: the icon becomes voice bars that rise and fall like speech, so it
+   clearly reads as the assistant talking — not listening. */
+.pb-bars { display: flex; align-items: center; gap: 5px; height: 44px; color: var(--mint-300, #4fe3c1); }
+.pb-bars i { width: 5px; height: 12px; border-radius: 3px; background: currentColor;
+  animation: pb-talk 1.1s ease-in-out infinite; }
+.pb-bars i:nth-child(1) { animation-delay: 0s; }
+.pb-bars i:nth-child(2) { animation-delay: 0.18s; }
+.pb-bars i:nth-child(3) { animation-delay: 0.36s; }
+.pb-bars i:nth-child(4) { animation-delay: 0.24s; }
+.pb-bars i:nth-child(5) { animation-delay: 0.10s; }
+
+@keyframes pb-talk {
+  0%, 100% { height: 12px; }
+  50%      { height: 32px; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .pb-mic { animation: none !important; transition: none; transform: none; } }
+  .pb-mic, .pb-mic-listening::after, .pb-mic-thinking::after, .pb-bars i {
+    animation: none !important; transition: none; transform: none; } }
