@@ -150,7 +150,7 @@ Route::get('/ai/categories', [\App\Http\Controllers\AiController::class, 'catego
     ->middleware('throttle:120,1');
 
 // Public customer booking assistant — field extraction only (no auth, no owner
-// tools). Keyed by X-Device-Id; throttled since each hits Claude/Whisper.
+// tools). Throttled (per-IP, 20/min) since each request hits Claude/Whisper.
 Route::post('/shops/{shop}/book-assistant/text',  [\App\Http\Controllers\PublicBookingAssistantController::class, 'text'])
     ->middleware('throttle:20,1');
 Route::post('/shops/{shop}/book-assistant/voice', [\App\Http\Controllers\PublicBookingAssistantController::class, 'voice'])
