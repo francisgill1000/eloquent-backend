@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { getPublicShop, bookAssistantText, bookAssistantVoice, type BookingFields, type PublicShop } from '@/lib/publicBooking';
@@ -33,6 +33,7 @@ export default function PublicBooking() {
   const [reply, setReply] = useState('');
   const [speaking, setSpeaking] = useState(false);
   const [draft, setDraft] = useState('');
+  const replyAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -50,8 +51,10 @@ export default function PublicBooking() {
     if (r.reply_text) {
       try {
         const url = await speak(r.reply_text, 'nova');
+        replyAudioRef.current?.pause();
         setSpeaking(true);
         const a = new Audio(url);
+        replyAudioRef.current = a;
         a.onended = () => { setSpeaking(false); URL.revokeObjectURL(url); };
         a.onerror = () => setSpeaking(false);
         await a.play();
