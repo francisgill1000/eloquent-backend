@@ -360,13 +360,6 @@ export default function PublicBooking() {
   const orbState = showStart ? 'idle' : micState;
   const liveSession = started || recording || speaking || busy;
 
-  const status = micDenied ? 'Mic blocked'
-    : showStart ? 'Tap to start'
-    : micState === 'thinking' ? 'Thinking…'
-    : micState === 'speaking' ? 'Speaking'
-    : micState === 'listening' ? 'Listening'
-    : 'Tap the mic';
-
   const subhint = micDenied ? 'Allow the microphone in your browser, then tap to start.'
     : showStart ? 'Tap once, then just talk — I’ll listen and reply.'
     : micState === 'speaking' ? 'Tap the circle to interrupt.'
@@ -393,11 +386,6 @@ export default function PublicBooking() {
           disabled={!shop || (!handsFree && !supported) || (busy && !recording && !started)}
           onTap={onOrbTap}
         />
-
-        <div className={`pb-status pb-status-${orbState}`} aria-live="polite">
-          {micState === 'listening' && !showStart && <span className="pb-status-dot" aria-hidden />}
-          <span className="pb-status-word">{status}</span>
-        </div>
       </div>
 
       <div className="pb-foot">

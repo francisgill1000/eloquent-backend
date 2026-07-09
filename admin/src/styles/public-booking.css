@@ -89,19 +89,6 @@
 .pb-mic-thinking .pb-dots { display: flex; }
 .pb-mic-thinking > svg { display: none; }
 
-/* ── Status pill (big, colour-matched, impossible to miss) ────────────────── */
-.pb-status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: var(--r-pill, 999px);
-  font-size: 17px; font-weight: 700; letter-spacing: 0.01em; color: var(--accent, #00d1a0);
-  background: color-mix(in srgb, var(--accent, #00d1a0) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent, #00d1a0) 34%, transparent); transition: color 250ms ease, background 250ms ease; }
-.pb-status-idle      { --accent: var(--mint-300, #4fe3c1); }
-.pb-status-listening { --accent: #23e0aa; }
-.pb-status-thinking  { --accent: #f7c65e; }
-.pb-status-speaking  { --accent: #9a8dff; }
-.pb-status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent);
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent); animation: pb-pulse 1.4s ease-out infinite; }
-.pb-status-word { line-height: 1; }
-
 @keyframes pb-breathe {
   0%, 100% { box-shadow: 0 12px 38px rgba(0,0,0,0.30), 0 0 18px color-mix(in srgb, var(--accent) 25%, transparent); }
   50%      { box-shadow: 0 14px 46px rgba(0,0,0,0.32), 0 0 44px color-mix(in srgb, var(--accent) 55%, transparent); } }
@@ -123,9 +110,6 @@
 @keyframes pb-dot {
   0%, 100% { transform: translateY(0); opacity: 0.5; }
   50%      { transform: translateY(-8px); opacity: 1; } }
-@keyframes pb-pulse {
-  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent); }
-  100% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent) 0%, transparent); } }
 @media (prefers-reduced-motion: reduce) {
-  .pb-mic, .pb-mic-ring, .pb-eq i, .pb-dots i, .pb-status-dot {
+  .pb-mic, .pb-mic-ring, .pb-eq i, .pb-dots i {
     animation: none !important; transition: none; transform: none; } }
