@@ -325,8 +325,13 @@ export default function PublicBooking() {
 
   /* ---- render ------------------------------------------------------------ */
 
-  const micState = (recording || (started && wantListenRef.current && !busy && !speaking)) ? 'listening'
-    : busy ? 'thinking' : speaking ? 'speaking' : 'idle';
+  // Speaking wins over busy: a reply turn keeps `busy` true while the assistant
+  // is talking, so without this the voice bars would only ever show on the first
+  // greeting (the one reply that runs outside a busy turn).
+  const micState = speaking ? 'speaking'
+    : (recording || (started && wantListenRef.current && !busy)) ? 'listening'
+    : busy ? 'thinking'
+    : 'idle';
 
   function reset() {
     fieldsRef.current = { date: todayIso() };
