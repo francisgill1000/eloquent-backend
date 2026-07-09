@@ -58,33 +58,36 @@
 /* idle: slow inviting breathe */
 .pb-mic-idle { animation: pb-breathe 3s ease-in-out infinite; }
 
-/* Active states: a steady glow whose tempo hints at what's happening. The
-   Knight-Rider scanner inside carries the state colour. */
+/* listening: steady live glow + halos rippling out, plus the equalizer inside */
 .pb-mic-listening { animation: pb-glow 1.8s ease-in-out infinite; }
-.pb-mic-thinking  { animation: pb-glow 0.9s ease-in-out infinite; }
-.pb-mic-speaking  { animation: pb-speak 1.3s ease-in-out infinite; }
+.pb-mic-listening .pb-mic-ring { animation: pb-halo 2.1s ease-out infinite; }
+.pb-mic-listening .pb-mic-ring2 { animation-delay: 1.05s; }
 
-/* ── Knight-Rider scanner ─────────────────────────────────────────────────
-   A dark visor with dim LED segments; a bright accent cluster sweeps across it
-   left↔right (alternate = ping-pong), its soft radial edges giving the classic
-   trailing fade. Shown in every active state; the mic icon shows only at idle. */
-.pb-scan { display: none; position: relative; align-items: center; gap: 4px;
-  padding: 8px 10px; border-radius: 11px; overflow: hidden;
-  background: rgba(3, 16, 12, 0.62); box-shadow: inset 0 1px 3px rgba(0,0,0,0.55); }
-.pb-scan i { width: 6px; height: 26px; border-radius: 2px;
-  background: color-mix(in srgb, var(--accent) 22%, #04140f); }
-.pb-scan::after { content: ''; position: absolute; top: -25%; bottom: -25%; width: 42%; left: -21%;
-  border-radius: 50%; filter: blur(2px); pointer-events: none;
-  background: radial-gradient(ellipse 60% 100% at center,
-    color-mix(in srgb, var(--accent) 92%, white) 0%, var(--accent) 34%,
-    color-mix(in srgb, var(--accent) 45%, transparent) 55%, transparent 72%);
-  animation: pb-sweep 1.15s ease-in-out infinite alternate; will-change: left; }
-.pb-mic-listening .pb-scan,
-.pb-mic-thinking .pb-scan,
-.pb-mic-speaking .pb-scan { display: flex; }
-.pb-mic-listening > svg,
-.pb-mic-thinking > svg,
-.pb-mic-speaking > svg { display: none; }
+/* thinking: gentle quick shimmer + bouncing dots */
+.pb-mic-thinking { animation: pb-glow 0.9s ease-in-out infinite; }
+
+/* speaking: lively voice pulse with strong ripples radiating outward */
+.pb-mic-speaking { animation: pb-speak 1.3s ease-in-out infinite; }
+.pb-mic-speaking .pb-mic-ring { animation: pb-ripple 1.5s ease-out infinite; }
+.pb-mic-speaking .pb-mic-ring2 { animation-delay: 0.75s; }
+
+/* ── Per-state indicator: equalizer (listening) / dots (thinking) / icon ──── */
+.pb-eq, .pb-dots { display: none; align-items: center; justify-content: center; gap: 5px; height: 48px; }
+.pb-eq i { width: 5px; height: 14px; border-radius: 3px; background: currentColor;
+  animation: pb-eqbar 0.9s ease-in-out infinite; }
+.pb-eq i:nth-child(1) { animation-delay: 0s; }
+.pb-eq i:nth-child(2) { animation-delay: 0.15s; }
+.pb-eq i:nth-child(3) { animation-delay: 0.30s; }
+.pb-eq i:nth-child(4) { animation-delay: 0.45s; }
+.pb-eq i:nth-child(5) { animation-delay: 0.60s; }
+.pb-dots i { width: 10px; height: 10px; border-radius: 50%; background: currentColor;
+  animation: pb-dot 1s ease-in-out infinite; }
+.pb-dots i:nth-child(2) { animation-delay: 0.16s; }
+.pb-dots i:nth-child(3) { animation-delay: 0.32s; }
+.pb-mic-listening .pb-eq { display: flex; }
+.pb-mic-listening > svg { display: none; }
+.pb-mic-thinking .pb-dots { display: flex; }
+.pb-mic-thinking > svg { display: none; }
 
 /* ── Status pill (big, colour-matched, impossible to miss) ────────────────── */
 .pb-status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: var(--r-pill, 999px);
@@ -108,14 +111,21 @@
 @keyframes pb-speak {
   0%, 100% { transform: scale(1);    box-shadow: 0 12px 38px rgba(0,0,0,0.30), 0 0 28px color-mix(in srgb, var(--accent) 55%, transparent); }
   50%      { transform: scale(1.06); box-shadow: 0 16px 56px rgba(0,0,0,0.34), 0 0 74px color-mix(in srgb, var(--accent) 88%, transparent); } }
-/* The scanner sweep: the bright cluster travels across the visor and, with
-   animation-direction: alternate, sweeps back — the Knight-Rider ping-pong. */
-@keyframes pb-sweep {
-  from { left: -21%; }
-  to   { left: 79%; } }
+@keyframes pb-halo {
+  0%   { transform: scale(0.95); opacity: 0.4; }
+  100% { transform: scale(1.6); opacity: 0; } }
+@keyframes pb-ripple {
+  0%   { transform: scale(0.9); opacity: 0.7; border-width: 3px; }
+  100% { transform: scale(2.1); opacity: 0; border-width: 1px; } }
+@keyframes pb-eqbar {
+  0%, 100% { height: 12px; }
+  50%      { height: 40px; } }
+@keyframes pb-dot {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50%      { transform: translateY(-8px); opacity: 1; } }
 @keyframes pb-pulse {
   0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent); }
   100% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent) 0%, transparent); } }
 @media (prefers-reduced-motion: reduce) {
-  .pb-mic, .pb-mic-ring, .pb-scan::after, .pb-status-dot {
+  .pb-mic, .pb-mic-ring, .pb-eq i, .pb-dots i, .pb-status-dot {
     animation: none !important; transition: none; transform: none; } }
