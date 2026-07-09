@@ -65,9 +65,6 @@ export default function PublicBooking() {
   const [speaking, setSpeaking] = useState(false);
   const [started, setStarted] = useState(false);   // hands-free: Start tapped
   const [micDenied, setMicDenied] = useState(false);
-  // Live captions so the customer can see the exchange, not just hear it.
-  const [heard, setHeard] = useState('');
-  const [reply, setReply] = useState('');
 
   const handsFree = getSRClass() !== null;
 
@@ -150,12 +147,6 @@ export default function PublicBooking() {
     });
   }
 
-  // Speak AND caption it, so the reply is on screen as well as spoken.
-  function say(text: string): Promise<void> {
-    setReply(text);
-    return speakReply(text);
-  }
-
   // Interrupt: stop the current spoken reply. Stopping the source fires its
   // onended, which resolves the pending speakReply and lets the flow resume
   // (hands-free goes straight back to listening).
@@ -187,7 +178,7 @@ export default function PublicBooking() {
       return reference;
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      await say(msg && /closed/i.test(msg)
+      await speakReply(msg && /closed/i.test(msg)
         ? "Sorry, we're closed then — please tell me another time."
         : "Sorry, I couldn't book that — please try again.");
       return null;
@@ -197,7 +188,6 @@ export default function PublicBooking() {
   // Merge the assistant's fields, remember the turn, speak the reply, and book
   // when everything is known. `userText` is what the customer just said.
   async function applyReply(userText: string, r: AssistantReply) {
-    if (userText) setHeard(userText);
     const merged = { ...fieldsRef.current, ...r.fields };
     fieldsRef.current = merged;
     if (userText) historyRef.current.push({ role: 'user', content: userText });
@@ -211,17 +201,17 @@ export default function PublicBooking() {
       const phone = canonicalUaeMobile(merged.customer_phone);
       if (!phone) {
         fieldsRef.current = { ...merged, customer_phone: undefined };
-        await say("That phone number doesn't look right. Please say your mobile number again slowly — it should start with zero-five and have ten digits, like oh five oh, one two three, four five six seven.");
+        await speakReply("That phone number doesn't look right. Please say your mobile number again slowly — it should start with zero-five and have ten digits, like oh five oh, one two three, four five six seven.");
         return;
       }
       merged.customer_phone = phone;
       fieldsRef.current = merged;
       const reference = await book(merged);
       if (reference) {
-        await say(`Perfect, you're booked! Your reference is ${reference}. Please keep it for when you arrive.`);
+        await speakReply(`Perfect, you're booked! Your reference is ${reference}. Please keep it for when you arrive.`);
       }
     } else {
-      await say(r.reply_text);
+      await speakReply(r.reply_text);
     }
   }
 
@@ -261,11 +251,10 @@ export default function PublicBooking() {
     if (processingRef.current || speaking || bookedRef.current || !shop) return;
     if (/\b(cancel|never mind|forget it|stop booking)\b/i.test(text)) {
       stopListening();
-      await say('No problem — cancelled. Tap start whenever you want to book.');
+      await speakReply('No problem — cancelled. Tap start whenever you want to book.');
       setStarted(false);
       return;
     }
-    setHeard(text);
     processingRef.current = true;
     stopListening();               // pause so we don't transcribe our own reply
     setBusy(true);
@@ -273,7 +262,7 @@ export default function PublicBooking() {
       const r = await bookAssistantText(shop.id, text, fieldsRef.current, historyRef.current);
       await applyReply(text, r);
     } catch {
-      await say('Sorry, I didn\'t catch that — please say it again.');
+      await speakReply('Sorry, I didn\'t catch that — please say it again.');
     } finally {
       setBusy(false);
       processingRef.current = false;
@@ -286,8 +275,7 @@ export default function PublicBooking() {
     primeAudio();
     setStarted(true);
     setMicDenied(false);
-    setHeard('');
-    await say(`Hi! Welcome to ${shop.name}. What would you like to book?`);
+    await speakReply(`Hi! Welcome to ${shop.name}. What would you like to book?`);
     startListening();
   }
 
@@ -314,7 +302,7 @@ export default function PublicBooking() {
       const r = await bookAssistantVoice(shop.id, blob, fieldsRef.current, historyRef.current);
       await applyReply(r.transcript || '', r);
     } catch {
-      await say("Sorry, I didn't catch that — please try again.");
+      await speakReply("Sorry, I didn't catch that — please try again.");
     } finally {
       setBusy(false);
     }
@@ -346,8 +334,6 @@ export default function PublicBooking() {
     bookedRef.current = false;
     setCreated(null);
     setStarted(false);
-    setHeard('');
-    setReply('');
   }
 
   if (loadError) {
@@ -411,11 +397,6 @@ export default function PublicBooking() {
         <div className={`pb-status pb-status-${orbState}`} aria-live="polite">
           {micState === 'listening' && !showStart && <span className="pb-status-dot" aria-hidden />}
           <span className="pb-status-word">{status}</span>
-        </div>
-
-        <div className="pb-captions" aria-live="polite">
-          {heard && <p className="pb-cap pb-cap-you"><span className="pb-cap-who">You</span>{heard}</p>}
-          {reply && <p className="pb-cap pb-cap-bot"><span className="pb-cap-who">{shop?.name || 'Assistant'}</span>{reply}</p>}
         </div>
       </div>
 
