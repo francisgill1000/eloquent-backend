@@ -49,6 +49,7 @@ import Leads from '@/pages/Leads';
 import LeadDetail from '@/pages/LeadDetail';
 import LeadMessages from '@/pages/LeadMessages';
 import SimulationSettings from '@/pages/SimulationSettings';
+import PublicBooking from '@/pages/PublicBooking';
 
 export default function App() {
   return (
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-pin" element={<ForgotPin />} />
         <Route path="/scan/:token" element={<ScanApprove />} />
+        <Route path="/book/:shopId" element={<PublicBooking />} />
 
         {/* Authenticated — wrapped in the desktop AppShell (sidebar at ≥1024px) */}
         <Route element={<RequireShop />}>
