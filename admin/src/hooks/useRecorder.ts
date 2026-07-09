@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 function pickMime(): string | undefined {
   const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
@@ -10,6 +10,7 @@ function pickMime(): string | undefined {
 
 export function useRecorder(opts?: { meter?: boolean }) {
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [recording, setRecording] = useState(false);
   const [level, setLevel] = useState(0);
@@ -45,8 +46,16 @@ export function useRecorder(opts?: { meter?: boolean }) {
     setLevel(0);
   }
 
+  useEffect(() => () => {
+    // Release mic + audio graph if the component unmounts mid-recording.
+    try { recorderRef.current?.state !== 'inactive' && recorderRef.current?.stop(); } catch { /* already stopped */ }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    stopMeter();
+  }, []);
+
   async function start(): Promise<void> {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    streamRef.current = stream;
     const mime = pickMime();
     const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
     chunksRef.current = [];
