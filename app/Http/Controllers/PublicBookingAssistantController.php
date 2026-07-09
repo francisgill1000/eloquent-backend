@@ -25,7 +25,7 @@ class PublicBookingAssistantController extends Controller
     public function text(Request $request, Shop $shop): JsonResponse
     {
         $data = $request->validate(['text' => ['required', 'string', 'max:1000']]);
-        return $this->respond($shop, $data['text'], null, $this->readState($request));
+        return $this->respond($shop, $data['text'], null, $this->readState($request), $this->readHistory($request));
     }
 
     public function voice(Request $request, Shop $shop): JsonResponse
@@ -54,20 +54,27 @@ class PublicBookingAssistantController extends Controller
             ], 201);
         }
 
-        return $this->respond($shop, $transcript, $transcript, $this->readState($request));
+        return $this->respond($shop, $transcript, $transcript, $this->readState($request), $this->readHistory($request));
     }
 
-    /** @param array<string,mixed> $state */
-    protected function respond(Shop $shop, string $text, ?string $transcript, array $state): JsonResponse
+    /**
+     * @param array<string,mixed> $state
+     * @param array<int,array{role:string,content:string}> $history prior turns, oldest first
+     */
+    protected function respond(Shop $shop, string $text, ?string $transcript, array $state, array $history = []): JsonResponse
     {
         $shop->loadMissing('catalogs');
         $system = PublicBookingPrompt::for($shop, $state);
+
+        // Give the model the conversation so far so it doesn't re-ask what the
+        // customer already answered, then the current turn last.
+        $messages = array_merge($history, [['role' => 'user', 'content' => $text]]);
 
         $fields = [];
         $ready = false;
         $reply = '';
         try {
-            $res = $this->claude->agentReply($system, [['role' => 'user', 'content' => $text]], [$this->setBookingTool()]);
+            $res = $this->claude->agentReply($system, $messages, [$this->setBookingTool()]);
             $reply = $res['text'];
             if ($res['toolUse'] && $res['toolUse']['name'] === 'set_booking') {
                 $input = $res['toolUse']['input'];
@@ -119,6 +126,34 @@ class PublicBookingAssistantController extends Controller
             $state = json_decode($state, true);
         }
         return is_array($state) ? $state : [];
+    }
+
+    /**
+     * The recent conversation, sanitised: only user/assistant turns with a
+     * non-empty string content, each capped in length, most-recent 12 kept.
+     * Accepts a JSON string (multipart) or an array (JSON body).
+     *
+     * @return array<int,array{role:string,content:string}>
+     */
+    private function readHistory(Request $request): array
+    {
+        $history = $request->input('history', []);
+        if (is_string($history)) {
+            $history = json_decode($history, true);
+        }
+        if (! is_array($history)) {
+            return [];
+        }
+
+        return collect($history)
+            ->filter(fn ($m) => is_array($m)
+                && in_array($m['role'] ?? null, ['user', 'assistant'], true)
+                && is_string($m['content'] ?? null)
+                && trim($m['content']) !== '')
+            ->map(fn ($m) => ['role' => $m['role'], 'content' => mb_substr($m['content'], 0, 1000)])
+            ->slice(-12)
+            ->values()
+            ->all();
     }
 
     private function setBookingTool(): array

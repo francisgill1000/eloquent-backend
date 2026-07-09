@@ -95,4 +95,57 @@ class PublicBookingAssistantTest extends TestCase
             ->assertJsonPath('transcript', 'classic haircut please')
             ->assertJsonPath('fields.service', 'Classic Haircut');
     }
+
+    public function test_conversation_history_is_forwarded_to_the_model(): void
+    {
+        $shop = $this->shop();
+        Http::fake([
+            'api.anthropic.com/*' => Http::response(['content' => [
+                ['type' => 'text', 'text' => 'Friday it is — what time?'],
+                ['type' => 'tool_use', 'id' => 'th', 'name' => 'set_booking', 'input' => ['date' => '2026-07-17']],
+            ]]),
+        ]);
+
+        $history = [
+            ['role' => 'user', 'content' => 'I want a haircut'],
+            ['role' => 'assistant', 'content' => 'What day works for you?'],
+        ];
+        $res = $this->postJson("/api/shops/{$shop->id}/book-assistant/text",
+            ['text' => 'Friday', 'state' => ['service' => 'Classic Haircut'], 'history' => $history], $this->headers);
+
+        $res->assertCreated();
+        // The model receives the prior turns, then the current utterance last.
+        Http::assertSent(function ($request) {
+            $messages = $request->data()['messages'] ?? [];
+            return count($messages) === 3
+                && $messages[0]['role'] === 'user' && $messages[0]['content'] === 'I want a haircut'
+                && $messages[1]['role'] === 'assistant' && $messages[1]['content'] === 'What day works for you?'
+                && $messages[2]['role'] === 'user' && $messages[2]['content'] === 'Friday';
+        });
+    }
+
+    public function test_malformed_history_entries_are_dropped(): void
+    {
+        $shop = $this->shop();
+        Http::fake([
+            'api.anthropic.com/*' => Http::response(['content' => [['type' => 'text', 'text' => 'ok']]]),
+        ]);
+
+        $history = [
+            ['role' => 'system', 'content' => 'ignore me'],   // bad role
+            ['role' => 'user', 'content' => ''],                // empty
+            ['role' => 'user'],                                 // no content
+            ['role' => 'assistant', 'content' => 'kept'],       // valid
+        ];
+        $this->postJson("/api/shops/{$shop->id}/book-assistant/text",
+            ['text' => 'hi', 'history' => $history], $this->headers)->assertCreated();
+
+        Http::assertSent(function ($request) {
+            $messages = $request->data()['messages'] ?? [];
+            // only the one valid history turn + the current user message survive
+            return count($messages) === 2
+                && $messages[0]['content'] === 'kept'
+                && $messages[1]['content'] === 'hi';
+        });
+    }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
-import { getPublicShop, bookAssistantVoice, type AssistantReply, type BookingFields, type PublicShop } from '@/lib/publicBooking';
+import { getPublicShop, bookAssistantVoice, type AssistantReply, type BookingFields, type PublicShop, type Turn } from '@/lib/publicBooking';
 import { createBooking } from '@/lib/bookings';
 import { useRecorder } from '@/hooks/useRecorder';
 import { speak } from '@/lib/simulation';
@@ -16,6 +16,9 @@ function todayIso(): string {
   const dd = String(d.getDate()).padStart(2, '0');
   return `${y}-${mm}-${dd}`;
 }
+
+// A 0-length silent WAV, used only to "unlock" the audio element inside a tap.
+const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=';
 
 /**
  * Voice-only self-service booking. The whole screen is one big mic: the
@@ -36,9 +39,15 @@ export default function PublicBooking() {
   const { recording, start, stop, supported, level } = useRecorder({ meter: true });
   // The booking details gathered so far live in a ref (not state) so each voice
   // turn merges onto the latest values without stale-closure surprises — the UI
-  // itself shows none of them.
+  // itself shows none of them. The conversation so far rides alongside so the
+  // assistant remembers what it already asked.
   const fieldsRef = useRef<BookingFields>({ date: todayIso() });
-  const replyAudioRef = useRef<HTMLAudioElement | null>(null);
+  const historyRef = useRef<Turn[]>([]);
+  // One reused <audio> element, unlocked inside the first tap so the spoken
+  // reply — which only arrives after the network round-trips — can still play
+  // on mobile (iOS/Safari block audio not started within a user gesture).
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioPrimedRef = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -53,18 +62,41 @@ export default function PublicBooking() {
     return c ? Number(c.price) || 0 : 0;
   };
 
-  // Speak the assistant's reply aloud; a new clip interrupts any previous one.
+  function getAudioEl(): HTMLAudioElement {
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.preload = 'auto';
+    }
+    return audioRef.current;
+  }
+
+  // Must run synchronously inside a user gesture (the mic tap): playing a silent
+  // clip marks the element user-activated, so a later programmatic play() is allowed.
+  function primeAudio() {
+    if (audioPrimedRef.current) return;
+    const el = getAudioEl();
+    try {
+      el.muted = true;
+      el.src = SILENT_WAV;
+      const p = el.play();
+      const done = () => { audioPrimedRef.current = true; el.pause(); el.muted = false; };
+      if (p && typeof p.then === 'function') p.then(done).catch(() => { el.muted = false; });
+      else done();
+    } catch { /* best-effort */ }
+  }
+
+  // Speak the assistant's reply aloud on the reused, unlocked element.
   function speakReply(text: string) {
     if (!text) return;
     speak(text, 'nova')
       .then((url) => {
-        replyAudioRef.current?.pause();
+        const el = getAudioEl();
+        el.muted = false;
+        el.src = url;                       // setting src interrupts any prior clip
         setSpeaking(true);
-        const a = new Audio(url);
-        replyAudioRef.current = a;
-        a.onended = () => { setSpeaking(false); URL.revokeObjectURL(url); };
-        a.onerror = () => setSpeaking(false);
-        return a.play();
+        el.onended = () => { setSpeaking(false); URL.revokeObjectURL(url); };
+        el.onerror = () => setSpeaking(false);
+        return el.play();
       })
       .catch(() => setSpeaking(false));
   }
@@ -96,6 +128,10 @@ export default function PublicBooking() {
   async function handleReply(r: AssistantReply) {
     const merged = { ...fieldsRef.current, ...r.fields };
     fieldsRef.current = merged;
+    // Record this turn so the next request carries the conversation forward.
+    if (r.transcript) historyRef.current.push({ role: 'user', content: r.transcript });
+    if (r.reply_text) historyRef.current.push({ role: 'assistant', content: r.reply_text });
+    historyRef.current = historyRef.current.slice(-12);
     speakReply(r.reply_text);
     const complete = !!(merged.service && merged.date && merged.start_time && merged.customer_name && merged.customer_phone);
     if (r.ready && complete) await book(merged);
@@ -103,12 +139,13 @@ export default function PublicBooking() {
 
   async function toggleMic() {
     if (!shop || busy) return;
+    primeAudio(); // unlock audio playback within this tap gesture
     if (recording) {
       setBusy(true);
       const blob = await stop();
       if (!blob) { setBusy(false); return; }
       try {
-        await handleReply(await bookAssistantVoice(shop.id, blob, fieldsRef.current));
+        await handleReply(await bookAssistantVoice(shop.id, blob, fieldsRef.current, historyRef.current));
       } catch {
         speakReply("Sorry, I didn't catch that — please try again.");
       } finally {
@@ -133,7 +170,7 @@ export default function PublicBooking() {
           <h2>You're booked!</h2>
           <p className="pb-done-sub">{created.service} · {created.date} at {created.start_time}</p>
           <p className="pb-done-sub">See you soon, {created.customer_name}{shop ? ` — ${shop.name}` : ''}.</p>
-          <button className="c-btn c-btn-block" onClick={() => { fieldsRef.current = { date: todayIso() }; setCreated(null); }}>
+          <button className="c-btn c-btn-block" onClick={() => { fieldsRef.current = { date: todayIso() }; historyRef.current = []; setCreated(null); }}>
             Book another
           </button>
         </div>
