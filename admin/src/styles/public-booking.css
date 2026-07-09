@@ -41,13 +41,13 @@
   transition: transform 140ms ease-out, background 200ms ease, color 200ms ease; }
 .pb-mic:disabled { opacity: 0.6; cursor: default; }
 
-/* Active states: the same soft mint pulse the home mic uses when recording. */
-.pb-mic-listening, .pb-mic-thinking, .pb-mic-speaking { animation: pb-pulse 1.5s ease-in-out infinite; }
-.pb-mic-thinking { animation-duration: 1s; }
+/* Active states: a soft mint glow that gently breathes — a blurred halo fading
+   in and out, not a hard ring shooting outward, so it reads as calm not jumpy. */
+.pb-mic-listening, .pb-mic-thinking, .pb-mic-speaking { animation: pb-breathe 2.4s ease-in-out infinite; }
 
-@keyframes pb-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 209, 160, 0.45); }
-  50%      { box-shadow: 0 0 0 16px rgba(0, 209, 160, 0); } }
+@keyframes pb-breathe {
+  0%, 100% { box-shadow: 0 0 9px 0 rgba(0, 209, 160, 0.16); }
+  50%      { box-shadow: 0 0 26px 5px rgba(0, 209, 160, 0.42); } }
 
 @media (prefers-reduced-motion: reduce) {
   .pb-mic { animation: none !important; transition: none; transform: none; } }
