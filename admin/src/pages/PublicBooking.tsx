@@ -332,22 +332,32 @@ export default function PublicBooking() {
   // Hands-free: a Start button first (grants mic), then a hands-free listening orb.
   const showStart = handsFree && !started;
 
-  return (
-    <div className="pb-screen pb-solo">
-      <button
-        className={`pb-mic pb-mic-${showStart ? 'idle' : micState}`}
-        style={{ ['--lvl' as string]: recording ? level.toFixed(3) : 0 }}
-        aria-label={showStart ? 'Start' : handsFree ? 'Listening' : (recording ? 'Stop' : 'Speak to book')}
-        disabled={!shop || (!handsFree && !supported) || (busy && !recording && !started)}
-        onClick={() => { if (showStart) void onStart(); else if (!handsFree) void onMicTap(); }}
-      >
-        <span className="pb-mic-ring" aria-hidden />
-        <span className="pb-mic-ring pb-mic-ring2" aria-hidden />
-        <Icons.Mic size={44} />
-      </button>
+  const hint = micDenied ? 'Microphone blocked — allow it in your browser, then tap to start.'
+    : showStart ? 'Tap to start — then just talk'
+    : micState === 'thinking' ? 'One moment…'
+    : micState === 'speaking' ? 'Speaking…'
+    : micState === 'listening' ? 'Listening… just speak'
+    : !handsFree ? 'Tap the mic and speak' : '';
 
-      {showStart && <p className="pb-hint">Tap to start — then just talk</p>}
-      {micDenied && <p className="pb-hint">Microphone blocked. Allow it in your browser, then tap to start again.</p>}
+  return (
+    <div className="pb-screen pb-live">
+      <div className="pb-stage">
+        <button
+          className={`pb-mic pb-mic-${showStart ? 'idle' : micState}`}
+          style={{ ['--lvl' as string]: recording ? level.toFixed(3) : 0 }}
+          aria-label={showStart ? 'Start' : handsFree ? 'Listening' : (recording ? 'Stop' : 'Speak to book')}
+          disabled={!shop || (!handsFree && !supported) || (busy && !recording && !started)}
+          onClick={() => { if (showStart) void onStart(); else if (!handsFree) void onMicTap(); }}
+        >
+          <span className="pb-mic-ring" aria-hidden />
+          <span className="pb-mic-ring pb-mic-ring2" aria-hidden />
+          <Icons.Mic size={46} />
+        </button>
+      </div>
+
+      <div className="pb-foot">
+        {hint && <p className="pb-hint">{hint}</p>}
+      </div>
     </div>
   );
 }

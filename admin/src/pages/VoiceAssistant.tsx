@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useNavigate, useParams, useSearchParams, Navigate, Link } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { getConversation, postText, postVoice } from '@/lib/assistant';
@@ -8,6 +8,16 @@ import { createBooking } from '@/lib/bookings';
 import { useRecorder } from '@/hooks/useRecorder';
 
 type Msg = { role: 'user' | 'assistant'; content: string; audioUrl?: string | null; autoPlay?: boolean };
+
+// Turn any booking reference (BK00042) in a message into a link to that
+// booking's detail page — the reference's digits are the booking id.
+function renderContent(text: string): ReactNode {
+  return text.split(/\b(BK\d{4,})\b/g).map((part, i) =>
+    /^BK\d{4,}$/.test(part)
+      ? <Link key={i} className="va-ref" to={`/booking/${parseInt(part.slice(2), 10)}`}>{part}</Link>
+      : part,
+  );
+}
 
 // Past this many messages a thread is "long" — we nudge the owner to start a
 // fresh chat so conversations stay focused. (The model only ever sees the last
@@ -303,7 +313,7 @@ export default function VoiceAssistant() {
                 onEnded={() => { if (audioDone.current) { const done = audioDone.current; audioDone.current = null; done(); } }}
               />
             )}
-            {m.content && <div className="va-text">{m.content}</div>}
+            {m.content && <div className="va-text">{renderContent(m.content)}</div>}
           </div>
         ))}
         {(busy || simThinking) && <ThinkingBubble />}
