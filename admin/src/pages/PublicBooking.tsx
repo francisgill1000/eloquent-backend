@@ -7,6 +7,9 @@ import { useRecorder } from '@/hooks/useRecorder';
 import { speak } from '@/lib/simulation';
 import '@/styles/public-booking.css';
 
+// TEMPORARY on-screen diagnostics — remove once mobile audio is confirmed.
+const DEBUG = true;
+
 type Created = { service: string; date: string; start_time: string; customer_name: string };
 
 function todayIso(): string {
@@ -33,6 +36,11 @@ export default function PublicBooking() {
   const [created, setCreated] = useState<Created | null>(null);
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  // TEMPORARY diagnostics
+  const [dbg, setDbg] = useState<{ status: string; heard: string; reply: string; err: string }>(
+    { status: 'ready', heard: '', reply: '', err: '' });
+  const log = (patch: Partial<{ status: string; heard: string; reply: string; err: string }>) =>
+    setDbg((d) => ({ ...d, ...patch }));
 
   const { recording, start, stop, supported, level } = useRecorder({ meter: true });
   // The booking details gathered so far live in a ref (not state) so each voice
@@ -81,22 +89,28 @@ export default function PublicBooking() {
   // the already-unlocked context, so it sounds immediately (not on the next tap).
   async function speakReply(text: string) {
     const ctx = playCtxRef.current;
-    if (!text || !ctx) return;
+    if (!text) return;
+    if (!ctx) { log({ err: 'no audio context (tap the mic first)' }); return; }
     try {
+      log({ status: `ctx=${ctx.state}; fetching voice…` });
       const url = await speak(text, 'nova');
       const bytes = await (await fetch(url)).arrayBuffer();
       URL.revokeObjectURL(url);
-      const buffer = await ctx.decodeAudioData(bytes);
+      log({ status: `decoding ${bytes.byteLength}B…` });
+      const buffer = await ctx.decodeAudioData(bytes.slice(0));
       try { playSrcRef.current?.stop(); } catch { /* nothing playing */ }
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       src.connect(ctx.destination);
-      src.onended = () => setSpeaking(false);
+      src.onended = () => { setSpeaking(false); log({ status: 'done' }); };
       playSrcRef.current = src;
       setSpeaking(true);
+      if (ctx.state === 'suspended') await ctx.resume();
       src.start(0);
-    } catch {
+      log({ status: `playing (ctx=${ctx.state})` });
+    } catch (e: unknown) {
       setSpeaking(false);
+      log({ err: 'audio: ' + ((e as Error)?.message || String(e)) });
     }
   }
 
@@ -125,6 +139,7 @@ export default function PublicBooking() {
   }
 
   async function handleReply(r: AssistantReply) {
+    log({ heard: r.transcript || '(nothing)', reply: r.reply_text || '(no reply)', err: '' });
     const merged = { ...fieldsRef.current, ...r.fields };
     fieldsRef.current = merged;
     // Record this turn so the next request carries the conversation forward.
@@ -141,17 +156,21 @@ export default function PublicBooking() {
     primeAudio(); // unlock audio playback within this tap gesture
     if (recording) {
       setBusy(true);
+      log({ status: 'stopping…' });
       const blob = await stop();
-      if (!blob) { setBusy(false); return; }
+      if (!blob) { setBusy(false); log({ err: 'no audio recorded' }); return; }
       try {
+        log({ status: `sending ${blob.size}B…` });
         await handleReply(await bookAssistantVoice(shop.id, blob, fieldsRef.current, historyRef.current));
-      } catch {
+      } catch (e: unknown) {
+        log({ err: 'request: ' + ((e as Error)?.message || String(e)) });
         speakReply("Sorry, I didn't catch that — please try again.");
       } finally {
         setBusy(false);
       }
     } else {
-      try { await start(); } catch { /* mic permission denied — tapping again re-prompts */ }
+      log({ status: 'listening…', err: '' });
+      try { await start(); } catch { log({ err: 'mic permission denied' }); }
     }
   }
 
@@ -190,6 +209,21 @@ export default function PublicBooking() {
         <span className="pb-mic-ring pb-mic-ring2" aria-hidden />
         <Icons.Mic size={44} />
       </button>
+
+      {DEBUG && (
+        <div style={{ marginTop: 24, width: '100%', maxWidth: 340, fontSize: 13, lineHeight: 1.5,
+          fontFamily: 'monospace', color: 'var(--text-2)', textAlign: 'left',
+          background: 'var(--bg-2)', border: '1px solid var(--border-1)', borderRadius: 12, padding: 12 }}>
+          <div><b>status:</b> {dbg.status}</div>
+          <div><b>heard:</b> {dbg.heard || '—'}</div>
+          <div><b>reply:</b> {dbg.reply || '—'}</div>
+          <div style={{ color: dbg.err ? 'var(--danger)' : 'inherit' }}><b>error:</b> {dbg.err || 'none'}</div>
+          <button className="c-btn" style={{ marginTop: 10, width: '100%' }}
+            onClick={() => { primeAudio(); void speakReply('Testing, one, two, three.'); }}>
+            🔊 Test sound
+          </button>
+        </div>
+      )}
     </div>
   );
 }
