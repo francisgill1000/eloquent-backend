@@ -2024,6 +2024,7 @@
 .va-hint { color: var(--text-3); font-size: 13px; text-align: center; line-height: 1.5; }
 .va-bubble { max-width: 84%; padding: 9px 12px; border-radius: 14px; font-size: 14px; line-height: 1.4; display: flex; flex-direction: column; gap: 6px; }
 .va-text { white-space: pre-wrap; word-break: break-word; }
+.va-ref { color: var(--mint-300); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 .va-audio + .va-text { padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.08); }
 .va-user .va-audio + .va-text { border-top-color: rgba(4,17,12,0.12); }
 .va-user { align-self: flex-end; background: var(--mint-300); color: #04110c; }
