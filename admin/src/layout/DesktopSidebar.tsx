@@ -17,10 +17,10 @@ type NavItem = { label: string; to: string; icon: keyof typeof Icons; end?: bool
 const BOTH: Module[] = ['bookings', 'leads'];
 
 const BASE_NAV: NavItem[] = [
-  { label: 'Home', to: '/', icon: 'Mic', end: true, modules: BOTH },
+  { label: 'AI Summary', to: '/ai-summary', icon: 'Sparkle', modules: BOTH },
+  { label: 'Home', to: '/', icon: 'Home', end: true, modules: BOTH },
   // Your past conversations with the Ask assistant.
   { label: 'Chats', to: '/conversations', icon: 'Chat', modules: BOTH },
-  { label: 'AI Summary', to: '/ai-summary', icon: 'Sparkle', modules: BOTH },
   { label: 'Bookings', to: '/bookings', icon: 'Calendar', modules: ['bookings'] },
   { label: 'Customers', to: '/customers', icon: 'Users', modules: ['bookings'] },
   // WhatsApp Chats — hidden while WHATSAPP_ENABLED is off.
