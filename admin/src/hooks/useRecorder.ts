@@ -8,7 +8,15 @@ function pickMime(): string | undefined {
   return undefined;
 }
 
-export function useRecorder(opts?: { meter?: boolean }) {
+export function useRecorder(opts?: {
+  meter?: boolean;
+  // Voice-activity auto-stop: fires once the caller has spoken and then gone
+  // quiet for `silenceMs`. Uses the same level meter, so requires meter: true.
+  onSilence?: () => void;
+  silenceMs?: number;
+  speechThreshold?: number;
+  maxMs?: number;
+}) {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -16,6 +24,9 @@ export function useRecorder(opts?: { meter?: boolean }) {
   const [level, setLevel] = useState(0);
   const ctxRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number | null>(null);
+  // Keep the latest onSilence callback so the meter loop never calls a stale one.
+  const onSilenceRef = useRef(opts?.onSilence);
+  onSilenceRef.current = opts?.onSilence;
   const supported = typeof navigator !== 'undefined' && !!navigator.mediaDevices && typeof MediaRecorder !== 'undefined';
 
   function startMeter(stream: MediaStream) {
@@ -33,6 +44,15 @@ export function useRecorder(opts?: { meter?: boolean }) {
       // moves enough to matter, letting the CSS transition glide between them.
       let smoothed = 0;
       let lastEmit = -1;
+      // Voice-activity state: don't auto-stop until the caller has actually
+      // spoken, then stop after a run of silence (or a hard max length).
+      const speech = opts?.speechThreshold ?? 0.12;
+      const silenceMs = opts?.silenceMs ?? 1300;
+      const maxMs = opts?.maxMs ?? 15000;
+      let hasSpoken = false;
+      let fired = false;
+      const startedAt = performance.now();
+      let lastLoud = startedAt;
       const tick = () => {
         analyser.getByteTimeDomainData(buf);
         let sum = 0;
@@ -40,6 +60,15 @@ export function useRecorder(opts?: { meter?: boolean }) {
         const target = Math.min(1, Math.sqrt(sum / buf.length) * 2.6);
         smoothed += (target - smoothed) * (target > smoothed ? 0.35 : 0.12);
         if (Math.abs(smoothed - lastEmit) > 0.012) { lastEmit = smoothed; setLevel(smoothed); }
+
+        const now = performance.now();
+        if (smoothed > speech) { hasSpoken = true; lastLoud = now; }
+        const quietDone = hasSpoken && (now - lastLoud) > silenceMs;
+        const tooLong = (now - startedAt) > maxMs;
+        if (!fired && onSilenceRef.current && (quietDone || tooLong)) {
+          fired = true;
+          onSilenceRef.current();
+        }
         rafRef.current = requestAnimationFrame(tick);
       };
       tick();

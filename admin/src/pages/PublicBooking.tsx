@@ -42,7 +42,13 @@ export default function PublicBooking() {
   const log = (patch: Partial<{ status: string; heard: string; reply: string; err: string }>) =>
     setDbg((d) => ({ ...d, ...patch }));
 
-  const { recording, start, stop, supported, level } = useRecorder({ meter: true });
+  // Tap once to start; it auto-stops when you pause (voice-activity detection),
+  // so there's no confusing "tap again to stop".
+  const { recording, start, stop, supported, level } = useRecorder({
+    meter: true,
+    onSilence: () => { void finishTurn(); },
+  });
+  const finishingRef = useRef(false);
   // The booking details gathered so far live in a ref (not state) so each voice
   // turn merges onto the latest values without stale-closure surprises — the UI
   // itself shows none of them. The conversation so far rides alongside so the
@@ -151,23 +157,32 @@ export default function PublicBooking() {
     if (r.ready && complete) await book(merged);
   }
 
-  async function toggleMic() {
+  // Stop recording and run the turn. Called by voice-activity auto-stop, or by
+  // a manual tap while recording. Guarded so the two paths can't both fire it.
+  async function finishTurn() {
+    if (finishingRef.current || !recording || !shop) return;
+    finishingRef.current = true;
+    setBusy(true);
+    log({ status: 'stopping…' });
+    const blob = await stop();
+    finishingRef.current = false;
+    if (!blob) { setBusy(false); log({ err: 'no audio recorded' }); return; }
+    try {
+      log({ status: `sending ${blob.size}B…` });
+      await handleReply(await bookAssistantVoice(shop.id, blob, fieldsRef.current, historyRef.current));
+    } catch (e: unknown) {
+      log({ err: 'request: ' + ((e as Error)?.message || String(e)) });
+      speakReply("Sorry, I didn't catch that — please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onMicTap() {
     if (!shop || busy) return;
     primeAudio(); // unlock audio playback within this tap gesture
     if (recording) {
-      setBusy(true);
-      log({ status: 'stopping…' });
-      const blob = await stop();
-      if (!blob) { setBusy(false); log({ err: 'no audio recorded' }); return; }
-      try {
-        log({ status: `sending ${blob.size}B…` });
-        await handleReply(await bookAssistantVoice(shop.id, blob, fieldsRef.current, historyRef.current));
-      } catch (e: unknown) {
-        log({ err: 'request: ' + ((e as Error)?.message || String(e)) });
-        speakReply("Sorry, I didn't catch that — please try again.");
-      } finally {
-        setBusy(false);
-      }
+      void finishTurn(); // manual stop still works as a fallback
     } else {
       log({ status: 'listening…', err: '' });
       try { await start(); } catch { log({ err: 'mic permission denied' }); }
@@ -203,7 +218,7 @@ export default function PublicBooking() {
         style={{ ['--lvl' as string]: recording ? level.toFixed(3) : 0 }}
         aria-label={recording ? 'Stop' : 'Speak to book'}
         disabled={!supported || !shop || (busy && !recording)}
-        onClick={() => void toggleMic()}
+        onClick={() => void onMicTap()}
       >
         <span className="pb-mic-ring" aria-hidden />
         <span className="pb-mic-ring pb-mic-ring2" aria-hidden />
