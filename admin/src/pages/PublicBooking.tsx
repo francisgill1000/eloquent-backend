@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { VoiceOrb } from '@/components/VoiceOrb';
-import { getPublicShop, bookAssistantText, bookAssistantVoice, recordBooking, type AssistantReply, type BookingFields, type PublicShop, type Turn } from '@/lib/publicBooking';
+import { getPublicShop, bookAssistantVoice, recordBooking, type AssistantReply, type BookingFields, type PublicShop, type Turn } from '@/lib/publicBooking';
 import { createBooking } from '@/lib/bookings';
 import { useRecorder } from '@/hooks/useRecorder';
 import { speak } from '@/lib/simulation';
@@ -28,39 +28,15 @@ function canonicalUaeMobile(raw?: string): string | null {
   return /^05\d{8}$/.test(d) ? d : null;
 }
 
-// Hands-free turn-taking: after the caller stops making sound, wait this long
-// before treating the turn as finished — long enough to ride out a mid-sentence
-// breath, short enough not to feel laggy.
-const END_SILENCE_MS = 900;
-// After we finish speaking, wait this long before re-opening the mic so the tail
-// of our own audio isn't heard as the caller starting to talk.
-const RESUME_GAP_MS = 300;
-
-/* ---- Minimal Web Speech API typings (not uniformly in lib.dom) ------------ */
-type SRResult = ArrayLike<{ transcript: string }> & { isFinal: boolean };
-type SREvent = { results: ArrayLike<SRResult>; resultIndex: number };
-type SR = {
-  lang: string; continuous: boolean; interimResults: boolean;
-  start: () => void; stop: () => void; abort: () => void;
-  onresult: ((e: SREvent) => void) | null;
-  onend: (() => void) | null;
-  onerror: ((e: { error: string }) => void) | null;
-};
-function getSRClass(): (new () => SR) | null {
-  const w = window as unknown as { SpeechRecognition?: new () => SR; webkitSpeechRecognition?: new () => SR };
-  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
-}
-
 /**
- * Voice-only self-service booking.
+ * Voice self-service booking — tap-to-talk.
  *
- * Hands-free mode (Android Chrome & any browser with the Web Speech API): the
- * customer taps Start once to grant the mic, then it greets them and keeps
- * listening turn-after-turn — pausing only while it speaks — until the booking
- * is made. No further taps.
- *
- * Fallback mode (iOS/Safari etc. without speech recognition): a single mic that
- * records, auto-stops on a pause, transcribes via Whisper, and replies.
+ * Deliberately the same turn-taking model as the owner's Ask assistant
+ * (VoiceAssistant.tsx): the customer taps the mic, speaks for as long as they
+ * like, and taps again to send. The app NEVER tries to guess when a sentence
+ * has ended, so it can't cut the customer off mid-thought. Each tap records a
+ * note, sends it to Whisper, and the assistant's reply is spoken back; the
+ * customer taps once more to answer. Works identically on Android and iOS.
  */
 export default function PublicBooking() {
   const { shopId } = useParams<{ shopId: string }>();
@@ -69,40 +45,22 @@ export default function PublicBooking() {
   const [shop, setShop] = useState<PublicShop | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [created, setCreated] = useState<Created | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-  const [started, setStarted] = useState(false);   // hands-free: Start tapped
+  const [busy, setBusy] = useState(false);       // sending / assistant thinking
+  const [speaking, setSpeaking] = useState(false); // playing the spoken reply
+  const [started, setStarted] = useState(false);   // first mic tap happened
   const [micDenied, setMicDenied] = useState(false);
-
-  const handsFree = getSRClass() !== null;
 
   // Booking details + conversation so far (kept in refs; the UI shows neither).
   const fieldsRef = useRef<BookingFields>({ date: todayIso() });
   const historyRef = useRef<Turn[]>([]);
-  // Playback AudioContext, unlocked inside the Start/mic tap so the spoken reply
+  const bookedRef = useRef(false);
+  // Playback AudioContext, unlocked inside the first mic tap so the spoken reply
   // can play after the network round-trip (mobile blocks audio otherwise).
   const playCtxRef = useRef<AudioContext | null>(null);
   const playSrcRef = useRef<AudioBufferSourceNode | null>(null);
 
-  // Hands-free conversation state.
-  const srRef = useRef<SR | null>(null);
-  const wantListenRef = useRef(false);   // we intend to be listening (restart on onend)
-  const processingRef = useRef(false);   // a turn is being handled — ignore new results
-  const bookedRef = useRef(false);
-  // Turn-taking buffers. speakingRef mirrors the `speaking` state for the
-  // recognition callbacks (which capture stale state otherwise); the transcript
-  // accumulates across pauses until END_SILENCE_MS of quiet ends the turn.
-  const speakingRef = useRef(false);
-  const bufferRef = useRef('');          // finalised speech so far this turn
-  const interimRef = useRef('');         // latest not-yet-final words (fallback)
-  const finalizeTimerRef = useRef<number | null>(null);
-  const onUtteranceRef = useRef<(t: string) => void>(() => {});
-
-  // Fallback (tap) recorder with voice-activity auto-stop.
-  const { recording, start, stop, supported, level } = useRecorder({
-    meter: true,
-    onSilence: () => { void finishTurn(); },
-  });
+  // Tap recorder — no auto-stop: the customer ends their own turn by tapping.
+  const { recording, start, stop, supported, level } = useRecorder({ meter: true });
   const finishingRef = useRef(false);
 
   useEffect(() => {
@@ -113,17 +71,10 @@ export default function PublicBooking() {
     return () => { alive = false; };
   }, [id]);
 
-  // Tear down audio + recognition on leave.
+  // Tear down audio on leave.
   useEffect(() => () => {
-    wantListenRef.current = false;
-    try { srRef.current?.abort(); } catch { /* ignore */ }
-    if (finalizeTimerRef.current) window.clearTimeout(finalizeTimerRef.current);
     playCtxRef.current?.close().catch(() => undefined);
   }, []);
-
-  // Keep the recognition callbacks pointing at the latest onUtterance so a turn
-  // never fires with stale shop / fields / state.
-  useEffect(() => { onUtteranceRef.current = onUtterance; });
 
   const priceFor = (title?: string): number => {
     const c = (shop?.catalogs ?? []).find((x) => x.title.toLowerCase() === (title ?? '').toLowerCase());
@@ -144,7 +95,7 @@ export default function PublicBooking() {
     } catch { /* Web Audio unavailable */ }
   }
 
-  // Speak text; resolves when playback finishes (so the loop can resume listening).
+  // Speak text; resolves when playback finishes.
   function speakReply(text: string): Promise<void> {
     return new Promise((resolve) => {
       const ctx = playCtxRef.current;
@@ -158,20 +109,18 @@ export default function PublicBooking() {
           const src = ctx.createBufferSource();
           src.buffer = buffer;
           src.connect(ctx.destination);
-          src.onended = () => { speakingRef.current = false; setSpeaking(false); resolve(); };
+          src.onended = () => { setSpeaking(false); resolve(); };
           playSrcRef.current = src;
-          speakingRef.current = true;
           setSpeaking(true);
           if (ctx.state === 'suspended') await ctx.resume();
           src.start(0);
         })
-        .catch(() => { speakingRef.current = false; setSpeaking(false); resolve(); });
+        .catch(() => { setSpeaking(false); resolve(); });
     });
   }
 
-  // Interrupt: stop the current spoken reply. Stopping the source fires its
-  // onended, which resolves the pending speakReply and lets the flow resume
-  // (hands-free goes straight back to listening).
+  // Interrupt the current spoken reply. Stopping the source fires its onended,
+  // which resolves the pending speakReply.
   function stopSpeaking() {
     try { playSrcRef.current?.stop(); } catch { /* nothing playing */ }
   }
@@ -237,114 +186,9 @@ export default function PublicBooking() {
     }
   }
 
-  /* ---- hands-free (continuous) mode ------------------------------------- */
+  /* ---- tap-to-talk ------------------------------------------------------- */
 
-  // End the turn once the caller has been quiet for END_SILENCE_MS. Uses refs
-  // only, so it's safe to call from the (once-created) recognition callback.
-  function scheduleFinalize() {
-    if (finalizeTimerRef.current) window.clearTimeout(finalizeTimerRef.current);
-    finalizeTimerRef.current = window.setTimeout(() => {
-      finalizeTimerRef.current = null;
-      const text = (bufferRef.current || interimRef.current).trim();
-      bufferRef.current = '';
-      interimRef.current = '';
-      if (text) void onUtteranceRef.current(text);
-    }, END_SILENCE_MS);
-  }
-
-  function startListening() {
-    const SRClass = getSRClass();
-    if (!SRClass) return;
-    if (!srRef.current) {
-      const sr = new SRClass();
-      sr.lang = 'en-US';
-      sr.continuous = true;
-      sr.interimResults = true;   // hear the caller mid-sentence, not only when they stop
-      sr.onresult = (e: SREvent) => {
-        // Ignore anything picked up while we're thinking or speaking (e.g. the
-        // tail of our own reply) so it can't start or corrupt a turn.
-        if (processingRef.current || speakingRef.current) return;
-        let heard = false, interim = '';
-        for (let i = e.resultIndex ?? 0; i < e.results.length; i++) {
-          const res = e.results[i];
-          const t = res[0]?.transcript || '';
-          if (!t.trim()) continue;
-          heard = true;
-          if (res.isFinal) bufferRef.current = (bufferRef.current + ' ' + t).trim();
-          else interim += t;
-        }
-        interimRef.current = interim.trim();
-        // Any sound — even interim — means they're still talking: hold off and
-        // reset the clock. We only act after END_SILENCE_MS of true quiet.
-        if (heard) scheduleFinalize();
-      };
-      sr.onerror = (e: { error: string }) => {
-        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { setMicDenied(true); wantListenRef.current = false; }
-      };
-      // Recognition ends itself periodically — restart while we still want to listen.
-      sr.onend = () => { if (wantListenRef.current) { try { srRef.current?.start(); } catch { /* already running */ } } };
-      srRef.current = sr;
-    }
-    wantListenRef.current = true;
-    try { srRef.current.start(); } catch { /* already started */ }
-  }
-
-  function stopListening() {
-    wantListenRef.current = false;
-    if (finalizeTimerRef.current) { window.clearTimeout(finalizeTimerRef.current); finalizeTimerRef.current = null; }
-    bufferRef.current = '';
-    interimRef.current = '';
-    try { srRef.current?.abort(); } catch { /* ignore */ }
-  }
-
-  async function onUtterance(text: string) {
-    if (processingRef.current || speakingRef.current || bookedRef.current || !shop) return;
-    if (/\b(cancel|never mind|forget it|stop booking)\b/i.test(text)) {
-      stopListening();
-      await speakReply('No problem — cancelled. Tap start whenever you want to book.');
-      setStarted(false);
-      return;
-    }
-    processingRef.current = true;
-    stopListening();               // pause so we don't transcribe our own reply
-    setBusy(true);
-    try {
-      const r = await bookAssistantText(shop.id, text, fieldsRef.current, historyRef.current);
-      await applyReply(text, r);
-    } catch {
-      await speakReply('Sorry, I didn\'t catch that — please say it again.');
-    } finally {
-      setBusy(false);
-      processingRef.current = false;
-      // Re-open the mic after a short gap so the tail of our own audio isn't
-      // heard as the caller talking (which used to cut the reply / mis-fire).
-      if (!bookedRef.current) window.setTimeout(() => {
-        if (!processingRef.current && !speakingRef.current && !bookedRef.current) startListening();
-      }, RESUME_GAP_MS);
-    }
-  }
-
-  async function onStart() {
-    if (!shop) return;
-    primeAudio();
-    setStarted(true);
-    setMicDenied(false);
-    await speakReply(`Hi! Welcome to ${shop.name}. What would you like to book?`);
-    startListening();
-  }
-
-  // End the whole session and return to the Start screen. Tears down listening,
-  // any in-flight speech, and the tap recorder.
-  async function endSession() {
-    stopListening();
-    stopSpeaking();
-    processingRef.current = false;
-    try { if (recording) await stop(); } catch { /* already stopped */ }
-    reset();
-  }
-
-  /* ---- fallback (tap) mode ---------------------------------------------- */
-
+  // Stop recording, transcribe the note, and handle the assistant's reply.
   async function finishTurn() {
     if (finishingRef.current || !recording || !shop) return;
     finishingRef.current = true;
@@ -362,28 +206,30 @@ export default function PublicBooking() {
     }
   }
 
+  // The one mic handler: send when recording, otherwise start a new note. It's a
+  // no-op while thinking; a tap during the spoken reply interrupts it.
   async function onMicTap() {
-    if (!shop || busy) return;
-    primeAudio();
-    if (recording) { void finishTurn(); }
-    else { try { await start(); } catch { /* mic permission denied */ } }
+    if (!shop || bookedRef.current) return;
+    if (busy && !recording) return;      // thinking / speaking — wait
+    if (speaking) { stopSpeaking(); return; }
+    if (recording) { void finishTurn(); return; }
+    primeAudio();                        // unlock playback inside this gesture
+    setStarted(true);
+    setMicDenied(false);
+    try { await start(); } catch { setMicDenied(true); }
   }
 
-  // One tap handler for the orb: start when idle, interrupt when speaking,
-  // record in tap mode. In hands-free listening/thinking it's a no-op.
-  function onOrbTap() {
-    if (showStart) { void onStart(); return; }
-    if (speaking) { stopSpeaking(); return; }
-    if (!handsFree) { void onMicTap(); }
+  // End the whole session and return to the start state.
+  async function endSession() {
+    stopSpeaking();
+    try { if (recording) await stop(); } catch { /* already stopped */ }
+    reset();
   }
 
   /* ---- render ------------------------------------------------------------ */
 
-  // Speaking wins over busy: a reply turn keeps `busy` true while the assistant
-  // is talking, so without this the voice bars would only ever show on the first
-  // greeting (the one reply that runs outside a busy turn).
   const micState = speaking ? 'speaking'
-    : (recording || (started && wantListenRef.current && !busy)) ? 'listening'
+    : recording ? 'listening'
     : busy ? 'thinking'
     : 'idle';
 
@@ -393,6 +239,7 @@ export default function PublicBooking() {
     bookedRef.current = false;
     setCreated(null);
     setStarted(false);
+    setBusy(false);
   }
 
   if (loadError) {
@@ -414,22 +261,19 @@ export default function PublicBooking() {
     );
   }
 
-  // Hands-free: a Start button first (grants mic), then a hands-free listening orb.
-  const showStart = handsFree && !started;
-  const orbState = showStart ? 'idle' : micState;
   const liveSession = started || recording || speaking || busy;
 
-  const subhint = micDenied ? 'Allow the microphone in your browser, then tap to start.'
-    : showStart ? 'Tap once, then just talk — I’ll listen and reply.'
+  const subhint = micDenied ? 'Allow the microphone in your browser, then tap the mic.'
     : micState === 'speaking' ? 'Tap the circle to interrupt.'
-    : micState === 'listening' ? 'Just speak — I’m listening.'
-    : (!handsFree && micState === 'idle') ? 'Tap the mic and speak.'
-    : '';
+    : micState === 'listening' ? 'Speak, then tap to send.'
+    : micState === 'thinking' ? ''
+    : !started ? `Tap the mic and tell me what you'd like to book${shop ? ` at ${shop.name}` : ''}.`
+    : 'Tap the mic to reply.';
 
-  const orbLabel = showStart ? 'Start'
-    : speaking ? 'Tap to interrupt'
-    : handsFree ? 'Listening'
-    : (recording ? 'Stop' : 'Speak to book');
+  const orbLabel = speaking ? 'Tap to interrupt'
+    : recording ? 'Stop'
+    : busy ? 'Thinking'
+    : 'Speak to book';
 
   return (
     <div className="pb-screen pb-live">
@@ -439,11 +283,11 @@ export default function PublicBooking() {
 
       <div className="pb-stage">
         <VoiceOrb
-          state={orbState}
+          state={micState}
           level={recording ? level : 0}
           ariaLabel={orbLabel}
-          disabled={!shop || (!handsFree && !supported) || (busy && !recording && !started)}
-          onTap={onOrbTap}
+          disabled={!shop || !supported || (busy && !recording)}
+          onTap={() => void onMicTap()}
         />
       </div>
 
