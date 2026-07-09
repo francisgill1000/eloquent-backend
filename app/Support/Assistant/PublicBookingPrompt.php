@@ -2,6 +2,7 @@
 namespace App\Support\Assistant;
 
 use App\Models\Shop;
+use App\Support\Phone\PhoneNormalizer;
 
 class PublicBookingPrompt
 {
@@ -15,6 +16,8 @@ class PublicBookingPrompt
         $today = now()->toDateString();
         $known = collect($state)->filter(fn ($v) => $v !== null && $v !== '')
             ->map(fn ($v, $k) => "$k: $v")->implode(', ') ?: 'nothing yet';
+
+        $phoneStatus = self::phoneStatus($state['customer_phone'] ?? null);
 
         return <<<TXT
 You are the booking assistant for "{$shop->name}". Your ONLY job is to help this
@@ -33,16 +36,39 @@ or changes any detail, call the set_booking tool with those fields.
 When asking which service, read out the available services by name (and price)
 from the list above so the customer can choose — don't expect them to guess.
 
-The phone number must be a UAE mobile: 10 digits starting with 05
-(for example 0501234567). Record it as digits only, no spaces. When the customer
-gives a number, read it back to confirm before moving on. If what you heard is not
-a valid 05 number, DON'T accept it — ask them to say it again slowly, one digit at
-a time, and remind them it should start with zero-five.
+The phone number is a UAE mobile (10 digits starting with 05, e.g. 0501234567).
+Capture whatever the customer says — turning spoken forms like "double four" into
+44 — and pass it to set_booking as digits. IMPORTANT: do NOT count the digits
+yourself and do NOT decide whether the number is valid. The system checks that
+for you and tells you the result in PHONE STATUS below. Trust it completely: never
+tell the customer their number is too short/long or has the wrong number of digits.
 
-Set ready=true only once all five details are known AND the phone number is a
-valid 05 mobile number.
+{$phoneStatus}
+
+Set ready=true only once all five details are known AND PHONE STATUS says the
+number is confirmed valid.
 
 Known so far: {$known}.
 TXT;
+    }
+
+    /**
+     * Authoritative, deterministic phone status handed to the model each turn, so
+     * it never has to (mis)count digits itself — the exact failure on booking
+     * BK00037, where a valid 10-digit number was rejected as "9 digits" six times.
+     */
+    private static function phoneStatus(?string $phone): string
+    {
+        $phone = is_string($phone) ? trim($phone) : '';
+        if ($phone === '') {
+            return 'PHONE STATUS: no number captured yet — ask the customer for their mobile number.';
+        }
+
+        $canonical = PhoneNormalizer::uaeMobile($phone);
+        if ($canonical !== null) {
+            return "PHONE STATUS: the number {$canonical} is CONFIRMED VALID — read it back once, accept it, and do NOT ask for it again.";
+        }
+
+        return 'PHONE STATUS: the number captured so far is NOT valid — apologise briefly and ask the customer to say their 10-digit mobile (starting zero-five) again, slowly.';
     }
 }
