@@ -3,6 +3,7 @@
 .pb-solo { max-width: 720px; display: grid; place-items: center; }
 
 .pb-empty { min-height: 60dvh; display: grid; place-items: center; gap: 10px; text-align: center; color: var(--text-4); }
+.pb-hint { margin-top: 18px; font-size: 14px; color: var(--text-4); text-align: center; max-width: 300px; }
 
 .pb-done { max-width: 420px; text-align: center; }
 .pb-done-tick { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center;
