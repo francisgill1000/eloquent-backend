@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { getInsights, type Insights as InsightsData, type InsightsDaily } from '@/lib/insights';
+import { getAiInsights, type AiInsights } from '@/lib/aiInsights';
 import { getShopBookings } from '@/lib/bookings';
 import type { Booking } from '@/types';
 import '@/styles/insights.css';
@@ -282,6 +283,58 @@ function Skeleton() {
   );
 }
 
+/* ---------- AI Insights card ------------------------------------------------ */
+function AiInsightsCard({ data, loading, refreshing, onRefresh }: {
+  data: AiInsights | null; loading: boolean; refreshing: boolean; onRefresh: () => void;
+}) {
+  return (
+    <div className="ins-card span2 ins-ai">
+      <div className="ins-card-head">
+        <span className="ins-card-ic"><Icons.Sparkle size={17} /></span>
+        <span className="ins-card-titles">
+          <span className="ins-card-title">AI summary</span>
+          <span className="ins-card-sub">Plain-language read on this period</span>
+        </span>
+        <button className="ins-ai-refresh" onClick={onRefresh} disabled={loading || refreshing}
+          aria-label="Refresh AI summary">
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="ins-ai-body">
+          <div className="ins-skel" style={{ height: 16, marginBottom: 8 }} />
+          <div className="ins-skel" style={{ height: 16, width: '80%', marginBottom: 16 }} />
+          <div className="ins-skel" style={{ height: 48 }} />
+        </div>
+      ) : !data || data.state === 'error' ? (
+        <div className="ins-ai-body">
+          <p className="ins-ai-msg">{data?.message || 'Could not generate the AI summary right now.'}</p>
+          <button className="ins-ai-retry" onClick={onRefresh}>Try again</button>
+        </div>
+      ) : data.state === 'low_data' ? (
+        <div className="ins-ai-body"><p className="ins-ai-msg">{data.message}</p></div>
+      ) : (
+        <div className={`ins-ai-body${refreshing ? ' is-refreshing' : ''}`}>
+          <p className="ins-ai-summary">{data.summary}</p>
+          {data.patterns.length > 0 && (
+            <div className="ins-ai-block">
+              <span className="ins-ai-label">Patterns</span>
+              <ul className="ins-ai-list">{data.patterns.map((p, i) => <li key={i}>{p}</li>)}</ul>
+            </div>
+          )}
+          {data.recommendations.length > 0 && (
+            <div className="ins-ai-block">
+              <span className="ins-ai-label">Recommendations</span>
+              <ul className="ins-ai-list">{data.recommendations.map((r, i) => <li key={i}>{r}</li>)}</ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- page ----------------------------------------------------------- */
 const pctChange = (cur: number, prev: number): number | null => {
   if (prev === 0) return cur === 0 ? 0 : null;
@@ -312,6 +365,26 @@ export default function Insights() {
   // Normalised, so an inverted custom range still behaves.
   const nf = from <= to ? from : to;
   const nt = from <= to ? to : from;
+
+  const [aiData, setAiData] = useState<AiInsights | null>(null);
+  const [aiLoading, setAiLoading] = useState(true);
+  const [aiRefreshing, setAiRefreshing] = useState(false);
+
+  const fetchAi = useCallback(async (refresh = false) => {
+    if (!shop?.id) return;
+    refresh ? setAiRefreshing(true) : setAiLoading(true);
+    try {
+      const res = await getAiInsights(shop.id, nf, nt, refresh);
+      setAiData(res);
+    } catch {
+      setAiData({ state: 'error', summary: '', patterns: [], recommendations: [],
+        message: 'Could not generate the AI summary right now.', generated_at: '', cached: false });
+    } finally {
+      setAiLoading(false); setAiRefreshing(false);
+    }
+  }, [shop?.id, nf, nt]);
+
+  useEffect(() => { void fetchAi(false); }, [fetchAi]);
 
   const fetchData = useCallback(async () => {
     if (!shop?.id) return;
@@ -385,6 +458,9 @@ export default function Insights() {
             <span className="ins-active"><b>{fmtLong(nf)}</b> – <b>{fmtLong(nt)}</b> · {rangeLen} day{rangeLen === 1 ? '' : 's'}</span>
           </div>
         </div>
+
+        <AiInsightsCard data={aiData} loading={aiLoading} refreshing={aiRefreshing}
+          onRefresh={() => fetchAi(true)} />
 
         {error && <div className="c-error-box">{error}</div>}
 
