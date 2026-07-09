@@ -254,10 +254,27 @@ export default function Profile() {
           </>
         )}
 
-        {/* QR code */}
+        {/* App QR — scan to open this admin app on a phone and sign in. */}
+        {appUrl && (
+          <>
+            <div className="c-section-title">App QR Code</div>
+            <div className="c-card c-qr-card">
+              <div className="c-qr-frame">
+                <QRCodeSVG value={appUrl} size={188} level="M" bgColor="#ffffff" fgColor="#0a0e0c" />
+              </div>
+              <div className="c-qr-name">Open the app</div>
+              <p className="c-qr-hint">Scan to open Business Lens on your phone, then sign in with your business code &amp; PIN.</p>
+              <button className="c-btn-ghost" onClick={() => void copyAppLink()}>
+                <Icons.Copy size={16} /> {appCopied ? 'Copied!' : 'Copy link'}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Business QR code — scan to view and book the business. */}
         {qrTarget && (
           <>
-            <div className="c-section-title">Business QR Code</div>
+            <div className="c-section-title">Booking QR Code</div>
             <div className="c-card c-qr-card">
               <div className="c-qr-frame">
                 <QRCodeSVG
@@ -290,23 +307,6 @@ export default function Profile() {
             {/* Offscreen high-res canvas (no logo) used only for PNG export. */}
             <div ref={qrCanvasWrap} aria-hidden style={{ position: 'absolute', left: -99999, top: 0, pointerEvents: 'none' }}>
               <QRCodeCanvas value={qrTarget} size={1024} level="M" marginSize={2} bgColor="#ffffff" fgColor="#0a0e0c" />
-            </div>
-          </>
-        )}
-
-        {/* App QR — scan to open this admin app on a phone and sign in. */}
-        {appUrl && (
-          <>
-            <div className="c-section-title">App QR Code</div>
-            <div className="c-card c-qr-card">
-              <div className="c-qr-frame">
-                <QRCodeSVG value={appUrl} size={188} level="M" bgColor="#ffffff" fgColor="#0a0e0c" />
-              </div>
-              <div className="c-qr-name">Open the app</div>
-              <p className="c-qr-hint">Scan to open Business Lens on your phone, then sign in with your business code &amp; PIN.</p>
-              <button className="c-btn-ghost" onClick={() => void copyAppLink()}>
-                <Icons.Copy size={16} /> {appCopied ? 'Copied!' : 'Copy link'}
-              </button>
             </div>
           </>
         )}
