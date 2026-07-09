@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Shop;
 use App\Services\Reports\ReportsAggregator;
+use App\Services\Reports\AiInsightsWriter;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -43,6 +44,12 @@ class ReportsController extends Controller
     {
         [$shopId, $from, $to] = $this->validated($request);
         return response()->json($this->aggregator->insightsSummary($shopId, $from, $to));
+    }
+
+    public function aiSummary(Request $request, AiInsightsWriter $writer)
+    {
+        [$shopId, $from, $to] = $this->validated($request);
+        return response()->json($writer->summary($shopId, $from, $to, $request->boolean('refresh')));
     }
 
     public function export(Request $request)
