@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { getAiInsights, type AiInsights } from '@/lib/aiInsights';
+import { speak } from '@/lib/simulation';
 import '@/styles/insights.css';
 
 /* ---------- date helpers ---------------------------------------------------- */
@@ -13,6 +14,34 @@ const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.get
 function AiInsightsCard({ data, loading, refreshing, onRefresh }: {
   data: AiInsights | null; loading: boolean; refreshing: boolean; onRefresh: () => void;
 }) {
+  const [audio, setAudio] = useState<'idle' | 'loading' | 'playing'>('idle');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Stop any playback when the card unmounts.
+  useEffect(() => () => { audioRef.current?.pause(); }, []);
+
+  const canListen = !!data && data.state === 'ok';
+
+  const onListen = async () => {
+    if (audio === 'playing') { audioRef.current?.pause(); setAudio('idle'); return; }
+    if (!data || data.state !== 'ok') return;
+    // Read the whole summary aloud (server caps length); nova is the default voice.
+    const text = [data.summary, ...data.patterns, ...data.recommendations]
+      .filter(Boolean).join('. ').slice(0, 780);
+    try {
+      setAudio('loading');
+      const url = await speak(text, 'nova');
+      const el = new Audio(url);
+      audioRef.current = el;
+      el.onended = () => { setAudio('idle'); URL.revokeObjectURL(url); };
+      el.onerror = () => setAudio('idle');
+      await el.play();
+      setAudio('playing');
+    } catch {
+      setAudio('idle');
+    }
+  };
+
   return (
     <div className="ins-card span2 ins-ai">
       <div className="ins-card-head">
@@ -21,10 +50,15 @@ function AiInsightsCard({ data, loading, refreshing, onRefresh }: {
           <span className="ins-card-title">AI summary</span>
           <span className="ins-card-sub">Plain-language read on your last 30 days</span>
         </span>
-        <button className="ins-ai-refresh" onClick={onRefresh} disabled={loading || refreshing}
-          aria-label="Refresh AI summary">
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
+        {canListen && (
+          <div className="ins-ai-actions">
+            <button className="ins-ai-listen" onClick={onListen} disabled={audio === 'loading'}
+              aria-label={audio === 'playing' ? 'Stop' : 'Listen'}>
+              {audio === 'playing' ? <Icons.Stop size={14} /> : <Icons.Speaker size={14} />}
+              {audio === 'loading' ? 'Loading…' : audio === 'playing' ? 'Stop' : 'Listen'}
+            </button>
+          </div>
+        )}
       </div>
 
       {loading ? (
