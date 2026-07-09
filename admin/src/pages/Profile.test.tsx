@@ -34,4 +34,18 @@ describe('Profile', () => {
     await user.click(screen.getByRole('button', { name: /sign out/i }));
     expect(localStorage.getItem('shop_token')).toBeNull();
   });
+
+  it('encodes the in-app booking URL in the Booking QR', async () => {
+    setup();
+    const user = userEvent.setup();
+    // userEvent.setup() installs its own clipboard stub, so our mock must be
+    // defined afterwards (as an own property) to take precedence over it.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    // The QR value is exposed via the copy-link button target; assert the copy call.
+    const copyBtns = await screen.findAllByRole('button', { name: /copy link/i });
+    await user.click(copyBtns[copyBtns.length - 1]); // the Booking QR copy button
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/book/7'));
+    expect(writeText).not.toHaveBeenCalledWith(expect.stringContaining('bookings.eloquentservice.com'));
+  });
 });

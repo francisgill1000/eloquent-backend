@@ -9,8 +9,6 @@ import { useShop } from '@/context/ShopContext';
 import { updateShop, reverseGeocode } from '@/lib/shops';
 import { fileToCompressedDataUrl } from '@/lib/image';
 
-const CUSTOMER_WEB = 'https://bookings.eloquentservice.com';
-
 type Form = {
   name: string;
   location: string;
@@ -54,7 +52,9 @@ export default function Profile() {
 
   const shopCode = (shop?.shop_code as string) || '';
   const pin = (shop?.pin as string) || '';
-  const qrTarget = shop?.id ? `${CUSTOMER_WEB}/shop/${shop.id}` : '';
+  // In-app self-service booking page (same admin app, public route). Replaces
+  // the old external customer web app.
+  const qrTarget = shop?.id ? `${window.location.origin}/book/${shop.id}` : '';
   // The admin app's own URL for the current environment (staging vs prod), so
   // scanning opens this same app on a phone to sign in with the business code + PIN.
   const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
