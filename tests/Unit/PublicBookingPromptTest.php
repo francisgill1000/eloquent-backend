@@ -29,6 +29,28 @@ class PublicBookingPromptTest extends TestCase
         $this->assertMatchesRegularExpression('/do not count|don\'t count/i', $prompt);
     }
 
+    /** Prices are read aloud by TTS — it must say "dirhams", never dollars. */
+    public function test_instructs_prices_be_spoken_as_dirhams(): void
+    {
+        $prompt = PublicBookingPrompt::for($this->shop(), []);
+        $this->assertMatchesRegularExpression('/dirham/i', $prompt);
+    }
+
+    /** The ".00" money format makes TTS say "dollars"; prices must be clean. */
+    public function test_prices_have_no_trailing_cents(): void
+    {
+        $shop = new Shop();
+        $shop->name = 'DEMO Marina Spa';
+        $shop->setRelation('catalogs', new Collection([
+            ['title' => 'Hair Colour', 'price' => '200.00'],
+            ['title' => 'Face Wax', 'price' => '25.50'],
+        ]));
+        $prompt = PublicBookingPrompt::for($shop, []);
+        $this->assertStringContainsString('AED 200', $prompt);
+        $this->assertStringNotContainsString('200.00', $prompt);
+        $this->assertStringContainsString('AED 25.50', $prompt); // real fractional prices kept
+    }
+
     public function test_tells_the_model_a_valid_number_on_file_is_confirmed(): void
     {
         $prompt = PublicBookingPrompt::for($this->shop(), ['customer_phone' => '0529284464']);

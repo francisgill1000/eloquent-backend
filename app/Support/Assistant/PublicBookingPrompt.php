@@ -10,7 +10,7 @@ class PublicBookingPrompt
     public static function for(Shop $shop, array $state): string
     {
         $services = collect($shop->catalogs ?? [])
-            ->map(fn ($c) => '- ' . $c['title'] . ' (AED ' . $c['price'] . ')')
+            ->map(fn ($c) => '- ' . $c['title'] . ' (AED ' . self::money($c['price']) . ')')
             ->implode("\n") ?: '- (ask the customer what they need)';
 
         $today = now()->toDateString();
@@ -35,6 +35,7 @@ or changes any detail, call the set_booking tool with those fields.
 
 When asking which service, read out the available services by name (and price)
 from the list above so the customer can choose — don't expect them to guess.
+Prices are in AED — say "dirhams" out loud, never "dollars" or a currency symbol.
 
 The phone number is a UAE mobile (10 digits starting with 05, e.g. 0501234567).
 Capture whatever the customer says — turning spoken forms like "double four" into
@@ -50,6 +51,16 @@ number is confirmed valid.
 
 Known so far: {$known}.
 TXT;
+    }
+
+    /**
+     * Whole prices drop the ".00" (so text-to-speech doesn't read "200.00" as a
+     * dollar amount); genuinely fractional prices keep two decimals.
+     */
+    private static function money(mixed $price): string
+    {
+        $n = (float) $price;
+        return $n == (int) $n ? (string) (int) $n : number_format($n, 2, '.', '');
     }
 
     /**
