@@ -5,6 +5,7 @@ use App\Models\Shop;
 use App\Services\Assistant\Contracts\AssistantToolModule;
 use App\Services\Assistant\Support\ToolCall;
 use App\Services\Reports\ReportsAggregator;
+use App\Services\Reports\AiInsightsWriter;
 use App\Support\Assistant\PeriodResolver;
 use Illuminate\Support\Facades\DB;
 
@@ -16,7 +17,10 @@ use Illuminate\Support\Facades\DB;
  */
 class OwnerAssistantTools implements AssistantToolModule
 {
-    public function __construct(protected ReportsAggregator $aggregator) {}
+    public function __construct(
+        protected ReportsAggregator $aggregator,
+        protected AiInsightsWriter $writer,
+    ) {}
 
     /** @return array<int, array<string, mixed>> */
     public function toolDefs(): array
@@ -70,6 +74,11 @@ class OwnerAssistantTools implements AssistantToolModule
                 'input_schema' => ['type' => 'object', 'properties' => ['period' => $period], 'required' => ['period']],
             ],
             [
+                'name' => 'get_ai_summary',
+                'description' => 'AI-written plain-language performance summary for a period: a short overview, notable patterns, and recommendations. Use for "how are we doing" / "give me my AI summary".',
+                'input_schema' => ['type' => 'object', 'properties' => ['period' => $period], 'required' => ['period']],
+            ],
+            [
                 'name' => 'get_bookings',
                 'description' => 'List bookings for a specific date OR a period, optionally filtered by status. Returns a count and up to 8 bookings.',
                 'input_schema' => ['type' => 'object', 'properties' => [
@@ -94,6 +103,7 @@ class OwnerAssistantTools implements AssistantToolModule
             'get_top_services'      => $this->aggregatorFor($shop, $input, 'servicesSummary'),
             'get_staff_performance' => $this->aggregatorFor($shop, $input, 'staffSummary'),
             'get_busy_times'        => $this->aggregatorFor($shop, $input, 'timePatternsSummary'),
+            'get_ai_summary'        => $this->aiSummary($shop, $input),
             'get_bookings'          => $this->bookings($shop, $input),
             'cancel_booking'        => $this->cancelBooking($shop, $input),
             'update_booking_status' => $this->updateStatus($shop, $input),
@@ -115,6 +125,12 @@ class OwnerAssistantTools implements AssistantToolModule
     {
         [$from, $to] = PeriodResolver::resolve($input['period'] ?? 'this_month');
         return $this->aggregator->{$method}($shop->id, $from, $to);
+    }
+
+    protected function aiSummary(Shop $shop, array $input): array
+    {
+        [$from, $to] = \App\Support\Assistant\PeriodResolver::resolve($input['period'] ?? 'this_month');
+        return $this->writer->summary($shop->id, $from, $to);
     }
 
     protected function bookings(Shop $shop, array $input): array

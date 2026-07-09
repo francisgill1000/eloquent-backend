@@ -13,7 +13,7 @@ class OwnerAssistantToolsTest extends TestCase
 
     private function tools(): OwnerAssistantTools
     {
-        return new OwnerAssistantTools(app(ReportsAggregator::class));
+        return app(OwnerAssistantTools::class);
     }
 
     private function seedShopWithBooking(): Shop
