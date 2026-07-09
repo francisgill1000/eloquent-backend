@@ -57,7 +57,8 @@ describe('PublicBooking (voice-only)', () => {
       reply_text: 'All set!', ready: true,
       fields: { service: 'Classic Haircut', date: '2026-07-12', start_time: '15:00', customer_name: 'Sara', customer_phone: '0501234567' },
     });
-    const create = vi.spyOn(bookingsLib, 'createBooking').mockResolvedValue({ id: 9 } as never);
+    vi.spyOn(pub, 'recordBooking').mockResolvedValue({ ok: true, reference: 'BK00009' });
+    const create = vi.spyOn(bookingsLib, 'createBooking').mockResolvedValue({ id: 9, booking_reference: 'BK00009' } as never);
 
     renderPage();
     const user = userEvent.setup();

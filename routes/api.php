@@ -155,6 +155,9 @@ Route::post('/shops/{shop}/book-assistant/text',  [\App\Http\Controllers\PublicB
     ->middleware('throttle:20,1');
 Route::post('/shops/{shop}/book-assistant/voice', [\App\Http\Controllers\PublicBookingAssistantController::class, 'voice'])
     ->middleware('throttle:20,1');
+// Records the confirmed booking's reference into the saved conversation.
+Route::post('/shops/{shop}/book-assistant/booked', [\App\Http\Controllers\PublicBookingAssistantController::class, 'recordBooking'])
+    ->middleware('throttle:30,1');
 
 // WhatsApp Cloud API — public webhook (routed per shop by phone_number_id).
 // Auto-replies are generated in-app by the ProcessWaReply job.
