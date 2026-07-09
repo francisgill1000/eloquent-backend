@@ -3,10 +3,10 @@ import { Icons } from '@/components/Icons';
 export type OrbState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 /**
- * Presentational voice orb. The state drives its colour, glow and which
- * indicator shows: an equalizer while listening, bouncing dots while thinking,
- * the mic icon otherwise. `level` (0–1) makes it swell to the caller's voice in
- * tap mode; hands-free relies on the always-moving equalizer instead.
+ * Presentational voice orb. Idle shows the mic icon; every active state
+ * (listening / thinking / speaking) shows a Knight-Rider scanner that sweeps a
+ * bright cluster across dim LED segments, tinted by the state's colour. `level`
+ * (0–1) makes the orb swell to the caller's voice in tap mode.
  */
 export function VoiceOrb({ state, level, ariaLabel, disabled, onTap }: {
   state: OrbState;
@@ -25,8 +25,9 @@ export function VoiceOrb({ state, level, ariaLabel, disabled, onTap }: {
     >
       <span className="pb-mic-ring" aria-hidden />
       <span className="pb-mic-ring pb-mic-ring2" aria-hidden />
-      <span className="pb-eq" aria-hidden><i /><i /><i /><i /><i /></span>
-      <span className="pb-dots" aria-hidden><i /><i /><i /></span>
+      <span className="pb-scan" aria-hidden>
+        <i /><i /><i /><i /><i /><i /><i /><i /><i />
+      </span>
       <Icons.Mic size={46} />
     </button>
   );
