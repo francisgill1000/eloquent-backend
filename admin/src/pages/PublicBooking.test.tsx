@@ -24,9 +24,9 @@ vi.mock('@/hooks/useRecorder', () => ({
   },
 }));
 
-function renderPage() {
+function renderPage(path = '/book/7') {
   return render(
-    <MemoryRouter initialEntries={['/book/7']}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes><Route path="/book/:shopId" element={<PublicBooking />} /></Routes>
     </MemoryRouter>,
   );
@@ -182,5 +182,26 @@ describe('PublicBooking (chat)', () => {
 
     await screen.findByText(/BK00009/);
     expect(screen.queryByRole('link', { name: 'BK00009' })).toBeNull();
+  });
+
+  it('hides the demo button unless ?demo=1 is set', async () => {
+    vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
+    renderPage();   // no flag
+    await screen.findByPlaceholderText(/type a message/i);
+    expect(screen.queryByRole('button', { name: /play demo/i })).toBeNull();
+  });
+
+  it('starts a scripted demo (no real booking) when ?demo=1 is set', async () => {
+    vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
+    const create = vi.spyOn(bookingsLib, 'createBooking');
+
+    renderPage('/book/7?demo=1');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /play demo/i }));
+
+    // The scripted greeting bubble appears — the demo is playing…
+    await screen.findByText(/welcome to freshpress/i);
+    // …and it never touches the real booking API (it's a demo).
+    expect(create).not.toHaveBeenCalled();
   });
 });
