@@ -253,7 +253,7 @@ export default function PublicBooking() {
 
   async function sendText(text: string) {
     const t = text.trim();
-    if (!t || busy || !shop || bookedRef.current) return;
+    if (!t || busy || recording || !shop || bookedRef.current) return;
     setDraft('');
     primeAudio();
     pushUser(t);
@@ -345,8 +345,8 @@ export default function PublicBooking() {
       <div className="va-controls">
         <input className="va-input" placeholder="Type a message…" value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') void sendText(draft); }} disabled={busy} />
-        <button className="c-btn" aria-label="Send" disabled={busy || !draft.trim()} onClick={() => void sendText(draft)}>
+          onKeyDown={(e) => { if (e.key === 'Enter') void sendText(draft); }} disabled={busy || recording} />
+        <button className="c-btn" aria-label="Send" disabled={busy || recording || !draft.trim()} onClick={() => void sendText(draft)}>
           <Icons.Send size={16} />
         </button>
         {supported && (

@@ -91,6 +91,26 @@ describe('PublicBooking (chat)', () => {
     await screen.findByText('What day works?');    // assistant bubble
   });
 
+  it('disables text send while recording, so a concurrent voice turn cannot race a typed one', async () => {
+    vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
+    const text = vi.spyOn(pub, 'bookAssistantText').mockResolvedValue({
+      reply_text: 'What day works?', ready: false, fields: {},
+    });
+
+    renderPage();
+    const user = userEvent.setup();
+    const input = await screen.findByPlaceholderText(/type a message/i);
+    await user.type(input, 'I want a haircut');
+    await user.click(await screen.findByRole('button', { name: /microphone/i }));   // start recording
+
+    const sendBtn = screen.getByRole('button', { name: /send/i });
+    expect(sendBtn).toBeDisabled();
+    expect(input).toBeDisabled();
+
+    await user.click(sendBtn);   // attempted send while recording must be a no-op
+    expect(text).not.toHaveBeenCalled();
+  });
+
   it('New booking clears the thread and rotates the session', async () => {
     vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
     vi.spyOn(pub, 'bookAssistantText').mockResolvedValue({ reply_text: 'What day works?', ready: false, fields: {} });
