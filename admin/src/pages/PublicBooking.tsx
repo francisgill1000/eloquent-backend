@@ -29,12 +29,18 @@ function canonicalUaeMobile(raw?: string): string | null {
   return /^05\d{8}$/.test(d) ? d : null;
 }
 
-// Base64 MP3 -> object URL for a voice-note bubble.
-function base64ToBlobUrl(b64: string): string {
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }));
+// Base64 MP3 -> object URL for a voice-note bubble. Returns null (instead of
+// throwing) on malformed input, so a bad reply_audio doesn't sink an
+// otherwise-valid reply.
+function base64ToBlobUrl(b64: string): string | null {
+  try {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }));
+  } catch {
+    return null;
+  }
 }
 
 // Tap to record; taps again to send. Safety net: after speaking, this much
@@ -68,6 +74,7 @@ export default function PublicBooking() {
   const finishingRef = useRef(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const audioUrlsRef = useRef<string[]>([]);   // object URLs to revoke
+  const epochRef = useRef(0);   // bumped by newBooking() to invalidate in-flight turns
 
   const { recording, start, stop, supported } = useRecorder({
     meter: true,
@@ -167,8 +174,8 @@ export default function PublicBooking() {
     if (text) setMessages((m) => [...m, { role: 'user', content: text }]);
   }
   function pushAssistant(text: string, audioB64?: string) {
-    let audioUrl: string | null = null;
-    if (audioB64) { audioUrl = base64ToBlobUrl(audioB64); audioUrlsRef.current.push(audioUrl); }
+    const audioUrl = audioB64 ? base64ToBlobUrl(audioB64) : null;
+    if (audioUrl) audioUrlsRef.current.push(audioUrl);
     setMessages((m) => [...m, { role: 'assistant', content: text, audioUrl }]);
   }
 
@@ -236,35 +243,41 @@ export default function PublicBooking() {
   async function finishTurn() {
     if (finishingRef.current || !recording || !shop) return;
     finishingRef.current = true;
+    const epoch = epochRef.current;
     setBusy(true);
     const blob = await stop();
     finishingRef.current = false;
-    if (!blob) { setBusy(false); return; }
+    if (!blob) { if (epoch === epochRef.current) setBusy(false); return; }
     try {
       const r = await bookAssistantVoice(shop.id, blob, fieldsRef.current, historyRef.current);
+      if (epoch !== epochRef.current) return;
       pushUser(r.transcript || '');
       await applyReply(r.transcript || '', r);
     } catch {
+      if (epoch !== epochRef.current) return;
       await speakReply("Sorry, I didn't catch that — please try again.");
     } finally {
-      setBusy(false);
+      if (epoch === epochRef.current) setBusy(false);
     }
   }
 
   async function sendText(text: string) {
     const t = text.trim();
     if (!t || busy || recording || !shop || bookedRef.current) return;
+    const epoch = epochRef.current;
     setDraft('');
     primeAudio();
     pushUser(t);
     setBusy(true);
     try {
       const r = await bookAssistantText(shop.id, t, fieldsRef.current, historyRef.current);
+      if (epoch !== epochRef.current) return;
       await applyReply(t, r);
     } catch {
+      if (epoch !== epochRef.current) return;
       await speakReply("Sorry, I didn't catch that — please try again.");
     } finally {
-      setBusy(false);
+      if (epoch === epochRef.current) setBusy(false);
     }
   }
 
@@ -280,6 +293,7 @@ export default function PublicBooking() {
 
   // "+" New booking (and "Book another"): fresh thread + fresh session.
   function newBooking() {
+    epochRef.current += 1;   // invalidate any in-flight turn from the old thread
     stopSpeaking();
     if (recording) void stop();
     newBookingSession();
@@ -291,6 +305,7 @@ export default function PublicBooking() {
     setMessages([]);
     setCreated(null);
     setBusy(false);
+    setMicDenied(false);
     setDraft('');
   }
 
