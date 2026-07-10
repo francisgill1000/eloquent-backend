@@ -91,24 +91,30 @@ describe('PublicBooking (chat)', () => {
     await screen.findByText('What day works?');    // assistant bubble
   });
 
-  it('disables text send while recording, so a concurrent voice turn cannot race a typed one', async () => {
+  it('shows only the mic when empty and only send once there is text', async () => {
     vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
-    const text = vi.spyOn(pub, 'bookAssistantText').mockResolvedValue({
-      reply_text: 'What day works?', ready: false, fields: {},
-    });
-
     renderPage();
     const user = userEvent.setup();
     const input = await screen.findByPlaceholderText(/type a message/i);
-    await user.type(input, 'I want a haircut');
-    await user.click(await screen.findByRole('button', { name: /microphone/i }));   // start recording
 
-    const sendBtn = screen.getByRole('button', { name: /send/i });
-    expect(sendBtn).toBeDisabled();
+    // Empty box: mic only, no send.
+    expect(screen.getByRole('button', { name: /microphone/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /send/i })).toBeNull();
+
+    // With text: send only, mic hidden.
+    await user.type(input, 'hello');
+    expect(screen.getByRole('button', { name: /send/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /microphone/i })).toBeNull();
+  });
+
+  it('locks the text input while recording, so a typed turn cannot race a voice one', async () => {
+    vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
+    renderPage();
+    const user = userEvent.setup();
+    const input = await screen.findByPlaceholderText(/type a message/i);
+    // Empty draft → mic is the shown button; starting a recording must lock the input.
+    await user.click(await screen.findByRole('button', { name: /microphone/i }));
     expect(input).toBeDisabled();
-
-    await user.click(sendBtn);   // attempted send while recording must be a no-op
-    expect(text).not.toHaveBeenCalled();
   });
 
   it('New booking clears the thread and rotates the session', async () => {
