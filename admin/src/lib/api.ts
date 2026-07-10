@@ -12,7 +12,9 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   config.headers = config.headers ?? {};
-  config.headers['X-Device-Id'] = getDeviceId();
+  // Respect an explicitly-set device id (the public booking flow sends its own
+  // booking-session id); otherwise default to the app-wide device id.
+  if (!config.headers['X-Device-Id']) config.headers['X-Device-Id'] = getDeviceId();
 
   const token = storage.get('shop_token');
   if (token && !config.headers.Authorization) {
