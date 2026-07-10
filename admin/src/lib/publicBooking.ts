@@ -1,4 +1,5 @@
 import api from './api';
+import { getBookingSessionId } from './bookingSession';
 
 export type BookingFields = {
   service?: string;
@@ -48,13 +49,15 @@ function normalize(d: unknown): AssistantReply {
 }
 
 export async function bookAssistantText(shopId: number, text: string, state: BookingFields, history: Turn[] = []): Promise<AssistantReply> {
-  const { data } = await api.post(`/shops/${shopId}/book-assistant/text`, { text, state, history });
+  const { data } = await api.post(`/shops/${shopId}/book-assistant/text`, { text, state, history },
+    { headers: { 'X-Device-Id': getBookingSessionId() } });
   return normalize(data);
 }
 
 /** Record the confirmed booking's reference into the saved conversation (best-effort). */
 export async function recordBooking(shopId: number, bookingId: number): Promise<{ ok: boolean; reference?: string }> {
-  const { data } = await api.post(`/shops/${shopId}/book-assistant/booked`, { booking_id: bookingId });
+  const { data } = await api.post(`/shops/${shopId}/book-assistant/booked`, { booking_id: bookingId },
+    { headers: { 'X-Device-Id': getBookingSessionId() } });
   return { ok: !!data?.ok, reference: typeof data?.reference === 'string' ? data.reference : undefined };
 }
 
@@ -66,7 +69,7 @@ export async function bookAssistantVoice(shopId: number, audio: Blob, state: Boo
   // Override the shared api's JSON default so the FormData is sent as multipart
   // (otherwise axios serializes it as JSON and the audio Blob is dropped).
   const { data } = await api.post(`/shops/${shopId}/book-assistant/voice`, fd, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': 'multipart/form-data', 'X-Device-Id': getBookingSessionId() },
   });
   return normalize(data);
 }
