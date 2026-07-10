@@ -5,26 +5,19 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import * as pub from '@/lib/publicBooking';
 import * as bookingsLib from '@/lib/bookings';
+import * as session from '@/lib/bookingSession';
 import { speak } from '@/lib/simulation';
 import PublicBooking from './PublicBooking';
 
 vi.mock('@/lib/simulation', () => ({ speak: vi.fn() }));
 
-// Captures the onSilence safety-net the page wires into the recorder, so a test
-// can fire it to simulate the customer going quiet without tapping.
 const rec = vi.hoisted(() => ({ onSilence: null as null | (() => void) }));
-
-// A stateful mock recorder: start() flips recording on, stop() flips it off and
-// returns a fake blob — enough to drive the tap → record → send flow without a
-// real MediaRecorder (absent in jsdom).
 vi.mock('@/hooks/useRecorder', () => ({
   useRecorder: (opts?: { onSilence?: () => void }) => {
     rec.onSilence = opts?.onSilence ?? null;
     const [recording, setRecording] = React.useState(false);
     return {
-      recording,
-      supported: true,
-      level: 0,
+      recording, supported: true, level: 0,
       start: async () => { setRecording(true); },
       stop: async () => { setRecording(false); return new Blob(['x'], { type: 'audio/webm' }); },
     };
@@ -41,13 +34,17 @@ function renderPage() {
 
 const SHOP = { id: 7, name: 'FreshPress', catalogs: [{ id: 1, title: 'Classic Haircut', price: 30 }] };
 
-describe('PublicBooking (voice-only)', () => {
+describe('PublicBooking (chat)', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    // restoreAllMocks wipes the speak module-mock implementation — re-arm it.
     vi.mocked(speak).mockResolvedValue('blob:fake');
-    // jsdom has no real audio; stub play so TTS playback resolves quietly.
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    // jsdom lacks object-URL support; audio bubbles build URLs from reply_audio.
+    if (!URL.createObjectURL) Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:aud', writable: true });
+    else vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:aud');
+    // jsdom also lacks revokeObjectURL — same shim pattern as above.
+    if (!URL.revokeObjectURL) Object.defineProperty(URL, 'revokeObjectURL', { value: () => undefined, writable: true });
+    else vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
   });
 
   it('shows a friendly error when the shop link is invalid', async () => {
@@ -56,10 +53,10 @@ describe('PublicBooking (voice-only)', () => {
     await screen.findByText(/booking link isn't available/i);
   });
 
-  it('auto-books once the assistant reports it has every detail', async () => {
+  it('auto-sends the turn when the customer goes quiet, then books when ready', async () => {
     vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
     vi.spyOn(pub, 'bookAssistantVoice').mockResolvedValue({
-      reply_text: 'All set!', ready: true,
+      transcript: 'friday 3pm 0501234567', reply_text: 'All set!', ready: true,
       fields: { service: 'Classic Haircut', date: '2026-07-12', start_time: '15:00', customer_name: 'Sara', customer_phone: '0501234567' },
     });
     vi.spyOn(pub, 'recordBooking').mockResolvedValue({ ok: true, reference: 'BK00009' });
@@ -67,59 +64,63 @@ describe('PublicBooking (voice-only)', () => {
 
     renderPage();
     const user = userEvent.setup();
-
-    await user.click(await screen.findByRole('button', { name: /speak to book/i }));   // start
-    await user.click(await screen.findByRole('button', { name: /stop/i }));            // stop → send → auto-book
+    await user.click(await screen.findByRole('button', { name: /microphone/i }));   // start recording
+    await act(async () => { rec.onSilence?.(); });                                   // 1.5s silence fires
 
     await waitFor(() => expect(create).toHaveBeenCalledWith(7, expect.objectContaining({
-      services: [{ title: 'Classic Haircut', price: 30 }],
-      charges: 30, date: '2026-07-12', start_time: '15:00',
-      customer_name: 'Sara', customer_whatsapp: '0501234567',
+      services: [{ title: 'Classic Haircut', price: 30 }], charges: 30,
+      date: '2026-07-12', start_time: '15:00', customer_name: 'Sara', customer_whatsapp: '0501234567',
     })));
     await screen.findByText(/you're booked/i);
   });
 
-  it('auto-sends the turn when the customer goes quiet without tapping stop', async () => {
+  it('sends a typed message and shows both bubbles', async () => {
     vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
-    const voice = vi.spyOn(pub, 'bookAssistantVoice').mockResolvedValue({
+    const text = vi.spyOn(pub, 'bookAssistantText').mockResolvedValue({
       reply_text: 'What day works?', ready: false, fields: { service: 'Classic Haircut' },
     });
 
     renderPage();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: /speak to book/i }));   // start recording
+    const input = await screen.findByPlaceholderText(/type a message/i);
+    await user.type(input, 'I want a haircut');
+    await user.click(screen.getByRole('button', { name: /send/i }));
 
-    // The customer stops talking and forgets to tap — the recorder's silence
-    // safety-net fires, which should end the turn and send it for them.
-    await act(async () => { rec.onSilence?.(); });
-
-    await waitFor(() => expect(voice).toHaveBeenCalled());
+    await waitFor(() => expect(text).toHaveBeenCalledWith(7, 'I want a haircut', expect.anything(), expect.anything()));
+    await screen.findByText('I want a haircut');   // user bubble
+    await screen.findByText('What day works?');    // assistant bubble
   });
 
-  it('the End button returns the screen to the start state', async () => {
+  it('New booking clears the thread and rotates the session', async () => {
     vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
+    vi.spyOn(pub, 'bookAssistantText').mockResolvedValue({ reply_text: 'What day works?', ready: false, fields: {} });
+    const rotate = vi.spyOn(session, 'newBookingSession');
 
     renderPage();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: /speak to book/i }));   // now in a live session
-    await user.click(await screen.findByRole('button', { name: /^end$/i }));           // end it
+    const input = await screen.findByPlaceholderText(/type a message/i);
+    await user.type(input, 'hello');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+    await screen.findByText('hello');
 
-    await screen.findByRole('button', { name: /speak to book/i });                     // back to idle
+    await user.click(screen.getByRole('button', { name: /new booking/i }));
+
+    expect(rotate).toHaveBeenCalled();
+    expect(screen.queryByText('hello')).toBeNull();          // thread cleared
   });
 
-  it('does not book while the assistant is still missing details', async () => {
+  it('renders a booking reference as plain text (no link) for customers', async () => {
     vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
-    vi.spyOn(pub, 'bookAssistantVoice').mockResolvedValue({
-      reply_text: 'What day works for you?', ready: false, fields: { service: 'Classic Haircut' },
+    vi.spyOn(pub, 'bookAssistantText').mockResolvedValue({
+      reply_text: 'Your reference is BK00009.', ready: false, fields: {},
     });
-    const create = vi.spyOn(bookingsLib, 'createBooking').mockResolvedValue({ id: 9 } as never);
-
     renderPage();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: /speak to book/i }));
-    await user.click(await screen.findByRole('button', { name: /stop/i }));
+    const input = await screen.findByPlaceholderText(/type a message/i);
+    await user.type(input, 'ref?');
+    await user.click(screen.getByRole('button', { name: /send/i }));
 
-    await waitFor(() => expect(pub.bookAssistantVoice).toHaveBeenCalled());
-    expect(create).not.toHaveBeenCalled();
+    await screen.findByText(/BK00009/);
+    expect(screen.queryByRole('link', { name: 'BK00009' })).toBeNull();
   });
 });
