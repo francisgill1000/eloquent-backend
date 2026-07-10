@@ -129,6 +129,46 @@ describe('PublicBooking (chat)', () => {
     expect(screen.queryByText('hello')).toBeNull();          // thread cleared
   });
 
+  it('drops a stale in-flight reply after New booking resets the thread', async () => {
+    vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
+    let resolve!: (v: pub.AssistantReply) => void;
+    const deferred = new Promise<pub.AssistantReply>((r) => { resolve = r; });
+    vi.spyOn(pub, 'bookAssistantText').mockReturnValue(deferred);
+
+    renderPage();
+    const user = userEvent.setup();
+    const input = await screen.findByPlaceholderText(/type a message/i);
+    await user.type(input, 'I want a blow-dry');
+    await user.click(screen.getByRole('button', { name: /send/i }));   // request now in flight (busy)
+
+    await user.click(screen.getByRole('button', { name: /new booking/i }));   // reset while in flight
+
+    await act(async () => {
+      resolve({ reply_text: 'What day?', ready: false, fields: { service: 'Blow-dry' } });
+      await deferred;
+    });
+
+    expect(screen.queryByText('What day?')).toBeNull();   // stale response was dropped
+  });
+
+  it('revokes bubble audio URLs on New booking', async () => {
+    vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
+    vi.spyOn(pub, 'bookAssistantText').mockResolvedValue({
+      reply_text: 'Here you go', ready: false, fields: {}, reply_audio: btoa('mp3'),
+    });
+
+    renderPage();
+    const user = userEvent.setup();
+    const input = await screen.findByPlaceholderText(/type a message/i);
+    await user.type(input, 'hi');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+    await screen.findByText('Here you go');
+
+    await user.click(screen.getByRole('button', { name: /new booking/i }));
+
+    expect(URL.revokeObjectURL).toHaveBeenCalled();
+  });
+
   it('renders a booking reference as plain text (no link) for customers', async () => {
     vi.spyOn(pub, 'getPublicShop').mockResolvedValue(SHOP);
     vi.spyOn(pub, 'bookAssistantText').mockResolvedValue({
