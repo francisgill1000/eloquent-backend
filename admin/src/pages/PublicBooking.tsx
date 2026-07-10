@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { AudioBubble, ThinkingBubble, renderContent } from '@/components/chat';
 import { getPublicShop, bookAssistantText, bookAssistantVoice, recordBooking, type AssistantReply, type BookingFields, type PublicShop, type Turn } from '@/lib/publicBooking';
@@ -14,6 +14,15 @@ type Msg = { role: 'user' | 'assistant'; content: string; audioUrl?: string | nu
 
 function todayIso(): string {
   const d = new Date();
+  const y = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mm}-${dd}`;
+}
+
+function tomorrowIso(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
   const y = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
@@ -65,6 +74,14 @@ export default function PublicBooking() {
   const [micDenied, setMicDenied] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState('');
+  const [demoRunning, setDemoRunning] = useState(false);
+
+  // A scripted, spoken demo conversation for recording marketing videos — only
+  // offered when the URL carries ?demo=1 (e.g. /book/8?demo=1). It creates no
+  // real booking; it just plays chat bubbles + female voices and ends on the
+  // success card.
+  const [params] = useSearchParams();
+  const demoEnabled = params.get('demo') === '1';
 
   const fieldsRef = useRef<BookingFields>({ date: todayIso() });
   const historyRef = useRef<Turn[]>([]);
@@ -309,6 +326,61 @@ export default function PublicBooking() {
     setDraft('');
   }
 
+  /* ---- scripted demo (video recording) ---------------------------------- */
+
+  // Speak one scripted line in the given (female) voice, show it as a bubble,
+  // and wait for playback to finish so the conversation paces naturally.
+  async function playDemoLine(role: 'user' | 'assistant', text: string, voice: string) {
+    let url: string | null = null;
+    try { url = await speak(text, voice); } catch { /* text-only fallback */ }
+    if (url) audioUrlsRef.current.push(url);
+    setMessages((m) => [...m, { role, content: text, audioUrl: url }]);
+    if (url) {
+      try { await playBytes(await (await fetch(url)).arrayBuffer()); }
+      catch { await new Promise((r) => setTimeout(r, 1200)); }
+    } else {
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+  }
+
+  // Play a short, fully-scripted booking conversation (both voices female) for
+  // recording a demo video. No API calls, no real booking — it just ends on the
+  // success card with sample details.
+  async function runDemo() {
+    if (!shop || demoRunning) return;
+    primeAudio();
+    epochRef.current += 1;                 // cancel any in-flight real turn
+    stopSpeaking();
+    audioUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+    audioUrlsRef.current = [];
+    setMessages([]);
+    setCreated(null);
+    setDemoRunning(true);
+
+    const A = 'nova';        // assistant — female voice
+    const C = 'shimmer';     // customer — female voice
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const think = async () => { setBusy(true); await wait(700); setBusy(false); };
+    try {
+      await playDemoLine('assistant', `Hi! Welcome to ${shop.name}. What would you like to book?`, A);
+      await wait(300);
+      await playDemoLine('user', `I'd love a haircut tomorrow at three in the afternoon.`, C);
+      await wait(300);
+      await think();
+      await playDemoLine('assistant', `Lovely! And what name and number should I put it under?`, A);
+      await wait(300);
+      await playDemoLine('user', `It's Sara — my number is oh five oh, one two three, four five six seven.`, C);
+      await wait(300);
+      await think();
+      await playDemoLine('assistant', `Perfect, Sara — you're all booked! See you tomorrow at three.`, A);
+      await wait(500);
+      setCreated({ service: 'Classic Haircut', date: tomorrowIso(), start_time: '15:00', customer_name: 'Sara', reference: 'BK00042' });
+    } finally {
+      setDemoRunning(false);
+      setBusy(false);
+    }
+  }
+
   /* ---- render ------------------------------------------------------------ */
 
   if (loadError) {
@@ -337,6 +409,11 @@ export default function PublicBooking() {
           <span className="va-title">{shop?.name ?? 'Book'}</span>
           <span className="va-sub">Tell me what you'd like to book</span>
         </div>
+        {demoEnabled && (
+          <button className="c-icon-btn" aria-label="Play demo" disabled={demoRunning} onClick={() => void runDemo()}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+          </button>
+        )}
         <button className="c-icon-btn" aria-label="New booking" onClick={newBooking}><Icons.Plus size={18} /></button>
       </div>
 
@@ -360,13 +437,13 @@ export default function PublicBooking() {
       <div className="va-controls">
         <input className="va-input" placeholder="Type a message…" value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') void sendText(draft); }} disabled={busy || recording} />
-        <button className="c-btn" aria-label="Send" disabled={busy || recording || !draft.trim()} onClick={() => void sendText(draft)}>
+          onKeyDown={(e) => { if (e.key === 'Enter') void sendText(draft); }} disabled={busy || recording || demoRunning} />
+        <button className="c-btn" aria-label="Send" disabled={busy || recording || demoRunning || !draft.trim()} onClick={() => void sendText(draft)}>
           <Icons.Send size={16} />
         </button>
         {supported && (
           <button className={`va-mic ${recording ? 'recording' : ''}`} aria-label="Microphone"
-            disabled={busy && !recording} onClick={() => void onMicTap()}>
+            disabled={(busy && !recording) || demoRunning} onClick={() => void onMicTap()}>
             <Icons.Mic size={20} />
           </button>
         )}
