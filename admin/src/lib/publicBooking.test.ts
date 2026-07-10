@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import api from '@/lib/api';
-import { bookAssistantText, bookAssistantVoice, getPublicShop } from './publicBooking';
+import { bookAssistantText, bookAssistantVoice, getPublicShop, recordBooking } from './publicBooking';
 
 describe('publicBooking lib', () => {
   beforeEach(() => vi.restoreAllMocks());
@@ -35,5 +35,28 @@ describe('publicBooking lib', () => {
     expect(url).toBe('/shops/7/book-assistant/voice');
     expect(body).toBeInstanceOf(FormData);
     expect(config?.headers?.['Content-Type']).toBe('multipart/form-data');
+  });
+
+  it('sends the booking-session id as X-Device-Id on bookAssistantText', async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { reply_text: 'ok', fields: {}, ready: false } });
+    await bookAssistantText(7, 'hi', {}, []);
+    const config = post.mock.calls[0][2] as { headers?: Record<string, string> } | undefined;
+    expect(config?.headers?.['X-Device-Id']).toBeTruthy();
+  });
+
+  it('sends the booking-session id as X-Device-Id on bookAssistantVoice, alongside Content-Type', async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { reply_text: 'ok', fields: {}, ready: false } });
+    const audio = new Blob(['bytes'], { type: 'audio/webm' });
+    await bookAssistantVoice(7, audio, {});
+    const config = post.mock.calls[0][2] as { headers?: Record<string, string> } | undefined;
+    expect(config?.headers?.['X-Device-Id']).toBeTruthy();
+    expect(config?.headers?.['Content-Type']).toBe('multipart/form-data');
+  });
+
+  it('sends the booking-session id as X-Device-Id on recordBooking', async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { ok: true, reference: 'BK00001' } });
+    await recordBooking(7, 42);
+    const config = post.mock.calls[0][2] as { headers?: Record<string, string> } | undefined;
+    expect(config?.headers?.['X-Device-Id']).toBeTruthy();
   });
 });
