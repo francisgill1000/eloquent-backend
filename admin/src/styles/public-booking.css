@@ -1,3 +1,10 @@
+/* The chat page reuses the admin Ask (.va-screen) layout, but it renders
+   standalone (no bottom tab bar), so drop .va-screen's 72px tab-bar reserve —
+   otherwise there's a big empty gap under the input bar. The .va-controls bar
+   handles its own safe-area inset. Two classes → wins over .va-screen on both
+   mobile and desktop without !important. */
+.va-screen.pb-chat { padding-bottom: 0; }
+
 .pb-screen { min-height: 100dvh; margin: 0 auto; padding: 20px 16px 40px; color: var(--text-1); }
 /* Confirmation / error screens: centred content. */
 .pb-solo { max-width: 720px; display: grid; place-items: center; }

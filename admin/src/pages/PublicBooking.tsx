@@ -331,7 +331,7 @@ export default function PublicBooking() {
   }
 
   return (
-    <div className="m-screen va-screen">
+    <div className="m-screen va-screen pb-chat">
       <div className="va-head">
         <div className="va-head-text">
           <span className="va-title">{shop?.name ?? 'Book'}</span>
