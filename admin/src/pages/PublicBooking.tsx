@@ -410,11 +410,11 @@ export default function PublicBooking() {
           <span className="va-sub">Tell me what you'd like to book</span>
         </div>
         {demoEnabled && (
-          <button className="c-icon-btn" aria-label="Play demo" disabled={demoRunning} onClick={() => void runDemo()}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+          <button className="va-mic" aria-label="Play demo" disabled={demoRunning} onClick={() => void runDemo()}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
           </button>
         )}
-        <button className="c-icon-btn" aria-label="New booking" onClick={newBooking}><Icons.Plus size={18} /></button>
+        <button className="va-mic" aria-label="New booking" onClick={newBooking}><Icons.Plus size={20} /></button>
       </div>
 
       <div className="va-thread" ref={threadRef}>
@@ -438,15 +438,18 @@ export default function PublicBooking() {
         <input className="va-input" placeholder="Type a message…" value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') void sendText(draft); }} disabled={busy || recording || demoRunning} />
-        <button className="c-btn" aria-label="Send" disabled={busy || recording || demoRunning || !draft.trim()} onClick={() => void sendText(draft)}>
-          <Icons.Send size={16} />
-        </button>
-        {supported && (
+        {/* One button at a time: mic when the box is empty, send once there's
+            text to send (WhatsApp-style). */}
+        {draft.trim() ? (
+          <button className="c-btn" aria-label="Send" disabled={busy || recording || demoRunning} onClick={() => void sendText(draft)}>
+            <Icons.Send size={16} />
+          </button>
+        ) : supported ? (
           <button className={`va-mic ${recording ? 'recording' : ''}`} aria-label="Microphone"
             disabled={(busy && !recording) || demoRunning} onClick={() => void onMicTap()}>
             <Icons.Mic size={20} />
           </button>
-        )}
+        ) : null}
       </div>
     </div>
   );
