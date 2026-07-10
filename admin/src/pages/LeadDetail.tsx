@@ -16,6 +16,17 @@ const KnobCheck = () => (
 const KnobX = () => (
   <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" /></svg>
 );
+// "Drag me" affordance (match BookingAction): a staggered stack of three
+// chevrons that flows toward where the knob can slide. Rotated by CSS per
+// direction — and laid sideways on the horizontal mobile rail.
+const HintChevron = () => (
+  <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+);
+const HintStack = ({ dir }: { dir: 'up' | 'down' }) => (
+  <span className={`ba-switch-hint ${dir}`} aria-hidden="true">
+    <HintChevron /><HintChevron /><HintChevron />
+  </span>
+);
 
 // Per-status colours (mirror the s-<status> --stage tokens in leads.css). Used
 // by the stage switch and the activity dots so both read from one palette.
@@ -211,16 +222,22 @@ export default function LeadDetail() {
     }
   };
 
-  // Nearest stage index to a vertical pointer position — measured from the
-  // actual option elements so it stays accurate regardless of CSS geometry.
-  const indexFromY = (clientY: number): number => {
+  // Nearest stage index to a pointer position — measured from the actual option
+  // elements so it stays accurate regardless of CSS geometry. The rail is
+  // vertical on desktop and horizontal on phone/tablet (the switch is wider than
+  // it is tall there), so pick the axis from the switch's shape and compare on it.
+  const indexFromPointer = (clientX: number, clientY: number): number => {
     const opts = switchRef.current?.querySelectorAll('.ba-switch-opt');
     if (!opts || opts.length === 0) return 0;
+    const sr = switchRef.current!.getBoundingClientRect();
+    const horizontal = sr.width > sr.height;
     let best = 0;
     let bestDist = Infinity;
     opts.forEach((el, i) => {
       const r = (el as HTMLElement).getBoundingClientRect();
-      const dist = Math.abs(clientY - (r.top + r.height / 2));
+      const dist = horizontal
+        ? Math.abs(clientX - (r.left + r.width / 2))
+        : Math.abs(clientY - (r.top + r.height / 2));
       if (dist < bestDist) { bestDist = dist; best = i; }
     });
     return best;
@@ -231,11 +248,11 @@ export default function LeadDetail() {
     if (busy) return;
     if ((e.target as HTMLElement).closest('.ba-switch-opts')) return; // label taps = clicks
     e.currentTarget.setPointerCapture(e.pointerId);
-    setDragIndex(indexFromY(e.clientY));
+    setDragIndex(indexFromPointer(e.clientX, e.clientY));
   };
   const onSwitchPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (dragIndex === null) return;
-    setDragIndex(indexFromY(e.clientY));
+    setDragIndex(indexFromPointer(e.clientX, e.clientY));
   };
   const onSwitchPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (dragIndex === null) return;
@@ -260,6 +277,13 @@ export default function LeadDetail() {
   const passed = lead.status === 'pass';
   const activeIndex = STAGE_OPTS.findIndex((o) => o.status === lead.status);
   const stageColor = STAGE_COLOR[lead.status] ?? 'var(--text-4)';
+
+  // "Drag me" chevrons — bounce toward where the knob can go, but only while the
+  // lead is still live. Won/Pass are terminal outcomes, so no hint there. Fades
+  // the instant a drag starts. Down = forward through the funnel, up = back.
+  const showHint = dragIndex === null && lead.status !== 'won' && lead.status !== 'pass';
+  const hintDown = showHint; // forward always available (Won/Pass sit below)
+  const hintUp = showHint && activeIndex > 0; // can slide back if not at New
 
   return (
     <div className="m-screen c-booking-action"><div className="m-scroll">
@@ -387,6 +411,8 @@ export default function LeadDetail() {
             </div>
             <div className="ba-switch-rail"><div className="ba-switch-fill" /></div>
             <div className="ba-switch-knob">
+              {hintUp && <HintStack dir="up" />}
+              {hintDown && <HintStack dir="down" />}
               {lead.status === 'won' ? <KnobCheck />
                 : lead.status === 'pass' ? <KnobX />
                 : <span className="ba-switch-dot" />}

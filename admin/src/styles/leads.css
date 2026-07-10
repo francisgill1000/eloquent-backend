@@ -674,6 +674,24 @@
 .ld-switch.dragging .ba-switch-knob,
 .ld-switch.dragging .ba-switch-fill { transition: none; }
 
+/* ── Lead stage switch on phone/tablet (< desktop) ──
+   The page is scoped .c-booking-action, so the booking's horizontal mobile
+   layout (customer.css) already lays this rail sideways — but its knob/fill
+   math divides by 4 (booking's 4 statuses). The lead funnel has 6 stops, so
+   re-derive the horizontal positions over /6 and drop the vertical height/top
+   overrides above, which would otherwise fight the now-horizontal rail. The
+   extra .c-booking-action prefix outranks the vertical .ld-switch rules. */
+@media (max-width: 1023px) {
+  .c-booking-action .ld-switch .ba-switch-fill {
+    top: 0; bottom: 0; left: 0; right: auto;
+    height: auto; width: calc((var(--active) + 0.5) / 6 * 100%);
+  }
+  .c-booking-action .ld-switch .ba-switch-knob {
+    top: 23px; right: auto; bottom: auto;
+    left: calc((var(--active) + 0.5) / 6 * 100%);
+  }
+}
+
 /* Activity timeline (wrapped in a card like every other section) */
 .ld-log-card { padding: 14px 18px; }
 .ld-log { list-style: none; margin: 0; padding: 2px 0 0; position: relative; }
