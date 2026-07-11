@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
@@ -77,7 +78,7 @@ export default function LeadCredits() {
       </div>
 
       {packs.length > 0 ? (
-        <div className="lfc-packs">
+        <div className="lfc-packs" style={{ ['--pack-cols']: packs.length } as CSSProperties}>
           {packs.map((p) => (canPurchase
             ? <button key={p.id} className="lfc-pack" disabled={buyingId !== null} onClick={() => void buyPack(p)}>
                 <span className="lfc-pack-credits">{p.credits.toLocaleString('en-AE')}</span>
