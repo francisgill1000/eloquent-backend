@@ -171,6 +171,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/master/pricing', [\App\Http\Controllers\MasterController::class, 'pricing']);
     Route::patch('/master/pricing', [\App\Http\Controllers\MasterController::class, 'updatePricing']);
     Route::patch('/master/shops/{shop}/subscription', [\App\Http\Controllers\MasterController::class, 'grantSubscription']);
+    // Business Hunt credits (independent of the Lens subscription above).
+    Route::post('/master/shops/{shop}/credits', [\App\Http\Controllers\MasterController::class, 'grantCredits']);
+    Route::get('/master/credit-packs', [\App\Http\Controllers\MasterController::class, 'creditPacks']);
+    Route::post('/master/credit-packs', [\App\Http\Controllers\MasterController::class, 'storeCreditPack']);
+    Route::patch('/master/credit-packs/{pack}', [\App\Http\Controllers\MasterController::class, 'updateCreditPack']);
+    Route::delete('/master/credit-packs/{pack}', [\App\Http\Controllers\MasterController::class, 'destroyCreditPack']);
     Route::get('/wa/push/vapid-key', [\App\Http\Controllers\WaPushController::class, 'vapidKey']);
     Route::post('/wa/push/subscribe', [\App\Http\Controllers\WaPushController::class, 'subscribe']);
     Route::post('/wa/push/unsubscribe', [\App\Http\Controllers\WaPushController::class, 'unsubscribe']);
@@ -202,11 +208,15 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->grou
     Route::post('/shop/assistant/voice',                         [\App\Http\Controllers\OwnerAssistantController::class, 'voice']);
 });
 
-// Lead Finder — search real UAE businesses, save + work them (WhatsApp/call).
+// Lead Finder / Business Hunt — search real UAE businesses, save + work them.
 // Tenant-scoped to the authed shop; shop_id is never read from the request.
-// Order matters: /shop/leads/search is declared before the {lead} route so it
-// is not swallowed by model binding.
-Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active', 'module:leads'])->group(function () {
+// Gated by the `leads` module + the Hunt CREDIT balance — deliberately NOT by
+// `subscription.active`: Hunt is a separate billing meter from the Lens
+// subscription, so a Hunt-only shop (no Lens sub) must still reach these routes.
+// Order matters: the static /shop/leads/* routes are declared before the {lead}
+// route so they are not swallowed by model binding.
+Route::middleware(['auth:sanctum', 'rbac.context', 'module:leads'])->group(function () {
+    Route::get   ('/shop/leads/credits',          [\App\Http\Controllers\LeadController::class, 'credits']);
     Route::get   ('/shop/leads/search',           [\App\Http\Controllers\LeadController::class, 'search']);
     // Ad Activity (Meta Ad Library) — async: start a run, then poll it.
     Route::post  ('/shop/leads/ad-search',           [\App\Http\Controllers\LeadController::class, 'adSearchStart']);

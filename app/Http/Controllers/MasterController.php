@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CreditPack;
 use App\Models\Shop;
 use App\Models\WaAccount;
+use App\Services\Credits\HuntCreditService;
 use App\Support\ServiceCategories;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -84,6 +86,7 @@ class MasterController extends Controller
             'persona' => $shop->persona,
             'is_master' => (bool) $shop->is_master,
             'modules' => $shop->modules ?? ['bookings'],
+            'hunt_credits' => (int) $shop->hunt_credits,
             'subscription_status' => optional($shop->subscription)->status,
             'plan' => optional($shop->subscription)->plan,
             'access_until' => optional(optional($shop->subscription)->access_until)->toIso8601String(),
@@ -142,5 +145,82 @@ class MasterController extends Controller
             'access_until' => $sub->access_until,
             'days_left' => $sub->daysLeft(),
         ]);
+    }
+
+    /**
+     * Master-only: manually grant Business Hunt credits to a shop. This is the
+     * path for selling packs by hand (Ziina link) before self-serve checkout
+     * exists. Independent of the Lens subscription.
+     */
+    public function grantCredits(Request $request, Shop $shop, HuntCreditService $credits)
+    {
+        $this->requireMaster($request);
+
+        $data = $request->validate([
+            'amount' => ['required', 'integer', 'min:1', 'max:1000000'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $tx = $credits->grant($shop, $data['amount'], 'grant', array_filter([
+            'note' => $data['note'] ?? null,
+        ], fn ($v) => $v !== null && $v !== ''));
+
+        return response()->json(['ok' => true, 'credits' => $tx->balance_after]);
+    }
+
+    /** Master-only: every credit pack (active + inactive), for the pricing UI. */
+    public function creditPacks(Request $request)
+    {
+        $this->requireMaster($request);
+
+        return response()->json([
+            'data' => CreditPack::orderBy('sort')->orderBy('price_fils')->get(),
+        ]);
+    }
+
+    /** Master-only: add a new pack. */
+    public function storeCreditPack(Request $request)
+    {
+        $this->requireMaster($request);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:60'],
+            'credits' => ['required', 'integer', 'min:1', 'max:1000000'],
+            'price_fils' => ['required', 'integer', 'min:100', 'max:100000000'],
+            'active' => ['sometimes', 'boolean'],
+            'sort' => ['sometimes', 'integer', 'min:0', 'max:65535'],
+        ]);
+
+        $pack = CreditPack::create($data);
+
+        return response()->json(['data' => $pack], 201);
+    }
+
+    /** Master-only: edit a pack's price/credits/name/visibility. No deploy needed. */
+    public function updateCreditPack(Request $request, CreditPack $pack)
+    {
+        $this->requireMaster($request);
+
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:60'],
+            'credits' => ['sometimes', 'integer', 'min:1', 'max:1000000'],
+            'price_fils' => ['sometimes', 'integer', 'min:100', 'max:100000000'],
+            'active' => ['sometimes', 'boolean'],
+            'sort' => ['sometimes', 'integer', 'min:0', 'max:65535'],
+        ]);
+
+        $pack->update($data);
+
+        return response()->json(['data' => $pack->fresh()]);
+    }
+
+    /** Master-only: remove a pack. Does not affect any shop's existing balance. */
+    public function destroyCreditPack(Request $request, CreditPack $pack)
+    {
+        $this->requireMaster($request);
+
+        $pack->delete();
+
+        return response()->json(['ok' => true]);
     }
 }

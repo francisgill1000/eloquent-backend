@@ -93,21 +93,22 @@ class LeadFinderTest extends TestCase
     {
         $this->fakeSource($this->sampleResults());
         [$shop, $user, $token] = $this->actingShop();
+        app(\App\Services\Credits\HuntCreditService::class)->grant($shop, 5);
 
-        // 1. Search — normalized results, live call consumes 1 allowance unit.
+        // 1. Search — normalized results, live call spends 1 credit (5 -> 4).
         $search = $this->auth($token)
             ->getJson('/api/shop/leads/search?category=salon&area=Dubai%20Marina')
             ->assertOk();
         $search->assertJsonPath('meta.from_cache', false);
-        $search->assertJsonPath('meta.used', 1);
+        $search->assertJsonPath('meta.credits', 4);
         $this->assertCount(2, $search->json('data'));
 
-        // 2. Repeat identical search — served from cache, allowance NOT consumed.
+        // 2. Repeat identical search — served from cache, NO credit spent.
         $repeat = $this->auth($token)
             ->getJson('/api/shop/leads/search?category=salon&area=Dubai%20Marina')
             ->assertOk();
         $repeat->assertJsonPath('meta.from_cache', true);
-        $repeat->assertJsonPath('meta.used', 1);
+        $repeat->assertJsonPath('meta.credits', 4);
         $this->assertDatabaseCount('lead_search_logs', 1);
 
         // 3. Save the two results.
@@ -193,22 +194,22 @@ class LeadFinderTest extends TestCase
             ->assertJsonPath('funnel.pass', 0);
     }
 
-    public function test_search_blocks_when_allowance_exhausted(): void
+    public function test_search_blocks_when_credits_exhausted(): void
     {
         $this->fakeSource($this->sampleResults());
         [$shop, , $token] = $this->actingShop();
-        $shop->update(['lead_search_allowance' => 1]);
+        app(\App\Services\Credits\HuntCreditService::class)->grant($shop, 1);
 
-        // First (novel) search spends the only unit.
+        // First (novel) search spends the only credit.
         $this->auth($token)
             ->getJson('/api/shop/leads/search?category=salon')
             ->assertOk();
 
         // A different (novel) search misses cache and is blocked with 429
-        // (429, not 402: 402 is reserved for the subscription paywall).
+        // (429, not 402: 402 is reserved for the Lens subscription paywall).
         $this->auth($token)
             ->getJson('/api/shop/leads/search?category=spa')
             ->assertStatus(429)
-            ->assertJsonPath('error', 'search_limit_reached');
+            ->assertJsonPath('error', 'insufficient_credits');
     }
 }
