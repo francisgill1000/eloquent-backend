@@ -49,13 +49,22 @@ export class InsufficientCreditsError extends Error {
   }
 }
 
-/** The shop's Business Hunt credit balance plus the packs it can top up with. */
-export async function getLeadCredits(): Promise<{ credits: number; packs: CreditPack[] }> {
+/** The shop's Business Hunt credit balance, whether it may self-serve buy, and
+ *  the packs it can top up with. */
+export async function getLeadCredits(): Promise<{ credits: number; can_purchase: boolean; packs: CreditPack[] }> {
   const { data } = await api.get('/shop/leads/credits');
   return {
     credits: Number(data?.credits ?? 0),
+    can_purchase: Boolean(data?.can_purchase),
     packs: Array.isArray(data?.packs) ? data.packs : [],
   };
+}
+
+/** Simulated self-serve pack purchase (no real payment). Returns the new balance.
+ *  403 if the shop isn't allowed to self-serve. */
+export async function purchasePack(packId: number): Promise<{ credits: number; granted: number }> {
+  const { data } = await api.post('/shop/leads/purchase', { pack_id: packId });
+  return { credits: Number(data?.credits ?? 0), granted: Number(data?.granted ?? 0) };
 }
 
 /**

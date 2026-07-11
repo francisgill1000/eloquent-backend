@@ -30,6 +30,7 @@ export default function MasterShopDetail() {
   const [creditAmount, setCreditAmount] = useState('');
   const [grantingCredits, setGrantingCredits] = useState(false);
   const [creditMsg, setCreditMsg] = useState('');
+  const [togglingSelfServe, setTogglingSelfServe] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
 
@@ -120,6 +121,24 @@ export default function MasterShopDetail() {
       setCreditMsg('Could not grant credits.');
     } finally {
       setGrantingCredits(false);
+    }
+  };
+
+  const toggleSelfServe = async () => {
+    if (!shop) return;
+    const next = !shop.hunt_self_serve;
+    const prev = shop.hunt_self_serve;
+    setShop({ ...shop, hunt_self_serve: next }); // optimistic
+    setTogglingSelfServe(true);
+    setError('');
+    try {
+      const updated = await updateMasterShop(shop.id, { hunt_self_serve: next });
+      setShop(updated);
+    } catch {
+      setShop({ ...shop, hunt_self_serve: prev }); // revert
+      setError('Could not change self-serve.');
+    } finally {
+      setTogglingSelfServe(false);
     }
   };
 
@@ -233,6 +252,15 @@ export default function MasterShopDetail() {
         </button>
         {creditMsg && <p className="c-msd-help">{creditMsg}</p>}
         <p className="c-msd-help">Add credits after selling a pack by hand (Ziina link).</p>
+
+        <button className={`c-btn-ghost c-msd-action${shop.hunt_self_serve ? '' : ' off'}`}
+          style={{ marginTop: 10 }}
+          disabled={togglingSelfServe} onClick={() => void toggleSelfServe()}>
+          {shop.hunt_self_serve ? 'Disable self-serve purchase' : 'Enable self-serve purchase'}
+          <span className="c-msd-help" style={{ display: 'block' }}>
+            Simulated — lets this shop buy packs in-app and get credits with no real payment.
+          </span>
+        </button>
       </div>
 
       <div className="c-msd-section">

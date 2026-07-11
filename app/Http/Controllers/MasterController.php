@@ -57,6 +57,7 @@ class MasterController extends Controller
             'persona' => ['sometimes', 'nullable', 'string', 'max:20000'],
             'modules' => ['sometimes', 'array'],
             'modules.*' => ['string', 'in:bookings,leads'],
+            'hunt_self_serve' => ['sometimes', 'boolean'],
         ]);
 
         if (array_key_exists('persona', $data)) {
@@ -87,6 +88,7 @@ class MasterController extends Controller
             'is_master' => (bool) $shop->is_master,
             'modules' => $shop->modules ?? ['bookings'],
             'hunt_credits' => (int) $shop->hunt_credits,
+            'hunt_self_serve' => (bool) $shop->hunt_self_serve,
             'subscription_status' => optional($shop->subscription)->status,
             'plan' => optional($shop->subscription)->plan,
             'access_until' => optional(optional($shop->subscription)->access_until)->toIso8601String(),

@@ -41,10 +41,53 @@ class LeadController extends Controller
 
         return response()->json([
             'credits' => $this->credits->balance($shop),
+            'can_purchase' => $this->canPurchase($shop),
             'packs' => CreditPack::where('active', true)
                 ->orderBy('sort')->orderBy('price_fils')
                 ->get(['id', 'name', 'credits', 'price_fils']),
         ]);
+    }
+
+    /**
+     * POST /shop/leads/purchase {pack_id}
+     * SIMULATED self-serve top-up — no real payment is taken. Only shops the
+     * master has flagged (hunt_self_serve) or the master account itself may do
+     * this; everyone else gets 403 and the UI falls back to the WhatsApp prompt.
+     * The grant is tagged simulated:true so real purchases stay distinguishable.
+     */
+    public function purchase(Request $request)
+    {
+        $shop = $this->shop($request);
+
+        $data = $request->validate(['pack_id' => ['required', 'integer']]);
+
+        if (! $this->canPurchase($shop)) {
+            return response()->json(['error' => 'self_serve_disabled'], 403);
+        }
+
+        $pack = CreditPack::where('id', $data['pack_id'])->where('active', true)->first();
+        if (! $pack) {
+            return response()->json(['error' => 'pack_not_found'], 404);
+        }
+
+        $tx = $this->credits->grant($shop, $pack->credits, 'purchase', [
+            'pack_id' => $pack->id,
+            'pack_name' => $pack->name,
+            'price_fils' => $pack->price_fils,
+            'simulated' => true,
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'credits' => $tx->balance_after,
+            'granted' => $pack->credits,
+        ]);
+    }
+
+    /** May this shop buy packs self-serve? Master always; others per the flag. */
+    private function canPurchase(Shop $shop): bool
+    {
+        return (bool) $shop->is_master || (bool) $shop->hunt_self_serve;
     }
 
     /** The authenticated tenant. */
