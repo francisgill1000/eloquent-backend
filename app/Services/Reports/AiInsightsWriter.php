@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Models\AiSummary;
+use App\Models\Shop;
 use App\Services\Wa\ClaudeClient;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -18,6 +19,7 @@ class AiInsightsWriter
 {
     private const CACHE_TTL   = 86400; // 24h
     private const MIN_BOOKINGS = 5;
+    private const MIN_HUNT_ACTIONS = 5;
 
     public function __construct(
         protected ReportsAggregator $aggregator,
@@ -43,15 +45,33 @@ class AiInsightsWriter
             }
         }
 
-        $insights = $this->aggregator->insightsSummary($shopId, $from, $to);
+        $shop = Shop::find($shopId);
+        $hasBookings = $shop !== null && ((bool) $shop->is_master || $shop->hasModule('bookings'));
+        $hasLeads    = $shop !== null && ((bool) $shop->is_master || $shop->hasModule('leads'));
 
-        if ((int) ($insights['bookings']['scheduled'] ?? 0) < self::MIN_BOOKINGS) {
-            return $this->state('low_data', 'Not enough bookings in this period yet to generate an AI summary. Check back once you have a few more.');
+        $insights = $hasBookings ? $this->aggregator->insightsSummary($shopId, $from, $to) : null;
+        $hunt     = $hasLeads ? $this->aggregator->huntSummary($shopId, $from, $to) : null;
+
+        $bookingsQualifies = $insights !== null
+            && (int) ($insights['bookings']['scheduled'] ?? 0) >= self::MIN_BOOKINGS;
+        $huntActions = $hunt !== null ? ((int) $hunt['new_leads'] + array_sum($hunt['moved'])) : 0;
+        $huntQualifies = $hunt !== null && $huntActions >= self::MIN_HUNT_ACTIONS;
+
+        if (! $bookingsQualifies && ! $huntQualifies) {
+            // Product-appropriate low-data message.
+            $message = (! $hasBookings && $hasLeads)
+                ? 'Not enough Business Hunt activity in this period yet to generate an AI summary. Check back once you have a few more leads.'
+                : 'Not enough bookings in this period yet to generate an AI summary. Check back once you have a few more.';
+
+            return $this->state('low_data', $message);
         }
 
         try {
             $recent = $this->recentSummaries($shopId);
-            $payload = $this->buildPayload($shopId, $from, $to, $insights, $recent);
+            $payload = $this->buildPayload($shopId, $from, $to, [
+                'bookings' => $bookingsQualifies ? $insights : null,
+                'hunt'     => $huntQualifies ? $hunt : null,
+            ], $recent);
             $reply = $this->claude->reply($this->systemPrompt(), [
                 ['role' => 'user', 'content' => json_encode($payload, JSON_UNESCAPED_UNICODE)],
             ]);
@@ -143,38 +163,69 @@ class AiInsightsWriter
         }
     }
 
-    protected function buildPayload(int $shopId, Carbon $from, Carbon $to, array $insights, array $recentSummaries = []): array
+    protected function buildPayload(int $shopId, Carbon $from, Carbon $to, array $qualified, array $recentSummaries = []): array
     {
         $lengthDays = $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1;
         $prevTo   = $from->copy()->subDay()->endOfDay();
         $prevFrom = $prevTo->copy()->subDays($lengthDays - 1)->startOfDay();
 
-        $revenue      = $this->aggregator->revenueSummary($shopId, $from, $to);
-        $prevRevenue  = $this->aggregator->revenueSummary($shopId, $prevFrom, $prevTo);
-        $prevInsights = $this->aggregator->insightsSummary($shopId, $prevFrom, $prevTo);
-
-        return [
+        $payload = [
             'period' => ['from' => $from->toDateString(), 'to' => $to->toDateString(), 'days' => $lengthDays],
-            'current' => [
-                'bookings'          => $insights['bookings'],
-                'rates'             => $insights['rates'],
-                'customers'         => $insights['customers'],
-                'reviews'           => $insights['reviews'],
-                'gross_revenue'     => $revenue['kpis']['gross_revenue'],
-                'avg_booking_value' => $revenue['kpis']['avg_booking_value'],
-                'top_services'      => $revenue['top_services'],
-            ],
-            'previous' => [
-                'bookings'          => $prevInsights['bookings'],
-                'rates'             => $prevInsights['rates'],
-                'customers'         => $prevInsights['customers'],
-                'reviews'           => $prevInsights['reviews'],
-                'gross_revenue'     => $prevRevenue['kpis']['gross_revenue'],
-                'avg_booking_value' => $prevRevenue['kpis']['avg_booking_value'],
-            ],
             // Earlier summaries you wrote — vary your framing from these.
             'recent_summaries' => $recentSummaries,
         ];
+
+        if (($insights = $qualified['bookings'] ?? null) !== null) {
+            $revenue      = $this->aggregator->revenueSummary($shopId, $from, $to);
+            $prevRevenue  = $this->aggregator->revenueSummary($shopId, $prevFrom, $prevTo);
+            $prevInsights = $this->aggregator->insightsSummary($shopId, $prevFrom, $prevTo);
+
+            $payload['bookings'] = [
+                'current' => [
+                    'bookings'          => $insights['bookings'],
+                    'rates'             => $insights['rates'],
+                    'customers'         => $insights['customers'],
+                    'reviews'           => $insights['reviews'],
+                    'gross_revenue'     => $revenue['kpis']['gross_revenue'],
+                    'avg_booking_value' => $revenue['kpis']['avg_booking_value'],
+                    'top_services'      => $revenue['top_services'],
+                ],
+                'previous' => [
+                    'bookings'          => $prevInsights['bookings'],
+                    'rates'             => $prevInsights['rates'],
+                    'customers'         => $prevInsights['customers'],
+                    'reviews'           => $prevInsights['reviews'],
+                    'gross_revenue'     => $prevRevenue['kpis']['gross_revenue'],
+                    'avg_booking_value' => $prevRevenue['kpis']['avg_booking_value'],
+                ],
+            ];
+        }
+
+        if (($hunt = $qualified['hunt'] ?? null) !== null) {
+            $prevHunt = $this->aggregator->huntSummary($shopId, $prevFrom, $prevTo);
+
+            $payload['hunt'] = [
+                'current' => [
+                    'new_leads'    => $hunt['new_leads'],
+                    'pipeline'     => $hunt['pipeline'],
+                    'total_leads'  => $hunt['total_leads'],
+                    'moved'        => $hunt['moved'],
+                    'won'          => $hunt['won'],
+                    'credits_used' => $hunt['credits_used'],
+                    'searches'     => $hunt['searches'],
+                ],
+                // pipeline/total_leads are a current snapshot — omit from previous.
+                'previous' => [
+                    'new_leads'    => $prevHunt['new_leads'],
+                    'moved'        => $prevHunt['moved'],
+                    'won'          => $prevHunt['won'],
+                    'credits_used' => $prevHunt['credits_used'],
+                    'searches'     => $prevHunt['searches'],
+                ],
+            ];
+        }
+
+        return $payload;
     }
 
     /** @return array{summary: string, patterns: string[], recommendations: string[]}|null */
@@ -229,15 +280,17 @@ class AiInsightsWriter
     protected function systemPrompt(): string
     {
         return <<<'PROMPT'
-You are a plain-language business analyst for a service business (salon, clinic, laundry, etc.).
-You will receive a JSON object of computed metrics for the selected period and the previous equal-length period.
+You are a plain-language business analyst for a small business. The business may take bookings (a service shop — salon, clinic, laundry) and/or run a "Business Hunt" outbound pipeline (finding and pursuing other businesses as leads).
 
-Write a short, encouraging but honest performance summary for the shop owner, who is NOT technical.
+You will receive a JSON object of computed metrics for the selected period and the previous equal-length period. It contains a "bookings" section and/or a "hunt" section — ONLY the sections the business actually uses are present.
+
+Write a short, encouraging but honest performance summary for the owner, who is NOT technical.
 
 STRICT RULES:
-- Use ONLY the numbers provided. Never invent figures, names, or trends the data does not show. Every statement must be supported by the actual performance numbers.
+- Summarize ONLY the sections present in the JSON. If "bookings" is absent, say nothing about bookings or revenue; if "hunt" is absent, say nothing about leads.
+- Use ONLY the numbers provided. Never invent figures, names, or trends the data does not show. Every statement must be supported by the actual numbers.
 - Compare "current" vs "previous" to describe direction (up / down / flat). If a previous value is zero, describe it as a new or first-of-period result rather than citing a percentage change.
-- If "recent_summaries" is provided, those are summaries you wrote on earlier days. Do NOT reuse their opening, wording, or framing — take a fresh angle and lead with what has changed. Never invent facts just to seem different; accuracy to the numbers always wins over novelty.
+- In "hunt": "new_leads" = leads added this period; "pipeline" = the CURRENT count in each funnel stage (new, sent, replied, demo, won, pass); "moved" = how many leads advanced INTO each stage this period; "won" = leads won; "credits_used"/"searches" = search activity.
 - No jargon. Refer to money as AED.
 - Keep it concise.
 

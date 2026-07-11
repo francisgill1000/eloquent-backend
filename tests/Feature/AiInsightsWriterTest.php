@@ -156,4 +156,72 @@ class AiInsightsWriterTest extends TestCase
         $this->assertSame('low_data', $out['state']);
         Http::assertNothingSent();
     }
+
+    private function leadsShop(string $code = '7101'): Shop
+    {
+        return Shop::create([
+            'name' => 'Hunt Co', 'shop_code' => $code, 'pin' => '0000',
+            'status' => 'active', 'category_id' => 11, 'modules' => ['leads'],
+        ]);
+    }
+
+    /** Seed $count leads + a status_change activity each (counts as Hunt actions). */
+    private function seedHuntActivity(Shop $shop, int $count): void
+    {
+        for ($i = 0; $i < $count; $i++) {
+            $lead = \App\Models\Lead::create(['shop_id' => $shop->id, 'name' => "L{$i}", 'status' => 'sent']);
+            $lead->activities()->create(['type' => 'status_change', 'payload' => ['from' => 'new', 'to' => 'sent']]);
+        }
+    }
+
+    public function test_leads_shop_with_activity_generates_with_a_hunt_block(): void
+    {
+        $shop = $this->leadsShop();
+        $this->seedHuntActivity($shop, 6); // 6 new + 6 moves = 12 actions >= 5
+        $this->fakeClaude(['summary' => 'Pipeline is growing.', 'patterns' => ['a'], 'recommendations' => ['b']]);
+
+        $out = $this->writer()->summary($shop->id, now()->startOfMonth(), now()->endOfMonth());
+
+        $this->assertSame('ok', $out['state']);
+        // Check the actual user-message payload (not the raw body): the shared
+        // system prompt legitimately mentions both "bookings" and "hunt" by name,
+        // so asserting on the full body would false-negative on the system text.
+        Http::assertSent(function ($req) {
+            $content = $req['messages'][0]['content'] ?? '';
+            return str_contains($content, '"hunt"') && ! str_contains($content, '"bookings"');
+        });
+    }
+
+    public function test_leads_shop_without_activity_is_low_data_with_hunt_message(): void
+    {
+        $shop = $this->leadsShop('7102');
+        $this->seedHuntActivity($shop, 2); // 4 actions < 5
+        Http::fake();
+
+        $out = $this->writer()->summary($shop->id, now()->startOfMonth(), now()->endOfMonth());
+
+        $this->assertSame('low_data', $out['state']);
+        $this->assertStringContainsStringIgnoringCase('hunt', $out['message']);
+        Http::assertNothingSent();
+    }
+
+    public function test_mixed_shop_clearing_both_gates_sends_both_blocks(): void
+    {
+        $shop = Shop::create([
+            'name' => 'Both', 'shop_code' => '7103', 'pin' => '0000',
+            'status' => 'active', 'category_id' => 11, 'modules' => ['bookings', 'leads'],
+        ]);
+        $this->seedBookings($shop, 6);
+        $this->seedHuntActivity($shop, 6);
+        $this->fakeClaude(['summary' => 'Both sides healthy.', 'patterns' => ['a'], 'recommendations' => ['b']]);
+
+        $out = $this->writer()->summary($shop->id, now()->startOfMonth(), now()->endOfMonth());
+
+        $this->assertSame('ok', $out['state']);
+        // See note above: check the payload content, not the raw body.
+        Http::assertSent(function ($req) {
+            $content = $req['messages'][0]['content'] ?? '';
+            return str_contains($content, '"bookings"') && str_contains($content, '"hunt"');
+        });
+    }
 }
