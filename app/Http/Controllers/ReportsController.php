@@ -48,8 +48,44 @@ class ReportsController extends Controller
 
     public function aiSummary(Request $request, AiInsightsWriter $writer)
     {
+        $request->validate(['period' => 'sometimes|in:rolling30,week,month,custom']);
         [$shopId, $from, $to] = $this->validated($request);
-        return response()->json($writer->summary($shopId, $from, $to, $request->boolean('refresh')));
+        $period = $request->input('period', 'custom');
+
+        return response()->json($writer->summary($shopId, $from, $to, $request->boolean('refresh'), $period));
+    }
+
+    public function aiSummaryHistory(Request $request)
+    {
+        $request->validate([
+            'shop_id'     => 'required|exists:shops,id',
+            'period_type' => 'required|in:rolling30,week,month,custom',
+            'limit'       => 'sometimes|integer|min:1|max:60',
+            'page'        => 'sometimes|integer|min:1',
+        ]);
+
+        $limit = (int) $request->input('limit', 12);
+        $page  = (int) $request->input('page', 1);
+
+        $rows = \App\Models\AiSummary::where('shop_id', (int) $request->shop_id)
+            ->where('period_type', $request->period_type)
+            ->orderByDesc('period_from')->orderByDesc('id')
+            ->offset(($page - 1) * $limit)->limit($limit + 1)
+            ->get(['period_from', 'period_to', 'summary', 'patterns', 'recommendations', 'updated_at']);
+
+        $hasMore = $rows->count() > $limit;
+
+        return response()->json([
+            'data' => $rows->take($limit)->map(fn ($r) => [
+                'period_from'     => $r->period_from->toDateString(),
+                'period_to'       => $r->period_to->toDateString(),
+                'summary'         => $r->summary,
+                'patterns'        => $r->patterns,
+                'recommendations' => $r->recommendations,
+                'generated_at'    => optional($r->updated_at)->toIso8601String(),
+            ])->values(),
+            'has_more' => $hasMore,
+        ]);
     }
 
     public function export(Request $request)
