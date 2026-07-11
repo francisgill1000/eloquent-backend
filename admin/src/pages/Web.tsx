@@ -215,6 +215,33 @@ body{
   html{scroll-behavior:auto}
   .lp-scope .answer .line{opacity:1;transform:none}
 }
+
+/* ---- Premium motion, /web only (activated by the .lp-motion class the
+   component adds when variant=brand and motion is allowed). ---- */
+.lp-scope .lp-aurora{display:none}
+.lp-scope.lp-motion{position:relative}
+.lp-scope.lp-motion > main,.lp-scope.lp-motion > footer{position:relative;z-index:1}
+.lp-scope.lp-motion .lp-aurora{display:block;position:absolute;top:0;left:0;right:0;height:82vh;z-index:0;pointer-events:none;
+  background:radial-gradient(45% 55% at 28% 16%,rgba(0,255,204,0.10),transparent 70%),
+             radial-gradient(42% 52% at 80% 6%,rgba(0,190,255,0.055),transparent 72%);
+  filter:blur(38px);animation:lpAurora 20s ease-in-out infinite alternate}
+@keyframes lpAurora{0%{transform:translate3d(-4%,0,0) scale(1)}100%{transform:translate3d(6%,3%,0) scale(1.14)}}
+
+.lp-scope.lp-motion .reveal{opacity:0;transform:translateY(28px);
+  transition:opacity .75s cubic-bezier(.2,.7,.2,1),transform .75s cubic-bezier(.2,.7,.2,1)}
+.lp-scope.lp-motion .reveal.in{opacity:1;transform:none}
+
+.lp-scope.lp-motion .hero-slider .demo,
+.lp-scope.lp-motion .hero-slider .hero-grid > div:not(.demo){transition:transform .3s cubic-bezier(.2,.7,.2,1);will-change:transform}
+
+.lp-scope.lp-motion #products .prop{position:relative;overflow:hidden;transform-style:preserve-3d;
+  transition:transform .3s cubic-bezier(.2,.7,.2,1),border-color .25s ease,opacity .75s cubic-bezier(.2,.7,.2,1)}
+.lp-scope.lp-motion #products .prop::after{content:"";position:absolute;inset:0;z-index:0;border-radius:inherit;pointer-events:none;opacity:0;
+  transition:opacity .3s ease;background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%),rgba(0,255,204,0.14),transparent 60%)}
+.lp-scope.lp-motion #products .prop > *{position:relative;z-index:1}
+.lp-scope.lp-motion #products .prop:hover{border-color:var(--border-mint)}
+.lp-scope.lp-motion #products .prop:hover::after{opacity:1}
+@media(hover:none){.lp-scope.lp-motion #products .prop{transform:none!important}}
 `;
 
 type Variant = 'brand' | 'lens' | 'hunt';
@@ -616,7 +643,8 @@ const buildHtml = (v: Variant) => {
     v === 'lens' ? `${HERO_LENS}${SECTIONS_LENS}`
     : v === 'hunt' ? `${HERO_HUNT}${SECTIONS_HUNT}`
     : `${SLIDER}${SECTIONS_BRAND}`;
-  return `${navHtml(BRAND[v], v)}\n<main>${body}</main>\n${footerHtml(FOOT[v])}`;
+  const aurora = v === 'brand' ? '<div class="lp-aurora" aria-hidden="true"></div>\n' : '';
+  return `${navHtml(BRAND[v], v)}\n${aurora}<main>${body}</main>\n${footerHtml(FOOT[v])}`;
 };
 
 export default function Web({ variant = 'brand' }: { variant?: Variant }) {
@@ -820,6 +848,87 @@ export default function Web({ variant = 'brand' }: { variant?: Variant }) {
         a.href = u.toString();
       } catch { /* ignore malformed hrefs */ }
     });
+  }, [variant]);
+
+  // Premium motion — /web brand page only. Scroll-reveal, hero mouse-parallax,
+  // cursor-glow + tilt on the product cards, aurora background. All gated by the
+  // .lp-motion class so reduced-motion users and the ad pages get static output.
+  useEffect(() => {
+    if (variant !== 'brand') return;
+    const root = hostRef.current;
+    if (!root) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !('IntersectionObserver' in window)) return;
+    const fine = window.matchMedia('(pointer: fine)').matches;
+
+    root.classList.add('lp-motion');
+    const cleanups: Array<() => void> = [];
+
+    // 1) Scroll-reveal (below-the-fold sections fade + rise in).
+    const targets = Array.from(root.querySelectorAll<HTMLElement>('#products .sec-head, #products .prop, .cta-band'));
+    targets.forEach((el) => el.classList.add('reveal'));
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.16, rootMargin: '0px 0px -8% 0px' });
+    targets.forEach((el) => io.observe(el));
+    cleanups.push(() => io.disconnect());
+
+    // 2) Hero mouse-parallax (demo panel and text drift on opposite axes).
+    const heroWrap = root.querySelector<HTMLElement>('.hero-slider');
+    if (heroWrap && fine) {
+      const demos = Array.from(root.querySelectorAll<HTMLElement>('.hero-slider .demo'));
+      const texts = Array.from(root.querySelectorAll<HTMLElement>('.hero-slider .hero-grid > div:not(.demo)'));
+      let raf = 0;
+      const onMove = (e: MouseEvent) => {
+        const px = e.clientX / window.innerWidth - 0.5;
+        const py = e.clientY / window.innerHeight - 0.5;
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => {
+          demos.forEach((d) => { d.style.transform = `translate3d(${px * 18}px, ${py * 16}px, 0)`; });
+          texts.forEach((t) => { t.style.transform = `translate3d(${px * -7}px, ${py * -6}px, 0)`; });
+        });
+      };
+      const onLeave = () => {
+        cancelAnimationFrame(raf);
+        [...demos, ...texts].forEach((el) => { el.style.transform = ''; });
+      };
+      heroWrap.addEventListener('mousemove', onMove);
+      heroWrap.addEventListener('mouseleave', onLeave);
+      cleanups.push(() => {
+        heroWrap.removeEventListener('mousemove', onMove);
+        heroWrap.removeEventListener('mouseleave', onLeave);
+        cancelAnimationFrame(raf);
+      });
+    }
+
+    // 3) Cursor-glow + tilt on the two product cards.
+    if (fine) {
+      Array.from(root.querySelectorAll<HTMLElement>('#products .prop')).forEach((card) => {
+        const onMove = (e: MouseEvent) => {
+          const r = card.getBoundingClientRect();
+          const x = (e.clientX - r.left) / r.width;
+          const y = (e.clientY - r.top) / r.height;
+          card.style.setProperty('--mx', `${x * 100}%`);
+          card.style.setProperty('--my', `${y * 100}%`);
+          card.style.transform = `perspective(820px) rotateY(${(x - 0.5) * 6}deg) rotateX(${(0.5 - y) * 6}deg) translateY(-3px)`;
+        };
+        const onLeave = () => { card.style.transform = ''; };
+        card.addEventListener('mousemove', onMove);
+        card.addEventListener('mouseleave', onLeave);
+        cleanups.push(() => {
+          card.removeEventListener('mousemove', onMove);
+          card.removeEventListener('mouseleave', onLeave);
+        });
+      });
+    }
+
+    return () => {
+      cleanups.forEach((fn) => fn());
+      root.querySelectorAll<HTMLElement>('.hero-slider .demo, .hero-slider .hero-grid > div, #products .prop').forEach((el) => { el.style.transform = ''; });
+      root.classList.remove('lp-motion');
+    };
   }, [variant]);
 
   return <div className="lp-scope" ref={hostRef} dangerouslySetInnerHTML={{ __html: html }} />;
