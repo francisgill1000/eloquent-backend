@@ -92,7 +92,12 @@ return [
         'webhook_secret' => env('ZIINA_WEBHOOK_SECRET'),
         'base_url'       => env('ZIINA_BASE_URL', 'https://api-v2.ziina.com/api'),
         // true → test transactions, no real charge. Flip to false to go live.
+        // Applies to subscription + booking payments.
         'test'           => env('ZIINA_TEST', true),
+        // Business Hunt credit packs have their OWN sandbox toggle so they can
+        // stay in test mode (no real money) while subscriptions are already live.
+        // Defaults to true (sandbox); set ZIINA_HUNT_TEST=false to charge for real.
+        'hunt_test'      => env('ZIINA_HUNT_TEST', true),
         // Where Ziina sends customers back; falls back to APP_URL when unset.
         'return_base'    => env('ZIINA_RETURN_BASE', env('CUSTOMER_APP_URL')),
         // Subscription payments return to the ADMIN app (not the customer app).

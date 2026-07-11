@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CreditPack;
+use App\Models\CreditPurchase;
 use App\Models\Lead;
 use App\Models\LeadActivity;
 use App\Models\Shop;
@@ -12,7 +13,9 @@ use App\Services\Leads\AdLibraryService;
 use App\Services\Leads\LeadSearchService;
 use App\Services\Leads\OutreachWriter;
 use App\Services\Leads\SearchInterpreter;
+use App\Services\Ziina;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
@@ -50,12 +53,14 @@ class LeadController extends Controller
 
     /**
      * POST /shop/leads/purchase {pack_id}
-     * SIMULATED self-serve top-up — no real payment is taken. Only shops the
-     * master has flagged (hunt_self_serve) or the master account itself may do
-     * this; everyone else gets 403 and the UI falls back to the WhatsApp prompt.
-     * The grant is tagged simulated:true so real purchases stay distinguishable.
+     * Start a Ziina checkout for a credit pack. Records a 'pending' purchase and
+     * returns the hosted-page redirect_url; the credits are granted by the Ziina
+     * webhook once payment completes (see ZiinaWebhookController). Runs in Ziina
+     * TEST mode until real payments are switched on, so no real money moves.
+     * Only shops the master flagged (hunt_self_serve) or the master account may
+     * do this; everyone else gets 403 and the UI shows the WhatsApp prompt.
      */
-    public function purchase(Request $request)
+    public function purchase(Request $request, Ziina $ziina)
     {
         $shop = $this->shop($request);
 
@@ -70,17 +75,29 @@ class LeadController extends Controller
             return response()->json(['error' => 'pack_not_found'], 404);
         }
 
-        $tx = $this->credits->grant($shop, $pack->credits, 'purchase', [
+        // Snapshot credits/amount so a later pack edit can't change this order.
+        $purchase = CreditPurchase::create([
+            'shop_id' => $shop->id,
             'pack_id' => $pack->id,
-            'pack_name' => $pack->name,
-            'price_fils' => $pack->price_fils,
-            'simulated' => true,
+            'credits' => $pack->credits,
+            'amount_fils' => $pack->price_fils,
+            'ziina_operation_id' => (string) Str::uuid(),
+            'status' => 'pending',
         ]);
 
+        $base = rtrim((string) config('services.ziina.admin_return_base'), '/');
+        $return = "{$base}/leads";
+        $intent = $ziina->createCreditPackIntent($shop, $pack, [
+            'success_url' => "{$return}?pay=success",
+            'cancel_url'  => "{$return}?pay=cancel",
+            'failure_url' => "{$return}?pay=failed",
+        ]);
+
+        $purchase->update(['ziina_intent_id' => $intent['id'] ?? null]);
+
         return response()->json([
-            'ok' => true,
-            'credits' => $tx->balance_after,
-            'granted' => $pack->credits,
+            'redirect_url' => $intent['redirect_url'] ?? null,
+            'intent_id' => $intent['id'] ?? null,
         ]);
     }
 

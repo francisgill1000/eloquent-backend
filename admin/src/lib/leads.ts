@@ -60,11 +60,12 @@ export async function getLeadCredits(): Promise<{ credits: number; can_purchase:
   };
 }
 
-/** Simulated self-serve pack purchase (no real payment). Returns the new balance.
- *  403 if the shop isn't allowed to self-serve. */
-export async function purchasePack(packId: number): Promise<{ credits: number; granted: number }> {
+/** Start a Ziina checkout for a pack (sandbox until real payments are live).
+ *  Returns the hosted-page redirect_url to send the shop to; the webhook grants
+ *  the credits once payment completes. 403 if the shop isn't allowed to buy. */
+export async function startPackCheckout(packId: number): Promise<{ redirect_url: string | null; intent_id: string | null }> {
   const { data } = await api.post('/shop/leads/purchase', { pack_id: packId });
-  return { credits: Number(data?.credits ?? 0), granted: Number(data?.granted ?? 0) };
+  return { redirect_url: data?.redirect_url ?? null, intent_id: data?.intent_id ?? null };
 }
 
 /**

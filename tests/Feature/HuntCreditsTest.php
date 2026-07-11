@@ -8,6 +8,8 @@ use App\Models\ShopUser;
 use App\Services\Credits\HuntCreditService;
 use App\Services\Leads\Contracts\LeadSourceInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class HuntCreditsTest extends TestCase
@@ -206,15 +208,34 @@ class HuntCreditsTest extends TestCase
         $this->auth($token)->getJson('/api/master/credit-packs')->assertStatus(403);
     }
 
-    // ---- Self-serve (simulated) pack purchase ----
+    // ---- Self-serve purchase via Ziina checkout (sandbox) ----
 
     private function starterPackId(): int
     {
         return CreditPack::where('name', 'Starter')->value('id');
     }
 
-    public function test_flagged_shop_can_self_serve_purchase(): void
+    /** Fake Ziina's hosted-page API so no real HTTP/payment happens. */
+    private function fakeZiina(string $intentId = 'pi_hunt'): void
     {
+        Http::fake([
+            '*/payment_intent' => Http::response(
+                ['id' => $intentId, 'redirect_url' => "https://pay.ziina/{$intentId}", 'status' => 'pending'], 200),
+        ]);
+        config([
+            'services.ziina.api_key' => 'test',
+            'services.ziina.base_url' => 'https://api.ziina/api',
+            'services.ziina.admin_return_base' => 'https://admin.test',
+            'services.ziina.webhook_secret' => null,
+            // Global flag LIVE — proves credit packs still go sandbox independently.
+            'services.ziina.test' => false,
+            'services.ziina.hunt_test' => true,
+        ]);
+    }
+
+    public function test_flagged_shop_checkout_creates_pending_purchase_and_returns_redirect(): void
+    {
+        $this->fakeZiina('pi_hunt1');
         [$shop, $token] = $this->huntShop('820111');
         $shop->update(['hunt_self_serve' => true]);
         $pack = $this->starterPackId();
@@ -222,19 +243,67 @@ class HuntCreditsTest extends TestCase
         $this->auth($token)
             ->postJson('/api/shop/leads/purchase', ['pack_id' => $pack])
             ->assertOk()
-            ->assertJson(['ok' => true, 'credits' => 200, 'granted' => 200]);
+            ->assertJson(['redirect_url' => 'https://pay.ziina/pi_hunt1', 'intent_id' => 'pi_hunt1']);
 
-        $this->assertSame(200, app(HuntCreditService::class)->balance($shop->fresh()));
-        $this->assertDatabaseHas('hunt_credit_transactions', [
-            'shop_id' => $shop->id, 'amount' => 200, 'reason' => 'purchase',
+        // A pending order is recorded; credits are NOT granted until the webhook.
+        $this->assertDatabaseHas('credit_purchases', [
+            'shop_id' => $shop->id, 'pack_id' => $pack, 'credits' => 200, 'amount_fils' => 19900,
+            'ziina_intent_id' => 'pi_hunt1', 'status' => 'pending',
         ]);
-        // Simulated flag recorded so real purchases stay distinguishable later.
-        $tx = \App\Models\HuntCreditTransaction::where('shop_id', $shop->id)->where('reason', 'purchase')->first();
-        $this->assertTrue($tx->meta['simulated']);
-        $this->assertSame($pack, $tx->meta['pack_id']);
+        $this->assertSame(0, app(HuntCreditService::class)->balance($shop->fresh()));
+        // Amount is sent to Ziina in fils, and credit packs go to Ziina in TEST
+        // mode (no real money) regardless of the global live subscription toggle.
+        Http::assertSent(fn ($r) => $r->url() === 'https://api.ziina/api/payment_intent'
+            && $r['amount'] === 19900 && $r['currency_code'] === 'AED' && $r['test'] === true);
     }
 
-    public function test_unflagged_shop_cannot_purchase(): void
+    public function test_webhook_completes_purchase_and_grants_credits_once(): void
+    {
+        config(['services.ziina.webhook_secret' => null]);
+        [$shop] = $this->huntShop('820112b');
+        $purchase = \App\Models\CreditPurchase::create([
+            'shop_id' => $shop->id, 'pack_id' => $this->starterPackId(),
+            'credits' => 200, 'amount_fils' => 19900,
+            'ziina_operation_id' => Str::uuid(), 'ziina_intent_id' => 'pi_done', 'status' => 'pending',
+        ]);
+
+        $event = [
+            'event' => 'payment_intent.status.updated',
+            'data' => ['id' => 'pi_done', 'status' => 'completed'],
+        ];
+        $this->postJson('/api/ziina/webhook', $event)->assertOk();
+
+        $this->assertSame('paid', $purchase->fresh()->status);
+        $this->assertSame(200, app(HuntCreditService::class)->balance($shop->fresh()));
+        $tx = \App\Models\HuntCreditTransaction::where('shop_id', $shop->id)->where('reason', 'purchase')->first();
+        $this->assertFalse($tx->meta['simulated']);
+        $this->assertSame('ziina', $tx->meta['via']);
+
+        // Ziina retries webhooks — a second delivery must NOT double-grant.
+        $this->postJson('/api/ziina/webhook', $event)->assertOk();
+        $this->assertSame(200, app(HuntCreditService::class)->balance($shop->fresh()));
+        $this->assertSame(1, \App\Models\HuntCreditTransaction::where('shop_id', $shop->id)->where('reason', 'purchase')->count());
+    }
+
+    public function test_webhook_ignores_non_completed_status(): void
+    {
+        config(['services.ziina.webhook_secret' => null]);
+        [$shop] = $this->huntShop('820112c');
+        \App\Models\CreditPurchase::create([
+            'shop_id' => $shop->id, 'pack_id' => $this->starterPackId(),
+            'credits' => 200, 'amount_fils' => 19900,
+            'ziina_operation_id' => Str::uuid(), 'ziina_intent_id' => 'pi_pending', 'status' => 'pending',
+        ]);
+
+        $this->postJson('/api/ziina/webhook', [
+            'event' => 'payment_intent.status.updated',
+            'data' => ['id' => 'pi_pending', 'status' => 'requires_payment_instrument'],
+        ])->assertOk();
+
+        $this->assertSame(0, app(HuntCreditService::class)->balance($shop->fresh()));
+    }
+
+    public function test_unflagged_shop_cannot_start_checkout(): void
     {
         [$shop, $token] = $this->huntShop('820112'); // flag off by default
 
@@ -243,21 +312,21 @@ class HuntCreditsTest extends TestCase
             ->assertStatus(403)
             ->assertJsonPath('error', 'self_serve_disabled');
 
-        $this->assertSame(0, app(HuntCreditService::class)->balance($shop->fresh()));
-        $this->assertDatabaseCount('hunt_credit_transactions', 0);
+        $this->assertDatabaseCount('credit_purchases', 0);
     }
 
-    public function test_master_can_always_purchase(): void
+    public function test_master_can_start_checkout(): void
     {
+        $this->fakeZiina('pi_master');
         $m = $this->master();
 
         $this->actingAs($m)
             ->postJson('/api/shop/leads/purchase', ['pack_id' => $this->starterPackId()])
             ->assertOk()
-            ->assertJson(['ok' => true, 'granted' => 200]);
+            ->assertJsonPath('intent_id', 'pi_master');
     }
 
-    public function test_purchase_unknown_or_inactive_pack_is_404(): void
+    public function test_checkout_unknown_or_inactive_pack_is_404(): void
     {
         [$shop, $token] = $this->huntShop('820113');
         $shop->update(['hunt_self_serve' => true]);

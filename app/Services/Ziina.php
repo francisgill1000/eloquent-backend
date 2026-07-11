@@ -68,16 +68,39 @@ class Ziina
     }
 
     /**
-     * Shared POST to Ziina's /payment_intent. Amount is already in fils.
+     * Create a payment intent for a Business Hunt credit pack. Amount comes from
+     * the pack's price_fils. `test` mode (ZIINA_TEST) controls sandbox vs live —
+     * kept true until real payments are switched on.
+     *
+     * @param array{success_url:string,cancel_url:string,failure_url:string} $urls
+     * @return array Ziina response (includes `id`, `redirect_url`, `status`).
+     */
+    public function createCreditPackIntent(\App\Models\Shop $shop, \App\Models\CreditPack $pack, array $urls): array
+    {
+        // Keep the message short (Ziina's MESSAGE_LENGTH_INVALID). Hunt packs use
+        // their OWN sandbox toggle (default true) so they stay test-mode while
+        // subscriptions are already live — no real money until ZIINA_HUNT_TEST=false.
+        return $this->postIntent(
+            (int) $pack->price_fils,
+            (string) Str::uuid(),
+            "Business Hunt {$pack->credits} credits",
+            $urls,
+            (bool) config('services.ziina.hunt_test', true),
+        );
+    }
+
+    /**
+     * Shared POST to Ziina's /payment_intent. Amount is already in fils. Pass
+     * $test to override the global sandbox flag (used by credit packs).
      *
      * @param array{success_url:string,cancel_url:string,failure_url:string} $urls
      */
-    private function postIntent(int $amountFils, string $operationId, string $message, array $urls): array
+    private function postIntent(int $amountFils, string $operationId, string $message, array $urls, ?bool $test = null): array
     {
         $response = $this->client()->post('/payment_intent', [
             'amount'        => $amountFils,
             'currency_code' => 'AED',
-            'test'          => (bool) config('services.ziina.test'),
+            'test'          => $test ?? (bool) config('services.ziina.test'),
             'message'       => $message,
             'operation_id'  => $operationId,
             'success_url'   => $urls['success_url'],
