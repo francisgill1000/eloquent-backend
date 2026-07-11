@@ -37,37 +37,6 @@ class OutreachEndpointsTest extends TestCase
         $this->app->instance(ClaudeClient::class, $fake);
     }
 
-    private function failingClaude(): void
-    {
-        $fake = new class extends ClaudeClient {
-            public function reply(string $system, array $history): string
-            {
-                throw new \RuntimeException('claude down');
-            }
-        };
-        $this->app->instance(ClaudeClient::class, $fake);
-    }
-
-    public function test_generate_returns_templates(): void
-    {
-        [, $token] = $this->actingShop();
-        $this->fakeClaude('{"opening":"Hi {name}","followup":"Ping {name}"}');
-
-        $this->auth($token)->postJson('/api/shop/lead-messages/generate')
-            ->assertOk()
-            ->assertJson(['opening' => 'Hi {name}', 'followup' => 'Ping {name}']);
-    }
-
-    public function test_generate_returns_502_on_ai_failure(): void
-    {
-        [, $token] = $this->actingShop();
-        $this->failingClaude();
-
-        $this->auth($token)->postJson('/api/shop/lead-messages/generate')
-            ->assertStatus(502)
-            ->assertJsonPath('message', 'Could not generate right now. Please try again.');
-    }
-
     public function test_personalize_returns_message_for_lead(): void
     {
         [$shop, $token] = $this->actingShop();

@@ -29,38 +29,6 @@ class OutreachWriterTest extends TestCase
         return $fake;
     }
 
-    public function test_templates_for_shop_parses_json_and_keeps_placeholders(): void
-    {
-        $this->fakeClaude('{"opening":"Hi {name}, from {shop}","followup":"Following up, {name}"}');
-        $shop = Shop::factory()->create(['name' => 'Marina Spa']);
-
-        $out = app(OutreachWriter::class)->templatesForShop($shop);
-
-        $this->assertSame('Hi {name}, from {shop}', $out['opening']);
-        $this->assertSame('Following up, {name}', $out['followup']);
-    }
-
-    public function test_templates_for_shop_tolerates_json_wrapped_in_prose(): void
-    {
-        // Model sometimes adds a sentence around the JSON — we extract the object.
-        $this->fakeClaude('Sure! {"opening":"Hi {name}","followup":"Ping {name}"} Hope that helps.');
-        $shop = Shop::factory()->create(['name' => 'Acme']);
-
-        $out = app(OutreachWriter::class)->templatesForShop($shop);
-
-        $this->assertSame('Hi {name}', $out['opening']);
-        $this->assertSame('Ping {name}', $out['followup']);
-    }
-
-    public function test_templates_for_shop_throws_on_unparseable_reply(): void
-    {
-        $this->fakeClaude('no json here');
-        $shop = Shop::factory()->create();
-
-        $this->expectException(\RuntimeException::class);
-        app(OutreachWriter::class)->templatesForShop($shop);
-    }
-
     public function test_personalize_for_lead_returns_message_and_includes_lead_in_prompt(): void
     {
         $fake = $this->fakeClaude('Hi Pak Cargo, saw you ship across Dubai — quick demo?');

@@ -9,11 +9,8 @@ use App\Services\Wa\ClaudeClient;
 /**
  * Writes WhatsApp cold-outreach copy for a shop's leads using Claude.
  *
- * Two modes:
- *  - templatesForShop(): a reusable opening + follow-up TEMPLATE (keeps the
- *    literal {name}/{category}/{area} placeholders, signs as {shop}).
- *  - personalizeForLead(): one ready-to-send message for a specific lead
- *    (real values, no placeholders).
+ * personalizeForLead(): one ready-to-send message for a specific lead (real
+ * values, no placeholders).
  *
  * The model, key, retries and error handling all live in ClaudeClient.
  */
@@ -21,30 +18,6 @@ class OutreachWriter
 {
     public function __construct(private ClaudeClient $claude)
     {
-    }
-
-    /** @return array{opening: string, followup: string} */
-    public function templatesForShop(Shop $shop): array
-    {
-        $system = $this->rules()
-            . "\n\n" . $this->shopProfile($shop)
-            . "\n\nWrite a reusable OPENING and FOLLOW-UP template this shop can send to any prospect it finds."
-            . " Keep these literal placeholders in the text so they fill per-lead: {name} (the prospect's business name),"
-            . " {category} (the prospect's industry), {area} (the prospect's location). Sign as {shop} where natural."
-            . "\n\nReturn ONLY a JSON object, no prose, exactly: {\"opening\": \"...\", \"followup\": \"...\"}";
-
-        $raw = $this->claude->reply($system, [
-            ['role' => 'user', 'content' => 'Write the opening and follow-up templates.'],
-        ]);
-
-        $json = $this->extractJson($raw);
-        $opening = trim((string) ($json['opening'] ?? ''));
-        $followup = trim((string) ($json['followup'] ?? ''));
-        if ($opening === '' || $followup === '') {
-            throw new \RuntimeException('OutreachWriter: model returned no usable templates.');
-        }
-
-        return ['opening' => $opening, 'followup' => $followup];
     }
 
     public function personalizeForLead(Shop $shop, Lead $lead, string $kind): string
@@ -118,20 +91,5 @@ class OutreachWriter
         }
 
         return implode("\n", $lines);
-    }
-
-    /** Pull the first JSON object out of a model reply that may include prose. */
-    private function extractJson(string $raw): array
-    {
-        $start = strpos($raw, '{');
-        $end = strrpos($raw, '}');
-        if ($start === false || $end === false || $end < $start) {
-            throw new \RuntimeException('OutreachWriter: no JSON object in model reply.');
-        }
-        $decoded = json_decode(substr($raw, $start, $end - $start + 1), true);
-        if (! is_array($decoded)) {
-            throw new \RuntimeException('OutreachWriter: could not parse model JSON.');
-        }
-        return $decoded;
     }
 }

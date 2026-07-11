@@ -228,9 +228,6 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'module:leads'])->group(funct
     Route::patch ('/shop/leads/{lead}/status',    [\App\Http\Controllers\LeadController::class, 'updateStatus']);
     Route::post  ('/shop/leads/{lead}/followup',  [\App\Http\Controllers\LeadController::class, 'logFollowup']);
     Route::post  ('/shop/leads/{lead}/personalize', [\App\Http\Controllers\LeadController::class, 'personalize']);
-    Route::get   ('/shop/lead-messages',          [\App\Http\Controllers\LeadMessageController::class, 'show']);
-    Route::put   ('/shop/lead-messages',          [\App\Http\Controllers\LeadMessageController::class, 'update']);
-    Route::post  ('/shop/lead-messages/generate', [\App\Http\Controllers\LeadMessageController::class, 'generate']);
 });
 
 // Signed (not token-authed) so an <audio> element can load it directly; the
