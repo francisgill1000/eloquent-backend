@@ -98,6 +98,10 @@ return [
         // stay in test mode (no real money) while subscriptions are already live.
         // Defaults to true (sandbox); set ZIINA_HUNT_TEST=false to charge for real.
         'hunt_test'      => env('ZIINA_HUNT_TEST', true),
+        // Use Ziina's inline embedded (iframe) checkout for Hunt packs instead of
+        // the hosted-page redirect. OFF until Ziina whitelists the admin domain
+        // (their support must approve it); flip ZIINA_HUNT_EMBEDDED=true then.
+        'hunt_embedded'  => env('ZIINA_HUNT_EMBEDDED', false),
         // Where Ziina sends customers back; falls back to APP_URL when unset.
         'return_base'    => env('ZIINA_RETURN_BASE', env('CUSTOMER_APP_URL')),
         // Subscription payments return to the ADMIN app (not the customer app).

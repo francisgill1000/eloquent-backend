@@ -45,6 +45,8 @@ class LeadController extends Controller
         return response()->json([
             'credits' => $this->credits->balance($shop),
             'can_purchase' => $this->canPurchase($shop),
+            // Client uses inline iframe checkout when true, else redirect.
+            'embedded_checkout' => (bool) config('services.ziina.hunt_embedded', false),
             'packs' => CreditPack::where('active', true)
                 ->orderBy('sort')->orderBy('price_fils')
                 ->get(['id', 'name', 'credits', 'price_fils']),
@@ -97,6 +99,9 @@ class LeadController extends Controller
 
         return response()->json([
             'redirect_url' => $intent['redirect_url'] ?? null,
+            // For inline (iframe) checkout — the client renders this when embedded
+            // mode is on; otherwise it redirects to redirect_url.
+            'embedded_url' => $intent['embedded_url'] ?? null,
             'intent_id' => $intent['id'] ?? null,
         ]);
     }

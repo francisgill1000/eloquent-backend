@@ -51,21 +51,27 @@ export class InsufficientCreditsError extends Error {
 
 /** The shop's Business Hunt credit balance, whether it may self-serve buy, and
  *  the packs it can top up with. */
-export async function getLeadCredits(): Promise<{ credits: number; can_purchase: boolean; packs: CreditPack[] }> {
+export async function getLeadCredits(): Promise<{ credits: number; can_purchase: boolean; embedded_checkout: boolean; packs: CreditPack[] }> {
   const { data } = await api.get('/shop/leads/credits');
   return {
     credits: Number(data?.credits ?? 0),
     can_purchase: Boolean(data?.can_purchase),
+    embedded_checkout: Boolean(data?.embedded_checkout),
     packs: Array.isArray(data?.packs) ? data.packs : [],
   };
 }
 
-/** Start a Ziina checkout for a pack (sandbox until real payments are live).
- *  Returns the hosted-page redirect_url to send the shop to; the webhook grants
- *  the credits once payment completes. 403 if the shop isn't allowed to buy. */
-export async function startPackCheckout(packId: number): Promise<{ redirect_url: string | null; intent_id: string | null }> {
+/** Start a Ziina checkout for a pack. Returns both the hosted-page redirect_url
+ *  and the embedded_url (inline iframe); the client uses one based on the
+ *  embedded_checkout flag. The webhook grants the credits once payment completes.
+ *  403 if the shop isn't allowed to buy. */
+export async function startPackCheckout(packId: number): Promise<{ redirect_url: string | null; embedded_url: string | null; intent_id: string | null }> {
   const { data } = await api.post('/shop/leads/purchase', { pack_id: packId });
-  return { redirect_url: data?.redirect_url ?? null, intent_id: data?.intent_id ?? null };
+  return {
+    redirect_url: data?.redirect_url ?? null,
+    embedded_url: data?.embedded_url ?? null,
+    intent_id: data?.intent_id ?? null,
+  };
 }
 
 /**

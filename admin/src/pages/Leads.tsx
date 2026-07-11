@@ -131,8 +131,11 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   // Current Hunt credit balance + packs, for the balance chip and top-up prompt.
   const [balance, setBalance] = useState<number | null>(null);
   const [packs, setPacks] = useState<CreditPack[]>([]);
-  // Whether this shop may buy packs in-app (simulated), and the id being bought.
+  // Whether this shop may buy packs in-app, the id being bought, and — when
+  // embedded checkout is on — the Ziina iframe URL to show in the modal.
   const [canPurchase, setCanPurchase] = useState(false);
+  const [embeddedCheckout, setEmbeddedCheckout] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [buyingId, setBuyingId] = useState<number | null>(null);
   const [buyMsg, setBuyMsg] = useState('');
   // Background enrichment (the slow "advertising" source) runs after the fast
@@ -155,7 +158,10 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
   const loadCredits = useCallback(() => {
     getLeadCredits()
-      .then((c) => { setBalance(c.credits); setPacks(c.packs); setCanPurchase(c.can_purchase); })
+      .then((c) => {
+        setBalance(c.credits); setPacks(c.packs);
+        setCanPurchase(c.can_purchase); setEmbeddedCheckout(c.embedded_checkout);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -182,11 +188,17 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
     window.history.replaceState({}, '', window.location.pathname);
   }, [loadCredits]);
 
-  // Send the shop to Ziina's hosted checkout for a pack (sandbox for now).
+  // Start checkout for a pack: inline Ziina iframe when embedded mode is on,
+  // otherwise a full-page redirect to Ziina's hosted page.
   const buyPack = async (pack: CreditPack) => {
     setBuyingId(pack.id); setBuyMsg('');
     try {
-      const { redirect_url } = await startPackCheckout(pack.id);
+      const { redirect_url, embedded_url } = await startPackCheckout(pack.id);
+      if (embeddedCheckout && embedded_url) {
+        setBlocked(null);
+        setCheckoutUrl(`${embedded_url}${embedded_url.includes('?') ? '&' : '?'}version=latest`);
+        return;
+      }
       if (redirect_url) { window.location.href = redirect_url; return; }
       setBuyMsg('Could not start checkout. Please try again.');
     } catch {
@@ -195,6 +207,32 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
       setBuyingId(null);
     }
   };
+
+  // Inline-checkout result: Ziina's iframe posts ZIINA_PAYMENT_STATUS_CHANGE.
+  // Only trust messages from pay.ziina.com. The webhook is still the source of
+  // truth for the grant; on COMPLETED we just close + refresh the balance.
+  useEffect(() => {
+    if (!checkoutUrl) return;
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== 'https://pay.ziina.com') return;
+      const data = (e.data ?? {}) as { type?: string; status?: string };
+      if (data.type !== 'ZIINA_PAYMENT_STATUS_CHANGE') return;
+      if (data.status === 'COMPLETED') {
+        setCheckoutUrl(null);
+        setBuyMsg('Payment received — updating your balance…');
+        loadCredits();
+        window.setTimeout(loadCredits, 3000);
+      } else if (data.status === 'FAILED') {
+        setCheckoutUrl(null);
+        setBuyMsg('Payment did not go through. Please try again.');
+      } else if (data.status === 'CANCELED') {
+        setCheckoutUrl(null);
+        setBuyMsg('Checkout cancelled.');
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [checkoutUrl, loadCredits]);
 
   const selectedRefs = useMemo(() => Object.keys(selected).filter((k) => selected[k]), [selected]);
 
@@ -332,6 +370,19 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
   return (
     <>
+      {checkoutUrl && (
+        <div className="lf-checkout-overlay" role="dialog" aria-label="Checkout">
+          <div className="lf-checkout-modal">
+            <div className="lf-checkout-head">
+              <span>Buy Hunt credits</span>
+              <button className="c-icon-btn lf-checkout-close" aria-label="Close checkout" onClick={() => setCheckoutUrl(null)}>✕</button>
+            </div>
+            <iframe id="ziina-checkout" title="Ziina checkout" src={checkoutUrl}
+              allow="payment" className="lf-checkout-frame" />
+          </div>
+        </div>
+      )}
+
       <div className="lf-panel lf-search">
         <div className="lf-search-inputs single">
           <div className="lf-field">
