@@ -70,4 +70,22 @@ describe('AiSummary period selector', () => {
     expect(call[2]).toMatch(/^\d{4}-\d{2}-\d{2}$/); // to
     expect(call[4]).toBe('custom');     // period
   });
+
+  it('toggles the date picker open/closed on repeat Custom clicks', async () => {
+    render(<AiSummary />);
+    await waitFor(() => expect(getAiInsights).toHaveBeenCalled());
+
+    const dayButtons = () =>
+      screen.getAllByRole('button').filter((b) => /^\d{1,2}$/.test(b.textContent || ''));
+    const customTab = screen.getByRole('button', { name: /custom/i });
+
+    fireEvent.click(customTab);                         // open
+    expect(dayButtons().length).toBeGreaterThan(0);
+
+    fireEvent.click(customTab);                         // toggle closed
+    expect(dayButtons().length).toBe(0);
+
+    fireEvent.click(customTab);                         // open again
+    expect(dayButtons().length).toBeGreaterThan(0);
+  });
 });
