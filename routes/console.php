@@ -11,6 +11,10 @@ Artisan::command('inspire', function () {
 
 Schedule::command('invoices:update-overdue-status')->daily();
 
+// Hunt — mark abandoned credit-pack checkouts (pending >24h) as failed. Cosmetic
+// only. Also runs lazily on the credits endpoint since prod has no cron yet.
+Schedule::command('hunt:expire-pending-purchases')->daily();
+
 // Lead Finder — surface leads whose follow-up is due today.
 Schedule::command('leads:due-followups')->daily();
 

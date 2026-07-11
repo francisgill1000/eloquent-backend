@@ -42,6 +42,11 @@ class LeadController extends Controller
     {
         $shop = $this->shop($request);
 
+        // Lazy tidy-up: prod has no cron, so opportunistically expire this shop's
+        // abandoned checkouts (>24h pending) on page load. No-op when there are
+        // none; never affects paid rows, credits, or money.
+        CreditPurchase::expireStale($shop->id);
+
         return response()->json([
             'credits' => $this->credits->balance($shop),
             'can_purchase' => $this->canPurchase($shop),
