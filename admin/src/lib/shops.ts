@@ -83,7 +83,12 @@ export async function getMasterShops(): Promise<MasterShop[]> {
 /** Master account only: update a business's visibility and/or WhatsApp persona. */
 export async function updateMasterShop(
   id: number,
-  payload: { status?: 'active' | 'inactive'; persona?: string | null; modules?: Array<'bookings' | 'leads'> },
+  payload: {
+    status?: 'active' | 'inactive';
+    persona?: string | null;
+    modules?: Array<'bookings' | 'leads'>;
+    hunt_self_serve?: boolean;
+  },
 ): Promise<MasterShop> {
   const { data } = await api.patch(`/master/shops/${id}`, payload);
   return data?.data ?? data;

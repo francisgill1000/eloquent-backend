@@ -17,6 +17,7 @@ import {
   isUaeMobile,
   InsufficientCreditsError,
   getLeadCredits,
+  purchasePack,
 } from '@/lib/leads';
 import { LEAD_STATUSES } from '@/types';
 import type { CreditPack, Lead, LeadFunnel, LeadResult, LeadStatus } from '@/types';
@@ -130,6 +131,10 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   // Current Hunt credit balance + packs, for the balance chip and top-up prompt.
   const [balance, setBalance] = useState<number | null>(null);
   const [packs, setPacks] = useState<CreditPack[]>([]);
+  // Whether this shop may buy packs in-app (simulated), and the id being bought.
+  const [canPurchase, setCanPurchase] = useState(false);
+  const [buyingId, setBuyingId] = useState<number | null>(null);
+  const [buyMsg, setBuyMsg] = useState('');
   // Background enrichment (the slow "advertising" source) runs after the fast
   // results land and quietly appends. `scanning` drives the subtle indicator;
   // `moreFound` is how many extra leads the last scan added.
@@ -153,10 +158,25 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
     if (!shopReady) return;
     let alive = true;
     getLeadCredits()
-      .then((c) => { if (alive) { setBalance(c.credits); setPacks(c.packs); } })
+      .then((c) => { if (alive) { setBalance(c.credits); setPacks(c.packs); setCanPurchase(c.can_purchase); } })
       .catch(() => undefined);
     return () => { alive = false; };
   }, [shopReady]);
+
+  // Simulated in-app top-up (only when the shop is flagged for self-serve).
+  const buyPack = async (pack: CreditPack) => {
+    setBuyingId(pack.id); setBuyMsg('');
+    try {
+      const { credits } = await purchasePack(pack.id);
+      setBalance(credits);
+      setBlocked(null);
+      setBuyMsg(`Added ${pack.credits.toLocaleString('en-AE')} credits — balance ${credits.toLocaleString('en-AE')}.`);
+    } catch {
+      setBuyMsg('Could not complete the top-up. Please try again.');
+    } finally {
+      setBuyingId(null);
+    }
+  };
 
   const selectedRefs = useMemo(() => Object.keys(selected).filter((k) => selected[k]), [selected]);
 
@@ -314,13 +334,16 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
       {balance !== null && (
         <div className={`lf-meta lf-credits${balance <= 10 ? ' low' : ''}`}>
           <Icons.Search size={13} /> {balance.toLocaleString('en-AE')} Hunt {balance === 1 ? 'credit' : 'credits'} left
-          {balance <= 10 && (
-            <a className="lf-topup-link"
-              href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent('Hi, I’d like to top up my Business Hunt credits.')}`}
-              target="_blank" rel="noreferrer">Top up</a>
+          {balance <= 10 && (canPurchase
+            ? <button className="lf-topup-link" onClick={() => setBlocked({ credits: balance })}>Top up</button>
+            : <a className="lf-topup-link"
+                href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent('Hi, I’d like to top up my Business Hunt credits.')}`}
+                target="_blank" rel="noreferrer">Top up</a>
           )}
         </div>
       )}
+
+      {buyMsg && <div className="lf-meta lf-credits"><Icons.Check size={13} /> {buyMsg}</div>}
 
       {error && <div className="c-error-box">{error}</div>}
 
@@ -328,25 +351,35 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
         <div className="lf-limit">
           <Icons.Bell size={16} />
           <div style={{ width: '100%' }}>
-            <strong>Out of Business Hunt credits</strong>
-            <span>Each new business search uses 1 credit. Repeat searches you've already run are always free. Top up to keep searching:</span>
+            <strong>{blocked.credits > 0 ? 'Top up Business Hunt credits' : 'Out of Business Hunt credits'}</strong>
+            <span>
+              Each new business search uses 1 credit. Repeat searches you've already run are always free.
+              {canPurchase ? ' Pick a pack to add credits instantly:' : ' Top up to keep searching:'}
+            </span>
             {packs.length > 0 && (
               <div className="lf-packs">
-                {packs.map((p) => (
-                  <a key={p.id} className="lf-pack"
-                    href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent(`Hi, I’d like the ${p.name} pack — ${p.credits} Hunt credits for ${AED(p.price_fils)}.`)}`}
-                    target="_blank" rel="noreferrer">
-                    <span className="lf-pack-credits">{p.credits.toLocaleString('en-AE')} credits</span>
-                    <span className="lf-pack-price">{AED(p.price_fils)}</span>
-                  </a>
+                {packs.map((p) => (canPurchase
+                  ? <button key={p.id} className="lf-pack" disabled={buyingId !== null}
+                      onClick={() => void buyPack(p)}>
+                      <span className="lf-pack-credits">{p.credits.toLocaleString('en-AE')} credits</span>
+                      <span className="lf-pack-price">{buyingId === p.id ? 'Adding…' : AED(p.price_fils)}</span>
+                    </button>
+                  : <a key={p.id} className="lf-pack"
+                      href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent(`Hi, I’d like the ${p.name} pack — ${p.credits} Hunt credits for ${AED(p.price_fils)}.`)}`}
+                      target="_blank" rel="noreferrer">
+                      <span className="lf-pack-credits">{p.credits.toLocaleString('en-AE')} credits</span>
+                      <span className="lf-pack-price">{AED(p.price_fils)}</span>
+                    </a>
                 ))}
               </div>
             )}
-            <a className="c-btn-ghost lf-topup-btn"
-              href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent('Hi, I’d like to top up my Business Hunt credits.')}`}
-              target="_blank" rel="noreferrer">
-              <Icons.WhatsApp size={15} /> Message us to top up
-            </a>
+            {canPurchase
+              ? <p className="lf-topup-note">Simulated top-up — no real payment is taken.</p>
+              : <a className="c-btn-ghost lf-topup-btn"
+                  href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent('Hi, I’d like to top up my Business Hunt credits.')}`}
+                  target="_blank" rel="noreferrer">
+                  <Icons.WhatsApp size={15} /> Message us to top up
+                </a>}
           </div>
         </div>
       )}

@@ -201,23 +201,29 @@
 .lf-credits { margin: 0 2px 12px; }
 .lf-credits.low { color: var(--warn); }
 .lf-credits.low svg { color: var(--warn); }
-.lf-topup-link { margin-left: 8px; color: var(--mint-300); font-weight: 600; text-decoration: none; }
+/* Works as both an <a> and a reset <button>. */
+.lf-topup-link {
+  margin-left: 8px; color: var(--mint-300); font-weight: 600; text-decoration: none;
+  background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+}
 .lf-topup-link:hover { text-decoration: underline; }
 
-/* Credit-out top-up packs inside the .lf-limit banner. */
+/* Credit-out top-up packs inside the .lf-limit banner (each is <a> or <button>). */
 .lf-packs { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
 .lf-pack {
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
   padding: 8px 12px; min-width: 92px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(244, 184, 96, 0.28);
   border-radius: var(--r-md, 10px);
-  text-decoration: none;
+  text-decoration: none; font: inherit; cursor: pointer;
 }
 .lf-pack:hover { border-color: var(--warn); }
+.lf-pack:disabled { opacity: 0.6; cursor: default; }
 .lf-pack-credits { color: var(--text-1); font-size: 13px; font-weight: 600; }
 .lf-pack-price { color: var(--text-3); font-size: 12px; }
 .lf-topup-btn { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; }
+.lf-topup-note { color: var(--text-3); font-size: 12px; margin: 10px 0 0; }
 
 /* Cached-results banner + Refresh (Ad Activity) */
 .lf-cached {

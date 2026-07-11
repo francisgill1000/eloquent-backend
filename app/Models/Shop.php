@@ -32,6 +32,7 @@ class Shop extends Authenticatable
         'last_login_at' => 'datetime',
         'modules' => 'array',
         'simulation_script' => 'array',
+        'hunt_self_serve' => 'boolean',
     ];
 
     protected static function booted()

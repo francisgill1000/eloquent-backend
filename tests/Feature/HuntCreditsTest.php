@@ -205,4 +205,102 @@ class HuntCreditsTest extends TestCase
         [, $token] = $this->huntShop('820110');
         $this->auth($token)->getJson('/api/master/credit-packs')->assertStatus(403);
     }
+
+    // ---- Self-serve (simulated) pack purchase ----
+
+    private function starterPackId(): int
+    {
+        return CreditPack::where('name', 'Starter')->value('id');
+    }
+
+    public function test_flagged_shop_can_self_serve_purchase(): void
+    {
+        [$shop, $token] = $this->huntShop('820111');
+        $shop->update(['hunt_self_serve' => true]);
+        $pack = $this->starterPackId();
+
+        $this->auth($token)
+            ->postJson('/api/shop/leads/purchase', ['pack_id' => $pack])
+            ->assertOk()
+            ->assertJson(['ok' => true, 'credits' => 200, 'granted' => 200]);
+
+        $this->assertSame(200, app(HuntCreditService::class)->balance($shop->fresh()));
+        $this->assertDatabaseHas('hunt_credit_transactions', [
+            'shop_id' => $shop->id, 'amount' => 200, 'reason' => 'purchase',
+        ]);
+        // Simulated flag recorded so real purchases stay distinguishable later.
+        $tx = \App\Models\HuntCreditTransaction::where('shop_id', $shop->id)->where('reason', 'purchase')->first();
+        $this->assertTrue($tx->meta['simulated']);
+        $this->assertSame($pack, $tx->meta['pack_id']);
+    }
+
+    public function test_unflagged_shop_cannot_purchase(): void
+    {
+        [$shop, $token] = $this->huntShop('820112'); // flag off by default
+
+        $this->auth($token)
+            ->postJson('/api/shop/leads/purchase', ['pack_id' => $this->starterPackId()])
+            ->assertStatus(403)
+            ->assertJsonPath('error', 'self_serve_disabled');
+
+        $this->assertSame(0, app(HuntCreditService::class)->balance($shop->fresh()));
+        $this->assertDatabaseCount('hunt_credit_transactions', 0);
+    }
+
+    public function test_master_can_always_purchase(): void
+    {
+        $m = $this->master();
+
+        $this->actingAs($m)
+            ->postJson('/api/shop/leads/purchase', ['pack_id' => $this->starterPackId()])
+            ->assertOk()
+            ->assertJson(['ok' => true, 'granted' => 200]);
+    }
+
+    public function test_purchase_unknown_or_inactive_pack_is_404(): void
+    {
+        [$shop, $token] = $this->huntShop('820113');
+        $shop->update(['hunt_self_serve' => true]);
+
+        $this->auth($token)
+            ->postJson('/api/shop/leads/purchase', ['pack_id' => 999999])
+            ->assertStatus(404);
+    }
+
+    public function test_credits_endpoint_reports_can_purchase(): void
+    {
+        [$shop, $token] = $this->huntShop('820114');
+
+        $this->auth($token)->getJson('/api/shop/leads/credits')
+            ->assertOk()->assertJsonPath('can_purchase', false);
+
+        $shop->update(['hunt_self_serve' => true]);
+        $this->auth($token)->getJson('/api/shop/leads/credits')
+            ->assertOk()->assertJsonPath('can_purchase', true);
+    }
+
+    public function test_purchase_is_tenant_scoped(): void
+    {
+        [$a] = $this->huntShop('820115');
+        $a->update(['hunt_self_serve' => true]);
+        [, $tokenB] = $this->huntShop('820116'); // B not flagged
+
+        // B cannot purchase just because A is flagged.
+        $this->auth($tokenB)
+            ->postJson('/api/shop/leads/purchase', ['pack_id' => $this->starterPackId()])
+            ->assertStatus(403);
+    }
+
+    public function test_master_can_toggle_self_serve_flag(): void
+    {
+        $m = $this->master();
+        [$shop] = $this->huntShop('820117');
+
+        $this->actingAs($m)
+            ->patchJson("/api/master/shops/{$shop->id}", ['hunt_self_serve' => true])
+            ->assertOk()
+            ->assertJsonPath('data.hunt_self_serve', true);
+
+        $this->assertTrue((bool) $shop->fresh()->hunt_self_serve);
+    }
 }

@@ -178,6 +178,8 @@ export type MasterShop = {
   modules?: Array<'bookings' | 'leads'>;
   /** Business Hunt credit balance (independent of the Lens subscription). */
   hunt_credits?: number;
+  /** May this shop buy credit packs self-serve (simulated purchase, master-set). */
+  hunt_self_serve?: boolean;
   subscription_status?: string | null;
   plan?: string | null;
   access_until?: string | null;
