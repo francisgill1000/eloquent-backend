@@ -219,8 +219,12 @@ class HuntCreditsTest extends TestCase
     private function fakeZiina(string $intentId = 'pi_hunt'): void
     {
         Http::fake([
-            '*/payment_intent' => Http::response(
-                ['id' => $intentId, 'redirect_url' => "https://pay.ziina/{$intentId}", 'status' => 'pending'], 200),
+            '*/payment_intent' => Http::response([
+                'id' => $intentId,
+                'redirect_url' => "https://pay.ziina/{$intentId}",
+                'embedded_url' => "https://pay.ziina.com/embedded/{$intentId}",
+                'status' => 'pending',
+            ], 200),
         ]);
         config([
             'services.ziina.api_key' => 'test',
@@ -243,7 +247,11 @@ class HuntCreditsTest extends TestCase
         $this->auth($token)
             ->postJson('/api/shop/leads/purchase', ['pack_id' => $pack])
             ->assertOk()
-            ->assertJson(['redirect_url' => 'https://pay.ziina/pi_hunt1', 'intent_id' => 'pi_hunt1']);
+            ->assertJson([
+                'redirect_url' => 'https://pay.ziina/pi_hunt1',
+                'embedded_url' => 'https://pay.ziina.com/embedded/pi_hunt1',
+                'intent_id' => 'pi_hunt1',
+            ]);
 
         // A pending order is recorded; credits are NOT granted until the webhook.
         $this->assertDatabaseHas('credit_purchases', [
@@ -346,6 +354,19 @@ class HuntCreditsTest extends TestCase
         $shop->update(['hunt_self_serve' => true]);
         $this->auth($token)->getJson('/api/shop/leads/credits')
             ->assertOk()->assertJsonPath('can_purchase', true);
+    }
+
+    public function test_credits_endpoint_reports_embedded_checkout_flag(): void
+    {
+        [, $token] = $this->huntShop('820118');
+
+        config(['services.ziina.hunt_embedded' => false]);
+        $this->auth($token)->getJson('/api/shop/leads/credits')
+            ->assertOk()->assertJsonPath('embedded_checkout', false);
+
+        config(['services.ziina.hunt_embedded' => true]);
+        $this->auth($token)->getJson('/api/shop/leads/credits')
+            ->assertOk()->assertJsonPath('embedded_checkout', true);
     }
 
     public function test_purchase_is_tenant_scoped(): void
