@@ -393,4 +393,47 @@ class HuntCreditsTest extends TestCase
 
         $this->assertTrue((bool) $shop->fresh()->hunt_self_serve);
     }
+
+    // ---- Abandoned-checkout (pending) cleanup ----
+
+    private function mkPurchase(int $shopId, string $status, int $daysAgo): \App\Models\CreditPurchase
+    {
+        $p = \App\Models\CreditPurchase::create([
+            'shop_id' => $shopId, 'pack_id' => $this->starterPackId(),
+            'credits' => 200, 'amount_fils' => 19900,
+            'ziina_operation_id' => Str::uuid(), 'status' => $status,
+        ]);
+        \App\Models\CreditPurchase::where('id', $p->id)->update(['created_at' => now()->subDays($daysAgo)]);
+
+        return $p->fresh();
+    }
+
+    public function test_command_expires_old_pending_only(): void
+    {
+        [$shop] = $this->huntShop('820119');
+        $old = $this->mkPurchase($shop->id, 'pending', 2);
+        $recent = $this->mkPurchase($shop->id, 'pending', 0);
+        $paid = $this->mkPurchase($shop->id, 'paid', 5);
+
+        $this->artisan('hunt:expire-pending-purchases')->assertSuccessful();
+
+        $this->assertSame('failed', $old->fresh()->status);   // abandoned -> failed
+        $this->assertSame('pending', $recent->fresh()->status); // still within window
+        $this->assertSame('paid', $paid->fresh()->status);      // never touch paid
+    }
+
+    public function test_credits_endpoint_lazily_expires_this_shops_stale_pending(): void
+    {
+        [$a, $tokenA] = $this->huntShop('820120');
+        [$b] = $this->huntShop('820121');
+        $aOld = $this->mkPurchase($a->id, 'pending', 2);
+        $aRecent = $this->mkPurchase($a->id, 'pending', 0);
+        $bOld = $this->mkPurchase($b->id, 'pending', 2);
+
+        $this->auth($tokenA)->getJson('/api/shop/leads/credits')->assertOk();
+
+        $this->assertSame('failed', $aOld->fresh()->status);
+        $this->assertSame('pending', $aRecent->fresh()->status);
+        $this->assertSame('pending', $bOld->fresh()->status); // other shop untouched (scoped)
+    }
 }
