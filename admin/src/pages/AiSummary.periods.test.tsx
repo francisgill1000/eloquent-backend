@@ -42,4 +42,27 @@ describe('AiSummary period selector', () => {
     });
     expect(getAiSummaryHistory).toHaveBeenCalledWith(1, 'week', expect.anything());
   });
+
+  it('custom tab shows a hint, does not fetch until Generate, then fetches period=custom', async () => {
+    render(<AiSummary />);
+    await waitFor(() => expect(getAiInsights).toHaveBeenCalled());
+    getAiInsights.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: /custom/i }));
+
+    // Hint shown, no false error, no fetch yet.
+    expect(screen.getByText(/pick a date range/i)).toBeTruthy();
+    expect(screen.queryByText(/could not generate/i)).toBeNull();
+    expect(getAiInsights).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-03-01' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-03-31' } });
+    fireEvent.click(screen.getByRole('button', { name: /generate/i }));
+
+    await waitFor(() => expect(getAiInsights).toHaveBeenCalled());
+    const call = getAiInsights.mock.calls.at(-1)!;
+    expect(call[1]).toBe('2026-03-01'); // from
+    expect(call[2]).toBe('2026-03-31'); // to
+    expect(call[4]).toBe('custom');     // period
+  });
 });
