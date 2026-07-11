@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Models\Booking;
+use App\Models\Lead;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -304,6 +305,69 @@ class ReportsAggregator
                 'average' => $reviewStats && $reviewStats->c ? round((float) $reviewStats->a, 2) : null,
             ],
             'daily' => $daily,
+        ];
+    }
+
+    /**
+     * Business Hunt pipeline metrics for a shop over a date range. Tenant-scoped
+     * via leads.shop_id (lead_activities has no shop_id — joined through leads).
+     * `pipeline`/`total_leads` are a CURRENT snapshot; the rest are period-bound.
+     */
+    public function huntSummary(int $shopId, Carbon $from, Carbon $to): array
+    {
+        $statuses = Lead::STATUSES;
+
+        // Current pipeline snapshot (not date-bounded), zero-filled.
+        $pipeline = array_fill_keys($statuses, 0);
+        foreach (
+            DB::table('leads')->where('shop_id', $shopId)
+                ->selectRaw('status, count(*) as c')->groupBy('status')
+                ->pluck('c', 'status') as $st => $c
+        ) {
+            if (array_key_exists($st, $pipeline)) {
+                $pipeline[$st] = (int) $c;
+            }
+        }
+
+        // Leads created in the period.
+        $newLeads = (int) DB::table('leads')->where('shop_id', $shopId)
+            ->whereBetween('created_at', [$from, $to])->count();
+
+        // Status changes in the period, aggregated by target status IN PHP
+        // (portable across sqlite/pgsql — no JSON SQL).
+        $moved = array_fill_keys($statuses, 0);
+        $payloads = DB::table('lead_activities')
+            ->join('leads', 'leads.id', '=', 'lead_activities.lead_id')
+            ->where('leads.shop_id', $shopId)
+            ->where('lead_activities.type', 'status_change')
+            ->whereBetween('lead_activities.created_at', [$from, $to])
+            ->pluck('lead_activities.payload');
+        foreach ($payloads as $payload) {
+            $data = is_array($payload) ? $payload : json_decode((string) $payload, true);
+            $target = is_array($data) ? ($data['to'] ?? null) : null;
+            if (is_string($target) && array_key_exists($target, $moved)) {
+                $moved[$target]++;
+            }
+        }
+
+        // Credits spent on live searches (search debits are negative).
+        $creditsUsed = (int) abs((int) DB::table('hunt_credit_transactions')
+            ->where('shop_id', $shopId)->where('reason', 'search')
+            ->whereBetween('created_at', [$from, $to])->sum('amount'));
+
+        // Searches logged in the period.
+        $searches = (int) DB::table('lead_search_logs')->where('shop_id', $shopId)
+            ->whereBetween('created_at', [$from, $to])->count();
+
+        return [
+            'range'        => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
+            'new_leads'    => $newLeads,
+            'pipeline'     => $pipeline,
+            'total_leads'  => array_sum($pipeline),
+            'moved'        => $moved,
+            'won'          => $moved['won'],
+            'credits_used' => $creditsUsed,
+            'searches'     => $searches,
         ];
     }
 
