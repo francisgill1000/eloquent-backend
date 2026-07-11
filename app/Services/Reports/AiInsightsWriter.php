@@ -49,29 +49,29 @@ class AiInsightsWriter
         $hasBookings = $shop !== null && ((bool) $shop->is_master || $shop->hasModule('bookings'));
         $hasLeads    = $shop !== null && ((bool) $shop->is_master || $shop->hasModule('leads'));
 
-        $insights = $hasBookings ? $this->aggregator->insightsSummary($shopId, $from, $to) : null;
-        $hunt     = $hasLeads ? $this->aggregator->huntSummary($shopId, $from, $to) : null;
-
-        $bookingsQualifies = $insights !== null
-            && (int) ($insights['bookings']['scheduled'] ?? 0) >= self::MIN_BOOKINGS;
-        $huntActions = $hunt !== null ? ((int) $hunt['new_leads'] + array_sum($hunt['moved'])) : 0;
-        $huntQualifies = $hunt !== null && $huntActions >= self::MIN_HUNT_ACTIONS;
-
-        if (! $bookingsQualifies && ! $huntQualifies) {
-            // Product-appropriate low-data message.
-            $message = (! $hasBookings && $hasLeads)
-                ? 'Not enough Business Hunt activity in this period yet to generate an AI summary. Check back once you have a few more leads.'
-                : 'Not enough bookings in this period yet to generate an AI summary. Check back once you have a few more.';
-
-            return $this->state('low_data', $message);
+        // One product at a time — Business Hunt takes priority when enabled, so a
+        // Hunt shop gets a Hunt-ONLY summary (never mixed with bookings). A shop
+        // without the leads module falls back to the bookings summary.
+        if ($hasLeads) {
+            $hunt = $this->aggregator->huntSummary($shopId, $from, $to);
+            $huntActions = (int) $hunt['new_leads'] + array_sum($hunt['moved']);
+            if ($huntActions < self::MIN_HUNT_ACTIONS) {
+                return $this->state('low_data', 'Not enough Business Hunt activity in this period yet to generate an AI summary. Check back once you have a few more leads.');
+            }
+            $qualified = ['bookings' => null, 'hunt' => $hunt];
+        } elseif ($hasBookings) {
+            $insights = $this->aggregator->insightsSummary($shopId, $from, $to);
+            if ((int) ($insights['bookings']['scheduled'] ?? 0) < self::MIN_BOOKINGS) {
+                return $this->state('low_data', 'Not enough bookings in this period yet to generate an AI summary. Check back once you have a few more.');
+            }
+            $qualified = ['bookings' => $insights, 'hunt' => null];
+        } else {
+            return $this->state('low_data', 'Not enough activity in this period yet to generate an AI summary.');
         }
 
         try {
             $recent = $this->recentSummaries($shopId);
-            $payload = $this->buildPayload($shopId, $from, $to, [
-                'bookings' => $bookingsQualifies ? $insights : null,
-                'hunt'     => $huntQualifies ? $hunt : null,
-            ], $recent);
+            $payload = $this->buildPayload($shopId, $from, $to, $qualified, $recent);
             $reply = $this->claude->reply($this->systemPrompt(), [
                 ['role' => 'user', 'content' => json_encode($payload, JSON_UNESCAPED_UNICODE)],
             ]);

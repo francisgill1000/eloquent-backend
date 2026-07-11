@@ -205,15 +205,18 @@ class AiInsightsWriterTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_mixed_shop_clearing_both_gates_sends_both_blocks(): void
+    public function test_mixed_shop_is_hunt_only_when_business_hunt_is_enabled(): void
     {
+        // One product at a time: Business Hunt takes priority, so a shop with BOTH
+        // modules gets a Hunt-ONLY summary — the bookings block must be absent even
+        // though the shop has plenty of bookings.
         $shop = Shop::create([
             'name' => 'Both', 'shop_code' => '7103', 'pin' => '0000',
             'status' => 'active', 'category_id' => 11, 'modules' => ['bookings', 'leads'],
         ]);
         $this->seedBookings($shop, 6);
         $this->seedHuntActivity($shop, 6);
-        $this->fakeClaude(['summary' => 'Both sides healthy.', 'patterns' => ['a'], 'recommendations' => ['b']]);
+        $this->fakeClaude(['summary' => 'Pipeline healthy.', 'patterns' => ['a'], 'recommendations' => ['b']]);
 
         $out = $this->writer()->summary($shop->id, now()->startOfMonth(), now()->endOfMonth());
 
@@ -221,7 +224,7 @@ class AiInsightsWriterTest extends TestCase
         // See note above: check the payload content, not the raw body.
         Http::assertSent(function ($req) {
             $content = $req['messages'][0]['content'] ?? '';
-            return str_contains($content, '"bookings"') && str_contains($content, '"hunt"');
+            return str_contains($content, '"hunt"') && ! str_contains($content, '"bookings"');
         });
     }
 }
