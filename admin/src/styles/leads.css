@@ -310,29 +310,34 @@
 }
 .lfc-secure svg { color: var(--mint-300); }
 
-/* Pack grid — roomy, tappable cards (works as <button> or <a>). */
+/* Pack grid — cards share one full-width row in equal columns (count driven by
+   --pack-cols from the page); stacks on narrow screens. */
 .lfc-packs {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
   margin-bottom: 16px;
 }
+@media (min-width: 560px) {
+  .lfc-packs { grid-template-columns: repeat(var(--pack-cols, 3), 1fr); }
+}
+/* Same mint-glass treatment as the balance hero card. */
 .lfc-pack {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  padding: 16px;
-  background: linear-gradient(135deg, rgba(0, 255, 204, 0.08), rgba(255, 255, 255, 0.03));
-  border: 1px solid var(--border-1);
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.16), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-mint);
   border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
   text-decoration: none; font: inherit; cursor: pointer;
   text-align: left;
-  transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+  transition: transform .16s ease, box-shadow .16s ease;
 }
 .lfc-pack:hover {
-  border-color: var(--border-mint);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-1);
+  box-shadow: 0 8px 24px var(--mint-glow);
 }
-.lfc-pack:disabled { opacity: 0.55; cursor: default; transform: none; box-shadow: none; }
+.lfc-pack:disabled { opacity: 0.55; cursor: default; transform: none; box-shadow: var(--shadow-1); }
 .lfc-pack-credits { font-size: 26px; font-weight: 800; line-height: 1; color: var(--text-1); }
 .lfc-pack-unit { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-3); }
 .lfc-pack-price { margin-top: 8px; font-size: 14px; font-weight: 700; color: var(--mint-300); }
