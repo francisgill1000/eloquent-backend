@@ -33,8 +33,8 @@ const fmt = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString(undefine
 const historyLabel = (it: AiSummaryHistoryItem) => `${fmt(it.period_from)} – ${fmt(it.period_to)}`;
 
 /* ---------- AI summary card ------------------------------------------------- */
-function AiInsightsCard({ data, loading, refreshing, subtitle, onRefresh }: {
-  data: AiInsights | null; loading: boolean; refreshing: boolean; subtitle: string; onRefresh: () => void;
+function AiInsightsCard({ data, loading, refreshing, subtitle, hint, onRefresh }: {
+  data: AiInsights | null; loading: boolean; refreshing: boolean; subtitle: string; hint?: string; onRefresh: () => void;
 }) {
   const [audio, setAudio] = useState<'idle' | 'loading' | 'playing'>('idle');
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -82,6 +82,8 @@ function AiInsightsCard({ data, loading, refreshing, subtitle, onRefresh }: {
           <div className="ins-skel" style={{ height: 16, width: '80%', marginBottom: 16 }} />
           <div className="ins-skel" style={{ height: 48 }} />
         </div>
+      ) : (!data && hint) ? (
+        <div className="ins-ai-body"><p className="ins-ai-msg">{hint}</p></div>
       ) : !data || data.state === 'error' ? (
         <div className="ins-ai-body">
           <p className="ins-ai-msg">{data?.message || 'Could not generate the AI summary right now.'}</p>
@@ -208,7 +210,9 @@ export default function AiSummary() {
 
       <div className="ins-wrap">
         <AiInsightsCard data={data} loading={loading} refreshing={refreshing}
-          subtitle={win.label} onRefresh={() => fetchAi(win.from, win.to, true)} />
+          subtitle={win.label}
+          hint={period === 'custom' ? 'Pick a date range above, then tap Generate to see a summary.' : undefined}
+          onRefresh={() => fetchAi(win.from, win.to, true)} />
       </div>
     </div></div>
   );
