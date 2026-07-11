@@ -66,6 +66,11 @@ body{
 .lp-scope .nav-login{font-size:14px;color:var(--text-2);font-weight:500}
 .lp-scope .nav-login:hover{color:var(--mint-500)}
 @media(max-width:560px){.lp-scope .nav-login{display:none}}
+.lp-scope .nav-menu{display:flex;align-items:center;gap:26px}
+.lp-scope .nav-menu a{font-size:14px;color:var(--text-2);font-weight:500}
+.lp-scope .nav-menu a:hover{color:var(--mint-500)}
+.lp-scope .nav-menu a.active{color:var(--mint-400)}
+@media(max-width:720px){.lp-scope .nav-menu{display:none}}
 
 .lp-scope .hero{padding:72px 0 40px}
 .lp-scope .hero-grid{display:grid;grid-template-columns:1.05fr 0.95fr;gap:48px;align-items:center}
@@ -173,6 +178,9 @@ body{
 .lp-scope .prop p{color:var(--text-2);font-size:14.5px;margin-top:9px}
 .lp-scope .prop .tag{margin-top:14px;font-family:'Geist Mono',monospace;font-size:11.5px;
   color:var(--mint-300);letter-spacing:0.03em}
+.lp-scope .props.duo{grid-template-columns:repeat(2,1fr)}
+.lp-scope .prop-link{display:inline-block;margin-top:16px;font-size:14px;font-weight:600;color:var(--mint-300)}
+.lp-scope .prop-link:hover{color:var(--mint-500)}
 
 .lp-scope .who-sec{background:linear-gradient(180deg,transparent,rgba(0,255,204,0.02))}
 .lp-scope .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
@@ -212,16 +220,21 @@ body{
 type Variant = 'brand' | 'lens' | 'hunt';
 
 const WA_HUNT = 'https://wa.me/971557369629?text=Hi%2C%20I%27d%20like%20a%20quick%20demo%20of%20Eloquent%20Business%20Hunt';
+const WA_GENERIC = 'https://wa.me/971557369629?text=Hi%2C%20I%27d%20like%20a%20quick%20demo%20of%20Eloquent';
 
-const navHtml = (brand: string) => `
+const navHtml = (brand: string, active: Variant) => `
 <header class="nav">
   <div class="wrap nav-inner">
-    <div class="brand">
+    <a class="brand" href="/web">
       <span class="dot" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>
       </span>
       ${brand}
-    </div>
+    </a>
+    <nav class="nav-menu">
+      <a href="/lens"${active === 'lens' ? ' class="active"' : ''}>Business Lens</a>
+      <a href="/hunt"${active === 'hunt' ? ' class="active"' : ''}>Business Hunt</a>
+    </nav>
     <nav class="nav-cta">
       <a class="nav-login" href="https://admin.eloquentservice.com">Log in</a>
       <a class="btn btn-primary" href="https://admin.eloquentservice.com">Start free</a>
@@ -503,6 +516,51 @@ const SECTIONS_HUNT = `
     </div>
   </section>`;
 
+// The /web hub body below the slider: generic overview of both products, each
+// linking to its dedicated page, plus a product-neutral CTA.
+const SECTIONS_BRAND = `
+  <section id="products">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-eyebrow">The suite</div>
+        <h2>Two products. One Eloquent login.</h2>
+        <p>Win new customers with Business Hunt, then run every booking with Business Lens — both built in the UAE.</p>
+      </div>
+      <div class="props duo">
+        <div class="prop">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></svg></div>
+          <h3>Business Lens</h3>
+          <p>Take bookings by QR and let AI run your calendar — then manage your whole day just by talking.</p>
+          <div class="tag">→ for service businesses that take bookings</div>
+          <a class="prop-link" href="/lens">Explore Business Lens →</a>
+        </div>
+        <div class="prop">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div>
+          <h3>Business Hunt</h3>
+          <p>Find real businesses to sell to, with live contacts — ranked and ready for your sales team to work.</p>
+          <div class="tag">→ for teams chasing new customers</div>
+          <a class="prop-link" href="/hunt">Explore Business Hunt →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="cta-band">
+        <h2>One login. Two ways to grow.</h2>
+        <p>Start free — pick the tool you need today, add the other whenever you like.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="https://admin.eloquentservice.com">
+            Start free
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </a>
+          <a class="btn btn-secondary" href="${WA_GENERIC}">Book a demo</a>
+        </div>
+      </div>
+    </div>
+  </section>`;
+
 const footerHtml = (product: string) => `
 <footer>
   <div class="wrap foot">
@@ -557,8 +615,8 @@ const buildHtml = (v: Variant) => {
   const body =
     v === 'lens' ? `${HERO_LENS}${SECTIONS_LENS}`
     : v === 'hunt' ? `${HERO_HUNT}${SECTIONS_HUNT}`
-    : `${SLIDER}${SECTIONS_LENS}`;
-  return `${navHtml(BRAND[v])}\n<main>${body}</main>\n${footerHtml(FOOT[v])}`;
+    : `${SLIDER}${SECTIONS_BRAND}`;
+  return `${navHtml(BRAND[v], v)}\n<main>${body}</main>\n${footerHtml(FOOT[v])}`;
 };
 
 export default function Web({ variant = 'brand' }: { variant?: Variant }) {
