@@ -42,21 +42,31 @@ class AssistantToolRegistry
     }
 
     /** @return array<int, AssistantToolModule> */
-    protected function activeModules(): array
+    protected function activeModules(?Shop $shop): array
     {
         $mutationsOn = (bool) config('assistant.mutations_enabled', true);
 
-        return array_values(array_filter(
-            $this->modules(),
-            fn (AssistantToolModule $m) => $mutationsOn || ! $m instanceof MutatingTool,
-        ));
+        return array_values(array_filter($this->modules(), function (AssistantToolModule $m) use ($mutationsOn, $shop) {
+            // Global kill-switch: hide every data-changing module when off.
+            if (! $mutationsOn && $m instanceof MutatingTool) {
+                return false;
+            }
+            // Product gate: universal (null) modules and master shops see all;
+            // otherwise the shop must have the module enabled. A null shop
+            // (no context, e.g. a bare defs() call in tests) sees everything.
+            $key = $m->moduleKey();
+            if ($key === null || $shop === null || $shop->is_master) {
+                return true;
+            }
+            return $shop->hasModule($key);
+        }));
     }
 
     /** @return array<int, array<string, mixed>> */
-    public function defs(): array
+    public function defs(?Shop $shop = null): array
     {
         $defs = [];
-        foreach ($this->activeModules() as $module) {
+        foreach ($this->activeModules($shop) as $module) {
             foreach ($module->toolDefs() as $def) {
                 $defs[] = $def;
             }
@@ -74,7 +84,7 @@ class AssistantToolRegistry
             confirmed: (bool) ($input['confirmed'] ?? false),
         );
 
-        foreach ($this->activeModules() as $module) {
+        foreach ($this->activeModules($shop) as $module) {
             if ($module->handles($tool)) {
                 return json_encode($module->run($call), JSON_UNESCAPED_UNICODE);
             }

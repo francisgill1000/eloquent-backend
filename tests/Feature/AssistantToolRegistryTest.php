@@ -49,4 +49,22 @@ class AssistantToolRegistryTest extends TestCase
         $this->assertNotContains('cancel_booking', $names);
         $this->assertContains('get_revenue', $names); // reads remain
     }
+
+    public function test_leads_only_shop_excludes_booking_tools(): void
+    {
+        $shop = Shop::create(['name' => 'H', 'shop_code' => '7002', 'pin' => '0', 'status' => 'active', 'category_id' => 11, 'modules' => ['leads']]);
+        $names = array_column(app(AssistantToolRegistry::class)->defs($shop), 'name');
+        $this->assertNotContains('create_booking', $names);
+        $this->assertNotContains('get_revenue', $names);
+        $this->assertContains('get_business_profile', $names); // universal module stays
+    }
+
+    public function test_bookings_only_shop_keeps_booking_tools(): void
+    {
+        $shop = Shop::create(['name' => 'B', 'shop_code' => '7003', 'pin' => '0', 'status' => 'active', 'category_id' => 11, 'modules' => ['bookings']]);
+        $names = array_column(app(AssistantToolRegistry::class)->defs($shop), 'name');
+        $this->assertContains('create_booking', $names);
+        $this->assertContains('get_revenue', $names);
+        $this->assertContains('get_business_profile', $names);
+    }
 }

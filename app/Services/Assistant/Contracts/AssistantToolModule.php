@@ -12,4 +12,7 @@ interface AssistantToolModule
 
     /** @return array<string, mixed> */
     public function run(ToolCall $call): array;
+
+    /** Product module this tool belongs to: null = universal, else 'bookings'|'leads'. */
+    public function moduleKey(): ?string;
 }

@@ -35,6 +35,11 @@ class BookingTools extends MutatingTool
         ];
     }
 
+    public function moduleKey(): ?string
+    {
+        return 'bookings';
+    }
+
     protected function handle(ToolCall $call): array
     {
         return match ($call->tool) {
