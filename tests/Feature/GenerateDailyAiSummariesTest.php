@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AiSummary;
+use App\Models\Lead;
 use App\Models\Shop;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -121,5 +122,43 @@ class GenerateDailyAiSummariesTest extends TestCase
 
         $this->assertSame(1, AiSummary::where('shop_id', $a->id)->count());
         $this->assertSame(0, AiSummary::where('shop_id', $b->id)->count());
+    }
+
+    private function leadsShop(string $code): Shop
+    {
+        return Shop::create(['name' => 'Hunt ' . $code, 'shop_code' => $code, 'pin' => '0000', 'category_id' => 11, 'modules' => ['leads']]);
+    }
+
+    /** Seed $count leads + a status_change each, dated inside the window (2 days ago). */
+    private function seedHuntActivity(Shop $shop, int $count, int $daysAgo = 2): void
+    {
+        for ($i = 0; $i < $count; $i++) {
+            $lead = Lead::create(['shop_id' => $shop->id, 'name' => "L{$i}", 'status' => 'sent']);
+            $lead->activities()->create(['type' => 'status_change', 'payload' => ['from' => 'new', 'to' => 'sent'], 'created_at' => now()->subDays($daysAgo), 'updated_at' => now()->subDays($daysAgo)]);
+            $lead->forceFill(['created_at' => now()->subDays($daysAgo)])->saveQuietly();
+        }
+    }
+
+    public function test_generates_for_active_leads_shop_with_hunt_activity(): void
+    {
+        $shop = $this->leadsShop('9101');
+        $this->seedHuntActivity($shop, 6); // 6 new + 6 moves >= 5 actions
+        $this->fakeClaude();
+
+        $this->artisan('ai:daily-summaries')->assertSuccessful();
+
+        $this->assertSame(1, AiSummary::where('shop_id', $shop->id)->count());
+    }
+
+    public function test_ignores_leads_shop_with_no_window_activity(): void
+    {
+        $shop = $this->leadsShop('9102');
+        $this->seedHuntActivity($shop, 6, daysAgo: 400); // outside the 30-day window
+        Http::fake();
+
+        $this->artisan('ai:daily-summaries')->assertSuccessful();
+
+        Http::assertNothingSent();
+        $this->assertSame(0, AiSummary::where('shop_id', $shop->id)->count());
     }
 }

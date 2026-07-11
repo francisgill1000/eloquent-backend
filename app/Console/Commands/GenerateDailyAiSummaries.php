@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\Log;
  * instant, already-stored summary in the morning instead of waiting on a live
  * Claude call. Force-refresh writes both the 24h cache and the ai_summaries row.
  *
- * Only shops with bookings in the window are considered; the writer's own
- * <5-booking gate then skips a paid Claude call for still-too-quiet shops.
+ * Only shops with bookings or Business Hunt activity in the window are
+ * considered; the writer's own per-product gate then skips a paid Claude
+ * call for still-too-quiet shops.
  * Tenant-scoped throughout; one shop failing never stops the rest.
  */
 class GenerateDailyAiSummaries extends Command
@@ -50,20 +51,35 @@ class GenerateDailyAiSummaries extends Command
     }
 
     /**
-     * Active shops = status 'active' with at least one booking in the window.
-     * Keeps the nightly run off dormant/disabled tenants.
+     * Active shops = status 'active' with, in the window, either a booking OR
+     * Business Hunt activity (a lead created, or a lead status change). Keeps the
+     * nightly run off dormant tenants while covering both products.
      *
      * @return array<int, int>
      */
     protected function activeShopIds(string $fromDate): array
     {
-        return DB::table('bookings')
+        $bookingShops = DB::table('bookings')
             ->join('shops', 'shops.id', '=', 'bookings.shop_id')
             ->where('shops.status', 'active')
             ->where('bookings.date', '>=', $fromDate)
-            ->distinct()
-            ->pluck('bookings.shop_id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
+            ->distinct()->pluck('bookings.shop_id');
+
+        $newLeadShops = DB::table('leads')
+            ->join('shops', 'shops.id', '=', 'leads.shop_id')
+            ->where('shops.status', 'active')
+            ->where('leads.created_at', '>=', $fromDate)
+            ->distinct()->pluck('leads.shop_id');
+
+        $activityShops = DB::table('lead_activities')
+            ->join('leads', 'leads.id', '=', 'lead_activities.lead_id')
+            ->join('shops', 'shops.id', '=', 'leads.shop_id')
+            ->where('shops.status', 'active')
+            ->where('lead_activities.type', 'status_change')
+            ->where('lead_activities.created_at', '>=', $fromDate)
+            ->distinct()->pluck('leads.shop_id');
+
+        return $bookingShops->merge($newLeadShops)->merge($activityShops)
+            ->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 }
