@@ -49,24 +49,34 @@ class AiInsightsWriter
         $hasBookings = $shop !== null && ((bool) $shop->is_master || $shop->hasModule('bookings'));
         $hasLeads    = $shop !== null && ((bool) $shop->is_master || $shop->hasModule('leads'));
 
-        // One product at a time — Business Hunt takes priority when enabled, so a
-        // Hunt shop gets a Hunt-ONLY summary (never mixed with bookings). A shop
-        // without the leads module falls back to the bookings summary.
+        // One product at a time — Business Hunt takes priority WHEN it has enough
+        // activity; a qualifying Hunt shop gets a Hunt-ONLY summary (never mixed).
+        // If Hunt has no qualifying activity yet, fall back to the bookings summary
+        // so a shop is never left with a Hunt dead-end while it has booking data.
+        $qualified = null;
+
         if ($hasLeads) {
             $hunt = $this->aggregator->huntSummary($shopId, $from, $to);
             $huntActions = (int) $hunt['new_leads'] + array_sum($hunt['moved']);
-            if ($huntActions < self::MIN_HUNT_ACTIONS) {
-                return $this->state('low_data', 'Not enough Business Hunt activity in this period yet to generate an AI summary. Check back once you have a few more leads.');
+            if ($huntActions >= self::MIN_HUNT_ACTIONS) {
+                $qualified = ['bookings' => null, 'hunt' => $hunt];
             }
-            $qualified = ['bookings' => null, 'hunt' => $hunt];
-        } elseif ($hasBookings) {
+        }
+
+        if ($qualified === null && $hasBookings) {
             $insights = $this->aggregator->insightsSummary($shopId, $from, $to);
-            if ((int) ($insights['bookings']['scheduled'] ?? 0) < self::MIN_BOOKINGS) {
-                return $this->state('low_data', 'Not enough bookings in this period yet to generate an AI summary. Check back once you have a few more.');
+            if ((int) ($insights['bookings']['scheduled'] ?? 0) >= self::MIN_BOOKINGS) {
+                $qualified = ['bookings' => $insights, 'hunt' => null];
             }
-            $qualified = ['bookings' => $insights, 'hunt' => null];
-        } else {
-            return $this->state('low_data', 'Not enough activity in this period yet to generate an AI summary.');
+        }
+
+        if ($qualified === null) {
+            // Neither product has enough data yet — nudge toward the primary one.
+            $message = $hasLeads
+                ? 'Not enough Business Hunt activity in this period yet to generate an AI summary. Check back once you have a few more leads.'
+                : 'Not enough bookings in this period yet to generate an AI summary. Check back once you have a few more.';
+
+            return $this->state('low_data', $message);
         }
 
         try {

@@ -227,4 +227,25 @@ class AiInsightsWriterTest extends TestCase
             return str_contains($content, '"hunt"') && ! str_contains($content, '"bookings"');
         });
     }
+
+    public function test_mixed_shop_falls_back_to_bookings_when_hunt_has_no_activity(): void
+    {
+        // Hunt takes priority only WHEN it has activity. A mixed shop with booking
+        // data but no Hunt activity yet must still get its bookings summary, not a
+        // Hunt dead-end.
+        $shop = Shop::create([
+            'name' => 'Mixed', 'shop_code' => '7104', 'pin' => '0000',
+            'status' => 'active', 'category_id' => 11, 'modules' => ['bookings', 'leads'],
+        ]);
+        $this->seedBookings($shop, 6); // bookings qualifies; NO hunt activity seeded
+        $this->fakeClaude(['summary' => 'Bookings are healthy.', 'patterns' => ['a'], 'recommendations' => ['b']]);
+
+        $out = $this->writer()->summary($shop->id, now()->startOfMonth(), now()->endOfMonth());
+
+        $this->assertSame('ok', $out['state']);
+        Http::assertSent(function ($req) {
+            $content = $req['messages'][0]['content'] ?? '';
+            return str_contains($content, '"bookings"') && ! str_contains($content, '"hunt"');
+        });
+    }
 }
