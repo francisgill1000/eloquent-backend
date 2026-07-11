@@ -84,6 +84,22 @@ body{
 .lp-scope .hero-note{margin-top:16px;font-size:13px;color:var(--text-3);display:flex;align-items:center;gap:7px}
 .lp-scope .hero-note svg{width:15px;height:15px;color:var(--mint-400)}
 
+/* ---- Hero product slider (Business Lens + Business Hunt) ---- */
+.lp-scope .hero-slider{position:relative;overflow:hidden}
+.lp-scope .hero-track{display:flex;transition:transform .55s cubic-bezier(.4,0,.2,1);will-change:transform}
+.lp-scope .hero-slide{flex:0 0 100%;min-width:100%}
+.lp-scope .slider-nav{display:flex;align-items:center;justify-content:center;gap:16px;padding:4px 0 10px}
+.lp-scope .slider-arrow{width:40px;height:40px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:var(--surface-1);border:1px solid var(--border-2);color:var(--text-2);cursor:pointer;
+  transition:color .2s ease,border-color .2s ease,transform .15s ease}
+.lp-scope .slider-arrow:hover{color:var(--mint-500);border-color:var(--border-mint);transform:translateY(-1px)}
+.lp-scope .slider-arrow svg{width:18px;height:18px}
+.lp-scope .slider-dots{display:flex;align-items:center;gap:9px}
+.lp-scope .slider-dots button{width:9px;height:9px;padding:0;border:none;border-radius:var(--r-pill);
+  background:var(--border-2);cursor:pointer;transition:background .25s ease,width .25s ease}
+.lp-scope .slider-dots button.active{background:var(--mint-500);width:26px}
+@media(prefers-reduced-motion:reduce){.lp-scope .hero-track{transition:none}}
+
 .lp-scope .demo{background:linear-gradient(180deg,var(--surface-2),var(--surface-1));
   border:1px solid var(--border-2);border-radius:var(--r-xl);
   box-shadow:0 30px 80px -30px rgba(0,0,0,0.8), var(--shadow-1);
@@ -200,7 +216,7 @@ const LP_HTML = `
       <span class="dot" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>
       </span>
-      Eloquent <span style="font-weight:400;color:var(--text-2)">Booking&nbsp;Manager</span>
+      Eloquent <span style="font-weight:400;color:var(--text-2)">Business&nbsp;Lens</span>
     </div>
     <nav class="nav-cta">
       <a class="nav-login" href="https://admin.eloquentservice.com">Log in</a>
@@ -210,6 +226,9 @@ const LP_HTML = `
 </header>
 
 <main>
+  <div class="hero-slider">
+   <div class="hero-track" id="lp-track">
+    <div class="hero-slide">
   <section class="hero">
     <div class="wrap hero-grid">
       <div>
@@ -221,13 +240,12 @@ const LP_HTML = `
             Start free
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
           </a>
-          <a class="btn btn-secondary" href="https://wa.me/971557369629?text=Hi%2C%20I%27d%20like%20a%20quick%20demo%20of%20Eloquent%20Booking%20Manager">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.8.7.8-2.7-.2-.3A8 8 0 1 1 12 20Zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5.1a6.6 6.6 0 0 1-3.3-2.9c-.2-.4.2-.4.6-1.2a.4.4 0 0 0 0-.4c0-.1-.5-1.3-.7-1.7s-.4-.4-.5-.4h-.5a.9.9 0 0 0-.7.3 2.8 2.8 0 0 0-.9 2.1 4.9 4.9 0 0 0 1 2.6 11 11 0 0 0 4.3 3.8c1.6.7 2 .6 2.4.5a2.4 2.4 0 0 0 1.6-1.1 2 2 0 0 0 .1-1.1c0-.1-.2-.2-.5-.3Z"/></svg>
-            Chat on WhatsApp
+          <a class="btn btn-secondary" href="https://wa.me/971557369629?text=Hi%2C%20I%27d%20like%20a%20quick%20demo%20of%20Eloquent%20Business%20Lens">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2Zm0 18.15c-1.52 0-3.01-.41-4.31-1.18l-.31-.18-3.2.84.85-3.12-.2-.32a8.2 8.2 0 0 1-1.26-4.36c0-4.54 3.7-8.24 8.24-8.24 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.69 8.24-8.23 8.24Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.43.06-.66.31-.23.25-.87.85-.87 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.11-.22-.17-.47-.29Z"/></svg>
           </a>
         </div>
         <div class="hero-note">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></svg>
           No app for your customers · First month free
         </div>
       </div>
@@ -260,6 +278,69 @@ const LP_HTML = `
       </div>
     </div>
   </section>
+    </div>
+
+    <div class="hero-slide">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow"><span class="ping"></span> Lead-finding Lens · Built in the UAE</span>
+        <h1>Find your next customer.<br><span class="accent">Before your competitor does.</span></h1>
+        <p class="sub">Search any area and category — get real businesses with live contacts, ranked and ready to reach. Your team stops guessing and starts closing.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="https://wa.me/971557369629?text=Hi%2C%20I%27d%20like%20a%20quick%20demo%20of%20Eloquent%20Business%20Hunt">
+            Book a demo
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+        <div class="hero-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          Real businesses · Live contacts · Export in one click
+        </div>
+      </div>
+
+      <div class="demo" id="lp-hunt-demo">
+        <div class="demo-top">
+          <span class="who">
+            <span class="av"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+            Lead search
+          </span>
+          <span class="badge"><span class="rec"></span> 128 found</span>
+        </div>
+
+        <div class="mic">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+          <span style="font-size:14px;color:var(--text-1);font-weight:500">AC repair · Dubai Marina</span>
+        </div>
+
+        <p class="q">Searching: <b>AC repair · Dubai Marina</b></p>
+
+        <div class="answer" aria-live="polite">
+          <div class="line" data-i="0"><span class="k">Cool Air Technical</span><span class="v">+971 4 399 2210</span></div>
+          <div class="line" data-i="1"><span class="k">Marina Chill AC</span><span class="v">+971 50 118 4403</span></div>
+          <div class="line" data-i="2"><span class="k">SwiftCool Services</span><span class="v">+971 55 720 9188</span></div>
+          <div class="line" data-i="3"><span class="k">Emirates FrostAir</span><span class="v">+971 4 552 0766</span></div>
+          <div class="line" data-i="4"><span class="k mono" style="color:var(--mint-300)">Business Hunt</span><span class="v" style="color:var(--text-2);font-family:inherit">Export all 128 leads →<span class="cursor"></span></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+    </div>
+   </div>
+
+   <div class="wrap slider-nav">
+     <button class="slider-arrow" data-dir="-1" aria-label="Previous product">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+     </button>
+     <div class="slider-dots" role="tablist" aria-label="Products">
+       <button class="active" type="button" aria-label="Business Lens"></button>
+       <button type="button" aria-label="Business Hunt"></button>
+     </div>
+     <button class="slider-arrow" data-dir="1" aria-label="Next product">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+     </button>
+   </div>
+  </div>
 
   <section id="how">
     <div class="wrap">
@@ -353,7 +434,7 @@ const LP_HTML = `
             Start free
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
           </a>
-          <a class="btn btn-secondary" href="https://wa.me/971557369629?text=Hi%2C%20I%27d%20like%20a%20quick%20demo%20of%20Eloquent%20Booking%20Manager">Book a 10-min demo</a>
+          <a class="btn btn-secondary" href="https://wa.me/971557369629?text=Hi%2C%20I%27d%20like%20a%20quick%20demo%20of%20Eloquent%20Business%20Lens">Book a 10-min demo</a>
         </div>
       </div>
     </div>
@@ -395,7 +476,7 @@ export default function Web() {
     if (!root) return;
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const lines = Array.from(root.querySelectorAll<HTMLElement>('.answer .line'));
+    const lines = Array.from(root.querySelectorAll<HTMLElement>('#lp-demo .answer .line'));
     const mic = root.querySelector<HTMLElement>('#lp-mic');
     const qtext = root.querySelector<HTMLElement>('#lp-qtext');
     const demo = root.querySelector<HTMLElement>('#lp-demo');
@@ -440,6 +521,76 @@ export default function Web() {
       cancelled = true;
       timers.forEach((t) => clearTimeout(t));
       io?.disconnect();
+    };
+  }, []);
+
+  // Hero product slider: manual nav (arrows / dots / keyboard / swipe), no
+  // auto-advance so slide 1's voice demo is never interrupted mid-play.
+  useEffect(() => {
+    const root = hostRef.current;
+    if (!root) return;
+    const track = root.querySelector<HTMLElement>('#lp-track');
+    const slides = Array.from(root.querySelectorAll<HTMLElement>('.hero-slide'));
+    const dots = Array.from(root.querySelectorAll<HTMLButtonElement>('.slider-dots button'));
+    const arrows = Array.from(root.querySelectorAll<HTMLButtonElement>('.slider-arrow'));
+    const huntLines = Array.from(root.querySelectorAll<HTMLElement>('#lp-hunt-demo .line'));
+    if (!track || slides.length === 0) return;
+
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const huntTimers: number[] = [];
+    let idx = 0;
+    let huntRevealed = false;
+
+    const revealHunt = () => {
+      if (huntRevealed) return;
+      huntRevealed = true;
+      if (reduce) { huntLines.forEach((l) => l.classList.add('show')); return; }
+      huntLines.forEach((l, i) =>
+        huntTimers.push(window.setTimeout(() => l.classList.add('show'), 300 + i * 480)),
+      );
+    };
+
+    const go = (n: number) => {
+      idx = (n + slides.length) % slides.length;
+      track.style.transform = `translateX(-${idx * 100}%)`;
+      dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+      slides.forEach((s, i) => s.setAttribute('aria-hidden', String(i !== idx)));
+      if (idx === 1) revealHunt();
+    };
+
+    const onArrow = (e: Event) => {
+      const dir = Number((e.currentTarget as HTMLElement).dataset.dir || '1');
+      go(idx + dir);
+    };
+    const dotHandlers = dots.map((_, i) => () => go(i));
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') go(idx - 1);
+      else if (e.key === 'ArrowRight') go(idx + 1);
+    };
+    let x0: number | null = null;
+    const onTouchStart = (e: TouchEvent) => { x0 = e.touches[0].clientX; };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (x0 === null) return;
+      const dx = e.changedTouches[0].clientX - x0;
+      if (Math.abs(dx) > 45) go(idx + (dx < 0 ? 1 : -1));
+      x0 = null;
+    };
+
+    arrows.forEach((a) => a.addEventListener('click', onArrow));
+    dots.forEach((d, i) => d.addEventListener('click', dotHandlers[i]));
+    root.addEventListener('keydown', onKey);
+    track.addEventListener('touchstart', onTouchStart, { passive: true });
+    track.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    go(0);
+
+    return () => {
+      arrows.forEach((a) => a.removeEventListener('click', onArrow));
+      dots.forEach((d, i) => d.removeEventListener('click', dotHandlers[i]));
+      root.removeEventListener('keydown', onKey);
+      track.removeEventListener('touchstart', onTouchStart);
+      track.removeEventListener('touchend', onTouchEnd);
+      huntTimers.forEach((t) => clearTimeout(t));
     };
   }, []);
 
