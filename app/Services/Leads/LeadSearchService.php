@@ -120,6 +120,29 @@ class LeadSearchService
         return [$used, (int) $limit];
     }
 
+    /**
+     * Cache-only lookup of a prior search — returns the same result rows a live
+     * search produced, or null on a cache miss. NEVER spends a credit; used to
+     * recover a just-run search (e.g. to save its results) without re-billing.
+     *
+     * @return array<int, array<string, mixed>>|null
+     */
+    public function cached(string $query, ?string $area): ?array
+    {
+        $cached = DB::table('lead_search_cache')
+            ->where('source', $this->source->key())
+            ->where('query_key', $this->queryKey($query, $area))
+            ->first();
+
+        if (! $cached) {
+            return null;
+        }
+
+        $refs = json_decode($cached->external_refs, true) ?: [];
+
+        return $this->hydrateFromCache($refs);
+    }
+
     private function queryKey(string $query, ?string $area): string
     {
         return md5(strtolower(trim($query)) . '|' . strtolower(trim((string) $area)));

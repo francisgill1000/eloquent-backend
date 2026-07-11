@@ -10,6 +10,7 @@ use App\Models\Shop;
 use App\Services\Credits\Exceptions\InsufficientCredits;
 use App\Services\Credits\HuntCreditService;
 use App\Services\Leads\AdLibraryService;
+use App\Services\Leads\LeadImporter;
 use App\Services\Leads\LeadSearchService;
 use App\Services\Leads\OutreachWriter;
 use App\Services\Leads\SearchInterpreter;
@@ -30,6 +31,7 @@ class LeadController extends Controller
         private LeadSearchService $search,
         private AdLibraryService $adLibrary,
         private HuntCreditService $credits,
+        private LeadImporter $importer,
     ) {
     }
 
@@ -266,48 +268,11 @@ class LeadController extends Controller
             'leads.*.external_ref' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $saved = [];
-        $created = 0;
-        foreach ($data['leads'] as $row) {
-            $attrs = [
-                'name' => $row['name'],
-                'phone' => $row['phone'] ?? null,
-                'whatsapp' => $row['whatsapp'] ?? ($row['phone'] ?? null),
-                'website' => $row['website'] ?? null,
-                'address' => $row['address'] ?? null,
-                'category' => $row['category'] ?? null,
-                'lat' => $row['lat'] ?? null,
-                'lng' => $row['lng'] ?? null,
-                'source' => $row['source'] ?? 'manual',
-            ];
-
-            // Dedupe on external_ref when present; otherwise always a new lead.
-            if (! empty($row['external_ref'])) {
-                $lead = Lead::firstOrNew([
-                    'shop_id' => $shop->id,
-                    'external_ref' => $row['external_ref'],
-                ]);
-                $lead->fill($attrs);
-                if (! $lead->exists) {
-                    $lead->status = 'new';
-                }
-                $lead->save();
-            } else {
-                $lead = Lead::create($attrs + [
-                    'shop_id' => $shop->id,
-                    'status' => 'new',
-                ]);
-            }
-
-            if ($lead->wasRecentlyCreated) {
-                $created++;
-            }
-            $saved[] = $lead;
-        }
+        $out = $this->importer->import($shop, $data['leads']);
 
         // `created` = rows actually inserted (re-saving an existing lead dedupes),
         // so the client can bump the funnel count accurately.
-        return response()->json(['data' => $saved, 'created' => $created], 201);
+        return response()->json(['data' => $out['saved'], 'created' => $out['created']], 201);
     }
 
     /**
