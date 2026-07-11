@@ -16,6 +16,14 @@ describe('shopHasModule', () => {
     expect(shopHasModule({} as Shop, 'bookings')).toBe(true);
     expect(shopHasModule({} as Shop, 'leads')).toBe(false);
   });
+  it('treats an empty modules array like unset (bookings only) — not "no menu"', () => {
+    expect(shopHasModule(shop([]), 'bookings')).toBe(true);
+    expect(shopHasModule(shop([]), 'leads')).toBe(false);
+  });
+  it('navVisible keeps the menu alive when modules is empty', () => {
+    expect(navVisible(['bookings'], shop([]))).toBe(true);
+    expect(navVisible(['bookings', 'leads'], shop([]))).toBe(true);
+  });
   it('master sees everything', () => {
     expect(shopHasModule(shop([], true), 'leads')).toBe(true);
   });
