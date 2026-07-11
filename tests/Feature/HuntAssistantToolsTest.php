@@ -184,4 +184,23 @@ class HuntAssistantToolsTest extends TestCase
         $out = $this->exec($shop, 'update_lead_status', ['name' => 'marina', 'status' => 'nonsense', 'confirmed' => true]);
         $this->assertSame('invalid_status', $out['error']);
     }
+
+    public function test_search_preview_shows_interpreted_term_not_raw_input(): void
+    {
+        $shop = $this->leadsShop();
+
+        $interp = Mockery::mock(SearchInterpreter::class);
+        $interp->shouldReceive('interpret')->andReturn(['keyword' => 'hotels', 'area' => 'Dubai']);
+        $this->app->instance(SearchInterpreter::class, $interp);
+
+        $search = Mockery::mock(LeadSearchService::class);
+        $search->shouldReceive('search')->never(); // preview must NOT search/charge
+        $this->app->instance(LeadSearchService::class, $search);
+
+        $preview = $this->exec($shop, 'search_businesses', ['category' => 'find me customers']);
+
+        $this->assertTrue($preview['preview']);
+        $this->assertStringContainsString('hotels', $preview['action']);
+        $this->assertStringNotContainsString('find me customers', $preview['action']);
+    }
 }
