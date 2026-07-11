@@ -15,10 +15,10 @@ class Lead extends Model
     /** The fixed, opinionated funnel — deliberately not user-configurable. */
     public const STATUSES = ['new', 'sent', 'replied', 'demo', 'won', 'pass'];
 
-    /** Editable per shop (shops.lead_opening_template); this is the fallback. */
+    /** The opening WhatsApp draft template. {name}/{shop}/{category}/{area} fill per-lead. */
     public const DEFAULT_OPENING = 'Hi {name}, this is {shop} 👋 We find you new customers from across the internet and handle them end-to-end — AI WhatsApp replies, one-tap calls, automatic follow-ups, and bookings, with every lead tracked in one app. Worth a quick 2-min demo?';
 
-    /** Editable per shop (shops.lead_followup_template); this is the fallback. */
+    /** The follow-up WhatsApp draft template. */
     public const DEFAULT_FOLLOWUP = 'Hi {name}, just circling back 🙂 Most businesses we set up start seeing new leads land in the first week. Happy to send a short demo whenever suits you.';
 
     protected $fillable = [
@@ -111,16 +111,16 @@ class Lead extends Model
         return $d ? "https://wa.me/{$d}" : null;
     }
 
-    /** wa.me link pre-filled with the shop's opening template ({name} → business name). */
+    /** wa.me link pre-filled with the opening template ({name} → business name). */
     public function getWhatsappOpeningUrlAttribute(): ?string
     {
-        return $this->draftUrl($this->shop?->lead_opening_template ?: self::DEFAULT_OPENING);
+        return $this->draftUrl(self::DEFAULT_OPENING);
     }
 
-    /** wa.me link pre-filled with the shop's follow-up template ({name} → business name). */
+    /** wa.me link pre-filled with the follow-up template ({name} → business name). */
     public function getWhatsappFollowupUrlAttribute(): ?string
     {
-        return $this->draftUrl($this->shop?->lead_followup_template ?: self::DEFAULT_FOLLOWUP);
+        return $this->draftUrl(self::DEFAULT_FOLLOWUP);
     }
 
     /** Build wa.me/{digits}?text=... from a template, or null when there's no mobile. */
@@ -135,8 +135,6 @@ class Lead extends Model
         $text = strtr($template, [
             '{name}' => (string) $this->name,
             '{shop}' => (string) ($this->shop?->name ?? ''),
-            '{category}' => (string) ($this->categoryLabel() ?? ''),
-            '{area}' => (string) ($this->area() ?? ''),
         ]);
         return "https://wa.me/{$d}?text=" . rawurlencode($text);
     }

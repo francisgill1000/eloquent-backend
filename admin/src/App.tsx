@@ -48,7 +48,6 @@ import WhatsAppSetup from '@/pages/WhatsAppSetup';
 import Leads from '@/pages/Leads';
 import LeadCredits from '@/pages/LeadCredits';
 import LeadDetail from '@/pages/LeadDetail';
-import LeadMessages from '@/pages/LeadMessages';
 import SimulationSettings from '@/pages/SimulationSettings';
 import PublicBooking from '@/pages/PublicBooking';
 
@@ -94,7 +93,6 @@ export default function App() {
           <Route element={<ModuleGuard module="leads" />}>
             <Route path="/leads" element={<Leads />} />
             <Route path="/leads/credits" element={<LeadCredits />} />
-            <Route path="/leads/messages" element={<LeadMessages />} />
             <Route path="/leads/:id" element={<LeadDetail />} />
           </Route>
           <Route path="/settings/access" element={<AccessControl />} />

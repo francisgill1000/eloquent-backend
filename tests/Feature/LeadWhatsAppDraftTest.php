@@ -48,24 +48,6 @@ class LeadWhatsAppDraftTest extends TestCase
         $this->assertStringContainsString('Pak%20Cargo', $followup);
     }
 
-    public function test_custom_templates_override_defaults_and_render_name(): void
-    {
-        [$shop, $token] = $this->actingShop();
-        $shop->update([
-            'lead_opening_template' => 'Hello {name}, opening!',
-            'lead_followup_template' => 'Hi {name}, following up!',
-        ]);
-        $lead = Lead::create([
-            'shop_id' => $shop->id, 'name' => 'Acme', 'phone' => '0509998877',
-            'status' => 'new', 'source' => 'google',
-        ]);
-
-        $res = $this->auth($token)->getJson("/api/shop/leads/{$lead->id}")->assertOk();
-
-        $this->assertStringContainsString('Hello%20Acme%2C%20opening%21', $res->json('data.whatsapp_opening_url'));
-        $this->assertStringContainsString('Hi%20Acme%2C%20following%20up%21', $res->json('data.whatsapp_followup_url'));
-    }
-
     public function test_draft_urls_are_null_for_non_mobile_numbers(): void
     {
         [$shop, $token] = $this->actingShop();
@@ -78,27 +60,6 @@ class LeadWhatsAppDraftTest extends TestCase
 
         $this->assertNull($res->json('data.whatsapp_opening_url'));
         $this->assertNull($res->json('data.whatsapp_followup_url'));
-    }
-
-    public function test_category_and_area_placeholders_render(): void
-    {
-        [$shop, $token] = $this->actingShop();
-        $shop->update(['lead_opening_template' => 'Hi {name}, a {category} in {area} — from {shop}']);
-        $lead = Lead::create([
-            'shop_id' => $shop->id, 'name' => 'Acme', 'phone' => '0501112233',
-            'category' => 'beauty_salon', 'address' => 'Dubai Marina',
-            'status' => 'new', 'source' => 'google',
-        ]);
-
-        $opening = $this->auth($token)
-            ->getJson("/api/shop/leads/{$lead->id}")->assertOk()
-            ->json('data.whatsapp_opening_url');
-
-        // beauty_salon -> "Beauty Salon"; "Dubai Marina" -> "Dubai%20Marina"
-        $this->assertStringContainsString('Beauty%20Salon', $opening);
-        $this->assertStringContainsString('Dubai%20Marina', $opening);
-        $this->assertStringNotContainsString('%7Bcategory%7D', $opening); // no leftover {category}
-        $this->assertStringNotContainsString('%7Barea%7D', $opening);
     }
 
     public function test_default_opening_uses_the_sender_shop_name_not_a_hardcoded_brand(): void
