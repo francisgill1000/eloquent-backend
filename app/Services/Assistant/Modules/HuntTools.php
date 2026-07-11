@@ -6,16 +6,15 @@ use App\Models\LeadActivity;
 use App\Services\Assistant\Support\MutatingTool;
 use App\Services\Assistant\Support\ResolvesLeads;
 use App\Services\Assistant\Support\ToolCall;
-use App\Services\Credits\Exceptions\InsufficientCredits;
-use App\Services\Credits\HuntCreditService;
 use App\Services\Leads\LeadImporter;
 use App\Services\Leads\LeadSearchService;
 use App\Services\Leads\SearchInterpreter;
 
 /**
- * Owner-assistant Business Hunt MUTATING tools (leads module): run a live
- * (credit-spending) search, save results to the pipeline, and move a lead
- * through the funnel. Confirm-gated via MutatingTool.
+ * Owner-assistant Business Hunt tools (leads module): a CACHE-ONLY business
+ * search (never spends a credit), save cached results to the pipeline, and move
+ * a lead through the funnel. Saves and status changes are confirm-gated via
+ * MutatingTool; the search is a free read.
  */
 class HuntTools extends MutatingTool
 {
@@ -25,7 +24,6 @@ class HuntTools extends MutatingTool
         protected LeadSearchService $search,
         protected SearchInterpreter $interpreter,
         protected LeadImporter $importer,
-        protected HuntCreditService $credits,
     ) {}
 
     public function moduleKey(): ?string
@@ -69,9 +67,10 @@ class HuntTools extends MutatingTool
     }
 
     /**
-     * Live search — spends 1 credit on a cache miss. Hand-rolled (not gate())
-     * so an InsufficientCredits result comes back as a plain error, NOT wrapped
-     * in applied()'s done=true.
+     * Cache-only business search: returns businesses already discovered by a
+     * prior search (the shared cache) — FREE, never debits a Hunt credit. A
+     * brand-new live search that spends a credit is intentionally NOT available
+     * by voice; the owner runs that from the Hunt screen.
      */
     private function searchBusinesses(ToolCall $call): array
     {
@@ -79,36 +78,20 @@ class HuntTools extends MutatingTool
             return ['error' => 'not_found', 'what' => 'missing_category'];
         }
 
-        // Interpret up front so the confirmation preview names the REAL search
-        // term (interpret() is cached, so reusing it on confirm is free).
         [$keyword, $area] = $this->interpret($call);
+        $rows = $this->search->cached($keyword, $area);
 
-        if (! $call->confirmed) {
-            $bal = $this->credits->balance($call->shop);
-            $where = $area ? " in {$area}" : '';
-
-            return $this->preview(
-                "Search for \"{$keyword}\"{$where}. A live search uses 1 credit — you have {$bal} (a repeat of a recent search is free).",
-                ['credits' => "{$bal} → up to " . max(0, $bal - 1)],
-            );
+        if ($rows === null) {
+            return ['error' => 'no_cached_results', 'searched_for' => $keyword, 'area' => $area];
         }
 
-        try {
-            $result = $this->search->search($call->shop, $keyword, $area);
-        } catch (InsufficientCredits $e) {
-            return ['error' => 'insufficient_credits', 'credits' => $e->balance];
-        }
-
-        $rows = $result['results'];
-
-        return $this->applied([
+        return [
             'count' => count($rows),
-            'from_cache' => $result['from_cache'],
-            'credits_left' => $result['credits'],
+            'from_cache' => true,
             'searched_for' => $keyword,
             'area' => $area,
             'sample' => array_slice(array_map(fn ($r) => $r['name'] ?? 'Unknown', $rows), 0, 5),
-        ]);
+        ];
     }
 
     /**
@@ -172,10 +155,9 @@ class HuntTools extends MutatingTool
     public function toolDefs(): array
     {
         return [
-            ['name' => 'search_businesses', 'description' => 'Run a live business search to find leads. Give a category (e.g. "gyms", "hotels") and an optional area. A live search spends 1 Business Hunt credit; a repeat of a recent search is free. Confirm first (call with confirmed:true only after the owner agrees). Does NOT save — use save_leads afterwards.', 'input_schema' => ['type' => 'object', 'properties' => [
+            ['name' => 'search_businesses', 'description' => 'Look up businesses from earlier searches (FREE — never spends a credit). Give a category (e.g. "gyms", "hotels") and an optional area. Returns matches already in the search cache; if none are cached it returns no_cached_results — then tell the owner to run a new live search from the Hunt screen. Use save_leads to save results to the pipeline.', 'input_schema' => ['type' => 'object', 'properties' => [
                 'category' => ['type' => 'string', 'description' => 'Business type to look for, e.g. "gyms in Dubai Marina".'],
                 'area' => ['type' => 'string', 'description' => 'Optional UAE area/city.'],
-                'confirmed' => ['type' => 'boolean'],
             ], 'required' => ['category']]],
             ['name' => 'save_leads', 'description' => 'Save the businesses from the most recent search into the lead pipeline. Pass the same category and area that were just searched. Spends no credit. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => [
                 'category' => ['type' => 'string'],

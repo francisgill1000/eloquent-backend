@@ -70,7 +70,7 @@ class AssistantPrompt
         return <<<PROMPT
         BUSINESS HUNT (LEADS):
         This shop uses Business Hunt to find and pursue other businesses as leads. You can:
-        - Search for businesses to approach with search_businesses (a category like "gyms" and an optional area). A live search costs 1 Business Hunt credit; a repeat of a recent search is free. Always confirm before searching and tell the owner the credit cost. After a search, offer to save the results.
+        - Look up businesses from earlier searches with search_businesses (a category like "gyms" and an optional area). This is free and never spends a credit. If nothing is found, tell the owner to run a new live search from the Hunt screen in the app. After finding businesses, offer to save them.
         - Save the businesses from the last search to the pipeline with save_leads (this spends no credit).
         - Report the pipeline with list_leads: a total plus counts for each funnel stage (new, sent, replied, demo, won, pass).
         - Look up one lead's status and contact details with find_lead (by business name).
