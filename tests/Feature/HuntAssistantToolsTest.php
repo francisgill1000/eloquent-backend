@@ -5,6 +5,7 @@ use App\Models\Lead;
 use App\Models\LeadActivity;
 use App\Models\Shop;
 use App\Services\Assistant\AssistantToolRegistry;
+use App\Services\Credits\Exceptions\InsufficientCredits;
 use App\Services\Credits\HuntCreditService;
 use App\Services\Leads\LeadSearchService;
 use App\Services\Leads\SearchInterpreter;
@@ -96,34 +97,38 @@ class HuntAssistantToolsTest extends TestCase
         $this->app->instance(LeadSearchService::class, $search);
     }
 
-    public function test_search_businesses_returns_cached_results(): void
+    public function test_search_businesses_previews_then_confirms(): void
     {
         $shop = $this->leadsShop();
         $this->fakeSearch(function ($s) {
-            $s->shouldReceive('search')->never(); // cache-only: never a live/billable search
-            $s->shouldReceive('cached')->once()->andReturn([
-                ['name' => 'Gym One', 'external_ref' => 'g1'],
-                ['name' => 'Gym Two', 'external_ref' => 'g2'],
+            $s->shouldReceive('search')->once()->andReturn([
+                'results' => [['name' => 'Gym One', 'external_ref' => 'g1']],
+                'from_cache' => false,
+                'credits' => 4,
             ]);
         });
 
-        $out = $this->exec($shop, 'search_businesses', ['category' => 'gyms']);
-        $this->assertSame(2, $out['count']);
-        $this->assertTrue($out['from_cache']);
-        $this->assertSame(['Gym One', 'Gym Two'], $out['sample']);
-        $this->assertArrayNotHasKey('credits_left', $out); // nothing charged
+        $preview = $this->exec($shop, 'search_businesses', ['category' => 'gyms']);
+        $this->assertTrue($preview['preview']);
+        $this->assertFalse($preview['saved']);
+
+        $done = $this->exec($shop, 'search_businesses', ['category' => 'gyms', 'confirmed' => true]);
+        $this->assertTrue($done['done']);
+        $this->assertSame(1, $done['count']);
+        $this->assertSame(4, $done['credits_left']);
+        $this->assertSame(['Gym One'], $done['sample']);
     }
 
-    public function test_search_businesses_no_cache_directs_to_hunt_screen(): void
+    public function test_search_businesses_relays_insufficient_credits(): void
     {
         $shop = $this->leadsShop();
         $this->fakeSearch(function ($s) {
-            $s->shouldReceive('search')->never();
-            $s->shouldReceive('cached')->andReturn(null);
+            $s->shouldReceive('search')->andThrow(new InsufficientCredits(0, 1));
         });
 
-        $out = $this->exec($shop, 'search_businesses', ['category' => 'gyms']);
-        $this->assertSame('no_cached_results', $out['error']);
+        $out = $this->exec($shop, 'search_businesses', ['category' => 'gyms', 'confirmed' => true]);
+        $this->assertSame('insufficient_credits', $out['error']);
+        $this->assertArrayNotHasKey('done', $out);
     }
 
     public function test_save_leads_persists_cached_results(): void
@@ -180,7 +185,7 @@ class HuntAssistantToolsTest extends TestCase
         $this->assertSame('invalid_status', $out['error']);
     }
 
-    public function test_search_businesses_uses_interpreted_term_not_raw_input(): void
+    public function test_search_preview_shows_interpreted_term_not_raw_input(): void
     {
         $shop = $this->leadsShop();
 
@@ -189,12 +194,13 @@ class HuntAssistantToolsTest extends TestCase
         $this->app->instance(SearchInterpreter::class, $interp);
 
         $search = Mockery::mock(LeadSearchService::class);
-        $search->shouldReceive('search')->never();      // never a live/billable search
-        $search->shouldReceive('cached')->with('hotels', 'Dubai')->once()->andReturn([['name' => 'Grand Hotel', 'external_ref' => 'h1']]);
+        $search->shouldReceive('search')->never(); // preview must NOT search/charge
         $this->app->instance(LeadSearchService::class, $search);
 
-        $out = $this->exec($shop, 'search_businesses', ['category' => 'find me customers']);
-        $this->assertSame('hotels', $out['searched_for']);
-        $this->assertSame(1, $out['count']);
+        $preview = $this->exec($shop, 'search_businesses', ['category' => 'find me customers']);
+
+        $this->assertTrue($preview['preview']);
+        $this->assertStringContainsString('hotels', $preview['action']);
+        $this->assertStringNotContainsString('find me customers', $preview['action']);
     }
 }
