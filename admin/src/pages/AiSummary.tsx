@@ -124,6 +124,8 @@ const TABS: { id: PeriodType; label: string }[] = [
 export default function AiSummary() {
   const { shop } = useShop();
   const [period, setPeriod] = useState<PeriodType>('rolling30');
+  // The Custom tab toggles the date picker open/closed on repeat clicks.
+  const [customOpen, setCustomOpen] = useState(false);
 
   // The active window: the current period, a picked history row, or a custom range.
   const [win, setWin] = useState(() => currentWindow('rolling30'));
@@ -180,14 +182,22 @@ export default function AiSummary() {
       </div>
 
       <div className="ins-tabs">
-        {TABS.map((t) => (
-          <button key={t.id} aria-pressed={period === t.id}
-            className={`ins-tab${period === t.id ? ' is-active' : ''}`}
-            onClick={() => setPeriod(t.id)}>{t.label}</button>
-        ))}
+        {TABS.map((t) => {
+          // Custom acts as a toggle: re-clicking it hides the picker; other tabs
+          // are a plain single-select. The Custom tab is "active" only while open.
+          const active = t.id === 'custom' ? (period === 'custom' && customOpen) : period === t.id;
+          const onClick = t.id === 'custom'
+            ? () => { setCustomOpen((o) => (period === 'custom' ? !o : true)); setPeriod('custom'); }
+            : () => setPeriod(t.id);
+          return (
+            <button key={t.id} aria-pressed={active}
+              className={`ins-tab${active ? ' is-active' : ''}`}
+              onClick={onClick}>{t.label}</button>
+          );
+        })}
       </div>
 
-      {period === 'custom' && (
+      {period === 'custom' && customOpen && (
         <div className="ins-custom">
           <DateRangePicker from={customFrom} to={customTo}
             onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }} />
@@ -217,7 +227,7 @@ export default function AiSummary() {
       <div className="ins-wrap">
         <AiInsightsCard data={data} loading={loading} refreshing={refreshing}
           subtitle={win.label}
-          hint={period === 'custom' ? 'Pick a date range above, then tap Generate to see a summary.' : undefined}
+          hint={period === 'custom' ? 'Pick a date range, then tap Generate to see a summary.' : undefined}
           onRefresh={() => fetchAi(win.from, win.to, true)} />
       </div>
     </div></div>
