@@ -13,7 +13,7 @@ class AiSummary extends Model
     protected $table = 'ai_summaries';
 
     protected $fillable = [
-        'shop_id', 'summary_date', 'period_from', 'period_to',
+        'shop_id', 'period_type', 'summary_date', 'period_from', 'period_to',
         'summary', 'patterns', 'recommendations', 'model',
     ];
 
