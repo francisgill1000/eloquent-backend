@@ -79,17 +79,20 @@ class HuntTools extends MutatingTool
             return ['error' => 'not_found', 'what' => 'missing_category'];
         }
 
+        // Interpret up front so the confirmation preview names the REAL search
+        // term (interpret() is cached, so reusing it on confirm is free).
+        [$keyword, $area] = $this->interpret($call);
+
         if (! $call->confirmed) {
             $bal = $this->credits->balance($call->shop);
-            $where = $call->get('area') ? " in {$call->get('area')}" : '';
+            $where = $area ? " in {$area}" : '';
 
             return $this->preview(
-                "Search for \"{$call->get('category')}\"{$where}. A live search uses 1 credit — you have {$bal} (a repeat of a recent search is free).",
+                "Search for \"{$keyword}\"{$where}. A live search uses 1 credit — you have {$bal} (a repeat of a recent search is free).",
                 ['credits' => "{$bal} → up to " . max(0, $bal - 1)],
             );
         }
 
-        [$keyword, $area] = $this->interpret($call);
         try {
             $result = $this->search->search($call->shop, $keyword, $area);
         } catch (InsufficientCredits $e) {
