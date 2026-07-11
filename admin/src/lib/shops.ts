@@ -93,3 +93,14 @@ export async function approveQrLogin(token: string): Promise<unknown> {
   const { data } = await api.post(`/shops/qr-login/approve/${token}`);
   return data;
 }
+
+/** Master account only: manually grant Business Hunt credits to a shop (the
+ *  sell-by-hand path before self-serve checkout). Returns the new balance. */
+export async function grantShopCredits(
+  id: number,
+  amount: number,
+  note?: string,
+): Promise<{ credits: number }> {
+  const { data } = await api.post(`/master/shops/${id}/credits`, { amount, note: note || undefined });
+  return { credits: Number(data?.credits ?? 0) };
+}

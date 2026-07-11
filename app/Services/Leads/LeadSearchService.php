@@ -3,28 +3,32 @@
 namespace App\Services\Leads;
 
 use App\Models\Shop;
+use App\Services\Credits\HuntCreditService;
 use App\Services\Leads\Contracts\LeadSourceInterface;
-use App\Services\Leads\Exceptions\SearchLimitReached;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Orchestrates business discovery: cache-first, then credit-gated live calls.
  *
  * The two caches are GLOBAL (public business data, shared across shops like a
- * CDN). Only LIVE source calls consume a shop's monthly allowance and write a
+ * CDN). Only a LIVE source call spends a Business Hunt credit and writes a
  * usage-log row — cache hits are free. This is what lets a shop re-run the same
- * search without burning credits.
+ * search without burning credits. Credits are the Hunt billing meter and are
+ * fully independent of the Lens subscription.
  */
 class LeadSearchService
 {
-    public function __construct(private LeadSourceInterface $source)
-    {
+    public function __construct(
+        private LeadSourceInterface $source,
+        private HuntCreditService $credits,
+    ) {
     }
 
     /**
-     * @return array{results: array, from_cache: bool, used: int, limit: int, remaining: int}
+     * @return array{results: array, from_cache: bool, credits: int}
      *
-     * @throws SearchLimitReached when the monthly allowance is exhausted.
+     * @throws \App\Services\Credits\Exceptions\InsufficientCredits when the shop
+     *         has no credits left to cover a live call.
      */
     public function search(Shop $shop, string $query, ?string $area): array
     {
@@ -42,24 +46,36 @@ class LeadSearchService
 
         if ($cached) {
             $refs = json_decode($cached->external_refs, true) ?: [];
-            [$used, $limit] = $this->usage($shop);
             return [
                 'results' => $this->hydrateFromCache($refs),
                 'from_cache' => true,
-                'used' => $used,
-                'limit' => $limit,
-                'remaining' => max(0, $limit - $used),
+                'credits' => $this->credits->balance($shop),
             ];
         }
 
-        // 2. Cache miss — enforce the monthly allowance before spending money.
-        [$used, $limit] = $this->usage($shop);
-        if ($used >= $limit) {
-            throw new SearchLimitReached($used, $limit);
+        // 2. Cache miss — reserve a credit BEFORE spending money on a live call.
+        //    debit() throws InsufficientCredits (balance untouched) when the shop
+        //    can't cover it. Reserving first guarantees no oversell under
+        //    concurrent searches; we refund if the provider call then fails.
+        //    The master (platform-owner) account is never metered — same bypass
+        //    the module gate uses.
+        $charge = ! $shop->is_master;
+
+        if ($charge) {
+            $this->credits->debit($shop, 1, 'search', array_filter([
+                'query' => $query,
+                'area' => $area,
+            ], fn ($v) => $v !== null && $v !== ''));
         }
 
-        // 3. Live call.
-        $results = $this->source->search($query, $area);
+        try {
+            $results = $this->source->search($query, $area);
+        } catch (\Throwable $e) {
+            if ($charge) {
+                $this->credits->grant($shop, 1, 'refund', ['query' => $query]);
+            }
+            throw $e;
+        }
 
         $this->persistCaches($query, $area, $queryKey, $results);
 
@@ -71,14 +87,10 @@ class LeadSearchService
             'created_at' => now(),
         ]);
 
-        $used++;
-
         return [
             'results' => $results,
             'from_cache' => false,
-            'used' => $used,
-            'limit' => $limit,
-            'remaining' => max(0, $limit - $used),
+            'credits' => $this->credits->balance($shop),
         ];
     }
 

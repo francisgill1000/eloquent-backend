@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
-import { getMasterShops, updateMasterShop } from '@/lib/shops';
+import { getMasterShops, updateMasterShop, grantShopCredits } from '@/lib/shops';
 import { shortDate } from '@/lib/format';
 import { shopHasModule, type Module } from '@/lib/modules';
 import type { MasterShop } from '@/types';
@@ -27,6 +27,9 @@ export default function MasterShopDetail() {
   const [personaSaved, setPersonaSaved] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
   const [togglingModule, setTogglingModule] = useState<Module | null>(null);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [grantingCredits, setGrantingCredits] = useState(false);
+  const [creditMsg, setCreditMsg] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
 
@@ -99,6 +102,24 @@ export default function MasterShopDetail() {
       setError('Could not change modules.');
     } finally {
       setTogglingModule(null);
+    }
+  };
+
+  const grantCredits = async () => {
+    if (!shop) return;
+    const amt = Math.round(parseFloat(creditAmount));
+    if (!amt || amt < 1) { setCreditMsg('Enter a positive amount.'); return; }
+    setGrantingCredits(true);
+    setCreditMsg('');
+    try {
+      const { credits } = await grantShopCredits(shop.id, amt);
+      setShop({ ...shop, hunt_credits: credits });
+      setCreditAmount('');
+      setCreditMsg(`Granted ✓ — balance now ${credits.toLocaleString('en-AE')}`);
+    } catch {
+      setCreditMsg('Could not grant credits.');
+    } finally {
+      setGrantingCredits(false);
     }
   };
 
@@ -193,6 +214,25 @@ export default function MasterShopDetail() {
           );
         })}
         <p className="c-msd-help">Controls which menus this business sees in the app.</p>
+      </div>
+
+      <div className="c-msd-section">
+        <h3 className="c-msd-h">Business Hunt credits</h3>
+        <p className="c-msd-help" style={{ marginTop: 0 }}>
+          Balance: <b style={{ color: 'var(--text-1)' }}>{(shop.hunt_credits ?? 0).toLocaleString('en-AE')}</b> credits
+          &nbsp;·&nbsp; 1 credit = 1 live business search. Independent of the subscription.
+        </p>
+        <div className="c-input-row" style={{ marginBottom: 8 }}>
+          <input type="number" min="1" step="1" placeholder="Amount to grant (e.g. 200)"
+            value={creditAmount}
+            onChange={(e) => { setCreditAmount(e.target.value); setCreditMsg(''); }} />
+        </div>
+        <button className="c-btn c-btn-block" disabled={grantingCredits || !creditAmount.trim()}
+          onClick={() => void grantCredits()}>
+          {grantingCredits ? 'Granting…' : 'Grant credits'}
+        </button>
+        {creditMsg && <p className="c-msd-help">{creditMsg}</p>}
+        <p className="c-msd-help">Add credits after selling a pack by hand (Ziina link).</p>
       </div>
 
       <div className="c-msd-section">

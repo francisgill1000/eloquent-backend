@@ -1,5 +1,6 @@
 import api from './api';
 import type {
+  CreditPack,
   Lead,
   LeadDetailResponse,
   LeadListResponse,
@@ -39,17 +40,27 @@ export function telLink(phone?: string | null): string | null {
   return d ? `tel:+${d}` : null;
 }
 
-/** Raised when the monthly search allowance is exhausted (HTTP 429). */
-export class SearchLimitError extends Error {
-  constructor(public used: number, public limit: number) {
-    super('Monthly search allowance reached.');
-    this.name = 'SearchLimitError';
+/** Raised when the shop is out of Business Hunt credits (HTTP 429). Carries the
+ *  current balance so the UI can show a top-up prompt. */
+export class InsufficientCreditsError extends Error {
+  constructor(public credits: number) {
+    super('Out of Business Hunt credits.');
+    this.name = 'InsufficientCreditsError';
   }
+}
+
+/** The shop's Business Hunt credit balance plus the packs it can top up with. */
+export async function getLeadCredits(): Promise<{ credits: number; packs: CreditPack[] }> {
+  const { data } = await api.get('/shop/leads/credits');
+  return {
+    credits: Number(data?.credits ?? 0),
+    packs: Array.isArray(data?.packs) ? data.packs : [],
+  };
 }
 
 /**
  * Search real businesses via the active source. Does not save. Cache hits are
- * free; a live call over the monthly allowance throws SearchLimitError.
+ * free; a live call spends one credit, or throws InsufficientCreditsError.
  */
 export async function searchLeads(category: string, area?: string): Promise<LeadSearchResponse> {
   try {
@@ -58,12 +69,12 @@ export async function searchLeads(category: string, area?: string): Promise<Lead
     });
     return {
       data: Array.isArray(data?.data) ? data.data : [],
-      meta: data?.meta ?? { from_cache: false, used: 0, limit: 0, remaining: 0 },
+      meta: data?.meta ?? { from_cache: false, credits: 0 },
     };
   } catch (err) {
-    const res = (err as { response?: { status?: number; data?: { used?: number; limit?: number } } })?.response;
+    const res = (err as { response?: { status?: number; data?: { credits?: number } } })?.response;
     if (res?.status === 429) {
-      throw new SearchLimitError(res.data?.used ?? 0, res.data?.limit ?? 0);
+      throw new InsufficientCreditsError(res.data?.credits ?? 0);
     }
     throw err;
   }
@@ -77,7 +88,7 @@ export type AdSearchStart =
  * Start an "Ad Activity" search. A repeat query hits the cache and returns
  * results immediately ({cached:true}); otherwise it kicks off an async scrape
  * and returns a run id to poll. Pass fresh=true to bypass the cache and force a
- * live re-scrape. Throws SearchLimitError on 429.
+ * live re-scrape. Throws InsufficientCreditsError on 429.
  */
 export async function startAdSearch(category: string, area?: string, fresh = false): Promise<AdSearchStart> {
   try {
@@ -87,9 +98,9 @@ export async function startAdSearch(category: string, area?: string, fresh = fal
     }
     return { cached: false, runId: data?.run_id as string };
   } catch (err) {
-    const res = (err as { response?: { status?: number; data?: { used?: number; limit?: number } } })?.response;
+    const res = (err as { response?: { status?: number; data?: { credits?: number } } })?.response;
     if (res?.status === 429) {
-      throw new SearchLimitError(res.data?.used ?? 0, res.data?.limit ?? 0);
+      throw new InsufficientCreditsError(res.data?.credits ?? 0);
     }
     throw err;
   }

@@ -15,10 +15,16 @@ import {
   telLink,
   leadDigits,
   isUaeMobile,
-  SearchLimitError,
+  InsufficientCreditsError,
+  getLeadCredits,
 } from '@/lib/leads';
 import { LEAD_STATUSES } from '@/types';
-import type { Lead, LeadFunnel, LeadResult, LeadStatus } from '@/types';
+import type { CreditPack, Lead, LeadFunnel, LeadResult, LeadStatus } from '@/types';
+
+/** Support WhatsApp owners message to top up Hunt credits (no self-serve yet).
+ *  Same number as the in-app support button. */
+const TOPUP_WA = '971557369629';
+const AED = (fils: number) => `AED ${(fils / 100).toLocaleString('en-AE')}`;
 
 type Mode = 'find' | 'pipeline';
 
@@ -118,8 +124,12 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [limit, setLimit] = useState<{ used: number; limit: number } | null>(null);
-  const [meta, setMeta] = useState<{ from_cache: boolean; remaining: number; searched_for?: string } | null>(null);
+  // Set when a live search is refused for lack of credits (carries the balance).
+  const [blocked, setBlocked] = useState<{ credits: number } | null>(null);
+  const [meta, setMeta] = useState<{ from_cache: boolean; credits: number; searched_for?: string } | null>(null);
+  // Current Hunt credit balance + packs, for the balance chip and top-up prompt.
+  const [balance, setBalance] = useState<number | null>(null);
+  const [packs, setPacks] = useState<CreditPack[]>([]);
   // Background enrichment (the slow "advertising" source) runs after the fast
   // results land and quietly appends. `scanning` drives the subtle indicator;
   // `moreFound` is how many extra leads the last scan added.
@@ -137,6 +147,16 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
   // Cancel any in-flight background scan when leaving the pane.
   useEffect(() => () => { if (pollRef.current) window.clearTimeout(pollRef.current); }, []);
+
+  // Load the credit balance (+ packs for the top-up prompt) when the pane opens.
+  useEffect(() => {
+    if (!shopReady) return;
+    let alive = true;
+    getLeadCredits()
+      .then((c) => { if (alive) { setBalance(c.credits); setPacks(c.packs); } })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [shopReady]);
 
   const selectedRefs = useMemo(() => Object.keys(selected).filter((k) => selected[k]), [selected]);
 
@@ -160,7 +180,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   const runSearch = async () => {
     const q = category.trim();
     if (!q || !shopReady) return;
-    setError(''); setLimit(null); setResults(null); setSelected({}); setMeta(null);
+    setError(''); setBlocked(null); setResults(null); setSelected({}); setMeta(null);
     setScanning(false); setMoreFound(null); setVisible(PAGE_SIZE);
     resultsRef.current = null;
     if (pollRef.current) window.clearTimeout(pollRef.current);
@@ -172,11 +192,12 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
     try {
       const res = await searchLeads(q);
       setResults(res.data);
-      setMeta({ from_cache: res.meta.from_cache, remaining: res.meta.remaining, searched_for: res.meta.searched_for });
+      setMeta({ from_cache: res.meta.from_cache, credits: res.meta.credits, searched_for: res.meta.searched_for });
+      setBalance(res.meta.credits);
       searchedFor = res.meta.searched_for || q;
       gotFast = true;
     } catch (e) {
-      if (e instanceof SearchLimitError) setLimit({ used: e.used, limit: e.limit });
+      if (e instanceof InsufficientCreditsError) { setBlocked({ credits: e.credits }); setBalance(e.credits); }
       else setError('Search failed. Please try again.');
     } finally {
       setLoading(false);
@@ -289,21 +310,50 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
         </button>
       </div>
 
+      {/* Credit balance chip. Low (<10) turns amber as a gentle top-up nudge. */}
+      {balance !== null && (
+        <div className={`lf-meta lf-credits${balance <= 10 ? ' low' : ''}`}>
+          <Icons.Search size={13} /> {balance.toLocaleString('en-AE')} Hunt {balance === 1 ? 'credit' : 'credits'} left
+          {balance <= 10 && (
+            <a className="lf-topup-link"
+              href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent('Hi, I’d like to top up my Business Hunt credits.')}`}
+              target="_blank" rel="noreferrer">Top up</a>
+          )}
+        </div>
+      )}
+
       {error && <div className="c-error-box">{error}</div>}
 
-      {limit && (
+      {blocked && (
         <div className="lf-limit">
           <Icons.Bell size={16} />
-          <div>
-            <strong>Monthly search limit reached</strong>
-            <span>You've used {limit.used} of {limit.limit} searches this month. Repeat searches you've run before are always free.</span>
+          <div style={{ width: '100%' }}>
+            <strong>Out of Business Hunt credits</strong>
+            <span>Each new business search uses 1 credit. Repeat searches you've already run are always free. Top up to keep searching:</span>
+            {packs.length > 0 && (
+              <div className="lf-packs">
+                {packs.map((p) => (
+                  <a key={p.id} className="lf-pack"
+                    href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent(`Hi, I’d like the ${p.name} pack — ${p.credits} Hunt credits for ${AED(p.price_fils)}.`)}`}
+                    target="_blank" rel="noreferrer">
+                    <span className="lf-pack-credits">{p.credits.toLocaleString('en-AE')} credits</span>
+                    <span className="lf-pack-price">{AED(p.price_fils)}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+            <a className="c-btn-ghost lf-topup-btn"
+              href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent('Hi, I’d like to top up my Business Hunt credits.')}`}
+              target="_blank" rel="noreferrer">
+              <Icons.WhatsApp size={15} /> Message us to top up
+            </a>
           </div>
         </div>
       )}
 
       {meta && !loading && (
         <div className="lf-meta">
-          {meta.from_cache ? <><Icons.Check size={13} /> From cache — no search used</> : <>{meta.remaining} searches left this month</>}
+          {meta.from_cache ? <><Icons.Check size={13} /> From cache — no credit used</> : <>Live search — 1 credit used</>}
         </div>
       )}
 
@@ -361,7 +411,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
         <div className="lf-panel">
           <EmptyState title="No businesses found" subtitle="Try a broader category or a different area." />
         </div>
-      ) : results && results.length === 0 ? null : !limit && (
+      ) : results && results.length === 0 ? null : !blocked && (
         <div className="lf-panel">
           <EmptyState icon={<Icons.Search size={26} />} title="Search to find businesses"
             subtitle="Enter a business type and area to discover real UAE businesses." />

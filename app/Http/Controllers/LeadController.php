@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CreditPack;
 use App\Models\Lead;
 use App\Models\LeadActivity;
 use App\Models\Shop;
+use App\Services\Credits\Exceptions\InsufficientCredits;
+use App\Services\Credits\HuntCreditService;
 use App\Services\Leads\AdLibraryService;
-use App\Services\Leads\Exceptions\SearchLimitReached;
 use App\Services\Leads\LeadSearchService;
 use App\Services\Leads\OutreachWriter;
 use App\Services\Leads\SearchInterpreter;
@@ -24,7 +26,25 @@ class LeadController extends Controller
     public function __construct(
         private LeadSearchService $search,
         private AdLibraryService $adLibrary,
+        private HuntCreditService $credits,
     ) {
+    }
+
+    /**
+     * GET /shop/leads/credits
+     * The shop's current Business Hunt credit balance plus the active packs, for
+     * the balance chip and the low-balance top-up prompt.
+     */
+    public function credits(Request $request)
+    {
+        $shop = $this->shop($request);
+
+        return response()->json([
+            'credits' => $this->credits->balance($shop),
+            'packs' => CreditPack::where('active', true)
+                ->orderBy('sort')->orderBy('price_fils')
+                ->get(['id', 'name', 'credits', 'price_fils']),
+        ]);
     }
 
     /** The authenticated tenant. */
@@ -38,7 +58,8 @@ class LeadController extends Controller
     /**
      * GET /shop/leads/search?category=&area=
      * Discover businesses via the active source. Does NOT save. Cache hits are
-     * free; a live call over the monthly allowance returns 402.
+     * free; a live call spends one Business Hunt credit, or returns 429
+     * ('insufficient_credits') when the balance is empty.
      */
     public function search(Request $request, SearchInterpreter $interpreter)
     {
@@ -64,14 +85,13 @@ class LeadController extends Controller
 
         try {
             $result = $this->search->search($shop, $keyword, $area);
-        } catch (SearchLimitReached $e) {
-            // 429 (not 402): 402 is reserved for lapsed subscriptions, which the
-            // admin SPA's axios interceptor redirects to /subscribe. A quota
-            // limit must stay on the page, so it uses Too Many Requests instead.
+        } catch (InsufficientCredits $e) {
+            // 429 (not 402): 402 is reserved for the Lens subscription paywall,
+            // which the admin SPA's axios interceptor redirects to /subscribe. A
+            // Hunt top-up must stay on the page, so it uses Too Many Requests.
             return response()->json([
-                'error' => 'search_limit_reached',
-                'used' => $e->used,
-                'limit' => $e->limit,
+                'error' => 'insufficient_credits',
+                'credits' => $e->balance,
             ], 429);
         }
 
@@ -79,9 +99,7 @@ class LeadController extends Controller
             'data' => $result['results'],
             'meta' => [
                 'from_cache' => $result['from_cache'],
-                'used' => $result['used'],
-                'limit' => $result['limit'],
-                'remaining' => $result['remaining'],
+                'credits' => $result['credits'],
                 'searched_for' => $keyword,
             ],
         ]);

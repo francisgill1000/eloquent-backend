@@ -176,6 +176,8 @@ export type MasterShop = {
   persona?: string | null;
   is_master?: boolean;
   modules?: Array<'bookings' | 'leads'>;
+  /** Business Hunt credit balance (independent of the Lens subscription). */
+  hunt_credits?: number;
   subscription_status?: string | null;
   plan?: string | null;
   access_until?: string | null;
@@ -214,11 +216,20 @@ export type LeadSource = 'google_places' | 'meta_ad_library';
 
 export type LeadSearchMeta = {
   from_cache: boolean;
-  used: number;
-  limit: number;
-  remaining: number;
+  /** Business Hunt credit balance after this search (cache hits don't spend one). */
+  credits: number;
   /** The real business-type keyword the AI actually searched (from the user's text). */
   searched_for?: string;
+};
+
+/** A master-editable Business Hunt credit pack. price_fils is in fils (100 = AED 1). */
+export type CreditPack = {
+  id: number;
+  name: string;
+  credits: number;
+  price_fils: number;
+  active?: boolean;
+  sort?: number;
 };
 
 export type LeadSearchResponse = {
