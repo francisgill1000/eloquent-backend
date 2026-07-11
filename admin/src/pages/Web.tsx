@@ -333,8 +333,8 @@ const LP_HTML = `
        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
      </button>
      <div class="slider-dots" role="tablist" aria-label="Products">
-       <button class="active" type="button" aria-label="Business Lens"></button>
-       <button type="button" aria-label="Business Hunt"></button>
+       <button class="active" type="button" aria-label="Business Hunt"></button>
+       <button type="button" aria-label="Business Lens"></button>
      </div>
      <button class="slider-arrow" data-dir="1" aria-label="Next product">
        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
@@ -524,11 +524,14 @@ export default function Web() {
     };
   }, []);
 
-  // Hero product slider: manual nav (arrows / dots / keyboard / swipe), no
-  // auto-advance so slide 1's voice demo is never interrupted mid-play.
+  // Hero product slider: Business Hunt shown first, auto-advancing every 3s.
+  // Autoplay pauses on hover/focus and when the tab is hidden; any manual nav
+  // (arrows / dots / keyboard / swipe) resets the timer. Disabled entirely
+  // under prefers-reduced-motion.
   useEffect(() => {
     const root = hostRef.current;
     if (!root) return;
+    const slider = root.querySelector<HTMLElement>('.hero-slider');
     const track = root.querySelector<HTMLElement>('#lp-track');
     const slides = Array.from(root.querySelectorAll<HTMLElement>('.hero-slide'));
     const dots = Array.from(root.querySelectorAll<HTMLButtonElement>('.slider-dots button'));
@@ -536,10 +539,17 @@ export default function Web() {
     const huntLines = Array.from(root.querySelectorAll<HTMLElement>('#lp-hunt-demo .line'));
     if (!track || slides.length === 0) return;
 
+    // Display order (left→right, matching the dots): Business Hunt first, then
+    // Business Lens. Values index into the DOM `slides` list (Lens=0, Hunt=1).
+    const order = [1, 0];
+    const HUNT_DOM = 1;
+    const AUTO_MS = 3000;
+
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const huntTimers: number[] = [];
-    let idx = 0;
+    let pos = 0;
     let huntRevealed = false;
+    let auto: number | undefined;
 
     const revealHunt = () => {
       if (huntRevealed) return;
@@ -550,39 +560,54 @@ export default function Web() {
       );
     };
 
-    const go = (n: number) => {
-      idx = (n + slides.length) % slides.length;
-      track.style.transform = `translateX(-${idx * 100}%)`;
-      dots.forEach((d, i) => d.classList.toggle('active', i === idx));
-      slides.forEach((s, i) => s.setAttribute('aria-hidden', String(i !== idx)));
-      if (idx === 1) revealHunt();
+    const render = () => {
+      const dom = order[pos];
+      track.style.transform = `translateX(-${dom * 100}%)`;
+      dots.forEach((d, i) => d.classList.toggle('active', i === pos));
+      slides.forEach((s, i) => s.setAttribute('aria-hidden', String(i !== dom)));
+      if (dom === HUNT_DOM) revealHunt();
     };
+    const go = (n: number) => { pos = (n + order.length) % order.length; render(); };
+
+    const stopAuto = () => { if (auto !== undefined) { clearInterval(auto); auto = undefined; } };
+    const startAuto = () => {
+      if (reduce || order.length < 2) return;
+      stopAuto();
+      auto = window.setInterval(() => go(pos + 1), AUTO_MS);
+    };
+    // Manual nav resets the timer so the chosen slide gets a full dwell.
+    const nav = (n: number) => { go(n); startAuto(); };
 
     const onArrow = (e: Event) => {
       const dir = Number((e.currentTarget as HTMLElement).dataset.dir || '1');
-      go(idx + dir);
+      nav(pos + dir);
     };
-    const dotHandlers = dots.map((_, i) => () => go(i));
+    const dotHandlers = dots.map((_, i) => () => nav(i));
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') go(idx - 1);
-      else if (e.key === 'ArrowRight') go(idx + 1);
+      if (e.key === 'ArrowLeft') nav(pos - 1);
+      else if (e.key === 'ArrowRight') nav(pos + 1);
     };
     let x0: number | null = null;
     const onTouchStart = (e: TouchEvent) => { x0 = e.touches[0].clientX; };
     const onTouchEnd = (e: TouchEvent) => {
       if (x0 === null) return;
       const dx = e.changedTouches[0].clientX - x0;
-      if (Math.abs(dx) > 45) go(idx + (dx < 0 ? 1 : -1));
+      if (Math.abs(dx) > 45) nav(pos + (dx < 0 ? 1 : -1));
       x0 = null;
     };
+    const onVisibility = () => { if (document.hidden) stopAuto(); else startAuto(); };
 
     arrows.forEach((a) => a.addEventListener('click', onArrow));
     dots.forEach((d, i) => d.addEventListener('click', dotHandlers[i]));
     root.addEventListener('keydown', onKey);
     track.addEventListener('touchstart', onTouchStart, { passive: true });
     track.addEventListener('touchend', onTouchEnd, { passive: true });
+    slider?.addEventListener('pointerenter', stopAuto);
+    slider?.addEventListener('pointerleave', startAuto);
+    document.addEventListener('visibilitychange', onVisibility);
 
-    go(0);
+    render();
+    startAuto();
 
     return () => {
       arrows.forEach((a) => a.removeEventListener('click', onArrow));
@@ -590,6 +615,10 @@ export default function Web() {
       root.removeEventListener('keydown', onKey);
       track.removeEventListener('touchstart', onTouchStart);
       track.removeEventListener('touchend', onTouchEnd);
+      slider?.removeEventListener('pointerenter', stopAuto);
+      slider?.removeEventListener('pointerleave', startAuto);
+      document.removeEventListener('visibilitychange', onVisibility);
+      stopAuto();
       huntTimers.forEach((t) => clearTimeout(t));
     };
   }, []);
