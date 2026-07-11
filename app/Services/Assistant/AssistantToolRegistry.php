@@ -23,6 +23,7 @@ class AssistantToolRegistry
         protected \App\Services\Assistant\Modules\CustomerTools $customers,
         protected \App\Services\Assistant\Modules\ProfileTools $profile,
         protected \App\Services\Assistant\Modules\AccessTools $access,
+        protected \App\Services\Assistant\Modules\HuntReadTools $huntRead,
     ) {}
 
     /** @return array<int, AssistantToolModule> */
@@ -38,6 +39,7 @@ class AssistantToolRegistry
             $this->customers,
             $this->profile,
             $this->access,
+            $this->huntRead,
         ];
     }
 
