@@ -358,8 +358,14 @@
 .ins-tab { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line, #2a3b34);
   background: transparent; color: inherit; font-size: 13px; cursor: pointer; }
 .ins-tab.is-active { background: var(--accent, #16d1a5); color: #062018; border-color: transparent; font-weight: 600; }
-.ins-custom { display: inline-flex; flex-direction: column; gap: 10px; margin: 0 0 12px; max-width: 100%; }
+/* Animated open/close: grid rows 0fr→1fr smoothly expands to content height. */
+.ins-custom-wrap { display: grid; grid-template-rows: 0fr; opacity: 0;
+  transition: grid-template-rows 260ms ease, opacity 200ms ease, margin 260ms ease; }
+.ins-custom-wrap.is-open { grid-template-rows: 1fr; opacity: 1; margin: 0 0 12px; }
+.ins-custom { display: inline-flex; flex-direction: column; gap: 10px; max-width: 100%;
+  overflow: hidden; min-height: 0; }
 .ins-custom-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+@media (prefers-reduced-motion: reduce) { .ins-custom-wrap { transition: none; } }
 .ins-custom-range { font-size: 13px; opacity: .8; }
 .ins-custom-go { padding: 8px 20px; border-radius: 8px; border: none; background: var(--accent, #16d1a5);
   color: #062018; font-weight: 600; cursor: pointer; }

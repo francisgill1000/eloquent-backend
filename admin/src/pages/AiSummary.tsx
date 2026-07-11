@@ -197,7 +197,10 @@ export default function AiSummary() {
         })}
       </div>
 
-      {period === 'custom' && customOpen && (
+      {/* Custom range — kept mounted so it can animate open/closed (0fr→1fr grid
+          collapse). aria-hidden keeps the collapsed picker out of the a11y tree. */}
+      <div className={`ins-custom-wrap${period === 'custom' && customOpen ? ' is-open' : ''}`}
+        aria-hidden={!(period === 'custom' && customOpen)}>
         <div className="ins-custom">
           <DateRangePicker from={customFrom} to={customTo}
             onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }} />
@@ -208,7 +211,7 @@ export default function AiSummary() {
             <button className="ins-custom-go" onClick={runCustom} disabled={!customFrom || !customTo}>Generate</button>
           </div>
         </div>
-      )}
+      </div>
 
       {(period === 'week' || period === 'month') && history.length > 0 && (
         <div className="ins-history">
