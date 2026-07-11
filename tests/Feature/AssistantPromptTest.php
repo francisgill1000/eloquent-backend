@@ -45,4 +45,17 @@ class AssistantPromptTest extends TestCase
         $this->assertStringContainsString('BOOKINGS & SERVICES', $prompt);
         $this->assertStringContainsString('BUSINESS HUNT', $prompt);
     }
+
+    /**
+     * Guards against the "assistant said 10 credits while the real balance was
+     * 548" hallucination: the prompt must forbid stating a number without
+     * calling the tool that produces it, naming hunt_credits explicitly.
+     */
+    public function test_prompt_forbids_stating_numbers_without_calling_a_tool(): void
+    {
+        $shop = Shop::create(['name' => 'Hunt Co', 'shop_code' => '7203', 'pin' => '0', 'status' => 'active', 'category_id' => 11, 'modules' => ['leads']]);
+        $prompt = AssistantPrompt::for($shop);
+        $this->assertStringContainsString('NEVER state any number', $prompt);
+        $this->assertStringContainsString('hunt_credits for credits', $prompt);
+    }
 }
