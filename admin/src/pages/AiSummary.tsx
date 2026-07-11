@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
-import { getAiInsights, type AiInsights } from '@/lib/aiInsights';
+import {
+  getAiInsights, getAiSummaryHistory,
+  type AiInsights, type PeriodType, type AiSummaryHistoryItem,
+} from '@/lib/aiInsights';
 import { speak } from '@/lib/simulation';
 import '@/styles/insights.css';
 
@@ -9,25 +12,39 @@ import '@/styles/insights.css';
 const pad = (n: number) => String(n).padStart(2, '0');
 const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const startOfWeekMon = (d: Date) => { const x = new Date(d); const dow = (x.getDay() + 6) % 7; return addDays(x, -dow); };
+const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
+
+/** The from/to window + human label for a given period selection (current period). */
+function currentWindow(period: PeriodType): { from: string; to: string; label: string } {
+  const today = new Date();
+  if (period === 'week') {
+    return { from: iso(startOfWeekMon(today)), to: iso(today), label: 'This week so far' };
+  }
+  if (period === 'month') {
+    return { from: iso(startOfMonth(today)), to: iso(today), label: 'This month so far' };
+  }
+  // rolling30 (default): the 30 complete days ending yesterday.
+  const yesterday = addDays(today, -1);
+  return { from: iso(addDays(yesterday, -29)), to: iso(yesterday), label: 'Last 30 days' };
+}
+
+const fmt = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+const historyLabel = (it: AiSummaryHistoryItem) => `${fmt(it.period_from)} – ${fmt(it.period_to)}`;
 
 /* ---------- AI summary card ------------------------------------------------- */
-function AiInsightsCard({ data, loading, refreshing, onRefresh }: {
-  data: AiInsights | null; loading: boolean; refreshing: boolean; onRefresh: () => void;
+function AiInsightsCard({ data, loading, refreshing, subtitle, onRefresh }: {
+  data: AiInsights | null; loading: boolean; refreshing: boolean; subtitle: string; onRefresh: () => void;
 }) {
   const [audio, setAudio] = useState<'idle' | 'loading' | 'playing'>('idle');
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Stop any playback when the card unmounts.
   useEffect(() => () => { audioRef.current?.pause(); }, []);
-
   const canListen = !!data && data.state === 'ok';
 
   const onListen = async () => {
     if (audio === 'playing') { audioRef.current?.pause(); setAudio('idle'); return; }
     if (!data || data.state !== 'ok') return;
-    // Read the whole summary aloud (server caps length); nova is the default voice.
-    const text = [data.summary, ...data.patterns, ...data.recommendations]
-      .filter(Boolean).join('. ').slice(0, 780);
+    const text = [data.summary, ...data.patterns, ...data.recommendations].filter(Boolean).join('. ').slice(0, 780);
     try {
       setAudio('loading');
       const url = await speak(text, 'nova');
@@ -37,9 +54,7 @@ function AiInsightsCard({ data, loading, refreshing, onRefresh }: {
       el.onerror = () => setAudio('idle');
       await el.play();
       setAudio('playing');
-    } catch {
-      setAudio('idle');
-    }
+    } catch { setAudio('idle'); }
   };
 
   return (
@@ -48,7 +63,7 @@ function AiInsightsCard({ data, loading, refreshing, onRefresh }: {
         <span className="ins-card-ic"><Icons.Sparkle size={17} /></span>
         <span className="ins-card-titles">
           <span className="ins-card-title">AI summary</span>
-          <span className="ins-card-sub">Plain-language read on your last 30 days</span>
+          <span className="ins-card-sub">{subtitle}</span>
         </span>
         {canListen && (
           <div className="ins-ai-actions">
@@ -96,46 +111,104 @@ function AiInsightsCard({ data, loading, refreshing, onRefresh }: {
 }
 
 /* ---------- page ----------------------------------------------------------- */
+const TABS: { id: PeriodType; label: string }[] = [
+  { id: 'rolling30', label: '30-day' },
+  { id: 'week', label: 'Weekly' },
+  { id: 'month', label: 'Monthly' },
+  { id: 'custom', label: 'Custom' },
+];
+
 export default function AiSummary() {
   const { shop } = useShop();
+  const [period, setPeriod] = useState<PeriodType>('rolling30');
 
-  // Fixed, glanceable window — the 30 complete days ending yesterday (today is
-  // still in progress). Matches the overnight job so the morning load is served
-  // from the pre-generated summary, not a fresh Claude call. No date picker.
-  const { from, to } = useMemo(() => {
-    const yesterday = addDays(new Date(), -1);
-    return { from: iso(addDays(yesterday, -29)), to: iso(yesterday) };
-  }, []);
+  // The active window: the current period, a picked history row, or a custom range.
+  const [win, setWin] = useState(() => currentWindow('rolling30'));
+  const [history, setHistory] = useState<AiSummaryHistoryItem[]>([]);
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
 
   const [data, setData] = useState<AiInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchAi = useCallback(async (refresh = false) => {
-    if (!shop?.id) return;
+  const fetchAi = useCallback(async (from: string, to: string, refresh = false) => {
+    if (!shop?.id || !from || !to) return;
     refresh ? setRefreshing(true) : setLoading(true);
     try {
-      const res = await getAiInsights(shop.id, from, to, refresh);
-      setData(res);
+      setData(await getAiInsights(shop.id, from, to, refresh, period));
     } catch {
       setData({ state: 'error', summary: '', patterns: [], recommendations: [],
         message: 'Could not generate the AI summary right now.', generated_at: '', cached: false });
-    } finally {
-      setLoading(false); setRefreshing(false);
-    }
-  }, [shop?.id, from, to]);
+    } finally { setLoading(false); setRefreshing(false); }
+  }, [shop?.id, period]);
 
-  useEffect(() => { void fetchAi(false); }, [fetchAi]);
+  // On period change: reset to that period's current window + load its history.
+  useEffect(() => {
+    if (period === 'custom') { setData(null); setLoading(false); return; }
+    const w = currentWindow(period);
+    setWin(w);
+    void fetchAi(w.from, w.to, false);
+    if (period === 'week' || period === 'month') {
+      getAiSummaryHistory(shop!.id, period, 1).then((r) => setHistory(r.data)).catch(() => setHistory([]));
+    } else {
+      setHistory([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, shop?.id]);
+
+  const pickHistory = (it: AiSummaryHistoryItem) => {
+    setWin({ from: it.period_from, to: it.period_to, label: historyLabel(it) });
+    // History rows are already stored — a normal (non-refresh) fetch serves them instantly.
+    void fetchAi(it.period_from, it.period_to, false);
+  };
+
+  const runCustom = () => {
+    if (!customFrom || !customTo) return;
+    setWin({ from: customFrom, to: customTo, label: `${fmt(customFrom)} – ${fmt(customTo)}` });
+    void fetchAi(customFrom, customTo, false);
+  };
 
   return (
     <div className="m-screen"><div className="m-scroll">
       <div className="c-page-head">
         <h1 className="c-page-title">AI summary</h1>
-        <p className="c-page-sub">A plain-language read on your last 30 days, written by AI.</p>
+        <p className="c-page-sub">A plain-language read on your business, written by AI.</p>
       </div>
 
+      <div className="ins-tabs">
+        {TABS.map((t) => (
+          <button key={t.id} aria-pressed={period === t.id}
+            className={`ins-tab${period === t.id ? ' is-active' : ''}`}
+            onClick={() => setPeriod(t.id)}>{t.label}</button>
+        ))}
+      </div>
+
+      {period === 'custom' && (
+        <div className="ins-custom">
+          <input type="date" aria-label="From" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+          <input type="date" aria-label="To" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+          <button className="ins-custom-go" onClick={runCustom} disabled={!customFrom || !customTo}>Generate</button>
+        </div>
+      )}
+
+      {(period === 'week' || period === 'month') && history.length > 0 && (
+        <div className="ins-history">
+          <button className={`ins-hist-item${win.label.includes('so far') ? ' is-active' : ''}`}
+            onClick={() => { const w = currentWindow(period); setWin(w); void fetchAi(w.from, w.to, false); }}>
+            {period === 'week' ? 'This week' : 'This month'}
+          </button>
+          {history.map((it) => (
+            <button key={`${it.period_from}_${it.period_to}`}
+              className={`ins-hist-item${win.from === it.period_from && win.to === it.period_to ? ' is-active' : ''}`}
+              onClick={() => pickHistory(it)}>{historyLabel(it)}</button>
+          ))}
+        </div>
+      )}
+
       <div className="ins-wrap">
-        <AiInsightsCard data={data} loading={loading} refreshing={refreshing} onRefresh={() => fetchAi(true)} />
+        <AiInsightsCard data={data} loading={loading} refreshing={refreshing}
+          subtitle={win.label} onRefresh={() => fetchAi(win.from, win.to, true)} />
       </div>
     </div></div>
   );
