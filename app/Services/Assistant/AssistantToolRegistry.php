@@ -24,6 +24,7 @@ class AssistantToolRegistry
         protected \App\Services\Assistant\Modules\ProfileTools $profile,
         protected \App\Services\Assistant\Modules\AccessTools $access,
         protected \App\Services\Assistant\Modules\HuntReadTools $huntRead,
+        protected \App\Services\Assistant\Modules\HuntTools $hunt,
     ) {}
 
     /** @return array<int, AssistantToolModule> */
@@ -40,6 +41,7 @@ class AssistantToolRegistry
             $this->profile,
             $this->access,
             $this->huntRead,
+            $this->hunt,
         ];
     }
 

@@ -2,10 +2,15 @@
 namespace Tests\Feature;
 
 use App\Models\Lead;
+use App\Models\LeadActivity;
 use App\Models\Shop;
 use App\Services\Assistant\AssistantToolRegistry;
+use App\Services\Credits\Exceptions\InsufficientCredits;
 use App\Services\Credits\HuntCreditService;
+use App\Services\Leads\LeadSearchService;
+use App\Services\Leads\SearchInterpreter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
 use Tests\TestCase;
 
 class HuntAssistantToolsTest extends TestCase
@@ -78,5 +83,105 @@ class HuntAssistantToolsTest extends TestCase
     {
         $out = $this->exec($this->leadsShop(), 'find_lead', ['name' => 'nobody']);
         $this->assertSame('not_found', $out['error']);
+    }
+
+    /** Bind non-network fakes for the search + interpreter, then resolve a fresh registry. */
+    private function fakeSearch(callable $configure): void
+    {
+        $interp = Mockery::mock(SearchInterpreter::class);
+        $interp->shouldReceive('interpret')->andReturn(['keyword' => 'gyms', 'area' => 'Dubai']);
+        $this->app->instance(SearchInterpreter::class, $interp);
+
+        $search = Mockery::mock(LeadSearchService::class);
+        $configure($search);
+        $this->app->instance(LeadSearchService::class, $search);
+    }
+
+    public function test_search_businesses_previews_then_confirms(): void
+    {
+        $shop = $this->leadsShop();
+        $this->fakeSearch(function ($s) {
+            $s->shouldReceive('search')->once()->andReturn([
+                'results' => [['name' => 'Gym One', 'external_ref' => 'g1']],
+                'from_cache' => false,
+                'credits' => 4,
+            ]);
+        });
+
+        $preview = $this->exec($shop, 'search_businesses', ['category' => 'gyms']);
+        $this->assertTrue($preview['preview']);
+        $this->assertFalse($preview['saved']);
+
+        $done = $this->exec($shop, 'search_businesses', ['category' => 'gyms', 'confirmed' => true]);
+        $this->assertTrue($done['done']);
+        $this->assertSame(1, $done['count']);
+        $this->assertSame(4, $done['credits_left']);
+        $this->assertSame(['Gym One'], $done['sample']);
+    }
+
+    public function test_search_businesses_relays_insufficient_credits(): void
+    {
+        $shop = $this->leadsShop();
+        $this->fakeSearch(function ($s) {
+            $s->shouldReceive('search')->andThrow(new InsufficientCredits(0, 1));
+        });
+
+        $out = $this->exec($shop, 'search_businesses', ['category' => 'gyms', 'confirmed' => true]);
+        $this->assertSame('insufficient_credits', $out['error']);
+        $this->assertArrayNotHasKey('done', $out);
+    }
+
+    public function test_save_leads_persists_cached_results(): void
+    {
+        $shop = $this->leadsShop();
+        $this->fakeSearch(function ($s) {
+            $s->shouldReceive('cached')->andReturn([
+                ['name' => 'Gym One', 'external_ref' => 'g1', 'phone' => '0501112222'],
+                ['name' => 'Gym Two', 'external_ref' => 'g2'],
+            ]);
+        });
+
+        $preview = $this->exec($shop, 'save_leads', ['category' => 'gyms', 'area' => 'Dubai']);
+        $this->assertTrue($preview['preview']);
+        $this->assertSame(0, Lead::forShop($shop->id)->count());
+
+        $done = $this->exec($shop, 'save_leads', ['category' => 'gyms', 'area' => 'Dubai', 'confirmed' => true]);
+        $this->assertTrue($done['done']);
+        $this->assertSame(2, $done['created']);
+        $this->assertSame(2, Lead::forShop($shop->id)->count());
+    }
+
+    public function test_save_leads_not_found_when_no_cache(): void
+    {
+        $shop = $this->leadsShop();
+        $this->fakeSearch(function ($s) {
+            $s->shouldReceive('cached')->andReturn(null);
+        });
+
+        $out = $this->exec($shop, 'save_leads', ['category' => 'gyms']);
+        $this->assertSame('not_found', $out['error']);
+    }
+
+    public function test_update_lead_status_moves_funnel_and_logs_activity(): void
+    {
+        $shop = $this->leadsShop();
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'Marina Gym', 'status' => 'new']);
+
+        $preview = $this->exec($shop, 'update_lead_status', ['name' => 'marina', 'status' => 'won']);
+        $this->assertTrue($preview['preview']);
+        $this->assertSame('new', $lead->fresh()->status);
+
+        $done = $this->exec($shop, 'update_lead_status', ['name' => 'marina', 'status' => 'won', 'confirmed' => true]);
+        $this->assertTrue($done['done']);
+        $this->assertSame('won', $lead->fresh()->status);
+        $this->assertSame(1, $lead->activities()->where('type', LeadActivity::TYPE_STATUS_CHANGE)->count());
+    }
+
+    public function test_update_lead_status_rejects_invalid_status(): void
+    {
+        $shop = $this->leadsShop();
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Marina Gym', 'status' => 'new']);
+        $out = $this->exec($shop, 'update_lead_status', ['name' => 'marina', 'status' => 'nonsense', 'confirmed' => true]);
+        $this->assertSame('invalid_status', $out['error']);
     }
 }
