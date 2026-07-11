@@ -50,7 +50,10 @@ class ReportsController extends Controller
     {
         $request->validate(['period' => 'sometimes|in:rolling30,week,month,custom']);
         [$shopId, $from, $to] = $this->validated($request);
-        $period = $request->input('period', 'custom');
+        // Default to rolling30 (the 30-day view a period-less caller — e.g. a
+        // stale admin bundle mid-deploy — is showing), so it serves the stored
+        // nightly summary via the rolling30 fallback instead of a live call.
+        $period = $request->input('period', 'rolling30');
 
         return response()->json($writer->summary($shopId, $from, $to, $request->boolean('refresh'), $period));
     }
