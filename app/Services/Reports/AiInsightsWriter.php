@@ -26,9 +26,9 @@ class AiInsightsWriter
         protected ClaudeClient $claude,
     ) {}
 
-    public function summary(int $shopId, Carbon $from, Carbon $to, bool $forceRefresh = false): array
+    public function summary(int $shopId, Carbon $from, Carbon $to, bool $forceRefresh = false, string $periodType = 'custom'): array
     {
-        $key = sprintf('ai_insights:%d:%s:%s', $shopId, $from->toDateString(), $to->toDateString());
+        $key = sprintf('ai_insights:%s:%d:%s:%s', $periodType, $shopId, $from->toDateString(), $to->toDateString());
 
         if (! $forceRefresh) {
             $cached = Cache::get($key);
@@ -36,10 +36,13 @@ class AiInsightsWriter
                 return array_merge($cached, ['cached' => true]);
             }
 
-            // Durable fallback: the nightly job (ai:daily-summaries) stores each
-            // shop's summary, so a normal morning load serves it straight from
-            // the DB — surviving cache flushes (e.g. a deploy) with no live call.
-            $stored = $this->latestStored($shopId);
+            // Exact stored row for this (type, window). For rolling30 only, fall
+            // back to the latest stored rolling30 row so the morning load stays
+            // instant and tolerant of a ±1 day timezone boundary (as before).
+            $stored = $this->storedFor($shopId, $periodType, $from, $to);
+            if ($stored === null && $periodType === 'rolling30') {
+                $stored = $this->latestStored($shopId, 'rolling30');
+            }
             if ($stored !== null) {
                 return $this->fromStored($stored);
             }
@@ -106,31 +109,43 @@ class AiInsightsWriter
         ];
 
         Cache::put($key, $result, self::CACHE_TTL);
-        $this->persistDaily($shopId, $from, $to, $parsed);
+        $this->persist($shopId, $from, $to, $parsed, $periodType);
 
         return $result;
     }
 
     /**
-     * The shop's most recent stored summaries — fed to the model so a new day's
-     * summary is framed differently from earlier ones (never repetitive).
+     * The shop's most recent rolling30 summaries — fed to the model so a new
+     * day's summary reads differently from earlier ones.
      *
      * @return array<int, string>
      */
     protected function recentSummaries(int $shopId): array
     {
         return AiSummary::where('shop_id', $shopId)
+            ->where('period_type', 'rolling30')
             ->orderByDesc('summary_date')
             ->limit(3)
             ->pluck('summary')
             ->all();
     }
 
-    /** The shop's most recently stored summary, or null if none exists yet. */
-    protected function latestStored(int $shopId): ?AiSummary
+    /** Exact stored summary for one (shop, period_type, window), or null. */
+    protected function storedFor(int $shopId, string $periodType, Carbon $from, Carbon $to): ?AiSummary
     {
         return AiSummary::where('shop_id', $shopId)
-            ->orderByDesc('summary_date')
+            ->where('period_type', $periodType)
+            ->whereDate('period_from', $from->toDateString())
+            ->whereDate('period_to', $to->toDateString())
+            ->first();
+    }
+
+    /** The shop's most recent stored summary of a given type, or null. */
+    protected function latestStored(int $shopId, string $periodType = 'rolling30'): ?AiSummary
+    {
+        return AiSummary::where('shop_id', $shopId)
+            ->where('period_type', $periodType)
+            ->orderByDesc('period_to')
             ->orderByDesc('id')
             ->first();
     }
@@ -150,24 +165,36 @@ class AiInsightsWriter
     }
 
     /**
-     * Upsert one row per shop per day. Failure here must never break the reply.
+     * Upsert one row per (shop, period_type, window). Failure must never break
+     * the reply. NOTE: we look up the existing row via storedFor() (which uses
+     * whereDate) rather than updateOrCreate with bare-date keys — the period_from/
+     * period_to columns are date-cast and persist as 'Y-m-d H:i:s', so an exact
+     * updateOrCreate key of toDateString() would miss on sqlite and duplicate.
      *
      * @param array{summary: string, patterns: string[], recommendations: string[]} $parsed
      */
-    protected function persistDaily(int $shopId, Carbon $from, Carbon $to, array $parsed): void
+    protected function persist(int $shopId, Carbon $from, Carbon $to, array $parsed, string $periodType): void
     {
         try {
-            AiSummary::updateOrCreate(
-                ['shop_id' => $shopId, 'summary_date' => Carbon::now()->toDateString()],
-                [
-                    'period_from'     => $from->toDateString(),
-                    'period_to'       => $to->toDateString(),
-                    'summary'         => $parsed['summary'],
-                    'patterns'        => $parsed['patterns'],
-                    'recommendations' => $parsed['recommendations'],
-                    'model'           => (string) config('services.anthropic.model'),
-                ],
-            );
+            $attrs = [
+                'summary_date'    => Carbon::now()->toDateString(),
+                'summary'         => $parsed['summary'],
+                'patterns'        => $parsed['patterns'],
+                'recommendations' => $parsed['recommendations'],
+                'model'           => (string) config('services.anthropic.model'),
+            ];
+
+            $existing = $this->storedFor($shopId, $periodType, $from, $to);
+            if ($existing !== null) {
+                $existing->update($attrs);
+            } else {
+                AiSummary::create($attrs + [
+                    'shop_id'     => $shopId,
+                    'period_type' => $periodType,
+                    'period_from' => $from->toDateString(),
+                    'period_to'   => $to->toDateString(),
+                ]);
+            }
         } catch (\Throwable $e) {
             Log::warning('AiInsightsWriter persist failed', ['shop_id' => $shopId, 'error' => $e->getMessage()]);
         }

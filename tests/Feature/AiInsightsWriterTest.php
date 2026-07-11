@@ -248,4 +248,58 @@ class AiInsightsWriterTest extends TestCase
             return str_contains($content, '"bookings"') && ! str_contains($content, '"hunt"');
         });
     }
+
+    public function test_week_summary_persists_a_week_row_and_is_served_from_store(): void
+    {
+        $shop = $this->shop('7201');
+        $this->seedBookings($shop, 6);
+        $this->fakeClaude(['summary' => 'Week view.', 'patterns' => ['a'], 'recommendations' => ['b']]);
+
+        $from = now()->startOfWeek(); $to = now()->endOfWeek();
+        $first = $this->writer()->summary($shop->id, $from, $to, false, 'week');
+        $this->assertSame('ok', $first['state']);
+        $this->assertSame('week', \App\Models\AiSummary::where('shop_id', $shop->id)->first()->period_type);
+
+        // A repeat (cache flushed) is served from the stored week row — no 2nd call.
+        \Illuminate\Support\Facades\Cache::flush();
+        $second = $this->writer()->summary($shop->id, $from, $to, false, 'week');
+        $this->assertSame('ok', $second['state']);
+        $this->assertTrue($second['cached']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_period_type_scopes_the_cache_key(): void
+    {
+        $shop = $this->shop('7202');
+        $this->seedBookings($shop, 6);
+        $this->fakeClaude(['summary' => 'x', 'patterns' => ['a'], 'recommendations' => ['b']]);
+
+        $from = now()->startOfMonth(); $to = now()->endOfMonth();
+        // Same window, different period_type → two separate generations (no cache collision).
+        $this->writer()->summary($shop->id, $from, $to, false, 'month');
+        $this->writer()->summary($shop->id, $from, $to, false, 'custom');
+        Http::assertSentCount(2);
+        $this->assertSame(2, \App\Models\AiSummary::where('shop_id', $shop->id)->count());
+    }
+
+    public function test_force_refresh_updates_the_row_not_duplicates(): void
+    {
+        // Guards the persist() fix: a date-cast column persists as 'Y-m-d H:i:s',
+        // so a bare-date updateOrCreate key would miss on sqlite and duplicate.
+        // storedFor() (whereDate) must find the existing row and UPDATE it.
+        $shop = $this->shop('7203');
+        $this->seedBookings($shop, 6);
+        $from = now()->startOfWeek(); $to = now()->endOfWeek();
+
+        Http::fake(['api.anthropic.com/*' => Http::sequence()
+            ->push(['content' => [['type' => 'text', 'text' => json_encode(['summary' => 'first', 'patterns' => ['a'], 'recommendations' => ['b']])]]])
+            ->push(['content' => [['type' => 'text', 'text' => json_encode(['summary' => 'second', 'patterns' => ['a'], 'recommendations' => ['b']])]]])]);
+
+        $this->writer()->summary($shop->id, $from, $to, true, 'week');
+        $this->writer()->summary($shop->id, $from, $to, true, 'week'); // force refresh again
+
+        $rows = \App\Models\AiSummary::where('shop_id', $shop->id)->where('period_type', 'week');
+        $this->assertSame(1, $rows->count());          // updated, not duplicated
+        $this->assertSame('second', $rows->first()->summary);
+    }
 }
