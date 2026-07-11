@@ -61,16 +61,6 @@ export default function LeadCredits() {
 
       {buyMsg && <div className="lf-meta lf-credits"><Icons.Check size={13} /> {buyMsg}</div>}
 
-      {/* How credits work */}
-      <div className="lfc-how">
-        <strong>How credits work</strong>
-        <ul>
-          <li>Each <em>new</em> live search spends 1 credit.</li>
-          <li>Repeat searches you’ve already run are always free.</li>
-          <li>Saving leads and working your pipeline never cost credits.</li>
-        </ul>
-      </div>
-
       {/* Packs */}
       <div className="lfc-packs-head">
         <strong>Top-up packs</strong>
@@ -103,6 +93,16 @@ export default function LeadCredits() {
           <Icons.WhatsApp size={15} /> Message us to top up
         </a>
       )}
+
+      {/* How credits work — sits last, styled like the balance / pack cards. */}
+      <div className="lfc-how">
+        <strong>How credits work</strong>
+        <ul>
+          <li>Each <em>new</em> live search spends 1 credit.</li>
+          <li>Repeat searches you’ve already run are always free.</li>
+          <li>Saving leads and working your pipeline never cost credits.</li>
+        </ul>
+      </div>
     </div></div>
   );
 }
