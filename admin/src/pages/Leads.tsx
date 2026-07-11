@@ -334,12 +334,15 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
       {balance !== null && (
         <div className={`lf-meta lf-credits${balance <= 10 ? ' low' : ''}`}>
           <Icons.Search size={13} /> {balance.toLocaleString('en-AE')} Hunt {balance === 1 ? 'credit' : 'credits'} left
-          {balance <= 10 && (canPurchase
-            ? <button className="lf-topup-link" onClick={() => setBlocked({ credits: balance })}>Top up</button>
-            : <a className="lf-topup-link"
-                href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent('Hi, I’d like to top up my Business Hunt credits.')}`}
-                target="_blank" rel="noreferrer">Top up</a>
-          )}
+          {/* Self-serve shops get a persistent Buy entry; others only a low-balance
+              WhatsApp nudge. Both open/point to the same pack list. */}
+          {canPurchase
+            ? <button className="lf-topup-link" onClick={() => setBlocked({ credits: balance })}>Buy credits</button>
+            : balance <= 10 && (
+                <a className="lf-topup-link"
+                  href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent('Hi, I’d like to top up my Business Hunt credits.')}`}
+                  target="_blank" rel="noreferrer">Top up</a>
+              )}
         </div>
       )}
 
