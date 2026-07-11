@@ -17,7 +17,7 @@ import {
   isUaeMobile,
   InsufficientCreditsError,
   getLeadCredits,
-  purchasePack,
+  startPackCheckout,
 } from '@/lib/leads';
 import { LEAD_STATUSES } from '@/types';
 import type { CreditPack, Lead, LeadFunnel, LeadResult, LeadStatus } from '@/types';
@@ -153,26 +153,44 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   // Cancel any in-flight background scan when leaving the pane.
   useEffect(() => () => { if (pollRef.current) window.clearTimeout(pollRef.current); }, []);
 
+  const loadCredits = useCallback(() => {
+    getLeadCredits()
+      .then((c) => { setBalance(c.credits); setPacks(c.packs); setCanPurchase(c.can_purchase); })
+      .catch(() => undefined);
+  }, []);
+
   // Load the credit balance (+ packs for the top-up prompt) when the pane opens.
   useEffect(() => {
-    if (!shopReady) return;
-    let alive = true;
-    getLeadCredits()
-      .then((c) => { if (alive) { setBalance(c.credits); setPacks(c.packs); setCanPurchase(c.can_purchase); } })
-      .catch(() => undefined);
-    return () => { alive = false; };
-  }, [shopReady]);
+    if (shopReady) loadCredits();
+  }, [shopReady, loadCredits]);
 
-  // Simulated in-app top-up (only when the shop is flagged for self-serve).
+  // Handle the return from Ziina's hosted page (?pay=success|cancel|failed).
+  // The webhook grants the credits server-side; it can lag the redirect slightly,
+  // so we re-fetch the balance now and again shortly after.
+  useEffect(() => {
+    const pay = new URLSearchParams(window.location.search).get('pay');
+    if (!pay) return;
+    if (pay === 'success') {
+      setBuyMsg('Payment received — updating your balance…');
+      loadCredits();
+      const t = window.setTimeout(loadCredits, 3000);
+      // Clean the URL so a refresh doesn't replay the message.
+      window.history.replaceState({}, '', window.location.pathname);
+      return () => window.clearTimeout(t);
+    }
+    setBuyMsg(pay === 'cancel' ? 'Checkout cancelled.' : 'Payment did not go through. Please try again.');
+    window.history.replaceState({}, '', window.location.pathname);
+  }, [loadCredits]);
+
+  // Send the shop to Ziina's hosted checkout for a pack (sandbox for now).
   const buyPack = async (pack: CreditPack) => {
     setBuyingId(pack.id); setBuyMsg('');
     try {
-      const { credits } = await purchasePack(pack.id);
-      setBalance(credits);
-      setBlocked(null);
-      setBuyMsg(`Added ${pack.credits.toLocaleString('en-AE')} credits — balance ${credits.toLocaleString('en-AE')}.`);
+      const { redirect_url } = await startPackCheckout(pack.id);
+      if (redirect_url) { window.location.href = redirect_url; return; }
+      setBuyMsg('Could not start checkout. Please try again.');
     } catch {
-      setBuyMsg('Could not complete the top-up. Please try again.');
+      setBuyMsg('Could not start checkout. Please try again.');
     } finally {
       setBuyingId(null);
     }
@@ -357,7 +375,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
             <strong>{blocked.credits > 0 ? 'Top up Business Hunt credits' : 'Out of Business Hunt credits'}</strong>
             <span>
               Each new business search uses 1 credit. Repeat searches you've already run are always free.
-              {canPurchase ? ' Pick a pack to add credits instantly:' : ' Top up to keep searching:'}
+              {canPurchase ? ' Pick a pack to top up:' : ' Top up to keep searching:'}
             </span>
             {packs.length > 0 && (
               <div className="lf-packs">
@@ -365,7 +383,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
                   ? <button key={p.id} className="lf-pack" disabled={buyingId !== null}
                       onClick={() => void buyPack(p)}>
                       <span className="lf-pack-credits">{p.credits.toLocaleString('en-AE')} credits</span>
-                      <span className="lf-pack-price">{buyingId === p.id ? 'Adding…' : AED(p.price_fils)}</span>
+                      <span className="lf-pack-price">{buyingId === p.id ? 'Opening…' : AED(p.price_fils)}</span>
                     </button>
                   : <a key={p.id} className="lf-pack"
                       href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent(`Hi, I’d like the ${p.name} pack — ${p.credits} Hunt credits for ${AED(p.price_fils)}.`)}`}
@@ -377,7 +395,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
               </div>
             )}
             {canPurchase
-              ? <p className="lf-topup-note">Simulated top-up — no real payment is taken.</p>
+              ? <p className="lf-topup-note">Secure checkout via Ziina.</p>
               : <a className="c-btn-ghost lf-topup-btn"
                   href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent('Hi, I’d like to top up my Business Hunt credits.')}`}
                   target="_blank" rel="noreferrer">

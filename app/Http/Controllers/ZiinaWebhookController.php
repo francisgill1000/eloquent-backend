@@ -71,7 +71,25 @@ class ZiinaWebhookController extends Controller
             app(\App\Services\SubscriptionService::class)->applyPaidPayment($subPayment);
         }
 
-        if (!$invoice && !$subPayment) {
+        // Business Hunt credit-pack purchase. The status guard makes this
+        // idempotent — Ziina retries webhooks, but credits are granted once.
+        $purchase = \App\Models\CreditPurchase::where('ziina_intent_id', $intentId)->first();
+        if ($purchase && $purchase->status !== 'paid' && $purchase->shop) {
+            $purchase->update(['status' => 'paid', 'paid_at' => now()]);
+            app(\App\Services\Credits\HuntCreditService::class)->grant(
+                $purchase->shop,
+                (int) $purchase->credits,
+                'purchase',
+                [
+                    'pack_id' => $purchase->pack_id,
+                    'purchase_id' => $purchase->id,
+                    'via' => 'ziina',
+                    'simulated' => false,
+                ],
+            );
+        }
+
+        if (!$invoice && !$subPayment && !$purchase) {
             Log::warning("Ziina webhook for unknown intent {$intentId}");
         }
     }
