@@ -209,26 +209,27 @@ body{
 }
 `;
 
-const LP_HTML = `
+type Variant = 'brand' | 'lens' | 'hunt';
+
+const WA_HUNT = 'https://wa.me/971557369629?text=Hi%2C%20I%27d%20like%20a%20quick%20demo%20of%20Eloquent%20Business%20Hunt';
+
+const navHtml = (brand: string) => `
 <header class="nav">
   <div class="wrap nav-inner">
     <div class="brand">
       <span class="dot" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>
       </span>
-      Eloquent <span style="font-weight:400;color:var(--text-2)">Business&nbsp;Lens</span>
+      ${brand}
     </div>
     <nav class="nav-cta">
       <a class="nav-login" href="https://admin.eloquentservice.com">Log in</a>
       <a class="btn btn-primary" href="https://admin.eloquentservice.com">Start free</a>
     </nav>
   </div>
-</header>
+</header>`;
 
-<main>
-  <div class="hero-slider">
-   <div class="hero-track" id="lp-track">
-    <div class="hero-slide">
+const HERO_LENS = `
   <section class="hero">
     <div class="wrap hero-grid">
       <div>
@@ -277,10 +278,9 @@ const LP_HTML = `
         </div>
       </div>
     </div>
-  </section>
-    </div>
+  </section>`;
 
-    <div class="hero-slide">
+const HERO_HUNT = `
   <section class="hero">
     <div class="wrap hero-grid">
       <div>
@@ -324,24 +324,9 @@ const LP_HTML = `
         </div>
       </div>
     </div>
-  </section>
-    </div>
-   </div>
+  </section>`;
 
-   <div class="wrap slider-nav">
-     <button class="slider-arrow" data-dir="-1" aria-label="Previous product">
-       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
-     </button>
-     <div class="slider-dots" role="tablist" aria-label="Products">
-       <button class="active" type="button" aria-label="Business Hunt"></button>
-       <button type="button" aria-label="Business Lens"></button>
-     </div>
-     <button class="slider-arrow" data-dir="1" aria-label="Next product">
-       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
-     </button>
-   </div>
-  </div>
-
+const SECTIONS_LENS = `
   <section id="how">
     <div class="wrap">
       <div class="sec-head">
@@ -438,23 +423,148 @@ const LP_HTML = `
         </div>
       </div>
     </div>
-  </section>
-</main>
+  </section>`;
 
+const SECTIONS_HUNT = `
+  <section id="how">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-eyebrow">How it works</div>
+        <h2>From a blank list to a full pipeline.</h2>
+        <p>Tell Business Hunt what you sell and where. It does the digging — you do the closing.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="rail"></div>
+          <div class="no">01</div>
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div>
+          <h3>Search an area &amp; category</h3>
+          <p>Type what you sell and where — “AC repair, Dubai Marina”. Business Hunt pulls every matching business in that area.</p>
+        </div>
+        <div class="step">
+          <div class="rail"></div>
+          <div class="no">02</div>
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
+          <h3>Get ranked, contactable leads</h3>
+          <p>Names, phone numbers, ratings and websites — deduplicated and ranked, not a messy copy-paste.</p>
+        </div>
+        <div class="step">
+          <div class="no">03</div>
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg></div>
+          <h3>Work the funnel &amp; export</h3>
+          <p>Tag each lead by stage, reach out, and export the whole list in one click.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="why">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-eyebrow">Why teams use it</div>
+        <h2>Stop buying stale lists and scraping by hand.</h2>
+      </div>
+      <div class="props">
+        <div class="prop">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M15 5a3 3 0 0 1 3 3M15 1a7 7 0 0 1 7 7M8 3H5a2 2 0 0 0-2 2c0 9.4 7.6 17 17 17a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2l-3.5-.5a2 2 0 0 0-1.8.9l-1 1.5a13 13 0 0 1-5.3-5.3l1.5-1a2 2 0 0 0 .9-1.8L11 5a2 2 0 0 0-2-2Z"/></svg></div>
+          <h3>Real, current contacts</h3>
+          <p>Live business data, not a spreadsheet from last year. Numbers that actually ring.</p>
+          <div class="tag">→ pulled fresh on every search</div>
+        </div>
+        <div class="prop">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div>
+          <h3>Whole-area coverage</h3>
+          <p>Paginates through every result, so you don’t miss the businesses three pages deep.</p>
+          <div class="tag">→ nothing left on the table</div>
+        </div>
+        <div class="prop">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
+          <h3>Built for outreach</h3>
+          <p>Colour-coded funnel, per-stage notes and one-click export — organised to actually work the list.</p>
+          <div class="tag">→ from search to sale</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="cta-band">
+        <h2>Find your next 100 customers this week.</h2>
+        <p>Book a 10-minute demo — we’ll run a live search for your area on the call.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="${WA_HUNT}">
+            Book a demo
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </a>
+          <a class="btn btn-secondary" href="${WA_HUNT}">WhatsApp us</a>
+        </div>
+      </div>
+    </div>
+  </section>`;
+
+const footerHtml = (product: string) => `
 <footer>
   <div class="wrap foot">
-    <small>Eloquent Business Lens — a product of Eloquent FZE LLC · Sharjah, UAE</small>
+    <small>${product} — a product of Eloquent FZE LLC · Sharjah, UAE</small>
     <div class="links">
       <a href="https://admin.eloquentservice.com">Log in</a>
       <a href="https://wa.me/971557369629">WhatsApp</a>
       <a href="https://eloquentservice.com">Eloquent FZE</a>
     </div>
   </div>
-</footer>
-`;
+</footer>`;
 
-export default function Web() {
+// The /web brand page: a two-slide hero carousel (Business Hunt first, then
+// Business Lens). Dedicated /hunt and /lens pages drop the slider entirely.
+const SLIDER = `
+  <div class="hero-slider">
+   <div class="hero-track" id="lp-track">
+    <div class="hero-slide">${HERO_HUNT}</div>
+    <div class="hero-slide">${HERO_LENS}</div>
+   </div>
+   <div class="wrap slider-nav">
+     <button class="slider-arrow" data-dir="-1" aria-label="Previous product">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+     </button>
+     <div class="slider-dots" role="tablist" aria-label="Products">
+       <button class="active" type="button" aria-label="Business Hunt"></button>
+       <button type="button" aria-label="Business Lens"></button>
+     </div>
+     <button class="slider-arrow" data-dir="1" aria-label="Next product">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+     </button>
+   </div>
+  </div>`;
+
+const BRAND: Record<Variant, string> = {
+  brand: 'Eloquent',
+  lens: 'Eloquent <span style="font-weight:400;color:var(--text-2)">Business&nbsp;Lens</span>',
+  hunt: 'Eloquent <span style="font-weight:400;color:var(--text-2)">Business&nbsp;Hunt</span>',
+};
+const FOOT: Record<Variant, string> = {
+  brand: 'Eloquent Business Suite',
+  lens: 'Eloquent Business Lens',
+  hunt: 'Eloquent Business Hunt',
+};
+const TITLE: Record<Variant, string> = {
+  brand: 'Eloquent Business Lens — Take bookings by QR. Let AI handle them.',
+  lens: 'Eloquent Business Lens — Take bookings by QR. Let AI handle them.',
+  hunt: 'Eloquent Business Hunt — Find your next customer.',
+};
+
+const buildHtml = (v: Variant) => {
+  const body =
+    v === 'lens' ? `${HERO_LENS}${SECTIONS_LENS}`
+    : v === 'hunt' ? `${HERO_HUNT}${SECTIONS_HUNT}`
+    : `${SLIDER}${SECTIONS_LENS}`;
+  return `${navHtml(BRAND[v])}\n<main>${body}</main>\n${footerHtml(FOOT[v])}`;
+};
+
+export default function Web({ variant = 'brand' }: { variant?: Variant }) {
   const hostRef = useRef<HTMLDivElement>(null);
+
+  const html = buildHtml(variant);
 
   // Inject the landing's global CSS only while mounted; restore on unmount.
   useEffect(() => {
@@ -463,23 +573,24 @@ export default function Web() {
     style.textContent = LP_CSS;
     document.head.appendChild(style);
     const prevTitle = document.title;
-    document.title = 'Eloquent Business Lens — Take bookings by QR. Let AI handle them.';
+    document.title = TITLE[variant];
     return () => {
       style.remove();
       document.title = prevTitle;
     };
-  }, []);
+  }, [variant]);
 
   // Signature demo: cycle the voice question -> reveal report lines.
   useEffect(() => {
     const root = hostRef.current;
     if (!root) return;
+    const demo = root.querySelector<HTMLElement>('#lp-demo');
+    if (!demo) return; // no Lens hero on the /hunt page
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const lines = Array.from(root.querySelectorAll<HTMLElement>('#lp-demo .answer .line'));
     const mic = root.querySelector<HTMLElement>('#lp-mic');
     const qtext = root.querySelector<HTMLElement>('#lp-qtext');
-    const demo = root.querySelector<HTMLElement>('#lp-demo');
     const questions = ['"How did we do today?"', '"Any free slots this evening?"', '"What did we make this week?"'];
     let qi = 0;
     let cancelled = false;
@@ -522,11 +633,11 @@ export default function Web() {
       timers.forEach((t) => clearTimeout(t));
       io?.disconnect();
     };
-  }, []);
+  }, [variant]);
 
-  // Hero product slider: Business Hunt shown first, auto-advancing every 3s.
-  // Autoplay pauses on hover/focus and when the tab is hidden; any manual nav
-  // (arrows / dots / keyboard / swipe) resets the timer. Disabled entirely
+  // Hero product slider (/web only): Business Hunt is slide 0, auto-advancing
+  // every 3s. Autoplay pauses on hover/focus and when the tab is hidden; any
+  // manual nav (arrows / dots / keyboard / swipe) resets the timer. Disabled
   // under prefers-reduced-motion.
   useEffect(() => {
     const root = hostRef.current;
@@ -537,17 +648,13 @@ export default function Web() {
     const dots = Array.from(root.querySelectorAll<HTMLButtonElement>('.slider-dots button'));
     const arrows = Array.from(root.querySelectorAll<HTMLButtonElement>('.slider-arrow'));
     const huntLines = Array.from(root.querySelectorAll<HTMLElement>('#lp-hunt-demo .line'));
-    if (!track || slides.length === 0) return;
+    if (!track || slides.length === 0) return; // no slider on /hunt and /lens
 
-    // Display order (left→right, matching the dots): Business Hunt first, then
-    // Business Lens. Values index into the DOM `slides` list (Lens=0, Hunt=1).
-    const order = [1, 0];
-    const HUNT_DOM = 1;
+    const HUNT_IDX = 0;
     const AUTO_MS = 3000;
-
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const huntTimers: number[] = [];
-    let pos = 0;
+    let idx = 0;
     let huntRevealed = false;
     let auto: number | undefined;
 
@@ -561,38 +668,37 @@ export default function Web() {
     };
 
     const render = () => {
-      const dom = order[pos];
-      track.style.transform = `translateX(-${dom * 100}%)`;
-      dots.forEach((d, i) => d.classList.toggle('active', i === pos));
-      slides.forEach((s, i) => s.setAttribute('aria-hidden', String(i !== dom)));
-      if (dom === HUNT_DOM) revealHunt();
+      track.style.transform = `translateX(-${idx * 100}%)`;
+      dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+      slides.forEach((s, i) => s.setAttribute('aria-hidden', String(i !== idx)));
+      if (idx === HUNT_IDX) revealHunt();
     };
-    const go = (n: number) => { pos = (n + order.length) % order.length; render(); };
+    const go = (n: number) => { idx = (n + slides.length) % slides.length; render(); };
 
     const stopAuto = () => { if (auto !== undefined) { clearInterval(auto); auto = undefined; } };
     const startAuto = () => {
-      if (reduce || order.length < 2) return;
+      if (reduce || slides.length < 2) return;
       stopAuto();
-      auto = window.setInterval(() => go(pos + 1), AUTO_MS);
+      auto = window.setInterval(() => go(idx + 1), AUTO_MS);
     };
     // Manual nav resets the timer so the chosen slide gets a full dwell.
     const nav = (n: number) => { go(n); startAuto(); };
 
     const onArrow = (e: Event) => {
       const dir = Number((e.currentTarget as HTMLElement).dataset.dir || '1');
-      nav(pos + dir);
+      nav(idx + dir);
     };
     const dotHandlers = dots.map((_, i) => () => nav(i));
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') nav(pos - 1);
-      else if (e.key === 'ArrowRight') nav(pos + 1);
+      if (e.key === 'ArrowLeft') nav(idx - 1);
+      else if (e.key === 'ArrowRight') nav(idx + 1);
     };
     let x0: number | null = null;
     const onTouchStart = (e: TouchEvent) => { x0 = e.touches[0].clientX; };
     const onTouchEnd = (e: TouchEvent) => {
       if (x0 === null) return;
       const dx = e.changedTouches[0].clientX - x0;
-      if (Math.abs(dx) > 45) nav(pos + (dx < 0 ? 1 : -1));
+      if (Math.abs(dx) > 45) nav(idx + (dx < 0 ? 1 : -1));
       x0 = null;
     };
     const onVisibility = () => { if (document.hidden) stopAuto(); else startAuto(); };
@@ -621,7 +727,42 @@ export default function Web() {
       stopAuto();
       huntTimers.forEach((t) => clearTimeout(t));
     };
-  }, []);
+  }, [variant]);
 
-  return <div className="lp-scope" ref={hostRef} dangerouslySetInnerHTML={{ __html: LP_HTML }} />;
+  // Standalone Business Hunt reveal for /hunt (the slider drives it on /web).
+  useEffect(() => {
+    const root = hostRef.current;
+    if (!root) return;
+    if (root.querySelector('#lp-track')) return; // /web slider handles reveal
+    const hunt = root.querySelector<HTMLElement>('#lp-hunt-demo');
+    if (!hunt) return;
+    const lines = Array.from(hunt.querySelectorAll<HTMLElement>('.line'));
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) { lines.forEach((l) => l.classList.add('show')); return; }
+    const timers = lines.map((l, i) => window.setTimeout(() => l.classList.add('show'), 300 + i * 480));
+    return () => timers.forEach((t) => clearTimeout(t));
+  }, [variant]);
+
+  // Attribution: fold a campaign tag (?utm_campaign / ?ref / ?c) from the ad
+  // URL into every WhatsApp CTA, so inbound demo messages self-identify.
+  useEffect(() => {
+    const root = hostRef.current;
+    if (!root) return;
+    const params = new URLSearchParams(window.location.search);
+    const campaign = params.get('utm_campaign') || params.get('ref') || params.get('c');
+    if (!campaign) return;
+    const safe = campaign.replace(/[^\w -]/g, '').slice(0, 60);
+    if (!safe) return;
+    root.querySelectorAll<HTMLAnchorElement>('a[href*="wa.me"]').forEach((a) => {
+      try {
+        const u = new URL(a.href);
+        const text = u.searchParams.get('text') || '';
+        if (text.includes('ref:')) return;
+        u.searchParams.set('text', `${text}${text ? ' · ' : ''}ref: ${safe}`);
+        a.href = u.toString();
+      } catch { /* ignore malformed hrefs */ }
+    });
+  }, [variant]);
+
+  return <div className="lp-scope" ref={hostRef} dangerouslySetInnerHTML={{ __html: html }} />;
 }

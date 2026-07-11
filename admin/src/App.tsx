@@ -59,6 +59,8 @@ export default function App() {
       <Routes>
         {/* Public / full-screen */}
         <Route path="/web" element={<Web />} />
+        <Route path="/hunt" element={<Web variant="hunt" />} />
+        <Route path="/lens" element={<Web variant="lens" />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-pin" element={<ForgotPin />} />
