@@ -1,16 +1,23 @@
-.drp { border: 1px solid var(--line, #23342d); border-radius: 12px; padding: 12px;
-  background: var(--card, rgba(255,255,255,0.02)); width: 300px; max-width: 100%; }
-.drp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.drp-title { font-size: 14px; font-weight: 600; }
+.drp { border: 1px solid var(--line, #23342d); border-radius: 12px; padding: 14px;
+  background: var(--card, rgba(255,255,255,0.02)); max-width: 100%; display: inline-block; }
+.drp-months { display: flex; gap: 22px; flex-wrap: wrap; }
+.drp-month { width: 252px; max-width: 100%; }
+.drp-mhead { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
+.drp-title { flex: 1; text-align: center; font-size: 14px; font-weight: 600; }
 .drp-nav { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
-  border-radius: 8px; border: 1px solid var(--line, #23342d); background: transparent; color: inherit; cursor: pointer; }
+  flex: 0 0 auto; border-radius: 8px; border: 1px solid var(--line, #23342d); background: transparent;
+  color: inherit; cursor: pointer; }
 .drp-nav:hover { border-color: var(--accent, #16d1a5); color: var(--accent, #16d1a5); }
+.drp-nav-sp { width: 28px; height: 28px; flex: 0 0 auto; }
 .drp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .drp-wd { text-align: center; font-size: 11px; opacity: .6; padding: 4px 0; }
 .drp-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 12.5px;
   border: none; background: transparent; color: inherit; cursor: pointer; border-radius: 8px; }
-.drp-day:hover:not(.drp-dis) { background: rgba(22,209,165,0.14); }
-.drp-out { opacity: .35; }
-.drp-dis { opacity: .2; cursor: default; }
-.drp-in { background: rgba(22,209,165,0.16); border-radius: 0; }
+.drp-day:hover:not(.drp-dis) { background: rgba(22, 209, 165, 0.14); }
+.drp-out { opacity: .32; }
+.drp-dis { opacity: .18; cursor: default; }
+/* In-range fill (committed or hover-preview) — square edges so the band reads continuous. */
+.drp-in { background: rgba(22, 209, 165, 0.16); border-radius: 0; }
+.drp-in.drp-end { border-radius: 8px; }
+/* Range endpoints (and the hovered end while choosing). */
 .drp-end { background: var(--accent, #16d1a5) !important; color: #062018; font-weight: 700; border-radius: 8px; }
