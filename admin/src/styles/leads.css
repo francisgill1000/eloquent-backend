@@ -285,13 +285,14 @@
 .lfc-hero-unit { font-size: 15px; font-weight: 600; color: var(--text-2); }
 .lfc-hero-cap { margin: 2px 0 0; font-size: 12.5px; color: var(--text-3); }
 
-/* How credits work — quiet explainer card. */
+/* How credits work — same mint-glass treatment as the balance / pack cards. */
 .lfc-how {
-  padding: 14px 16px;
-  margin-bottom: 18px;
-  background: var(--surface-1);
-  border: 1px solid var(--border-1);
+  padding: 20px;
+  margin-top: 4px;
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.16), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-mint);
   border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
 }
 .lfc-how strong { display: block; font-size: 13px; color: var(--text-1); margin-bottom: 8px; }
 .lfc-how ul { margin: 0; padding-left: 18px; }
