@@ -4,6 +4,7 @@ import { Spinner } from '@/components/Spinner';
 import { EmptyState } from '@/components/EmptyState';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
+import { useHuntCredits } from '@/hooks/useHuntCredits';
 import {
   listLeads,
   saveLeads,
@@ -16,16 +17,9 @@ import {
   leadDigits,
   isUaeMobile,
   InsufficientCreditsError,
-  getLeadCredits,
-  startPackCheckout,
 } from '@/lib/leads';
 import { LEAD_STATUSES } from '@/types';
-import type { CreditPack, Lead, LeadFunnel, LeadResult, LeadStatus } from '@/types';
-
-/** Support WhatsApp owners message to top up Hunt credits (no self-serve yet).
- *  Same number as the in-app support button. */
-const TOPUP_WA = '971557369629';
-const AED = (fils: number) => `AED ${(fils / 100).toLocaleString('en-AE')}`;
+import type { Lead, LeadFunnel, LeadResult, LeadStatus } from '@/types';
 
 type Mode = 'find' | 'pipeline';
 
@@ -118,6 +112,7 @@ export default function Leads() {
 const PAGE_SIZE = 10;
 
 function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta: number) => void }) {
+  const navigate = useNavigate();
   const [category, setCategory] = useState('');
   const [results, setResults] = useState<LeadResult[] | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
@@ -128,16 +123,10 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   // Set when a live search is refused for lack of credits (carries the balance).
   const [blocked, setBlocked] = useState<{ credits: number } | null>(null);
   const [meta, setMeta] = useState<{ from_cache: boolean; credits: number; searched_for?: string } | null>(null);
-  // Current Hunt credit balance + packs, for the balance chip and top-up prompt.
-  const [balance, setBalance] = useState<number | null>(null);
-  const [packs, setPacks] = useState<CreditPack[]>([]);
-  // Whether this shop may buy packs in-app, the id being bought, and — when
-  // embedded checkout is on — the Ziina iframe URL to show in the modal.
-  const [canPurchase, setCanPurchase] = useState(false);
-  const [embeddedCheckout, setEmbeddedCheckout] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
-  const [buyingId, setBuyingId] = useState<number | null>(null);
-  const [buyMsg, setBuyMsg] = useState('');
+  // Hunt credit balance + purchase eligibility, for the balance chip. Actually
+  // buying happens on the dedicated /leads/credits page (this hook is shared
+  // with it, so the balance stays in sync after a purchase).
+  const { balance, setBalance, canPurchase, buyMsg } = useHuntCredits(shopReady);
   // Background enrichment (the slow "advertising" source) runs after the fast
   // results land and quietly appends. `scanning` drives the subtle indicator;
   // `moreFound` is how many extra leads the last scan added.
@@ -155,84 +144,6 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
   // Cancel any in-flight background scan when leaving the pane.
   useEffect(() => () => { if (pollRef.current) window.clearTimeout(pollRef.current); }, []);
-
-  const loadCredits = useCallback(() => {
-    getLeadCredits()
-      .then((c) => {
-        setBalance(c.credits); setPacks(c.packs);
-        setCanPurchase(c.can_purchase); setEmbeddedCheckout(c.embedded_checkout);
-      })
-      .catch(() => undefined);
-  }, []);
-
-  // Load the credit balance (+ packs for the top-up prompt) when the pane opens.
-  useEffect(() => {
-    if (shopReady) loadCredits();
-  }, [shopReady, loadCredits]);
-
-  // Handle the return from Ziina's hosted page (?pay=success|cancel|failed).
-  // The webhook grants the credits server-side; it can lag the redirect slightly,
-  // so we re-fetch the balance now and again shortly after.
-  useEffect(() => {
-    const pay = new URLSearchParams(window.location.search).get('pay');
-    if (!pay) return;
-    if (pay === 'success') {
-      setBuyMsg('Payment received — updating your balance…');
-      loadCredits();
-      const t = window.setTimeout(loadCredits, 3000);
-      // Clean the URL so a refresh doesn't replay the message.
-      window.history.replaceState({}, '', window.location.pathname);
-      return () => window.clearTimeout(t);
-    }
-    setBuyMsg(pay === 'cancel' ? 'Checkout cancelled.' : 'Payment did not go through. Please try again.');
-    window.history.replaceState({}, '', window.location.pathname);
-  }, [loadCredits]);
-
-  // Start checkout for a pack: inline Ziina iframe when embedded mode is on,
-  // otherwise a full-page redirect to Ziina's hosted page.
-  const buyPack = async (pack: CreditPack) => {
-    setBuyingId(pack.id); setBuyMsg('');
-    try {
-      const { redirect_url, embedded_url } = await startPackCheckout(pack.id);
-      if (embeddedCheckout && embedded_url) {
-        setBlocked(null);
-        setCheckoutUrl(`${embedded_url}${embedded_url.includes('?') ? '&' : '?'}version=latest`);
-        return;
-      }
-      if (redirect_url) { window.location.href = redirect_url; return; }
-      setBuyMsg('Could not start checkout. Please try again.');
-    } catch {
-      setBuyMsg('Could not start checkout. Please try again.');
-    } finally {
-      setBuyingId(null);
-    }
-  };
-
-  // Inline-checkout result: Ziina's iframe posts ZIINA_PAYMENT_STATUS_CHANGE.
-  // Only trust messages from pay.ziina.com. The webhook is still the source of
-  // truth for the grant; on COMPLETED we just close + refresh the balance.
-  useEffect(() => {
-    if (!checkoutUrl) return;
-    const onMessage = (e: MessageEvent) => {
-      if (e.origin !== 'https://pay.ziina.com') return;
-      const data = (e.data ?? {}) as { type?: string; status?: string };
-      if (data.type !== 'ZIINA_PAYMENT_STATUS_CHANGE') return;
-      if (data.status === 'COMPLETED') {
-        setCheckoutUrl(null);
-        setBuyMsg('Payment received — updating your balance…');
-        loadCredits();
-        window.setTimeout(loadCredits, 3000);
-      } else if (data.status === 'FAILED') {
-        setCheckoutUrl(null);
-        setBuyMsg('Payment did not go through. Please try again.');
-      } else if (data.status === 'CANCELED') {
-        setCheckoutUrl(null);
-        setBuyMsg('Checkout cancelled.');
-      }
-    };
-    window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
-  }, [checkoutUrl, loadCredits]);
 
   const selectedRefs = useMemo(() => Object.keys(selected).filter((k) => selected[k]), [selected]);
 
@@ -370,19 +281,6 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
   return (
     <>
-      {checkoutUrl && (
-        <div className="lf-checkout-overlay" role="dialog" aria-label="Checkout">
-          <div className="lf-checkout-modal">
-            <div className="lf-checkout-head">
-              <span>Buy Hunt credits</span>
-              <button className="c-icon-btn lf-checkout-close" aria-label="Close checkout" onClick={() => setCheckoutUrl(null)}>✕</button>
-            </div>
-            <iframe id="ziina-checkout" title="Ziina checkout" src={checkoutUrl}
-              allow="payment" className="lf-checkout-frame" />
-          </div>
-        </div>
-      )}
-
       <div className="lf-panel lf-search">
         <div className="lf-search-inputs single">
           <div className="lf-field">
@@ -403,15 +301,13 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
       {balance !== null && (
         <div className={`lf-meta lf-credits${balance <= 10 ? ' low' : ''}`}>
           <Icons.Search size={13} /> {balance.toLocaleString('en-AE')} Hunt {balance === 1 ? 'credit' : 'credits'} left
-          {/* Self-serve shops get a persistent Buy entry; others only a low-balance
-              WhatsApp nudge. Both open/point to the same pack list. */}
-          {canPurchase
-            ? <button className="lf-topup-link" onClick={() => setBlocked({ credits: balance })}>Buy credits</button>
-            : balance <= 10 && (
-                <a className="lf-topup-link"
-                  href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent('Hi, I’d like to top up my Business Hunt credits.')}`}
-                  target="_blank" rel="noreferrer">Top up</a>
-              )}
+          {/* Both self-serve and low-balance shops go to the dedicated credits
+              page, which handles buying (Ziina) or the WhatsApp fallback. */}
+          {(canPurchase || balance <= 10) && (
+            <button className="lf-topup-link" onClick={() => navigate('/leads/credits')}>
+              {canPurchase ? 'Buy credits' : 'Top up'}
+            </button>
+          )}
         </div>
       )}
 
@@ -426,32 +322,10 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
             <strong>{blocked.credits > 0 ? 'Top up Business Hunt credits' : 'Out of Business Hunt credits'}</strong>
             <span>
               Each new business search uses 1 credit. Repeat searches you've already run are always free.
-              {canPurchase ? ' Pick a pack to top up:' : ' Top up to keep searching:'}
             </span>
-            {packs.length > 0 && (
-              <div className="lf-packs">
-                {packs.map((p) => (canPurchase
-                  ? <button key={p.id} className="lf-pack" disabled={buyingId !== null}
-                      onClick={() => void buyPack(p)}>
-                      <span className="lf-pack-credits">{p.credits.toLocaleString('en-AE')} credits</span>
-                      <span className="lf-pack-price">{buyingId === p.id ? 'Opening…' : AED(p.price_fils)}</span>
-                    </button>
-                  : <a key={p.id} className="lf-pack"
-                      href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent(`Hi, I’d like the ${p.name} pack — ${p.credits} Hunt credits for ${AED(p.price_fils)}.`)}`}
-                      target="_blank" rel="noreferrer">
-                      <span className="lf-pack-credits">{p.credits.toLocaleString('en-AE')} credits</span>
-                      <span className="lf-pack-price">{AED(p.price_fils)}</span>
-                    </a>
-                ))}
-              </div>
-            )}
-            {canPurchase
-              ? <p className="lf-topup-note">Secure checkout via Ziina.</p>
-              : <a className="c-btn-ghost lf-topup-btn"
-                  href={`https://wa.me/${TOPUP_WA}?text=${encodeURIComponent('Hi, I’d like to top up my Business Hunt credits.')}`}
-                  target="_blank" rel="noreferrer">
-                  <Icons.WhatsApp size={15} /> Message us to top up
-                </a>}
+            <button className="c-btn-ghost lf-topup-btn" onClick={() => navigate('/leads/credits')}>
+              <Icons.Search size={15} /> {canPurchase ? 'Buy credits' : 'Top up credits'}
+            </button>
           </div>
         </div>
       )}
