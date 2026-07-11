@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Icons } from '@/components/Icons';
+import { DateRangePicker } from '@/components/DateRangePicker';
 import { useShop } from '@/context/ShopContext';
 import {
   getAiInsights, getAiSummaryHistory,
@@ -188,8 +189,8 @@ export default function AiSummary() {
 
       {period === 'custom' && (
         <div className="ins-custom">
-          <input type="date" aria-label="From" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
-          <input type="date" aria-label="To" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+          <DateRangePicker from={customFrom} to={customTo}
+            onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }} />
           <button className="ins-custom-go" onClick={runCustom} disabled={!customFrom || !customTo}>Generate</button>
         </div>
       )}
