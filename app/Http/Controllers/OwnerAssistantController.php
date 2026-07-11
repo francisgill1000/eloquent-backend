@@ -120,7 +120,7 @@ class OwnerAssistantController extends Controller
             $replyText = $this->claude->toolLoop(
                 AssistantPrompt::for($shop),
                 $messages,
-                $this->registry->defs(),
+                $this->registry->defs($shop),
                 fn (string $tool, array $input) => $this->registry->execute($shop, $tool, $input),
             );
         } catch (\Throwable $e) {

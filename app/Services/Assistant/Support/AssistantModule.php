@@ -41,4 +41,9 @@ abstract class AssistantModule implements AssistantToolModule
     {
         return ['error' => 'not_found', 'what' => $what];
     }
+
+    public function moduleKey(): ?string
+    {
+        return null;
+    }
 }

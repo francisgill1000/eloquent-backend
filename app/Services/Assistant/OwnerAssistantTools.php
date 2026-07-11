@@ -38,6 +38,11 @@ class OwnerAssistantTools implements AssistantToolModule
         return false;
     }
 
+    public function moduleKey(): ?string
+    {
+        return 'bookings';
+    }
+
     /** @return array<string, mixed> */
     public function run(ToolCall $call): array
     {
