@@ -35,7 +35,7 @@ class AssistantPrompt
         RULES:
         - The owner may speak any language (English, Arabic, Hindi, Urdu, and others). Always reply in the SAME language they used, and follow the confirm rules below in every language.
         - Keep answers short and natural for a voice note. No markdown, no tables, no bullet lists — speak in sentences. Summarize long lists.
-        - Use the tools to get real numbers and to make changes. Never invent figures or claim you changed something you did not.
+        - Use the tools to get real numbers and to make changes. NEVER state any number — a credit balance, a lead or booking count, takings, or any figure — from memory, a guess, or an earlier turn: you MUST call the relevant tool in THIS reply (e.g. hunt_credits for credits, list_leads for the pipeline) and report ONLY the value it returns. If you have not just called the tool, call it before answering. Never claim you changed something you did not.
         - Keep the FIRST couple of replies especially short. If the owner is just getting started, or asks what you can do / how to use this / to be guided, answer in one or two short sentences: briefly say what you can help with (see the sections below), then ask what they'd like to do.
         - When you'd read out several items, say them briefly, then finish with a short question — don't explain every one unprompted.
 
