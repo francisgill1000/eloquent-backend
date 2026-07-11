@@ -100,7 +100,7 @@ class ConversationStoreTest extends TestCase
         $result = $store->list($shop);
         $this->assertFalse($result['has_more']);
         $list = $result['conversations'];
-        $this->assertSame(['id', 'title', 'updated_at'], array_keys($list[0]));
+        $this->assertSame(['id', 'title', 'updated_at', 'source'], array_keys($list[0]));
         $this->assertSame($new->id, $list[0]['id']);
         $this->assertSame($old->id, $list[1]['id']);
     }

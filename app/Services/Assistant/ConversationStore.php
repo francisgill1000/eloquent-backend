@@ -38,7 +38,7 @@ class ConversationStore
      * by a title search. Fetches one row beyond the page to report whether more
      * exist — cheaper than a separate count query.
      *
-     * @return array{conversations: list<array{id:int,title:string,updated_at:?string}>, has_more: bool}
+     * @return array{conversations: list<array{id:int,title:string,updated_at:?string,source:string}>, has_more: bool}
      */
     public function list(Shop $shop, int $page = 1, int $perPage = 20, ?string $q = null): array
     {
