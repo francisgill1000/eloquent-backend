@@ -37,3 +37,15 @@ Schedule::command('ai:daily-summaries')
     ->withoutOverlapping()
     ->onOneServer();
 
+// AI summaries — pre-generate active shops' weekly (Mon 03:30) and monthly
+// (1st 04:00) summaries so those history views load instantly.
+Schedule::command('ai:period-summaries --period=week')
+    ->weeklyOn(1, '03:30')
+    ->withoutOverlapping()
+    ->onOneServer();
+
+Schedule::command('ai:period-summaries --period=month')
+    ->monthlyOn(1, '04:00')
+    ->withoutOverlapping()
+    ->onOneServer();
+
