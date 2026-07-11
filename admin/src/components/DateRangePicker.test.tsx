@@ -25,4 +25,20 @@ describe('DateRangePicker', () => {
     fireEvent.click(screen.getByLabelText('2026-03-20'));
     expect(onChange).toHaveBeenCalledWith('2026-03-20', '');
   });
+
+  it('previews the in-between range on hover before the end is picked', () => {
+    render(<DateRangePicker from="2026-03-10" to="" onChange={vi.fn()} max={far} />);
+    fireEvent.mouseEnter(screen.getByLabelText('2026-03-15'));
+    // A day between the start and the hovered day is highlighted as in-range…
+    expect(screen.getByLabelText('2026-03-12').className).toContain('drp-in');
+    // …and the hovered day reads as the (tentative) endpoint.
+    expect(screen.getByLabelText('2026-03-15').className).toContain('drp-end');
+  });
+
+  it('renders two month panes by default', () => {
+    render(<DateRangePicker from="2026-03-01" to="" onChange={vi.fn()} max={far} />);
+    // Default 2 panes → the from-month and the next month are both titled.
+    expect(screen.getByText('March 2026')).toBeTruthy();
+    expect(screen.getByText('April 2026')).toBeTruthy();
+  });
 });

@@ -191,7 +191,12 @@ export default function AiSummary() {
         <div className="ins-custom">
           <DateRangePicker from={customFrom} to={customTo}
             onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }} />
-          <button className="ins-custom-go" onClick={runCustom} disabled={!customFrom || !customTo}>Generate</button>
+          <div className="ins-custom-foot">
+            <span className="ins-custom-range">
+              {customFrom && customTo ? `${fmt(customFrom)} – ${fmt(customTo)}` : 'Select a start and end date'}
+            </span>
+            <button className="ins-custom-go" onClick={runCustom} disabled={!customFrom || !customTo}>Generate</button>
+          </div>
         </div>
       )}
 
