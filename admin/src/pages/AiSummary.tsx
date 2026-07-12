@@ -38,27 +38,6 @@ function AiInsightsCard({ data, loading, refreshing, subtitle, hint, controls, o
   data: AiInsights | null; loading: boolean; refreshing: boolean; subtitle: string;
   hint?: string; controls?: ReactNode; onRefresh: () => void;
 }) {
-  const [audio, setAudio] = useState<'idle' | 'loading' | 'playing'>('idle');
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  useEffect(() => () => { audioRef.current?.pause(); }, []);
-  const canListen = !!data && data.state === 'ok';
-
-  const onListen = async () => {
-    if (audio === 'playing') { audioRef.current?.pause(); setAudio('idle'); return; }
-    if (!data || data.state !== 'ok') return;
-    const text = [data.summary, ...data.patterns, ...data.recommendations].filter(Boolean).join('. ').slice(0, 780);
-    try {
-      setAudio('loading');
-      const url = await speak(text, 'nova');
-      const el = new Audio(url);
-      audioRef.current = el;
-      el.onended = () => { setAudio('idle'); URL.revokeObjectURL(url); };
-      el.onerror = () => setAudio('idle');
-      await el.play();
-      setAudio('playing');
-    } catch { setAudio('idle'); }
-  };
-
   return (
     <div className="ins-card span2 ins-ai">
       <div className="ins-card-head">
@@ -67,15 +46,6 @@ function AiInsightsCard({ data, loading, refreshing, subtitle, hint, controls, o
           <span className="ins-card-title">AI summary</span>
           <span className="ins-card-sub">{subtitle}</span>
         </span>
-        {canListen && (
-          <div className="ins-ai-actions">
-            <button className="ins-ai-listen" onClick={onListen} disabled={audio === 'loading'}
-              aria-label={audio === 'playing' ? 'Stop' : 'Listen'}>
-              {audio === 'playing' ? <Icons.Stop size={14} /> : <Icons.Speaker size={14} />}
-              {audio === 'loading' ? 'Loading…' : audio === 'playing' ? 'Stop' : 'Listen'}
-            </button>
-          </div>
-        )}
       </div>
 
       {controls && <div className="ins-card-controls">{controls}</div>}
@@ -112,6 +82,45 @@ function AiInsightsCard({ data, loading, refreshing, subtitle, hint, controls, o
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------- play (mic) card -------------------------------------------------- */
+function PlayCard({ text, ready }: { text: string; ready: boolean }) {
+  const [status, setStatus] = useState<'idle' | 'loading' | 'playing'>('idle');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => () => { audioRef.current?.pause(); }, []);
+
+  const play = async () => {
+    if (!ready || !text) return;
+    audioRef.current?.pause();          // stop any current playback → replay from the start
+    try {
+      setStatus('loading');
+      const url = await speak(text.slice(0, 900), 'nova');
+      const el = new Audio(url);
+      audioRef.current = el;
+      el.onended = () => { setStatus('idle'); URL.revokeObjectURL(url); };
+      el.onerror = () => setStatus('idle');
+      await el.play();
+      setStatus('playing');
+    } catch { setStatus('idle'); }
+  };
+
+  return (
+    <div className="ais-play-card">
+      <button className={`ais-mic${status === 'playing' ? ' is-playing' : ''}`}
+        onClick={play} disabled={!ready || status === 'loading'}
+        aria-label={status === 'playing' ? 'Playing summary' : 'Play summary'}>
+        <span className="ais-mic-rings" aria-hidden="true"><i /><i /><i /></span>
+        <span className="ais-mic-core"><Icons.Mic size={38} /></span>
+      </button>
+      <p className="ais-play-title">
+        {status === 'loading' ? 'Preparing…' : status === 'playing' ? 'Speaking…' : ready ? 'Play summary' : 'No summary yet'}
+      </p>
+      <p className="ais-play-sub">
+        {ready ? 'Tap to hear your summary read aloud — tap again to replay.' : 'Generate a summary to listen.'}
+      </p>
     </div>
   );
 }
@@ -225,13 +234,22 @@ export default function AiSummary() {
     </>
   );
 
+  const spokenText = data && data.state === 'ok'
+    ? [data.summary, ...data.patterns, ...data.recommendations].filter(Boolean).join('. ')
+    : '';
+
   return (
     <div className="m-screen"><div className="m-scroll c-aisummary">
-      <div className="ins-wrap">
-        <AiInsightsCard data={data} loading={loading} refreshing={refreshing}
-          subtitle={win.label} controls={controls}
-          hint={period === 'custom' ? 'Pick a date range, then tap Submit to see a summary.' : undefined}
-          onRefresh={() => fetchAi(win.from, win.to, true)} />
+      <div className="ais-layout">
+        <div className="ais-left">
+          <PlayCard text={spokenText} ready={!!spokenText} />
+        </div>
+        <div className="ais-right">
+          <AiInsightsCard data={data} loading={loading} refreshing={refreshing}
+            subtitle={win.label} controls={controls}
+            hint={period === 'custom' ? 'Pick a date range, then tap Submit to see a summary.' : undefined}
+            onRefresh={() => fetchAi(win.from, win.to, true)} />
+        </div>
       </div>
     </div></div>
   );
