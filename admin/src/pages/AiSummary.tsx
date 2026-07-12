@@ -34,24 +34,9 @@ const fmt = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString(undefine
 const historyLabel = (it: AiSummaryHistoryItem) => `${fmt(it.period_from)} – ${fmt(it.period_to)}`;
 
 /* ---------- AI summary card ------------------------------------------------- */
-/** Split text into word/space tokens, tagging each word with a global index so a
- *  running counter can brighten words in the order they're spoken. */
-function revealTokens(text: string, from: number, revealed: number) {
-  let idx = from;
-  const nodes = text.split(/(\s+)/).map((tok, i) => {
-    if (tok === '' || /^\s+$/.test(tok)) return tok;
-    const on = idx < revealed;
-    idx++;
-    return <span key={i} className={`ais-w${on ? ' on' : ''}`}>{tok}</span>;
-  });
-  return { nodes, next: idx };
-}
-
-const wordCount = (s: string) => (s.trim() === '' ? 0 : s.trim().split(/\s+/).length);
-
-function AiInsightsCard({ data, loading, refreshing, subtitle, hint, controls, reveal, onRefresh }: {
+function AiInsightsCard({ data, loading, refreshing, subtitle, hint, controls, onRefresh }: {
   data: AiInsights | null; loading: boolean; refreshing: boolean; subtitle: string;
-  hint?: string; controls?: ReactNode; reveal: number | null; onRefresh: () => void;
+  hint?: string; controls?: ReactNode; onRefresh: () => void;
 }) {
   return (
     <div className="ins-card span2 ins-ai">
@@ -80,48 +65,36 @@ function AiInsightsCard({ data, loading, refreshing, subtitle, hint, controls, r
         </div>
       ) : data.state === 'low_data' ? (
         <div className="ins-ai-body"><p className="ins-ai-msg">{data.message}</p></div>
-      ) : (() => {
-        // Word-level reveal synced to playback: words brighten in spoken order.
-        // reveal=null → everything shown (normal). reveal∈[0,1] → up to that share.
-        const total = wordCount(data.summary)
-          + data.patterns.reduce((n, p) => n + wordCount(p), 0)
-          + data.recommendations.reduce((n, r) => n + wordCount(r), 0);
-        const revealed = reveal === null ? Number.POSITIVE_INFINITY : Math.round(reveal * total);
-        let wi = 0;
-        const seg = (t: string) => { const r = revealTokens(t, wi, revealed); wi = r.next; return r.nodes; };
-        return (
-          <div className={`ins-ai-body${refreshing ? ' is-refreshing' : ''}`}>
-            <p className="ins-ai-summary">{seg(data.summary)}</p>
-            {data.patterns.length > 0 && (
-              <div className="ins-ai-block">
-                <span className="ins-ai-label">Patterns</span>
-                <ul className="ins-ai-list">{data.patterns.map((p, i) => <li key={i}>{seg(p)}</li>)}</ul>
-              </div>
-            )}
-            {data.recommendations.length > 0 && (
-              <div className="ins-ai-block">
-                <span className="ins-ai-label">Recommendations</span>
-                <ul className="ins-ai-list">{data.recommendations.map((r, i) => <li key={i}>{seg(r)}</li>)}</ul>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      ) : (
+        <div className={`ins-ai-body${refreshing ? ' is-refreshing' : ''}`}>
+          <p className="ins-ai-summary">{data.summary}</p>
+          {data.patterns.length > 0 && (
+            <div className="ins-ai-block">
+              <span className="ins-ai-label">Patterns</span>
+              <ul className="ins-ai-list">{data.patterns.map((p, i) => <li key={i}>{p}</li>)}</ul>
+            </div>
+          )}
+          {data.recommendations.length > 0 && (
+            <div className="ins-ai-block">
+              <span className="ins-ai-label">Recommendations</span>
+              <ul className="ins-ai-list">{data.recommendations.map((r, i) => <li key={i}>{r}</li>)}</ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 /* ---------- play (mic) card -------------------------------------------------- */
-function PlayCard({ text, ready, onProgress }: {
-  text: string; ready: boolean; onProgress: (p: number | null) => void;
-}) {
+function PlayCard({ text, ready }: { text: string; ready: boolean }) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'playing'>('idle');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => () => { audioRef.current?.pause(); }, []);
 
   const toggle = async () => {
-    // Playing → tap stops it (and clears the reveal so the full text shows).
-    if (status === 'playing') { audioRef.current?.pause(); setStatus('idle'); onProgress(null); return; }
+    // Playing → tap stops it.
+    if (status === 'playing') { audioRef.current?.pause(); setStatus('idle'); return; }
     if (!ready || !text) return;
     audioRef.current?.pause();          // start fresh (replay from the beginning)
     try {
@@ -129,14 +102,11 @@ function PlayCard({ text, ready, onProgress }: {
       const url = await speak(text.slice(0, 900), 'nova');
       const el = new Audio(url);
       audioRef.current = el;
-      // Reveal the words in step with playback progress (0 → 1).
-      el.ontimeupdate = () => { if (el.duration > 0) onProgress(el.currentTime / el.duration); };
-      el.onended = () => { setStatus('idle'); onProgress(null); URL.revokeObjectURL(url); };
-      el.onerror = () => { setStatus('idle'); onProgress(null); };
+      el.onended = () => { setStatus('idle'); URL.revokeObjectURL(url); };
+      el.onerror = () => setStatus('idle');
       await el.play();
       setStatus('playing');
-      onProgress(0);
-    } catch { setStatus('idle'); onProgress(null); }
+    } catch { setStatus('idle'); }
   };
 
   return (
@@ -176,8 +146,6 @@ export default function AiSummary() {
   const [period, setPeriod] = useState<PeriodType>('rolling30');
   // The Custom tab toggles the date picker open/closed on repeat clicks.
   const [customOpen, setCustomOpen] = useState(false);
-  // Word-reveal progress (0→1) driven by the play card; null = show full text.
-  const [reveal, setReveal] = useState<number | null>(null);
 
   // The active window: the current period, a picked history row, or a custom range.
   const [win, setWin] = useState(() => currentWindow('rolling30'));
@@ -282,11 +250,11 @@ export default function AiSummary() {
     <div className="m-screen"><div className="m-scroll c-aisummary">
       <div className="ais-layout">
         <div className="ais-left">
-          <PlayCard text={spokenText} ready={!!spokenText} onProgress={setReveal} />
+          <PlayCard text={spokenText} ready={!!spokenText} />
         </div>
         <div className="ais-right">
           <AiInsightsCard data={data} loading={loading} refreshing={refreshing}
-            subtitle={win.label} controls={controls} reveal={reveal}
+            subtitle={win.label} controls={controls}
             hint={period === 'custom' ? 'Pick a date range, then tap Submit to see a summary.' : undefined}
             onRefresh={() => fetchAi(win.from, win.to, true)} />
         </div>
