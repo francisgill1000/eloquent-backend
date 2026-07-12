@@ -358,6 +358,10 @@
 .ins-tab { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line, #2a3b34);
   background: transparent; color: inherit; font-size: 13px; cursor: pointer; }
 .ins-tab.is-active { background: var(--accent, #16d1a5); color: #062018; border-color: transparent; font-weight: 600; }
+/* Period filters live inside the summary card, under its header. */
+.ins-card-controls { margin: 0 0 14px; }
+.ins-card-controls .ins-tabs,
+.ins-card-controls .ins-history { margin-bottom: 0; }
 /* The tabs row anchors the custom picker, which floats as an overlay below it. */
 .ins-tabs-row { position: relative; }
 /* Animated open/close (grid rows 0fr→1fr) AND floating (absolute) so opening the
