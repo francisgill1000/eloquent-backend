@@ -62,7 +62,7 @@ describe('AiSummary period selector', () => {
       .filter((b) => /^\d{1,2}$/.test(b.textContent || '') && !b.hasAttribute('disabled'));
     fireEvent.click(days[0]);
     fireEvent.click(days[days.length - 1]);
-    fireEvent.click(screen.getByRole('button', { name: /generate/i }));
+    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
 
     await waitFor(() => expect(getAiInsights).toHaveBeenCalled());
     const call = getAiInsights.mock.calls.at(-1)!;
