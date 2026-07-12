@@ -363,18 +363,16 @@
    and drop the left/right inset so the card uses the full content width. */
 .m-scroll.c-aisummary { padding: 12px 0 16px; height: 100%; }
 
-/* Two-column layout: left play/mic card (25%) + right summary card (75%), full height. */
-.c-aisummary .ais-layout { display: flex; gap: 16px; min-height: 100%; }
-.ais-left { flex: 0 0 25%; min-width: 0; display: flex; }
-.ais-right { flex: 1 1 auto; min-width: 0; display: flex; }
-.ais-left > *, .ais-right > * { flex: 1; min-width: 0; }
-.ais-right .ins-card { width: 100%; }
-
-/* Left play/mic card */
-.ais-play-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-  text-align: center; padding: 28px 22px;
+/* One unified card: mic section (left ~26%) + summary section (right), full height. */
+.c-aisummary .ais-card { display: flex; min-height: 100%; overflow: visible;
   background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
   border: 1px solid var(--border-mint); border-radius: var(--r-lg); }
+/* Right summary section — strip its own card chrome; it's a column inside the card. */
+.ais-card > .ins-card { flex: 1 1 auto; min-width: 0; background: none; border: none; border-radius: 0; }
+/* Left mic section — no card chrome; a divider separates it from the summary. */
+.ais-play-card { flex: 0 0 26%; min-width: 0; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 16px; text-align: center; padding: 28px 22px;
+  border-right: 1px solid var(--border-mint); }
 .ais-mic { position: relative; width: 140px; height: 140px; padding: 0; border: none; background: none;
   cursor: pointer; display: grid; place-items: center; }
 .ais-mic:disabled { cursor: default; opacity: .45; }
@@ -408,8 +406,8 @@
 
 /* Stack on narrow screens. */
 @media (max-width: 760px) {
-  .c-aisummary .ais-layout { flex-direction: column; min-height: 0; }
-  .ais-left, .ais-right { flex: 0 0 auto; }
+  .c-aisummary .ais-card { flex-direction: column; min-height: 0; }
+  .ais-play-card { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--border-mint); }
 }
 /* Period filters live inside the summary card, under its header. */
 .ins-card-controls { margin: 0 0 14px; }
