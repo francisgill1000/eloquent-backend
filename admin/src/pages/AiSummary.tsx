@@ -204,13 +204,8 @@ export default function AiSummary() {
         aria-hidden={!(period === 'custom' && customOpen)}>
         <div className="ins-custom">
           <DateRangePicker from={customFrom} to={customTo}
-            onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }} />
-          <div className="ins-custom-foot">
-            <span className="ins-custom-range">
-              {customFrom && customTo ? `${fmt(customFrom)} – ${fmt(customTo)}` : 'Select a start and end date'}
-            </span>
-            <button className="ins-custom-go" onClick={runCustom} disabled={!customFrom || !customTo}>Generate</button>
-          </div>
+            onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }}
+            footer={<button className="drp-go" onClick={runCustom} disabled={!customFrom || !customTo}>Generate</button>} />
         </div>
       </div>
       </div>

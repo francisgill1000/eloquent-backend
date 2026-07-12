@@ -370,12 +370,7 @@
 .ins-custom-wrap.is-open { grid-template-rows: 1fr; opacity: 1; pointer-events: auto; }
 .ins-custom { display: inline-flex; flex-direction: column; gap: 10px; max-width: 100%;
   overflow: hidden; min-height: 0; }
-.ins-custom-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 @media (prefers-reduced-motion: reduce) { .ins-custom-wrap { transition: none; } }
-.ins-custom-range { font-size: 13px; opacity: .8; }
-.ins-custom-go { padding: 8px 20px; border-radius: 8px; border: none; background: var(--accent, #16d1a5);
-  color: #062018; font-weight: 600; cursor: pointer; }
-.ins-custom-go:disabled { opacity: .45; cursor: default; }
 .ins-history { display: flex; gap: 6px; margin: 0 0 12px; overflow-x: auto; padding-bottom: 2px; }
 .ins-hist-item { flex: 0 0 auto; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line, #2a3b34);
   background: transparent; color: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap; }

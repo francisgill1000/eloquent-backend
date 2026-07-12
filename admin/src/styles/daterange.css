@@ -23,3 +23,9 @@
 .drp-in.drp-end { border-radius: 8px; }
 /* Range endpoints (and the hovered end while choosing). */
 .drp-end { background: var(--accent, #16d1a5) !important; color: #062018; font-weight: 700; border-radius: 8px; }
+/* Action row inside the box, below the calendar. */
+.drp-foot { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--line, #23342d); }
+.drp-go { padding: 8px 20px; border-radius: 8px; border: none; background: var(--accent, #16d1a5);
+  color: #062018; font-weight: 600; cursor: pointer; }
+.drp-go:disabled { opacity: .45; cursor: default; }
