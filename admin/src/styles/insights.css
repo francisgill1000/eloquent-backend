@@ -368,8 +368,8 @@
    picker overlays the content below instead of pushing it down.
    width:fit-content keeps it sized to the calendar, not full page width. */
 .ins-custom-wrap { position: absolute; top: 100%; left: 0; z-index: 30; margin-top: 6px;
-  display: grid; grid-template-rows: 0fr; opacity: 0; width: fit-content; max-width: 100%;
-  pointer-events: none;
+  display: grid; grid-template-rows: 0fr; opacity: 0; width: max-content; max-width: 100%;
+  justify-items: start; pointer-events: none;
   transition: grid-template-rows 260ms ease, opacity 200ms ease; }
 .ins-custom-wrap.is-open { grid-template-rows: 1fr; opacity: 1; pointer-events: auto; }
 .ins-custom { display: inline-flex; flex-direction: column; gap: 10px; max-width: 100%;
