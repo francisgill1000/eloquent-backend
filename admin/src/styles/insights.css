@@ -402,6 +402,9 @@
 .ais-eq i:nth-child(5) { animation-delay: .6s; }
 @keyframes aisEq { 0%, 100% { height: 10px; } 50% { height: 34px; } }
 @media (prefers-reduced-motion: reduce) { .ais-eq i { animation: none; height: 20px; } }
+/* Word-by-word reveal in step with playback: dim words brighten as spoken. */
+.ais-w { opacity: 0.26; transition: opacity .28s ease; }
+.ais-w.on { opacity: 1; }
 .ais-play-title { margin: 0; font-size: 16px; font-weight: 700; color: var(--text-1); }
 .ais-play-sub { margin: 0; font-size: 12.5px; color: var(--text-3); max-width: 210px; line-height: 1.45; }
 @media (prefers-reduced-motion: reduce) { .ais-mic.is-playing .ais-mic-rings i { animation: none; } }
