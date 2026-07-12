@@ -92,9 +92,11 @@ function PlayCard({ text, ready }: { text: string; ready: boolean }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => () => { audioRef.current?.pause(); }, []);
 
-  const play = async () => {
+  const toggle = async () => {
+    // Playing → tap stops it.
+    if (status === 'playing') { audioRef.current?.pause(); setStatus('idle'); return; }
     if (!ready || !text) return;
-    audioRef.current?.pause();          // stop any current playback → replay from the start
+    audioRef.current?.pause();          // start fresh (replay from the beginning)
     try {
       setStatus('loading');
       const url = await speak(text.slice(0, 900), 'nova');
@@ -110,16 +112,20 @@ function PlayCard({ text, ready }: { text: string; ready: boolean }) {
   return (
     <div className="ais-play-card">
       <button className={`ais-mic${status === 'playing' ? ' is-playing' : ''}`}
-        onClick={play} disabled={!ready || status === 'loading'}
-        aria-label={status === 'playing' ? 'Playing summary' : 'Play summary'}>
+        onClick={toggle} disabled={!ready || status === 'loading'}
+        aria-label={status === 'playing' ? 'Stop' : 'Play summary'}>
         <span className="ais-mic-rings" aria-hidden="true"><i /><i /><i /></span>
-        <span className="ais-mic-core"><Icons.Mic size={38} /></span>
+        <span className="ais-mic-core">
+          {status === 'playing' ? <Icons.Stop size={34} /> : <Icons.Mic size={38} />}
+        </span>
       </button>
       <p className="ais-play-title">
         {status === 'loading' ? 'Preparing…' : status === 'playing' ? 'Speaking…' : ready ? 'Play summary' : 'No summary yet'}
       </p>
       <p className="ais-play-sub">
-        {ready ? 'Tap to hear your summary read aloud — tap again to replay.' : 'Generate a summary to listen.'}
+        {status === 'playing' ? 'Tap to stop.'
+          : ready ? 'Tap to hear your summary read aloud — tap again to replay.'
+          : 'Generate a summary to listen.'}
       </p>
     </div>
   );
