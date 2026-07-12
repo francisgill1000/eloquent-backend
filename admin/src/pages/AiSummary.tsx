@@ -7,8 +7,6 @@ import {
   type AiInsights, type PeriodType, type AiSummaryHistoryItem,
 } from '@/lib/aiInsights';
 import { speak } from '@/lib/simulation';
-import { getTriggerWord } from '@/lib/triggerWord';
-import { useWakeWord, wakeWordSupported } from '@/lib/useWakeWord';
 import '@/styles/insights.css';
 
 /* ---------- date helpers ---------------------------------------------------- */
@@ -92,13 +90,13 @@ function AiInsightsCard({ data, loading, refreshing, subtitle, hint, controls, o
 function PlayCard({ text, ready }: { text: string; ready: boolean }) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'playing'>('idle');
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [wake, setWake] = useState(false);
-  const [trigger, setTrigger] = useState(getTriggerWord());
   useEffect(() => () => { audioRef.current?.pause(); }, []);
 
-  const start = async () => {
+  const toggle = async () => {
+    // Playing → tap stops it.
+    if (status === 'playing') { audioRef.current?.pause(); setStatus('idle'); return; }
     if (!ready || !text) return;
-    audioRef.current?.pause();          // (re)start from the beginning
+    audioRef.current?.pause();          // start fresh (replay from the beginning)
     try {
       setStatus('loading');
       const url = await speak(text.slice(0, 900), 'nova');
@@ -109,20 +107,6 @@ function PlayCard({ text, ready }: { text: string; ready: boolean }) {
       await el.play();
       setStatus('playing');
     } catch { setStatus('idle'); }
-  };
-
-  const toggle = () => {
-    // Playing → tap stops it; otherwise start.
-    if (status === 'playing') { audioRef.current?.pause(); setStatus('idle'); return; }
-    void start();
-  };
-
-  // Wake word: while enabled, saying the trigger auto-starts playback.
-  useWakeWord(wake && ready, trigger, () => { if (status !== 'playing') void start(); });
-
-  const toggleWake = () => {
-    setTrigger(getTriggerWord());       // pick up any change made in Settings
-    setWake((w) => !w);
   };
 
   return (
@@ -145,13 +129,6 @@ function PlayCard({ text, ready }: { text: string; ready: boolean }) {
           : ready ? 'Tap to hear your summary read aloud — tap again to replay.'
           : 'Generate a summary to listen.'}
       </p>
-      {wakeWordSupported() && (
-        <button className={`ais-wake${wake ? ' on' : ''}`} onClick={toggleWake} disabled={!ready}
-          aria-pressed={wake}>
-          <span className="ais-wake-dot" aria-hidden="true" />
-          {wake ? `Listening for “${trigger}”…` : 'Enable wake word'}
-        </button>
-      )}
     </div>
   );
 }

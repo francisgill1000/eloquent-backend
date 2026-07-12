@@ -1,11 +1,9 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { usePush } from '@/lib/usePush';
 import { WHATSAPP_ENABLED } from '@/lib/features';
 import { shopHasModule, type Module } from '@/lib/modules';
-import { getTriggerWord, setTriggerWord, DEFAULT_TRIGGER } from '@/lib/triggerWord';
 
 type Option = {
   label: string;
@@ -38,7 +36,6 @@ const OPTIONS: Option[] = ALL_OPTIONS.filter((o) => WHATSAPP_ENABLED || o.to !==
 export default function Settings() {
   const { shop, can } = useShop();
   const push = usePush();
-  const [trigger, setTrigger] = useState(getTriggerWord());
   // Hide options for modules this shop lacks; also hide Access Control from
   // users who can neither view users nor roles.
   const visible = OPTIONS.filter(
@@ -58,21 +55,6 @@ export default function Settings() {
       </div>
 
       <div className="c-set-grid">
-      <div className="c-set-link" style={{ cursor: 'default', alignItems: 'flex-start' }}>
-        <span className="c-set-ic"><Icons.Mic size={18} /></span>
-        <span className="c-set-body">
-          <span className="c-set-label">Voice trigger word</span>
-          <span className="c-set-sub">Say this to auto-play the AI summary. Leave blank for “{DEFAULT_TRIGGER}”.</span>
-          <input
-            className="c-set-input"
-            value={trigger}
-            placeholder={DEFAULT_TRIGGER}
-            onChange={(e) => { setTrigger(e.target.value); setTriggerWord(e.target.value); }}
-            aria-label="Voice trigger word"
-          />
-        </span>
-      </div>
-
       {push.supported && (
         <div
           className="c-set-link"
