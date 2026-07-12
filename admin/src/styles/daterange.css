@@ -1,5 +1,7 @@
 .drp { border: 1px solid var(--line, #23342d); border-radius: 12px; padding: 14px;
-  background: var(--card, rgba(255,255,255,0.02)); max-width: 100%; display: inline-block; }
+  /* Opaque + shadow so it reads as a floating panel over the content below. */
+  background: var(--panel, #0e1a16); box-shadow: 0 16px 38px rgba(0, 0, 0, 0.55);
+  max-width: 100%; display: inline-block; }
 .drp-months { display: flex; gap: 22px; flex-wrap: wrap; }
 .drp-month { width: 252px; max-width: 100%; }
 .drp-mhead { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
