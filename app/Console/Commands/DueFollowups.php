@@ -15,14 +15,14 @@ class DueFollowups extends Command
 {
     protected $signature = 'leads:due-followups';
 
-    protected $description = 'Report leads whose follow-up is due today (status sent|replied)';
+    protected $description = 'Report leads whose follow-up is due today (status sent|followup|replied)';
 
     public function handle(): int
     {
         $due = Lead::query()
             ->whereNotNull('next_followup_at')
             ->where('next_followup_at', '<=', now())
-            ->whereIn('status', ['sent', 'replied'])
+            ->whereIn('status', ['sent', 'followup', 'replied'])
             ->get(['id', 'shop_id', 'name', 'next_followup_at', 'status']);
 
         if ($due->isEmpty()) {

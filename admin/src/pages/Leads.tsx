@@ -24,10 +24,10 @@ import type { Lead, LeadFunnel, LeadResult, LeadStatus } from '@/types';
 type Mode = 'find' | 'pipeline';
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
-  new: 'New', sent: 'Sent', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Not Interested',
+  new: 'New', sent: 'Sent', followup: 'Follow-up', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Not Interested',
 };
 
-const EMPTY_FUNNEL: LeadFunnel = { new: 0, sent: 0, replied: 0, demo: 0, won: 0, pass: 0 };
+const EMPTY_FUNNEL: LeadFunnel = { new: 0, sent: 0, followup: 0, replied: 0, demo: 0, won: 0, pass: 0 };
 
 // Compact follow-up label for pipeline cards. `due` flips the styling to the
 // amber "chase me" treatment for anything due today or overdue.
@@ -120,6 +120,9 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // Required name for the pipeline/list these results save into. Prefilled from
+  // the searched keyword once results land; the user can rename before saving.
+  const [pipeline, setPipeline] = useState('');
   // Set when a live search is refused for lack of credits (carries the balance).
   const [blocked, setBlocked] = useState<{ credits: number } | null>(null);
   const [meta, setMeta] = useState<{ from_cache: boolean; credits: number; searched_for?: string } | null>(null);
@@ -182,6 +185,9 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
       setMeta({ from_cache: res.meta.from_cache, credits: res.meta.credits, searched_for: res.meta.searched_for });
       setBalance(res.meta.credits);
       searchedFor = res.meta.searched_for || q;
+      // Suggest a pipeline name from the searched keyword, but never clobber a
+      // name the user has already typed for this batch.
+      setPipeline((prev) => (prev.trim() ? prev : `${searchedFor} pipeline`));
       gotFast = true;
     } catch (e) {
       if (e instanceof InsufficientCreditsError) { setBlocked({ credits: e.credits }); setBalance(e.credits); }
@@ -263,10 +269,12 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
   const saveSelected = async () => {
     if (!selectedRefs.length || !results) return;
+    const listName = pipeline.trim();
+    if (!listName) { setError('Enter a pipeline name to save these leads under.'); return; }
     setSaving(true); setError('');
     const picked = results.filter((r) => selected[r.external_ref] && !savedRefs[r.external_ref]);
     try {
-      const res = await saveLeads(picked);
+      const res = await saveLeads(picked, listName);
       const marked: Record<string, boolean> = { ...savedRefs };
       picked.forEach((p) => { marked[p.external_ref] = true; });
       setSavedRefs(marked);
@@ -380,7 +388,18 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
           )}
           {selectedRefs.length > 0 && (
             <div className="lf-savebar">
-              <button className="c-btn c-btn-block" disabled={saving} onClick={() => void saveSelected()}>
+              <label className="lf-pipeline">
+                <span className="lf-pipeline-label">Pipeline name</span>
+                <div className="lf-field">
+                  <Icons.List size={16} />
+                  <input
+                    placeholder="e.g. digital media pipeline"
+                    value={pipeline}
+                    onChange={(e) => setPipeline(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && pipeline.trim()) void saveSelected(); }} />
+                </div>
+              </label>
+              <button className="c-btn c-btn-block" disabled={saving || !pipeline.trim()} onClick={() => void saveSelected()}>
                 <Icons.Plus size={16} /> {saving ? 'Saving…' : `Save ${selectedRefs.length} to pipeline`}
               </button>
             </div>
@@ -435,6 +454,8 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
   const [statusFilter, setStatusFilter] = useState<LeadStatus | null>(null);
   const [dueOnly, setDueOnly] = useState(false);
   const [search, setSearch] = useState('');
+  const [pipelines, setPipelines] = useState<string[]>([]);
+  const [pipelineFilter, setPipelineFilter] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [perPage, setPerPage] = useState<PerPage>(15);
   const [page, setPage] = useState(1);
@@ -452,7 +473,7 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
   const pageLeads = perPage === 'all' ? leads : leads.slice(start, start + pageSize);
 
   // Snap back to the first page whenever the result set or page size changes.
-  useEffect(() => { setPage(1); }, [perPage, statusFilter, dueOnly, search]);
+  useEffect(() => { setPage(1); }, [perPage, statusFilter, dueOnly, search, pipelineFilter]);
 
   const fetch = useCallback(async () => {
     if (!shopReady) return;
@@ -460,17 +481,21 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
     try {
       const res = await listLeads({
         status: statusFilter ?? undefined,
+        pipeline: pipelineFilter ?? undefined,
         search: search.trim() || undefined,
         followups: dueOnly ? 'due' : undefined,
       });
       setLeads(res.data);
       setFunnel(res.funnel);
+      setPipelines(res.pipelines);
+      // The active filter may have vanished (last lead in it re-filed/deleted).
+      if (pipelineFilter && !res.pipelines.includes(pipelineFilter)) setPipelineFilter(null);
     } catch {
       setError('Could not load your leads.');
     } finally {
       setLoading(false);
     }
-  }, [shopReady, statusFilter, dueOnly, search, setFunnel]);
+  }, [shopReady, statusFilter, pipelineFilter, dueOnly, search, setFunnel]);
 
   useEffect(() => { void fetch(); }, [fetch]);
 
@@ -506,6 +531,15 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
           <input placeholder="Search saved leads" value={search}
             onChange={(e) => setSearch(e.target.value)} />
         </div>
+        {pipelines.length > 0 && (
+          <label className="lf-pipefilter">
+            <Icons.List size={14} />
+            <select value={pipelineFilter ?? ''} onChange={(e) => setPipelineFilter(e.target.value || null)} aria-label="Filter by pipeline">
+              <option value="">All pipelines</option>
+              {pipelines.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </label>
+        )}
         <button className={`lf-toggle${dueOnly ? ' on' : ''}`} onClick={() => setDueOnly((v) => !v)}>
           <Icons.Bell size={14} /> Due today
         </button>
@@ -588,8 +622,8 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
       ) : (
         <div className="lf-panel">
           <EmptyState icon={<Icons.Grid size={26} />}
-            title={statusFilter || dueOnly || search ? 'No matches' : 'Nothing saved yet'}
-            subtitle={statusFilter || dueOnly || search ? 'Try clearing the filters.' : 'Use Find to search businesses and save them here.'} />
+            title={statusFilter || dueOnly || search || pipelineFilter ? 'No matches' : 'Nothing saved yet'}
+            subtitle={statusFilter || dueOnly || search || pipelineFilter ? 'Try clearing the filters.' : 'Use Find to search businesses and save them here.'} />
         </div>
       )}
     </>
@@ -604,6 +638,7 @@ function LeadRow({ lead, busy, onStatus, onOpen }: { lead: Lead; busy: boolean; 
       <td className="lf-row-name">
         <span className="lf-name">{lead.name}</span>
         {lead.address && <span className="lf-addr"><Icons.MapPin size={11} /> {lead.address}</span>}
+        {lead.pipeline && <span className="lf-pipe-tag"><Icons.List size={10} /> {lead.pipeline}</span>}
       </td>
       <td onClick={(e) => e.stopPropagation()}>
         <select className={`lf-select s-${lead.status}`} value={lead.status} disabled={busy}
@@ -639,6 +674,7 @@ function LeadCard({ lead, busy, onStatus, onOpen }: { lead: Lead; busy: boolean;
           <span className={`lf-status s-${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
         </div>
         {lead.address && <span className="lf-addr"><Icons.MapPin size={12} /> {lead.address}</span>}
+        {lead.pipeline && <span className="lf-pipe-tag"><Icons.List size={11} /> {lead.pipeline}</span>}
         {follow && (
           <span className={`lf-follow${follow.due ? ' due' : ''}`}>
             <Icons.Bell size={11} /> {follow.text}

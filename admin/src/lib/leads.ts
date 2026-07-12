@@ -138,8 +138,8 @@ export async function pollAdSearch(runId: string, category: string): Promise<AdS
  * Returns the saved rows plus `created` — how many were actually new (re-saving
  * an existing lead dedupes and doesn't count).
  */
-export async function saveLeads(leads: LeadResult[]): Promise<{ leads: Lead[]; created: number }> {
-  const { data } = await api.post('/shop/leads', { leads });
+export async function saveLeads(leads: LeadResult[], pipeline: string): Promise<{ leads: Lead[]; created: number }> {
+  const { data } = await api.post('/shop/leads', { leads, pipeline });
   return {
     leads: Array.isArray(data?.data) ? data.data : [],
     created: typeof data?.created === 'number' ? data.created : 0,
@@ -176,15 +176,17 @@ export async function personalizeLead(id: number, kind: 'opening' | 'followup'):
 export type LeadFilters = {
   status?: LeadStatus;
   category?: string;
+  pipeline?: string;
   search?: string;
   followups?: 'due';
 };
 
-/** List the shop's leads with filters + funnel counts per status. */
+/** List the shop's leads with filters + funnel counts per status + pipelines. */
 export async function listLeads(filters: LeadFilters = {}): Promise<LeadListResponse> {
   const { data } = await api.get('/shop/leads', { params: filters });
   return {
     data: Array.isArray(data?.data) ? data.data : [],
-    funnel: data?.funnel ?? { new: 0, sent: 0, replied: 0, demo: 0, won: 0, pass: 0 },
+    funnel: data?.funnel ?? { new: 0, sent: 0, followup: 0, replied: 0, demo: 0, won: 0, pass: 0 },
+    pipelines: Array.isArray(data?.pipelines) ? data.pipelines : [],
   };
 }

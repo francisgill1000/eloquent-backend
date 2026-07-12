@@ -13,7 +13,7 @@ class Lead extends Model
     use HasFactory;
 
     /** The fixed, opinionated funnel — deliberately not user-configurable. */
-    public const STATUSES = ['new', 'sent', 'replied', 'demo', 'won', 'pass'];
+    public const STATUSES = ['new', 'sent', 'followup', 'replied', 'demo', 'won', 'pass'];
 
     /** The opening WhatsApp draft template. {name}/{shop}/{category}/{area} fill per-lead. */
     public const DEFAULT_OPENING = 'Hi {name}, this is {shop} 👋 We find you new customers from across the internet and handle them end-to-end — AI WhatsApp replies, one-tap calls, automatic follow-ups, and bookings, with every lead tracked in one app. Worth a quick 2-min demo?';
@@ -29,6 +29,7 @@ class Lead extends Model
         'website',
         'address',
         'category',
+        'pipeline',
         'lat',
         'lng',
         'source',

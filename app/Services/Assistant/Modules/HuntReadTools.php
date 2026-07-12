@@ -113,7 +113,7 @@ class HuntReadTools extends AssistantModule
 
         return [
             ['name' => 'hunt_credits', 'description' => 'The shop\'s current Business Hunt credit balance (1 credit = one live search).', 'input_schema' => ['type' => 'object', 'properties' => new \stdClass()]],
-            ['name' => 'list_leads', 'description' => 'The lead pipeline: a total plus a count for each funnel stage (new, sent, replied, demo, won, pass). Pass a status to also get up to 8 lead names in that stage.', 'input_schema' => ['type' => 'object', 'properties' => [
+            ['name' => 'list_leads', 'description' => 'The lead pipeline: a total plus a count for each funnel stage (new, sent, followup, replied, demo, won, pass). Pass a status to also get up to 8 lead names in that stage.', 'input_schema' => ['type' => 'object', 'properties' => [
                 'status' => ['type' => 'string', 'enum' => Lead::STATUSES],
             ]]],
             ['name' => 'find_lead', 'description' => 'Look up one saved lead by business name and return its funnel status and contact details.', 'input_schema' => ['type' => 'object', 'properties' => $name, 'required' => ['name']]],
