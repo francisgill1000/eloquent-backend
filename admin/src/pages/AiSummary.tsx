@@ -248,16 +248,12 @@ export default function AiSummary() {
 
   return (
     <div className="m-screen"><div className="m-scroll c-aisummary">
-      <div className="ais-layout">
-        <div className="ais-left">
-          <PlayCard text={spokenText} ready={!!spokenText} />
-        </div>
-        <div className="ais-right">
-          <AiInsightsCard data={data} loading={loading} refreshing={refreshing}
-            subtitle={win.label} controls={controls}
-            hint={period === 'custom' ? 'Pick a date range, then tap Submit to see a summary.' : undefined}
-            onRefresh={() => fetchAi(win.from, win.to, true)} />
-        </div>
+      <div className="ais-card">
+        <PlayCard text={spokenText} ready={!!spokenText} />
+        <AiInsightsCard data={data} loading={loading} refreshing={refreshing}
+          subtitle={win.label} controls={controls}
+          hint={period === 'custom' ? 'Pick a date range, then tap Submit to see a summary.' : undefined}
+          onRefresh={() => fetchAi(win.from, win.to, true)} />
       </div>
     </div></div>
   );
