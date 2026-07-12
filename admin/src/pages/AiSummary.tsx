@@ -181,6 +181,7 @@ export default function AiSummary() {
         <p className="c-page-sub">A plain-language read on your business, written by AI.</p>
       </div>
 
+      <div className="ins-tabs-row">
       <div className="ins-tabs">
         {TABS.map((t) => {
           // Custom acts as a toggle: re-clicking it hides the picker; other tabs
@@ -211,6 +212,7 @@ export default function AiSummary() {
             <button className="ins-custom-go" onClick={runCustom} disabled={!customFrom || !customTo}>Generate</button>
           </div>
         </div>
+      </div>
       </div>
 
       {(period === 'week' || period === 'month') && history.length > 0 && (
