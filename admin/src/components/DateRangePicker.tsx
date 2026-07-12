@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Icons } from '@/components/Icons';
 import { monthMatrix, addMonths, isSameDay, monthTitle } from '@/lib/calendar';
 import { formatLocalDate } from '@/lib/date';
@@ -18,6 +18,7 @@ type Props = {
   onChange: (from: string, to: string) => void;
   max?: Date;                   // latest selectable day (default: today)
   months?: number;              // panes to show side by side (default 2)
+  footer?: ReactNode;           // rendered inside the box, below the calendar
 };
 
 /**
@@ -26,7 +27,7 @@ type Props = {
  * click when a full range exists starts fresh. While choosing the end, hovering
  * previews the in-between range. Days after `max` are disabled.
  */
-export function DateRangePicker({ from, to, onChange, max, months = 2 }: Props) {
+export function DateRangePicker({ from, to, onChange, max, months = 2, footer }: Props) {
   const fromD = parse(from);
   const toD = parse(to);
   const maxD = max ?? new Date();
@@ -90,6 +91,7 @@ export function DateRangePicker({ from, to, onChange, max, months = 2 }: Props) 
       <div className="drp-months" onMouseLeave={() => setHover(null)}>
         {Array.from({ length: months }, (_, i) => renderMonth(addMonths(view, i), i))}
       </div>
+      {footer && <div className="drp-foot">{footer}</div>}
     </div>
   );
 }
