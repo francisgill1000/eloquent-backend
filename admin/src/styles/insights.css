@@ -358,6 +358,9 @@
 .ins-tab { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line, #2a3b34);
   background: transparent; color: inherit; font-size: 13px; cursor: pointer; }
 .ins-tab.is-active { background: var(--accent, #16d1a5); color: #062018; border-color: transparent; font-weight: 600; }
+/* This page has no page-heading, so the card would ride to the very top. Match
+   the sidebar rail's 12px top inset so the card lines up with the left-nav card. */
+.m-scroll.c-aisummary { padding-top: 12px; }
 /* Period filters live inside the summary card, under its header. */
 .ins-card-controls { margin: 0 0 14px; }
 .ins-card-controls .ins-tabs,

@@ -226,7 +226,7 @@ export default function AiSummary() {
   );
 
   return (
-    <div className="m-screen"><div className="m-scroll">
+    <div className="m-screen"><div className="m-scroll c-aisummary">
       <div className="ins-wrap">
         <AiInsightsCard data={data} loading={loading} refreshing={refreshing}
           subtitle={win.label} controls={controls}
