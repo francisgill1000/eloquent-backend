@@ -205,7 +205,8 @@ export default function AiSummary() {
         <div className="ins-custom">
           <DateRangePicker from={customFrom} to={customTo}
             onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }}
-            footer={<button className="drp-go" onClick={runCustom} disabled={!customFrom || !customTo}>Generate</button>} />
+            footer={<button className="drp-go" disabled={!customFrom || !customTo}
+              onClick={() => { runCustom(); setCustomOpen(false); }}>Submit</button>} />
         </div>
       </div>
       </div>
