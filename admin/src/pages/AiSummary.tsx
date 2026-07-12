@@ -116,7 +116,9 @@ function PlayCard({ text, ready }: { text: string; ready: boolean }) {
         aria-label={status === 'playing' ? 'Stop' : 'Play summary'}>
         <span className="ais-mic-rings" aria-hidden="true"><i /><i /><i /></span>
         <span className="ais-mic-core">
-          {status === 'playing' ? <Icons.Stop size={34} /> : <Icons.Mic size={38} />}
+          {status === 'playing'
+            ? <span className="ais-eq" aria-hidden="true"><i /><i /><i /><i /><i /></span>
+            : <Icons.Mic size={38} />}
         </span>
       </button>
       <p className="ais-play-title">
