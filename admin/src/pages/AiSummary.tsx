@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import { Icons } from '@/components/Icons';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { useShop } from '@/context/ShopContext';
@@ -34,8 +34,9 @@ const fmt = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString(undefine
 const historyLabel = (it: AiSummaryHistoryItem) => `${fmt(it.period_from)} – ${fmt(it.period_to)}`;
 
 /* ---------- AI summary card ------------------------------------------------- */
-function AiInsightsCard({ data, loading, refreshing, subtitle, hint, onRefresh }: {
-  data: AiInsights | null; loading: boolean; refreshing: boolean; subtitle: string; hint?: string; onRefresh: () => void;
+function AiInsightsCard({ data, loading, refreshing, subtitle, hint, controls, onRefresh }: {
+  data: AiInsights | null; loading: boolean; refreshing: boolean; subtitle: string;
+  hint?: string; controls?: ReactNode; onRefresh: () => void;
 }) {
   const [audio, setAudio] = useState<'idle' | 'loading' | 'playing'>('idle');
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -76,6 +77,8 @@ function AiInsightsCard({ data, loading, refreshing, subtitle, hint, onRefresh }
           </div>
         )}
       </div>
+
+      {controls && <div className="ins-card-controls">{controls}</div>}
 
       {loading ? (
         <div className="ins-ai-body">
@@ -174,41 +177,36 @@ export default function AiSummary() {
     void fetchAi(customFrom, customTo, false);
   };
 
-  return (
-    <div className="m-screen"><div className="m-scroll">
-      <div className="c-page-head">
-        <h1 className="c-page-title">AI summary</h1>
-        <p className="c-page-sub">A plain-language read on your business, written by AI.</p>
-      </div>
-
+  const controls = (
+    <>
       <div className="ins-tabs-row">
-      <div className="ins-tabs">
-        {TABS.map((t) => {
-          // Custom acts as a toggle: re-clicking it hides the picker; other tabs
-          // are a plain single-select. The Custom tab is "active" only while open.
-          const active = t.id === 'custom' ? (period === 'custom' && customOpen) : period === t.id;
-          const onClick = t.id === 'custom'
-            ? () => { setCustomOpen((o) => (period === 'custom' ? !o : true)); setPeriod('custom'); }
-            : () => setPeriod(t.id);
-          return (
-            <button key={t.id} aria-pressed={active}
-              className={`ins-tab${active ? ' is-active' : ''}`}
-              onClick={onClick}>{t.label}</button>
-          );
-        })}
-      </div>
-
-      {/* Custom range — kept mounted so it can animate open/closed (0fr→1fr grid
-          collapse). aria-hidden keeps the collapsed picker out of the a11y tree. */}
-      <div className={`ins-custom-wrap${period === 'custom' && customOpen ? ' is-open' : ''}`}
-        aria-hidden={!(period === 'custom' && customOpen)}>
-        <div className="ins-custom">
-          <DateRangePicker from={customFrom} to={customTo}
-            onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }}
-            footer={<button className="drp-go" disabled={!customFrom || !customTo}
-              onClick={() => { runCustom(); setCustomOpen(false); }}>Submit</button>} />
+        <div className="ins-tabs">
+          {TABS.map((t) => {
+            // Custom acts as a toggle: re-clicking it hides the picker; other tabs
+            // are a plain single-select. The Custom tab is "active" only while open.
+            const active = t.id === 'custom' ? (period === 'custom' && customOpen) : period === t.id;
+            const onClick = t.id === 'custom'
+              ? () => { setCustomOpen((o) => (period === 'custom' ? !o : true)); setPeriod('custom'); }
+              : () => setPeriod(t.id);
+            return (
+              <button key={t.id} aria-pressed={active}
+                className={`ins-tab${active ? ' is-active' : ''}`}
+                onClick={onClick}>{t.label}</button>
+            );
+          })}
         </div>
-      </div>
+
+        {/* Custom range — kept mounted so it can animate open/closed (0fr→1fr grid
+            collapse). aria-hidden keeps the collapsed picker out of the a11y tree. */}
+        <div className={`ins-custom-wrap${period === 'custom' && customOpen ? ' is-open' : ''}`}
+          aria-hidden={!(period === 'custom' && customOpen)}>
+          <div className="ins-custom">
+            <DateRangePicker from={customFrom} to={customTo}
+              onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }}
+              footer={<button className="drp-go" disabled={!customFrom || !customTo}
+                onClick={() => { runCustom(); setCustomOpen(false); }}>Submit</button>} />
+          </div>
+        </div>
       </div>
 
       {(period === 'week' || period === 'month') && history.length > 0 && (
@@ -224,11 +222,15 @@ export default function AiSummary() {
           ))}
         </div>
       )}
+    </>
+  );
 
+  return (
+    <div className="m-screen"><div className="m-scroll">
       <div className="ins-wrap">
         <AiInsightsCard data={data} loading={loading} refreshing={refreshing}
-          subtitle={win.label}
-          hint={period === 'custom' ? 'Pick a date range, then tap Generate to see a summary.' : undefined}
+          subtitle={win.label} controls={controls}
+          hint={period === 'custom' ? 'Pick a date range, then tap Submit to see a summary.' : undefined}
           onRefresh={() => fetchAi(win.from, win.to, true)} />
       </div>
     </div></div>
