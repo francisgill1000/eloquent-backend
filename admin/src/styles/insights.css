@@ -361,7 +361,47 @@
 /* This page has no page-heading, so the card would ride to the very top. Match
    the sidebar rail's 12px top inset so the card lines up with the left-nav card,
    and drop the left/right inset so the card uses the full content width. */
-.m-scroll.c-aisummary { padding: 12px 0 16px; }
+.m-scroll.c-aisummary { padding: 12px 0 16px; height: 100%; }
+
+/* Two-column layout: left play/mic card (25%) + right summary card (75%), full height. */
+.c-aisummary .ais-layout { display: flex; gap: 16px; min-height: 100%; }
+.ais-left { flex: 0 0 25%; min-width: 0; display: flex; }
+.ais-right { flex: 1 1 auto; min-width: 0; display: flex; }
+.ais-left > *, .ais-right > * { flex: 1; min-width: 0; }
+.ais-right .ins-card { width: 100%; }
+
+/* Left play/mic card */
+.ais-play-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  text-align: center; padding: 28px 22px;
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-mint); border-radius: var(--r-lg); }
+.ais-mic { position: relative; width: 140px; height: 140px; padding: 0; border: none; background: none;
+  cursor: pointer; display: grid; place-items: center; }
+.ais-mic:disabled { cursor: default; opacity: .45; }
+.ais-mic-core { position: relative; z-index: 2; width: 112px; height: 112px; border-radius: 50%;
+  display: grid; place-items: center; color: #05130f;
+  background: radial-gradient(circle at 35% 30%, var(--mint-300), var(--mint-500, #00c9a7) 72%);
+  border: 1px solid rgba(255, 255, 255, 0.35); box-shadow: 0 0 34px rgba(0, 255, 204, 0.4);
+  transition: transform .18s ease, box-shadow .18s ease; }
+.ais-mic:hover:not(:disabled) .ais-mic-core { transform: scale(1.05); box-shadow: 0 0 46px rgba(0, 255, 204, 0.55); }
+.ais-mic:active:not(:disabled) .ais-mic-core { transform: scale(0.97); }
+/* Speaking animation: concentric rings pulse out while playing. */
+.ais-mic-rings { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; }
+.ais-mic-rings i { position: absolute; width: 112px; height: 112px; border-radius: 50%;
+  border: 2px solid var(--mint-400); opacity: 0; }
+.ais-mic.is-playing .ais-mic-rings i { animation: aisRing 1.8s ease-out infinite; }
+.ais-mic.is-playing .ais-mic-rings i:nth-child(2) { animation-delay: .6s; }
+.ais-mic.is-playing .ais-mic-rings i:nth-child(3) { animation-delay: 1.2s; }
+@keyframes aisRing { 0% { transform: scale(0.9); opacity: .5; } 100% { transform: scale(2); opacity: 0; } }
+.ais-play-title { margin: 0; font-size: 16px; font-weight: 700; color: var(--text-1); }
+.ais-play-sub { margin: 0; font-size: 12.5px; color: var(--text-3); max-width: 210px; line-height: 1.45; }
+@media (prefers-reduced-motion: reduce) { .ais-mic.is-playing .ais-mic-rings i { animation: none; } }
+
+/* Stack on narrow screens. */
+@media (max-width: 760px) {
+  .c-aisummary .ais-layout { flex-direction: column; min-height: 0; }
+  .ais-left, .ais-right { flex: 0 0 auto; }
+}
 /* Period filters live inside the summary card, under its header. */
 .ins-card-controls { margin: 0 0 14px; }
 .ins-card-controls .ins-tabs,
