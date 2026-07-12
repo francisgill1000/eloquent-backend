@@ -393,6 +393,15 @@
 .ais-mic.is-playing .ais-mic-rings i:nth-child(2) { animation-delay: .6s; }
 .ais-mic.is-playing .ais-mic-rings i:nth-child(3) { animation-delay: 1.2s; }
 @keyframes aisRing { 0% { transform: scale(0.9); opacity: .5; } 100% { transform: scale(2); opacity: 0; } }
+/* Speaking state: animated equalizer bars inside the mic (tap to stop). */
+.ais-eq { display: flex; align-items: center; gap: 4px; height: 40px; }
+.ais-eq i { width: 5px; height: 12px; border-radius: 3px; background: #05130f; animation: aisEq .9s ease-in-out infinite; }
+.ais-eq i:nth-child(2) { animation-delay: .15s; }
+.ais-eq i:nth-child(3) { animation-delay: .3s; }
+.ais-eq i:nth-child(4) { animation-delay: .45s; }
+.ais-eq i:nth-child(5) { animation-delay: .6s; }
+@keyframes aisEq { 0%, 100% { height: 10px; } 50% { height: 34px; } }
+@media (prefers-reduced-motion: reduce) { .ais-eq i { animation: none; height: 20px; } }
 .ais-play-title { margin: 0; font-size: 16px; font-weight: 700; color: var(--text-1); }
 .ais-play-sub { margin: 0; font-size: 12.5px; color: var(--text-3); max-width: 210px; line-height: 1.45; }
 @media (prefers-reduced-motion: reduce) { .ais-mic.is-playing .ais-mic-rings i { animation: none; } }
