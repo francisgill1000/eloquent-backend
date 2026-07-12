@@ -194,7 +194,7 @@ export type MasterShop = {
 // --- Lead Finder ---------------------------------------------------------
 
 /** The fixed prospecting funnel — mirrors the backend Lead::STATUSES. */
-export const LEAD_STATUSES = ['new', 'sent', 'replied', 'demo', 'won', 'pass'] as const;
+export const LEAD_STATUSES = ['new', 'sent', 'followup', 'replied', 'demo', 'won', 'pass'] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
 /** A normalized search result from the discovery source (not yet saved). */
@@ -248,6 +248,8 @@ export type Lead = {
   website?: string | null;
   address?: string | null;
   category?: string | null;
+  /** The named pipeline/list this lead was saved into. */
+  pipeline?: string | null;
   lat?: number | null;
   lng?: number | null;
   source?: string;
@@ -271,6 +273,8 @@ export type LeadFunnel = Record<LeadStatus, number>;
 export type LeadListResponse = {
   data: Lead[];
   funnel: LeadFunnel;
+  /** Distinct pipeline names for this shop, for the group filter. */
+  pipelines: string[];
 };
 
 /** One row in a lead's activity history (status changes, notes, contacts). */

@@ -255,6 +255,9 @@ class LeadController extends Controller
         $shop = $this->shop($request);
 
         $data = $request->validate([
+            // The pipeline/list these leads are filed under — required so every
+            // saved batch is grouped (e.g. "digital media pipeline").
+            'pipeline' => ['required', 'string', 'max:120'],
             'leads' => ['required', 'array', 'min:1'],
             'leads.*.name' => ['required', 'string', 'max:255'],
             'leads.*.phone' => ['nullable', 'string', 'max:60'],
@@ -268,7 +271,7 @@ class LeadController extends Controller
             'leads.*.external_ref' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $out = $this->importer->import($shop, $data['leads']);
+        $out = $this->importer->import($shop, $data['leads'], $data['pipeline']);
 
         // `created` = rows actually inserted (re-saving an existing lead dedupes),
         // so the client can bump the funnel count accurately.
@@ -392,17 +395,21 @@ class LeadController extends Controller
         if ($category = $request->query('category')) {
             $query->where('category', $category);
         }
+        if (($pipeline = $request->query('pipeline')) !== null && $pipeline !== '') {
+            $query->where('pipeline', $pipeline);
+        }
         if ($term = $request->query('search')) {
             $query->where(function ($q) use ($term) {
                 $q->where('name', 'like', "%{$term}%")
                     ->orWhere('phone', 'like', "%{$term}%")
-                    ->orWhere('address', 'like', "%{$term}%");
+                    ->orWhere('address', 'like', "%{$term}%")
+                    ->orWhere('pipeline', 'like', "%{$term}%");
             });
         }
         if ($request->query('followups') === 'due') {
             $query->whereNotNull('next_followup_at')
                 ->where('next_followup_at', '<=', now())
-                ->whereIn('status', ['sent', 'replied']);
+                ->whereIn('status', ['sent', 'followup', 'replied']);
         }
 
         $leads = $query->orderByDesc('id')->get();
@@ -418,9 +425,19 @@ class LeadController extends Controller
             $funnel[$st] = (int) $c;
         }
 
+        // Distinct pipeline names (non-empty) so the UI can offer a group filter.
+        $pipelines = Lead::forShop($shop->id)
+            ->whereNotNull('pipeline')
+            ->where('pipeline', '!=', '')
+            ->distinct()
+            ->orderBy('pipeline')
+            ->pluck('pipeline')
+            ->values();
+
         return response()->json([
             'data' => $leads,
             'funnel' => $funnel,
+            'pipelines' => $pipelines,
         ]);
     }
 }

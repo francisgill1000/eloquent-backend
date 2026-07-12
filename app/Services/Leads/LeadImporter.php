@@ -15,12 +15,15 @@ class LeadImporter
 {
     /**
      * @param  array<int, array<string, mixed>>  $rows
+     * @param  string|null  $pipeline  Named pipeline/list to file these leads under.
      * @return array{saved: array<int, Lead>, created: int}
      */
-    public function import(Shop $shop, array $rows): array
+    public function import(Shop $shop, array $rows, ?string $pipeline = null): array
     {
         $saved = [];
         $created = 0;
+        $pipeline = $pipeline !== null ? trim($pipeline) : null;
+        $pipeline = $pipeline === '' ? null : $pipeline;
 
         foreach ($rows as $row) {
             $attrs = [
@@ -34,6 +37,12 @@ class LeadImporter
                 'lng' => $row['lng'] ?? null,
                 'source' => $row['source'] ?? 'manual',
             ];
+
+            // Only stamp the pipeline when one was supplied — the Hunt assistant's
+            // save_leads path passes none, so its leads stay unfiled.
+            if ($pipeline !== null) {
+                $attrs['pipeline'] = $pipeline;
+            }
 
             if (! empty($row['external_ref'])) {
                 $lead = Lead::firstOrNew([

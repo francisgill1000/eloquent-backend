@@ -111,16 +111,18 @@ class LeadFinderTest extends TestCase
         $repeat->assertJsonPath('meta.credits', 4);
         $this->assertDatabaseCount('lead_search_logs', 1);
 
-        // 3. Save the two results.
+        // 3. Save the two results under a named pipeline.
         $this->auth($token)
-            ->postJson('/api/shop/leads', ['leads' => $this->sampleResults()])
+            ->postJson('/api/shop/leads', ['leads' => $this->sampleResults(), 'pipeline' => 'Marina salons'])
             ->assertCreated();
         $this->assertDatabaseCount('leads', 2);
-        $this->assertDatabaseHas('leads', ['shop_id' => $shop->id, 'external_ref' => 'place_A', 'status' => 'new']);
+        $this->assertDatabaseHas('leads', [
+            'shop_id' => $shop->id, 'external_ref' => 'place_A', 'status' => 'new', 'pipeline' => 'Marina salons',
+        ]);
 
         // Dedupe: saving again does not clone.
         $this->auth($token)
-            ->postJson('/api/shop/leads', ['leads' => $this->sampleResults()])
+            ->postJson('/api/shop/leads', ['leads' => $this->sampleResults(), 'pipeline' => 'Marina salons'])
             ->assertCreated();
         $this->assertDatabaseCount('leads', 2);
 
@@ -138,6 +140,48 @@ class LeadFinderTest extends TestCase
             'type' => LeadActivity::TYPE_STATUS_CHANGE,
             'user_id' => $user->id,
         ]);
+    }
+
+    public function test_saving_requires_a_pipeline_name(): void
+    {
+        [, , $token] = $this->actingShop();
+
+        // No pipeline → 422; nothing is saved.
+        $this->auth($token)
+            ->postJson('/api/shop/leads', ['leads' => $this->sampleResults()])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('pipeline');
+        $this->assertDatabaseCount('leads', 0);
+    }
+
+    public function test_index_filters_by_pipeline_and_lists_pipelines(): void
+    {
+        [$shop, , $token] = $this->actingShop();
+        Lead::factory()->count(2)->create(['shop_id' => $shop->id, 'pipeline' => 'Salons']);
+        Lead::factory()->create(['shop_id' => $shop->id, 'pipeline' => 'Gyms']);
+
+        // Distinct pipeline names come back sorted for the group filter.
+        $this->auth($token)
+            ->getJson('/api/shop/leads')
+            ->assertOk()
+            ->assertJsonPath('pipelines', ['Gyms', 'Salons']);
+
+        // Filtering narrows to a single pipeline.
+        $this->auth($token)
+            ->getJson('/api/shop/leads?pipeline=Salons')
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
+    }
+
+    public function test_followup_is_a_valid_status_transition(): void
+    {
+        [$shop, , $token] = $this->actingShop();
+        $lead = Lead::factory()->create(['shop_id' => $shop->id, 'status' => 'sent']);
+
+        $this->auth($token)
+            ->patchJson("/api/shop/leads/{$lead->id}/status", ['status' => 'followup'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'followup');
     }
 
     public function test_enrichment_accessors(): void
@@ -161,7 +205,7 @@ class LeadFinderTest extends TestCase
 
         // Shop A saves a lead.
         $this->auth($tokenA)
-            ->postJson('/api/shop/leads', ['leads' => [$this->sampleResults()[0]]])
+            ->postJson('/api/shop/leads', ['leads' => [$this->sampleResults()[0]], 'pipeline' => 'A-list'])
             ->assertCreated();
         $leadA = Lead::where('shop_id', $shopA->id)->firstOrFail();
 

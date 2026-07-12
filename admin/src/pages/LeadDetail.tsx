@@ -6,7 +6,7 @@ import { getLead, updateLeadStatus, logFollowup, personalizeLead } from '@/lib/l
 import type { Lead, LeadActivity, LeadStatus } from '@/types';
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
-  new: 'New', sent: 'Sent', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Not Interested',
+  new: 'New', sent: 'Sent', followup: 'Follow-up', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Not Interested',
 };
 
 // Crisp knob marks (match BookingAction): Won = check, Pass = X.
@@ -33,6 +33,7 @@ const HintStack = ({ dir }: { dir: 'up' | 'down' }) => (
 const STAGE_COLOR: Record<LeadStatus, string> = {
   new: 'var(--text-4)',
   sent: 'var(--info)',
+  followup: 'var(--violet)',
   replied: 'var(--mint-300)',
   demo: 'var(--warn)',
   won: 'var(--mint-500)',
@@ -41,7 +42,7 @@ const STAGE_COLOR: Record<LeadStatus, string> = {
 
 // Vertical sliding-knob switch — top→bottom order = the funnel, Pass at the end.
 const STAGE_OPTS: { status: LeadStatus }[] = [
-  { status: 'new' }, { status: 'sent' }, { status: 'replied' },
+  { status: 'new' }, { status: 'sent' }, { status: 'followup' }, { status: 'replied' },
   { status: 'demo' }, { status: 'won' }, { status: 'pass' },
 ];
 
@@ -55,7 +56,7 @@ function activityColor(a: LeadActivity): string {
 
 // Main funnel path for the stepper. `pass` is the dead-end (out of funnel) and
 // isn't a step — it's flagged separately on the card.
-const FUNNEL: LeadStatus[] = ['new', 'sent', 'replied', 'demo', 'won'];
+const FUNNEL: LeadStatus[] = ['new', 'sent', 'followup', 'replied', 'demo', 'won'];
 
 type StepState = 'done' | 'current' | 'todo' | 'cancelled';
 
@@ -336,12 +337,12 @@ export default function LeadDetail() {
                   <Icons.WhatsApp size={16} /> WhatsApp
                 </button>
               )}
-              {lead.is_mobile && (lead.status === 'sent' || lead.status === 'replied' || lead.status === 'demo') && (
+              {lead.is_mobile && (lead.status === 'sent' || lead.status === 'followup' || lead.status === 'replied' || lead.status === 'demo') && (
                 <button type="button" className="ld-act wa" disabled={busy} onClick={() => void sendFollowup()}>
                   <Icons.WhatsApp size={16} /> Follow-up
                 </button>
               )}
-              {lead.is_mobile && (lead.status === 'new' || lead.status === 'sent' || lead.status === 'replied' || lead.status === 'demo') && (
+              {lead.is_mobile && (lead.status === 'new' || lead.status === 'sent' || lead.status === 'followup' || lead.status === 'replied' || lead.status === 'demo') && (
                 <button type="button" className="ld-act" disabled={aiBusy || busy} onClick={() => void personalize()}>
                   <Icons.Sparkle size={16} /> {aiBusy ? 'Writing…' : 'Personalize'}
                 </button>
@@ -372,6 +373,13 @@ export default function LeadDetail() {
                 <span className="ba-tile-l">Phone</span>
                 <span className="ba-tile-v">{lead.phone || '—'}</span>
               </div>
+              {lead.pipeline && (
+                <div className="ba-tile">
+                  <Icons.List size={15} />
+                  <span className="ba-tile-l">Pipeline</span>
+                  <span className="ba-tile-v">{lead.pipeline}</span>
+                </div>
+              )}
               <div className="ba-tile">
                 <Icons.Calendar size={15} />
                 <span className="ba-tile-l">Added</span>

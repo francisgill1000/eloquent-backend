@@ -182,7 +182,7 @@ class HuntTools extends MutatingTool
                 'area' => ['type' => 'string'],
                 'confirmed' => ['type' => 'boolean'],
             ], 'required' => ['category']]],
-            ['name' => 'update_lead_status', 'description' => 'Move a lead through the funnel (new, sent, replied, demo, won, pass). Identify the lead by business name. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => [
+            ['name' => 'update_lead_status', 'description' => 'Move a lead through the funnel (new, sent, followup, replied, demo, won, pass). Identify the lead by business name. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => [
                 'name' => ['type' => 'string', 'description' => 'The business/lead name (fuzzy match).'],
                 'status' => ['type' => 'string', 'enum' => Lead::STATUSES],
                 'confirmed' => ['type' => 'boolean'],
