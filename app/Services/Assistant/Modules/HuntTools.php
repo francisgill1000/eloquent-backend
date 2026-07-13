@@ -146,14 +146,41 @@ class HuntTools extends MutatingTool
             return ['error' => 'invalid_status'];
         }
 
+        // Deal value is only meaningful on a win. Normalise + validate up front.
+        $amount = $call->get('deal_amount');
+        $amount = ($amount === null || $amount === '') ? null : (float) $amount;
+        $type = $call->get('deal_type');
+        $term = $call->get('deal_term_months');
+        $term = ($term === null || $term === '') ? null : (int) $term;
+
+        if ($new === 'won' && $amount !== null) {
+            if ($type !== null && ! in_array($type, Lead::DEAL_TYPES, true)) {
+                return ['error' => 'invalid_deal_type'];
+            }
+            if ($type === 'recurring') {
+                if ($term === null) {
+                    return ['error' => 'missing_deal_term'];
+                }
+                if (! in_array($term, Lead::DEAL_TERMS, true)) {
+                    return ['error' => 'invalid_deal_term'];
+                }
+            }
+        }
+
         return $this->gate(
             $call,
             resolve: fn () => $this->resolveLead($call),
-            describe: fn ($lead) => ["Move {$lead->name} from {$lead->status} to {$new}", ['status' => "{$lead->status} → {$new}"]],
-            write: function ($lead) use ($new) {
+            describe: fn ($lead) => [
+                $this->describeStatusChange($lead, $new, $amount, $type, $term),
+                ['status' => "{$lead->status} → {$new}"],
+            ],
+            write: function ($lead) use ($new, $amount, $type, $term) {
                 $from = $lead->status;
                 $lead->status = $new;
                 $lead->last_contacted_at = now();
+                if ($new === 'won') {
+                    $lead->applyWonDeal($amount, $type, $term);
+                }
                 $lead->save();
 
                 // Mirrors LeadController::updateStatus — status change is not an
@@ -164,9 +191,23 @@ class HuntTools extends MutatingTool
                     'user_id' => current_shop_user()?->id,
                 ]);
 
-                return ['name' => $lead->name, 'status' => $new];
+                return ['name' => $lead->name, 'status' => $new, 'deal_total' => $lead->deal_total];
             },
         );
+    }
+
+    /** Confirm-preview line; names the deal when winning with an amount. */
+    private function describeStatusChange(Lead $lead, string $new, ?float $amount, ?string $type, ?int $term): string
+    {
+        $base = "Move {$lead->name} from {$lead->status} to {$new}";
+        if ($new !== 'won' || $amount === null) {
+            return $base;
+        }
+        if (($type ?? 'one_off') === 'recurring') {
+            $total = $amount * (int) $term;
+            return "{$base} — AED {$amount}/month × {$term} = AED {$total} total";
+        }
+        return "{$base} — AED {$amount} one-off";
     }
 
     public function toolDefs(): array
@@ -182,9 +223,12 @@ class HuntTools extends MutatingTool
                 'area' => ['type' => 'string'],
                 'confirmed' => ['type' => 'boolean'],
             ], 'required' => ['category']]],
-            ['name' => 'update_lead_status', 'description' => 'Move a lead through the funnel (new, sent, followup, replied, demo, won, pass). Identify the lead by business name. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => [
+            ['name' => 'update_lead_status', 'description' => 'Move a lead through the funnel (new, sent, followup, replied, demo, won, pass). Identify the lead by business name. When moving to "won", you may also capture the deal value: deal_amount (AED), deal_type ("one_off" or "recurring"), and for recurring a deal_term_months of 1, 3, 6, or 12 (deal_amount is the MONTHLY price for recurring). Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => [
                 'name' => ['type' => 'string', 'description' => 'The business/lead name (fuzzy match).'],
                 'status' => ['type' => 'string', 'enum' => Lead::STATUSES],
+                'deal_amount' => ['type' => 'number', 'description' => 'Deal value in AED when winning. Monthly price if recurring, whole amount if one-off.'],
+                'deal_type' => ['type' => 'string', 'enum' => Lead::DEAL_TYPES],
+                'deal_term_months' => ['type' => 'integer', 'enum' => Lead::DEAL_TERMS, 'description' => 'Contract length for a recurring deal.'],
                 'confirmed' => ['type' => 'boolean'],
             ], 'required' => ['name', 'status']]],
         ];
