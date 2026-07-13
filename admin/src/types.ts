@@ -197,6 +197,10 @@ export type MasterShop = {
 export const LEAD_STATUSES = ['new', 'sent', 'followup', 'replied', 'demo', 'won', 'pass'] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
+export type DealType = 'one_off' | 'recurring';
+export const DEAL_TERMS = [1, 3, 6, 12] as const;
+export type DealInput = { deal_amount: number; deal_type: DealType; deal_term_months?: number };
+
 /** A normalized search result from the discovery source (not yet saved). */
 export type LeadResult = {
   name: string;
@@ -258,6 +262,11 @@ export type Lead = {
   notes?: string | null;
   last_contacted_at?: string | null;
   next_followup_at?: string | null;
+  deal_amount?: number | null;
+  deal_type?: 'one_off' | 'recurring' | null;
+  deal_term_months?: number | null;
+  deal_won_at?: string | null;
+  deal_total?: number | null;
   created_at?: string | null;
   // Appended accessors from the API
   whatsapp_url?: string | null;
@@ -275,6 +284,7 @@ export type LeadListResponse = {
   funnel: LeadFunnel;
   /** Distinct pipeline names for this shop, for the group filter. */
   pipelines: string[];
+  won_value?: number;
 };
 
 /** One row in a lead's activity history (status changes, notes, contacts). */
