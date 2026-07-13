@@ -1,6 +1,7 @@
 import api from './api';
 import type {
   CreditPack,
+  DealInput,
   Lead,
   LeadDetailResponse,
   LeadListResponse,
@@ -155,9 +156,14 @@ export async function getLead(id: number): Promise<LeadDetailResponse> {
   };
 }
 
-/** Move a lead through the funnel; writes an activity + bumps last_contacted_at. */
-export async function updateLeadStatus(id: number, status: LeadStatus, note?: string): Promise<Lead> {
-  const { data } = await api.patch(`/shop/leads/${id}/status`, { status, note });
+/** Move a lead through the funnel; on a win, optionally capture the deal value. */
+export async function updateLeadStatus(
+  id: number,
+  status: LeadStatus,
+  note?: string,
+  deal?: DealInput,
+): Promise<Lead> {
+  const { data } = await api.patch(`/shop/leads/${id}/status`, { status, note, ...(deal ?? {}) });
   return data?.data ?? data;
 }
 
@@ -188,5 +194,6 @@ export async function listLeads(filters: LeadFilters = {}): Promise<LeadListResp
     data: Array.isArray(data?.data) ? data.data : [],
     funnel: data?.funnel ?? { new: 0, sent: 0, followup: 0, replied: 0, demo: 0, won: 0, pass: 0 },
     pipelines: Array.isArray(data?.pipelines) ? data.pipelines : [],
+    won_value: data?.won_value ?? 0,
   };
 }
