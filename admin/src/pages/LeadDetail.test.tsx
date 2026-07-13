@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import * as leadsLib from '@/lib/leads';
@@ -86,5 +86,41 @@ describe('LeadDetail outreach button', () => {
       '_blank',
     );
     expect(setStatus).toHaveBeenCalledWith(3, 'sent');
+  });
+});
+
+describe('LeadDetail won-deal capture', () => {
+  beforeEach(() => { vi.restoreAllMocks(); vi.stubGlobal('open', vi.fn()); });
+
+  it('captures a recurring deal when marking a lead won', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'demo' }, activities: [] });
+    const spy = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'won' });
+
+    setup();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^won$/i }));
+    fireEvent.change(await screen.findByLabelText(/amount/i), { target: { value: '300' } });
+    fireEvent.click(screen.getByRole('button', { name: /recurring/i }));
+    fireEvent.click(screen.getByRole('button', { name: /6 months/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save|confirm/i }));
+
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith(expect.any(Number), 'won', undefined, {
+        deal_amount: 300, deal_type: 'recurring', deal_term_months: 6,
+      }),
+    );
+  });
+
+  it('skips deal capture and wins the lead with no deal', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'demo' }, activities: [] });
+    const spy = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'won' });
+
+    setup();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^won$/i }));
+    await screen.findByLabelText(/amount/i);
+    fireEvent.click(screen.getByRole('button', { name: /^skip$/i }));
+
+    await waitFor(() => expect(spy).toHaveBeenCalledWith(expect.any(Number), 'won', undefined, undefined));
   });
 });

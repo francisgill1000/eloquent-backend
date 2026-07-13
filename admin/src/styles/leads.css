@@ -253,6 +253,39 @@
   border: 0; display: block; background: #fff;
 }
 
+/* Won-deal capture panel (LeadDetail) — small centered modal that opens when a
+   lead is dragged/tapped to Won, so the deal value can be attached before the
+   status actually commits. Mirrors the checkout overlay above. */
+.ld-won-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+.ld-won-modal { width: 100%; max-width: 400px; padding: 20px; display: flex; flex-direction: column; }
+.ld-won-head { font-size: 17px; font-weight: 800; color: var(--text-1); margin-bottom: 4px; }
+.ld-won-sub { font-size: 12.5px; color: var(--text-3); margin: 0 0 16px; line-height: 1.4; }
+.ld-won-toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+.ld-won-seg {
+  flex: 1; padding: 10px 12px; border-radius: var(--r-md); text-align: center;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-1);
+  color: var(--text-2); font-weight: 600; font-size: 13px; cursor: pointer;
+}
+.ld-won-seg.on { background: var(--mint-soft); border-color: var(--border-mint); color: var(--mint-300); }
+.ld-won-seg:disabled { opacity: 0.6; cursor: default; }
+.ld-won-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.ld-won-chip {
+  padding: 7px 12px; border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-1);
+  color: var(--text-2); font-weight: 600; font-size: 12.5px; cursor: pointer;
+}
+.ld-won-chip.on { background: var(--mint-soft); border-color: var(--border-mint); color: var(--mint-300); }
+.ld-won-chip:disabled { opacity: 0.6; cursor: default; }
+.ld-won-actions { display: flex; gap: 10px; margin-top: 4px; }
+.ld-won-actions .c-btn-ghost { flex: 1; padding: 12px; text-align: center; }
+.ld-won-actions .c-btn { flex: 1; padding: 12px; font-size: 13px; }
+
 /* ===========================================================================
    Dedicated Hunt Credits page (/leads/credits). Mint-glass to match the Hunt
    surfaces; distinct from the amber out-of-credits inline banner.
