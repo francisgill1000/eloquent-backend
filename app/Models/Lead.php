@@ -15,6 +15,12 @@ class Lead extends Model
     /** The fixed, opinionated funnel — deliberately not user-configurable. */
     public const STATUSES = ['new', 'sent', 'followup', 'replied', 'demo', 'won', 'pass'];
 
+    /** Deal shape captured at win time. */
+    public const DEAL_TYPES = ['one_off', 'recurring'];
+
+    /** Allowed recurring contract terms, in months. */
+    public const DEAL_TERMS = [1, 3, 6, 12];
+
     /** The opening WhatsApp draft template. {name}/{shop}/{category}/{area} fill per-lead. */
     public const DEFAULT_OPENING = 'Hi {name}, this is {shop} 👋 We find you new customers from across the internet and handle them end-to-end — AI WhatsApp replies, one-tap calls, automatic follow-ups, and bookings, with every lead tracked in one app. Worth a quick 2-min demo?';
 
@@ -35,6 +41,10 @@ class Lead extends Model
         'source',
         'external_ref',
         'status',
+        'deal_amount',
+        'deal_type',
+        'deal_term_months',
+        'deal_won_at',
         'notes',
         'last_contacted_at',
         'next_followup_at',
@@ -45,9 +55,12 @@ class Lead extends Model
         'lng' => 'float',
         'last_contacted_at' => 'datetime',
         'next_followup_at' => 'datetime',
+        'deal_amount' => 'float',
+        'deal_term_months' => 'integer',
+        'deal_won_at' => 'datetime',
     ];
 
-    protected $appends = ['whatsapp_url', 'is_mobile', 'tel_url', 'map_url'];
+    protected $appends = ['whatsapp_url', 'is_mobile', 'tel_url', 'map_url', 'deal_total'];
 
     public function shop(): BelongsTo
     {
@@ -152,6 +165,22 @@ class Lead extends Model
             return null;
         }
         return "https://www.google.com/maps/search/?api=1&query={$this->lat},{$this->lng}";
+    }
+
+    /**
+     * Derived contract value of a won deal (never stored, so it can't drift):
+     * the amount itself for a one-off, or monthly amount × term for recurring.
+     * Null when no amount was captured.
+     */
+    public function getDealTotalAttribute(): ?float
+    {
+        if ($this->deal_amount === null) {
+            return null;
+        }
+        if ($this->deal_type === 'recurring') {
+            return round((float) $this->deal_amount * (int) ($this->deal_term_months ?? 0), 2);
+        }
+        return round((float) $this->deal_amount, 2);
     }
 
     /** Human label for the lead's industry (slug -> Title Case), else null. */
