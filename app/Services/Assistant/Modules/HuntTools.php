@@ -39,6 +39,7 @@ class HuntTools extends MutatingTool
             'search_businesses' => null,
             'save_leads' => null,
             'update_lead_status' => null,
+            'log_followup' => null,
         ];
     }
 
@@ -48,6 +49,7 @@ class HuntTools extends MutatingTool
             'search_businesses' => $this->searchBusinesses($call),
             'save_leads' => $this->saveLeads($call),
             'update_lead_status' => $this->updateStatus($call),
+            'log_followup' => $this->logFollowup($call),
             default => ['error' => 'unknown_tool'],
         };
     }
@@ -196,6 +198,27 @@ class HuntTools extends MutatingTool
         );
     }
 
+    private function logFollowup(ToolCall $call): array
+    {
+        return $this->gate(
+            $call,
+            resolve: fn () => $this->resolveLead($call),
+            describe: fn ($lead) => ["Log a follow-up with {$lead->name} (no status change)", ['followup' => 'logged']],
+            write: function ($lead) {
+                $lead->last_contacted_at = now();
+                $lead->save();
+
+                $lead->activities()->create([
+                    'type' => LeadActivity::TYPE_CONTACTED,
+                    'payload' => ['channel' => 'whatsapp', 'kind' => 'followup'],
+                    'user_id' => current_shop_user()?->id,
+                ]);
+
+                return ['name' => $lead->name, 'logged' => true];
+            },
+        );
+    }
+
     /** Confirm-preview line; names the deal when winning with an amount. */
     private function describeStatusChange(Lead $lead, string $new, ?float $amount, ?string $type, ?int $term): string
     {
@@ -231,6 +254,10 @@ class HuntTools extends MutatingTool
                 'deal_term_months' => ['type' => 'integer', 'enum' => Lead::DEAL_TERMS, 'description' => 'Contract length for a recurring deal.'],
                 'confirmed' => ['type' => 'boolean'],
             ], 'required' => ['name', 'status']]],
+            ['name' => 'log_followup', 'description' => 'Record that the owner followed up with a lead (a nudge) WITHOUT changing its funnel stage. Use when the owner says they messaged/called a lead again but nothing moved yet. Identify the lead by business name. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => [
+                'name' => ['type' => 'string', 'description' => 'The business/lead name (fuzzy match).'],
+                'confirmed' => ['type' => 'boolean'],
+            ], 'required' => ['name']]],
         ];
     }
 }

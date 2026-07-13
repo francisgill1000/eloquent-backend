@@ -272,4 +272,21 @@ class HuntAssistantToolsTest extends TestCase
         $out = $this->exec($this->leadsShop(), 'hunt_income', ['period' => 'yesterday']);
         $this->assertSame('invalid_period', $out['error']);
     }
+
+    public function test_log_followup_records_contact_without_status_change(): void
+    {
+        $shop = $this->leadsShop();
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'Marina Gym', 'status' => 'sent']);
+
+        $preview = $this->exec($shop, 'log_followup', ['name' => 'marina']);
+        $this->assertTrue($preview['preview']);
+        $this->assertSame(0, $lead->activities()->count());
+
+        $done = $this->exec($shop, 'log_followup', ['name' => 'marina', 'confirmed' => true]);
+        $this->assertTrue($done['done']);
+        $fresh = $lead->fresh();
+        $this->assertSame('sent', $fresh->status); // unchanged
+        $this->assertNotNull($fresh->last_contacted_at);
+        $this->assertSame(1, $fresh->activities()->where('type', LeadActivity::TYPE_CONTACTED)->count());
+    }
 }
