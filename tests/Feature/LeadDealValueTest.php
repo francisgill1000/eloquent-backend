@@ -144,4 +144,26 @@ class LeadDealValueTest extends TestCase
 
         $this->assertSame($originalWonAt, $lead->fresh()->deal_won_at->toDateTimeString());
     }
+
+    public function test_leads_index_returns_current_won_value_total(): void
+    {
+        [$shop, $token] = $this->actingShop();
+        Lead::create([
+            'shop_id' => $shop->id, 'name' => 'W1', 'status' => 'won',
+            'deal_amount' => 300, 'deal_type' => 'recurring', 'deal_term_months' => 6, 'deal_won_at' => now(),
+        ]);
+        Lead::create([
+            'shop_id' => $shop->id, 'name' => 'W2', 'status' => 'won',
+            'deal_amount' => 500, 'deal_type' => 'one_off', 'deal_won_at' => now(),
+        ]);
+        // A passed deal must not count.
+        Lead::create([
+            'shop_id' => $shop->id, 'name' => 'P', 'status' => 'pass',
+            'deal_amount' => 1000, 'deal_type' => 'one_off',
+        ]);
+
+        $this->auth($token)->getJson('/api/shop/leads')
+            ->assertOk()
+            ->assertJsonPath('won_value', 2300);
+    }
 }
