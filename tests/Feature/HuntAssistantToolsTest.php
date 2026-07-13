@@ -289,4 +289,38 @@ class HuntAssistantToolsTest extends TestCase
         $this->assertNotNull($fresh->last_contacted_at);
         $this->assertSame(1, $fresh->activities()->where('type', LeadActivity::TYPE_CONTACTED)->count());
     }
+
+    public function test_draft_outreach_returns_message(): void
+    {
+        $shop = $this->leadsShop();
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Marina Gym', 'status' => 'new']);
+
+        $writer = Mockery::mock(\App\Services\Leads\OutreachWriter::class);
+        $writer->shouldReceive('personalizeForLead')->once()->andReturn('Hi Marina Gym, quick idea for you...');
+        $this->app->instance(\App\Services\Leads\OutreachWriter::class, $writer);
+
+        $out = $this->exec($shop, 'draft_outreach', ['name' => 'marina', 'kind' => 'opening']);
+        $this->assertSame('Marina Gym', $out['name']);
+        $this->assertSame('opening', $out['kind']);
+        $this->assertStringContainsString('Marina Gym', $out['message']);
+    }
+
+    public function test_draft_outreach_handles_writer_failure(): void
+    {
+        $shop = $this->leadsShop();
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Marina Gym', 'status' => 'new']);
+
+        $writer = Mockery::mock(\App\Services\Leads\OutreachWriter::class);
+        $writer->shouldReceive('personalizeForLead')->andThrow(new \RuntimeException('AI down'));
+        $this->app->instance(\App\Services\Leads\OutreachWriter::class, $writer);
+
+        $out = $this->exec($shop, 'draft_outreach', ['name' => 'marina']);
+        $this->assertSame('draft_failed', $out['error']);
+    }
+
+    public function test_draft_outreach_not_found(): void
+    {
+        $out = $this->exec($this->leadsShop(), 'draft_outreach', ['name' => 'nobody']);
+        $this->assertSame('not_found', $out['error']);
+    }
 }

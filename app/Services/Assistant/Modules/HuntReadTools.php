@@ -7,6 +7,7 @@ use App\Services\Assistant\Support\AssistantModule;
 use App\Services\Assistant\Support\ResolvesLeads;
 use App\Services\Assistant\Support\ToolCall;
 use App\Services\Credits\HuntCreditService;
+use App\Services\Leads\OutreachWriter;
 use App\Services\Reports\ReportsAggregator;
 
 /**
@@ -22,6 +23,7 @@ class HuntReadTools extends AssistantModule
         protected HuntCreditService $credits,
         protected AssistantActions $actions,
         protected ReportsAggregator $reports,
+        protected OutreachWriter $writer,
     ) {}
 
     public function moduleKey(): ?string
@@ -38,6 +40,7 @@ class HuntReadTools extends AssistantModule
             'find_lead' => null,
             'open_lead' => null,
             'hunt_income' => null,
+            'draft_outreach' => null,
         ];
     }
 
@@ -49,6 +52,7 @@ class HuntReadTools extends AssistantModule
             'find_lead' => $this->find($call),
             'open_lead' => $this->open($call),
             'hunt_income' => $this->income($call),
+            'draft_outreach' => $this->draft($call),
             default => ['error' => 'unknown_tool'],
         };
     }
@@ -153,6 +157,28 @@ class HuntReadTools extends AssistantModule
         };
     }
 
+    private function draft(ToolCall $call): array
+    {
+        $lead = $this->resolveLead($call);
+        if (is_array($lead)) {
+            return $lead; // notFound / ambiguous
+        }
+
+        $kind = strtolower(trim((string) $call->get('kind', 'opening')));
+        if (! in_array($kind, ['opening', 'followup'], true)) {
+            $kind = 'opening';
+        }
+
+        try {
+            $message = $this->writer->personalizeForLead($call->shop, $lead, $kind);
+        } catch (\Throwable $e) {
+            report($e);
+            return ['error' => 'draft_failed'];
+        }
+
+        return ['name' => $lead->name, 'kind' => $kind, 'message' => $message];
+    }
+
     public function toolDefs(): array
     {
         $name = ['name' => ['type' => 'string', 'description' => 'The business/lead name (fuzzy match).']];
@@ -167,6 +193,10 @@ class HuntReadTools extends AssistantModule
             ['name' => 'hunt_income', 'description' => 'The revenue/income the shop has won from its Business Hunt pipeline — money from deals marked won. Returns a lifetime total by default; pass a period for that period\'s won income (with the previous period for comparison). Returns won_value (total AED), won_value_recurring, won_value_one_off, mrr_won (monthly recurring AED added), and won_count.', 'input_schema' => ['type' => 'object', 'properties' => [
                 'period' => ['type' => 'string', 'enum' => ['lifetime', 'this_month', 'last_month', 'this_week', 'last_week', 'this_year'], 'description' => 'Defaults to lifetime.'],
             ]]],
+            ['name' => 'draft_outreach', 'description' => 'Write a ready-to-send WhatsApp message for a lead — an "opening" first-contact message or a "followup". Identify the lead by business name. This only drafts the text for the owner to send; it does not send anything or change the lead.', 'input_schema' => ['type' => 'object', 'properties' => [
+                'name' => ['type' => 'string', 'description' => 'The business/lead name (fuzzy match).'],
+                'kind' => ['type' => 'string', 'enum' => ['opening', 'followup'], 'description' => 'Defaults to opening.'],
+            ], 'required' => ['name']]],
         ];
     }
 }
