@@ -359,6 +359,35 @@ class ReportsAggregator
         $searches = (int) DB::table('lead_search_logs')->where('shop_id', $shopId)
             ->whereBetween('created_at', [$from, $to])->count();
 
+        // Won-deal value this period: attributed by deal_won_at, and only for
+        // leads whose CURRENT status is 'won' (a reversed win no longer counts).
+        // For recurring, deal_amount is the monthly price; total = amount × term.
+        $wonValue = 0.0;
+        $wonRecurring = 0.0;
+        $wonOneOff = 0.0;
+        $mrrWon = 0.0;
+        $wonDeals = DB::table('leads')
+            ->where('shop_id', $shopId)
+            ->where('status', 'won')
+            ->whereNotNull('deal_won_at')
+            ->whereBetween('deal_won_at', [$from, $to])
+            ->get(['deal_amount', 'deal_type', 'deal_term_months']);
+        foreach ($wonDeals as $d) {
+            $amount = (float) ($d->deal_amount ?? 0);
+            if ($amount <= 0) {
+                continue; // won without a captured amount
+            }
+            if ($d->deal_type === 'recurring') {
+                $total = $amount * (int) ($d->deal_term_months ?? 0);
+                $wonValue += $total;
+                $wonRecurring += $total;
+                $mrrWon += $amount;
+            } else {
+                $wonValue += $amount;
+                $wonOneOff += $amount;
+            }
+        }
+
         return [
             'range'        => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
             'new_leads'    => $newLeads,
@@ -366,6 +395,10 @@ class ReportsAggregator
             'total_leads'  => array_sum($pipeline),
             'moved'        => $moved,
             'won'          => $moved['won'],
+            'won_value'            => round($wonValue, 2),
+            'won_value_recurring'  => round($wonRecurring, 2),
+            'won_value_one_off'    => round($wonOneOff, 2),
+            'mrr_won'              => round($mrrWon, 2),
             'credits_used' => $creditsUsed,
             'searches'     => $searches,
         ];

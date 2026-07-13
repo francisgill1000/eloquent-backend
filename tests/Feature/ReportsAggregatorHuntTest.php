@@ -78,4 +78,39 @@ class ReportsAggregatorHuntTest extends TestCase
         $this->assertSame(0, $out['total_leads']);
         $this->assertSame(0, $out['moved']['won']);
     }
+
+    public function test_hunt_summary_reports_won_value_split_and_mrr(): void
+    {
+        $shop = $this->shop('8004');
+
+        // One-off won this period: AED 500.
+        Lead::create([
+            'shop_id' => $shop->id, 'name' => 'One', 'status' => 'won',
+            'deal_amount' => 500, 'deal_type' => 'one_off', 'deal_won_at' => now(),
+        ]);
+        // Recurring won this period: 300/mo × 6 = 1800 total, 300 MRR.
+        Lead::create([
+            'shop_id' => $shop->id, 'name' => 'Rec', 'status' => 'won',
+            'deal_amount' => 300, 'deal_type' => 'recurring', 'deal_term_months' => 6, 'deal_won_at' => now(),
+        ]);
+        // Won without an amount — counts in `won`, contributes 0 value.
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Blank', 'status' => 'won', 'deal_won_at' => now()]);
+        // Reversed deal: was won, now passed — must be EXCLUDED from value.
+        Lead::create([
+            'shop_id' => $shop->id, 'name' => 'Lost', 'status' => 'pass',
+            'deal_amount' => 9999, 'deal_type' => 'one_off', 'deal_won_at' => now(),
+        ]);
+        // Won but OUTSIDE the period (won last month) — excluded.
+        Lead::create([
+            'shop_id' => $shop->id, 'name' => 'Old', 'status' => 'won',
+            'deal_amount' => 7777, 'deal_type' => 'one_off', 'deal_won_at' => now()->subMonthNoOverflow()->subDays(2),
+        ]);
+
+        $out = app(ReportsAggregator::class)->huntSummary($shop->id, now()->startOfMonth(), now()->endOfMonth());
+
+        $this->assertSame(500.0 + 1800.0, $out['won_value']);
+        $this->assertSame(1800.0, $out['won_value_recurring']);
+        $this->assertSame(500.0, $out['won_value_one_off']);
+        $this->assertSame(300.0, $out['mrr_won']);
+    }
 }
