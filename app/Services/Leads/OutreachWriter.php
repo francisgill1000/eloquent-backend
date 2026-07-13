@@ -33,9 +33,10 @@ class OutreachWriter
         $system = $this->rules()
             . "\n\n" . $this->shopProfile($shop)
             . "\n\nThe specific prospect you are messaging:\n" . implode("\n", $leadLines)
+            . "\n\n" . $this->task($kind)
             . "\n\nWrite ONE ready-to-send WhatsApp {$kind} message to THIS business, addressing it by its"
-            . " business name and using the details above. Do NOT use placeholders like {name}, do NOT ask for"
-            . " any more information (a contact person's name is not needed), and do NOT explain yourself."
+            . " business name and using the details above. A contact person's name is not needed. Do NOT use"
+            . " placeholders like {name}, do NOT ask for any more information, and do NOT explain yourself."
             . " Output ONLY the finished message text, nothing else.";
 
         $msg = trim($this->claude->reply($system, [
@@ -55,17 +56,40 @@ class OutreachWriter
         return implode("\n", [
             'You write WhatsApp cold-outreach for a business reaching out to prospective business customers.',
             'Rules:',
-            '- Short: opening 2-4 short lines; follow-up 1-2 lines. Long WhatsApp messages get ignored.',
-            '- Open with a specific hook about the recipient (their business or industry), not a feature dump.',
-            '- State ONE value prop relevant to the sender\'s offering and the recipient\'s industry.',
+            '- Open with a warm, personal greeting to the recipient by their business name; a single 👋 is',
+            '  welcome, but no more than one emoji in the greeting.',
+            '- Lead with a specific hook about the recipient, not a feature dump. It is natural and honest to',
+            '  note you came across them while looking for their industry in their area.',
+            '- State value in the recipient\'s terms, drawn ONLY from what the sender actually offers (below).',
             '- End with a soft, low-friction question as the CTA (e.g. "Worth a quick 2-min demo?"). Never "buy now".',
-            '- The follow-up must take a NEW angle (a proof point or a question), never repeat the opening.',
-            '- No invented statistics, names, or offers. Plain text; at most one light emoji.',
+            '- No invented statistics, names, or offers. Never claim anything the sender profile does not support.',
             '- You are messaging a BUSINESS. Address it by its business name (e.g. "Hi Marina Barbers").',
             '  You will NOT have a contact person\'s name, and that is completely fine — never ask for one,',
             '  never leave a blank for it, and never write "Dear [Name]".',
             '- Never ask the reader (or the requester) for more information, and never explain what you are doing.',
             '  Always produce the finished message itself, ready to send as-is.',
+        ]);
+    }
+
+    /** Kind-specific structure. Each message stands on its own — a follow-up is NOT
+     *  given the earlier message and must never assume its wording. */
+    private function task(string $kind): string
+    {
+        if ($kind === 'follow-up') {
+            return implode("\n", [
+                'This is a FOLLOW-UP: the business was already contacted once and hasn\'t replied yet.',
+                'Write a short, fresh nudge (1-2 lines) that stands entirely on its own — a different benefit,',
+                'a light proof point, or a soft question. Do NOT reference, quote, or assume the wording of any',
+                'earlier message, and do NOT ask what was said before. Just write the nudge.',
+            ]);
+        }
+
+        return implode("\n", [
+            'This is a FIRST message — you have not contacted this business before.',
+            'Structure it as: a warm one-line greeting, then — if the sender has two or more concrete',
+            'offerings below — a short list of 3-5 lines, each starting with a ✅, naming what the sender',
+            'does in the recipient\'s terms, then a soft closing question. If the sender has fewer than two',
+            'offerings, use 2-4 short lines instead of a bulleted list. Keep the whole message scannable.',
         ]);
     }
 
@@ -81,10 +105,18 @@ class OutreachWriter
             $lines[] = 'Location: ' . $shop->location;
         }
 
-        $services = $shop->catalogs()->get(['title', 'price'])
+        $services = $shop->catalogs()->get(['title', 'description', 'price'])
             ->filter(fn ($s) => trim((string) $s->title) !== '')
-            ->map(fn ($s) => '- ' . trim($s->title)
-                . ($s->price !== null ? ' (AED ' . number_format((float) $s->price, 0) . ')' : ''))
+            ->map(function ($s) {
+                $line = '- ' . trim($s->title);
+                if (trim((string) $s->description) !== '') {
+                    $line .= ' — ' . trim($s->description);
+                }
+                if ($s->price !== null) {
+                    $line .= ' (AED ' . number_format((float) $s->price, 0) . ')';
+                }
+                return $line;
+            })
             ->implode("\n");
         if ($services !== '') {
             $lines[] = "What they offer:\n" . $services;
