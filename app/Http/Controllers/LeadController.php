@@ -313,11 +313,35 @@ class LeadController extends Controller
         $data = $request->validate([
             'status' => ['required', Rule::in(Lead::STATUSES)],
             'note' => ['nullable', 'string', 'max:2000'],
+            // Deal value is only meaningful when winning; all optional so the
+            // funnel is never blocked on money.
+            'deal_amount' => ['nullable', 'numeric', 'min:0'],
+            'deal_type' => ['nullable', Rule::in(Lead::DEAL_TYPES)],
+            // A recurring deal must carry a term; a one-off must not.
+            'deal_term_months' => [
+                'nullable',
+                Rule::requiredIf(fn () => ($request->input('deal_type') === 'recurring')),
+                Rule::in(Lead::DEAL_TERMS),
+            ],
         ]);
 
         $from = $lead->status;
         $lead->status = $data['status'];
         $lead->last_contacted_at = now();
+
+        // Capture / update the deal only on a win. deal_won_at is stamped once
+        // (first win) so re-winning a lead keeps its original won date.
+        if ($data['status'] === 'won') {
+            if (array_key_exists('deal_amount', $data)) {
+                $lead->deal_amount = $data['deal_amount'];
+                $lead->deal_type = $data['deal_type'] ?? 'one_off';
+                $lead->deal_term_months = ($lead->deal_type === 'recurring')
+                    ? ($data['deal_term_months'] ?? null)
+                    : null;
+            }
+            $lead->deal_won_at = $lead->deal_won_at ?? now();
+        }
+
         $lead->save();
 
         $lead->activities()->create([
