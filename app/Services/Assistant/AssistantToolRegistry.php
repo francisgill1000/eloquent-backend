@@ -90,10 +90,10 @@ class AssistantToolRegistry
 
         foreach ($this->activeModules($shop) as $module) {
             if ($module->handles($tool)) {
-                return json_encode($module->run($call), JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION);
+                return json_encode($module->run($call), JSON_UNESCAPED_UNICODE);
             }
         }
 
-        return json_encode(['error' => 'unknown_tool'], JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION);
+        return json_encode(['error' => 'unknown_tool'], JSON_UNESCAPED_UNICODE);
     }
 }
