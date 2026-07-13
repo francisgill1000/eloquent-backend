@@ -204,4 +204,28 @@ class LeadDealValueTest extends TestCase
         $lead->applyWonDeal(200.0, 'one_off');
         $this->assertSame($original, $lead->deal_won_at->toDateTimeString());
     }
+
+    public function test_rewinning_with_null_amount_keeps_existing_deal(): void
+    {
+        // A re-win that carries an explicit null deal_amount must NOT wipe the
+        // captured deal — applyWonDeal only touches the fields when an amount is
+        // given. (Deliberate contract: differs from the old inline code, which
+        // cleared the deal on an explicit null; nullable validation lets null
+        // through, so this is the behavior the shared helper must guarantee.)
+        [$shop, $token] = $this->actingShop();
+        $lead = Lead::create([
+            'shop_id' => $shop->id, 'name' => 'I', 'status' => 'won',
+            'deal_amount' => 500, 'deal_type' => 'one_off', 'deal_won_at' => now()->subDays(3),
+        ]);
+        $originalWonAt = $lead->deal_won_at->toDateTimeString();
+
+        $this->auth($token)->patchJson("/api/shop/leads/{$lead->id}/status", [
+            'status' => 'won', 'deal_amount' => null,
+        ])->assertOk()->assertJsonPath('data.deal_amount', 500);
+
+        $fresh = $lead->fresh();
+        $this->assertSame(500.0, $fresh->deal_amount);
+        $this->assertSame('one_off', $fresh->deal_type);
+        $this->assertSame($originalWonAt, $fresh->deal_won_at->toDateTimeString());
+    }
 }

@@ -332,6 +332,10 @@ class LeadController extends Controller
         // Capture / update the deal only on a win. deal_won_at is stamped once
         // (first win) so re-winning a lead keeps its original won date.
         if ($data['status'] === 'won') {
+            // A null/absent deal_amount means "win without touching the deal" —
+            // applyWonDeal only sets the fields when an amount is given, so a
+            // re-win never wipes a prior deal. (Deliberate: differs from the old
+            // inline clear-on-explicit-null.)
             $lead->applyWonDeal(
                 $data['deal_amount'] ?? null,
                 $data['deal_type'] ?? null,
