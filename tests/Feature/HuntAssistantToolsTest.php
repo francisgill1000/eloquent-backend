@@ -212,6 +212,15 @@ class HuntAssistantToolsTest extends TestCase
         $this->assertSame('missing_deal_term', $out['error']);
     }
 
+    public function test_update_lead_status_won_rejects_negative_amount(): void
+    {
+        $shop = $this->leadsShop();
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'Marina Gym', 'status' => 'demo']);
+        $out = $this->exec($shop, 'update_lead_status', ['name' => 'marina', 'status' => 'won', 'deal_amount' => -50, 'confirmed' => true]);
+        $this->assertSame('invalid_deal_amount', $out['error']);
+        $this->assertSame('demo', $lead->fresh()->status);
+    }
+
     public function test_update_lead_status_won_without_amount_still_wins(): void
     {
         $shop = $this->leadsShop();

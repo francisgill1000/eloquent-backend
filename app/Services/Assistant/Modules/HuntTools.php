@@ -156,6 +156,9 @@ class HuntTools extends MutatingTool
         $term = ($term === null || $term === '') ? null : (int) $term;
 
         if ($new === 'won' && $amount !== null) {
+            if ($amount < 0) {
+                return ['error' => 'invalid_deal_amount'];
+            }
             if ($type !== null && ! in_array($type, Lead::DEAL_TYPES, true)) {
                 return ['error' => 'invalid_deal_type'];
             }
