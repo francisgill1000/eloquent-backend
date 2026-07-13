@@ -113,4 +113,29 @@ class ReportsAggregatorHuntTest extends TestCase
         $this->assertSame(500.0, $out['won_value_one_off']);
         $this->assertSame(300.0, $out['mrr_won']);
     }
+
+    public function test_won_value_totals_lifetime_and_period(): void
+    {
+        $shop = $this->shop('8010');
+        // In-period recurring + one-off, a reversed (pass) deal, and an out-of-period win.
+        Lead::create(['shop_id' => $shop->id, 'name' => 'R', 'status' => 'won', 'deal_amount' => 150, 'deal_type' => 'recurring', 'deal_term_months' => 6, 'deal_won_at' => now()]);
+        Lead::create(['shop_id' => $shop->id, 'name' => 'O', 'status' => 'won', 'deal_amount' => 500, 'deal_type' => 'one_off', 'deal_won_at' => now()]);
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Lost', 'status' => 'pass', 'deal_amount' => 9999, 'deal_type' => 'one_off', 'deal_won_at' => now()]);
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Old', 'status' => 'won', 'deal_amount' => 700, 'deal_type' => 'one_off', 'deal_won_at' => now()->subMonthsNoOverflow(2)]);
+
+        $agg = app(ReportsAggregator::class);
+
+        // Period = this month: excludes Old + Lost.
+        $period = $agg->wonValueTotals($shop->id, now()->startOfMonth(), now()->endOfMonth());
+        $this->assertSame(150.0 * 6 + 500.0, $period['won_value']);
+        $this->assertSame(900.0, $period['won_value_recurring']);
+        $this->assertSame(500.0, $period['won_value_one_off']);
+        $this->assertSame(150.0, $period['mrr_won']);
+        $this->assertSame(2, $period['won_count']);
+
+        // Lifetime: includes Old (700) but still excludes reversed Lost.
+        $life = $agg->wonValueTotals($shop->id);
+        $this->assertSame(900.0 + 500.0 + 700.0, $life['won_value']);
+        $this->assertSame(3, $life['won_count']);
+    }
 }
