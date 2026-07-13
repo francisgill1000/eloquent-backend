@@ -458,10 +458,20 @@ class LeadController extends Controller
             ->pluck('pipeline')
             ->values();
 
+        // Lifetime value of deals currently held as won (reversed deals excluded
+        // because their status is no longer 'won'). Summed via the derived
+        // deal_total so it stays consistent with the model.
+        $wonValue = Lead::forShop($shop->id)
+            ->where('status', 'won')
+            ->whereNotNull('deal_amount')
+            ->get(['deal_amount', 'deal_type', 'deal_term_months'])
+            ->sum(fn (Lead $l) => $l->deal_total ?? 0);
+
         return response()->json([
             'data' => $leads,
             'funnel' => $funnel,
             'pipelines' => $pipelines,
+            'won_value' => round((float) $wonValue, 2),
         ]);
     }
 }
