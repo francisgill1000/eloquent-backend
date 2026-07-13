@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
 import { getLead, updateLeadStatus, logFollowup, personalizeLead } from '@/lib/leads';
-import type { Lead, LeadActivity, LeadStatus } from '@/types';
+import { DEAL_TERMS } from '@/types';
+import type { DealInput, DealType, Lead, LeadActivity, LeadStatus } from '@/types';
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
   new: 'New', sent: 'Sent', followup: 'Follow-up', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Not Interested',
@@ -124,6 +125,12 @@ export default function LeadDetail() {
   // to (null = not dragging). Commit happens on release.
   const switchRef = useRef<HTMLDivElement>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  // Won-deal capture: marking a lead Won opens this small panel instead of
+  // committing the status immediately, so we can attach a deal value.
+  const [wonModal, setWonModal] = useState(false);
+  const [dealAmount, setDealAmount] = useState('');
+  const [dealType, setDealType] = useState<DealType>('one_off');
+  const [dealTerm, setDealTerm] = useState<number>(6);
 
   const load = useCallback(async () => {
     try {
@@ -137,17 +144,45 @@ export default function LeadDetail() {
 
   useEffect(() => { void load().finally(() => setLoading(false)); }, [load]);
 
+  // Any status change but Won commits right away; Won opens the deal-capture
+  // panel first (drag or tap both land here, so both get the panel).
   const setStatus = async (status: LeadStatus) => {
     if (!lead || status === lead.status || busy) return;
+    if (status === 'won') {
+      setDealAmount(''); setDealType('one_off'); setDealTerm(6);
+      setWonModal(true);
+      return;
+    }
+    await commitStatus(status);
+  };
+
+  const commitStatus = async (status: LeadStatus, deal?: DealInput) => {
+    if (!lead) return;
     setBusy(true); setError('');
     try {
-      await updateLeadStatus(lead.id, status);
+      await updateLeadStatus(lead.id, status, undefined, deal);
       await load();
     } catch {
       setError('Could not update status.');
     } finally {
       setBusy(false);
     }
+  };
+
+  // Save on the won panel: a positive amount attaches a deal, otherwise the
+  // lead wins with no deal (same path Skip takes).
+  const saveWon = async () => {
+    const amount = parseFloat(dealAmount);
+    const deal: DealInput | undefined = Number.isFinite(amount) && amount > 0
+      ? { deal_amount: amount, deal_type: dealType, ...(dealType === 'recurring' ? { deal_term_months: dealTerm } : {}) }
+      : undefined;
+    setWonModal(false);
+    await commitStatus('won', deal);
+  };
+
+  const skipWon = async () => {
+    setWonModal(false);
+    await commitStatus('won');
   };
 
   // New lead → open the opening draft, then optimistically move to Sent.
@@ -292,6 +327,53 @@ export default function LeadDetail() {
         <button className="c-back" onClick={() => navigate(-1)}><Icons.ChevronLeft size={16} /> Back</button>
 
         {error && <div className="c-error-box">{error}</div>}
+
+        {/* Won-deal capture panel — opens instead of committing when the lead
+            is marked Won, so we can (optionally) attach a deal value. */}
+        {wonModal && (
+          <div className="ld-won-overlay" role="dialog" aria-label="Deal value">
+            <div className="ba-card ld-won-modal">
+              <div className="ld-won-head">🎉 Mark as Won</div>
+              <p className="ld-won-sub">Add the deal value, or skip to win with no amount.</p>
+
+              <label className="c-field-label" htmlFor="dealAmount">Amount (AED)</label>
+              <div className="c-input-row">
+                <input id="dealAmount" type="number" min="0" step="0.01" inputMode="decimal"
+                  placeholder="0.00" value={dealAmount} disabled={busy}
+                  onChange={(e) => setDealAmount(e.target.value)} />
+              </div>
+
+              <span className="c-field-label">Type</span>
+              <div className="ld-won-toggle">
+                <button type="button" className={`ld-won-seg${dealType === 'one_off' ? ' on' : ''}`}
+                  disabled={busy} onClick={() => setDealType('one_off')}>One-off</button>
+                <button type="button" className={`ld-won-seg${dealType === 'recurring' ? ' on' : ''}`}
+                  disabled={busy} onClick={() => setDealType('recurring')}>Recurring</button>
+              </div>
+
+              {dealType === 'recurring' && (
+                <>
+                  <span className="c-field-label">Term</span>
+                  <div className="ld-won-chips">
+                    {DEAL_TERMS.map((t) => (
+                      <button key={t} type="button" className={`ld-won-chip${dealTerm === t ? ' on' : ''}`}
+                        disabled={busy} onClick={() => setDealTerm(t)}>
+                        {t} {t === 1 ? 'month' : 'months'}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="ld-won-actions">
+                <button type="button" className="c-btn-ghost" disabled={busy} onClick={() => void skipWon()}>Skip</button>
+                <button type="button" className="c-btn" disabled={busy} onClick={() => void saveWon()}>
+                  {busy ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Funnel stepper */}
         <div className="ba-card ba-timeline-card">
