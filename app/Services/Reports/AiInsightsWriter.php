@@ -248,6 +248,8 @@ class AiInsightsWriter
                     'total_leads'  => $hunt['total_leads'],
                     'moved'        => $hunt['moved'],
                     'won'          => $hunt['won'],
+                    'won_value'    => $hunt['won_value'],
+                    'mrr_won'      => $hunt['mrr_won'],
                     'credits_used' => $hunt['credits_used'],
                     'searches'     => $hunt['searches'],
                 ],
@@ -256,6 +258,8 @@ class AiInsightsWriter
                     'new_leads'    => $prevHunt['new_leads'],
                     'moved'        => $prevHunt['moved'],
                     'won'          => $prevHunt['won'],
+                    'won_value'    => $prevHunt['won_value'],
+                    'mrr_won'      => $prevHunt['mrr_won'],
                     'credits_used' => $prevHunt['credits_used'],
                     'searches'     => $prevHunt['searches'],
                 ],
@@ -327,7 +331,7 @@ STRICT RULES:
 - Summarize ONLY the sections present in the JSON. If "bookings" is absent, say nothing about bookings or revenue; if "hunt" is absent, say nothing about leads.
 - Use ONLY the numbers provided. Never invent figures, names, or trends the data does not show. Every statement must be supported by the actual numbers.
 - Compare "current" vs "previous" to describe direction (up / down / flat). If a previous value is zero, describe it as a new or first-of-period result rather than citing a percentage change.
-- In "hunt": "new_leads" = leads added this period; "pipeline" = the CURRENT count in each funnel stage (new, sent, followup, replied, demo, won, pass); "moved" = how many leads advanced INTO each stage this period; "won" = leads won; "credits_used"/"searches" = search activity.
+- In "hunt": "new_leads" = leads added this period; "pipeline" = the CURRENT count in each funnel stage (new, sent, followup, replied, demo, won, pass); "moved" = how many leads advanced INTO each stage this period; "won" = leads won; "won_value" = total AED value of deals won this period (one-off amount, or monthly price × contract months for recurring); "mrr_won" = monthly recurring AED added from recurring deals won this period; "credits_used"/"searches" = search activity.
 - No jargon. Refer to money as AED.
 - Keep it concise.
 
