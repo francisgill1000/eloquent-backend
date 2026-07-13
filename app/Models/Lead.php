@@ -178,7 +178,12 @@ class Lead extends Model
             return null;
         }
         if ($this->deal_type === 'recurring') {
-            return round((float) $this->deal_amount * (int) ($this->deal_term_months ?? 0), 2);
+            // An incomplete recurring deal (no term) has no computable total —
+            // return null rather than amount × 0, which would misrepresent value.
+            if ($this->deal_term_months === null) {
+                return null;
+            }
+            return round((float) $this->deal_amount * (int) $this->deal_term_months, 2);
         }
         return round((float) $this->deal_amount, 2);
     }
