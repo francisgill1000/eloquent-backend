@@ -241,4 +241,35 @@ class HuntAssistantToolsTest extends TestCase
         $this->assertStringContainsString('hotels', $preview['action']);
         $this->assertStringNotContainsString('find me customers', $preview['action']);
     }
+
+    public function test_hunt_income_lifetime_totals(): void
+    {
+        $shop = $this->leadsShop();
+        Lead::create(['shop_id' => $shop->id, 'name' => 'R', 'status' => 'won', 'deal_amount' => 150, 'deal_type' => 'recurring', 'deal_term_months' => 6, 'deal_won_at' => now()]);
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Lost', 'status' => 'pass', 'deal_amount' => 9999, 'deal_type' => 'one_off', 'deal_won_at' => now()]);
+
+        $out = $this->exec($shop, 'hunt_income');
+        $this->assertSame('lifetime', $out['scope']);
+        $this->assertSame(900.0, $out['won_value']);
+        $this->assertSame(150.0, $out['mrr_won']);
+        $this->assertSame(1, $out['won_count']);
+    }
+
+    public function test_hunt_income_period_includes_previous(): void
+    {
+        $shop = $this->leadsShop();
+        Lead::create(['shop_id' => $shop->id, 'name' => 'ThisMonth', 'status' => 'won', 'deal_amount' => 500, 'deal_type' => 'one_off', 'deal_won_at' => now()]);
+
+        $out = $this->exec($shop, 'hunt_income', ['period' => 'this_month']);
+        $this->assertSame('this_month', $out['scope']);
+        $this->assertSame(500.0, $out['won_value']);
+        $this->assertArrayHasKey('previous', $out);
+        $this->assertArrayHasKey('range', $out);
+    }
+
+    public function test_hunt_income_rejects_unknown_period(): void
+    {
+        $out = $this->exec($this->leadsShop(), 'hunt_income', ['period' => 'yesterday']);
+        $this->assertSame('invalid_period', $out['error']);
+    }
 }

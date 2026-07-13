@@ -7,6 +7,7 @@ use App\Services\Assistant\Support\AssistantModule;
 use App\Services\Assistant\Support\ResolvesLeads;
 use App\Services\Assistant\Support\ToolCall;
 use App\Services\Credits\HuntCreditService;
+use App\Services\Reports\ReportsAggregator;
 
 /**
  * Owner-assistant Business Hunt READ tools (leads module). Non-mutating, so they
@@ -20,6 +21,7 @@ class HuntReadTools extends AssistantModule
     public function __construct(
         protected HuntCreditService $credits,
         protected AssistantActions $actions,
+        protected ReportsAggregator $reports,
     ) {}
 
     public function moduleKey(): ?string
@@ -35,6 +37,7 @@ class HuntReadTools extends AssistantModule
             'list_leads' => null,
             'find_lead' => null,
             'open_lead' => null,
+            'hunt_income' => null,
         ];
     }
 
@@ -45,6 +48,7 @@ class HuntReadTools extends AssistantModule
             'list_leads' => $this->list($call),
             'find_lead' => $this->find($call),
             'open_lead' => $this->open($call),
+            'hunt_income' => $this->income($call),
             default => ['error' => 'unknown_tool'],
         };
     }
@@ -107,6 +111,48 @@ class HuntReadTools extends AssistantModule
         return ['opening' => true, 'name' => $lead->name];
     }
 
+    private function income(ToolCall $call): array
+    {
+        $period = strtolower(trim((string) $call->get('period', 'lifetime')));
+        [$from, $to] = $this->periodRange($period);
+        if ($period !== 'lifetime' && $from === null) {
+            return ['error' => 'invalid_period'];
+        }
+
+        $totals = $this->reports->wonValueTotals($call->shop->id, $from, $to);
+
+        if ($from === null) {
+            return array_merge(['scope' => 'lifetime'], $totals);
+        }
+
+        // Previous equal-length window immediately before [from, to].
+        $len = $from->diffInSeconds($to);
+        $prevTo = $from->copy()->subSecond();
+        $prevFrom = $prevTo->copy()->subSeconds($len);
+        $previous = $this->reports->wonValueTotals($call->shop->id, $prevFrom, $prevTo);
+
+        return array_merge(
+            ['scope' => $period, 'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()]],
+            $totals,
+            ['previous' => $previous],
+        );
+    }
+
+    /** @return array{0: ?\Carbon\Carbon, 1: ?\Carbon\Carbon} [from, to]; [null,null] for lifetime/unknown. */
+    private function periodRange(string $period): array
+    {
+        $now = now();
+        return match ($period) {
+            'lifetime'   => [null, null],
+            'this_month' => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
+            'last_month' => [$now->copy()->subMonthNoOverflow()->startOfMonth(), $now->copy()->subMonthNoOverflow()->endOfMonth()],
+            'this_week'  => [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()],
+            'last_week'  => [$now->copy()->subWeek()->startOfWeek(), $now->copy()->subWeek()->endOfWeek()],
+            'this_year'  => [$now->copy()->startOfYear(), $now->copy()->endOfYear()],
+            default      => [null, null],
+        };
+    }
+
     public function toolDefs(): array
     {
         $name = ['name' => ['type' => 'string', 'description' => 'The business/lead name (fuzzy match).']];
@@ -118,6 +164,9 @@ class HuntReadTools extends AssistantModule
             ]]],
             ['name' => 'find_lead', 'description' => 'Look up one saved lead by business name and return its funnel status and contact details.', 'input_schema' => ['type' => 'object', 'properties' => $name, 'required' => ['name']]],
             ['name' => 'open_lead', 'description' => 'Open/show a lead\'s detail page for the owner in the app (redirects them to it). Use whenever the owner asks to open, show, view, or see a lead. Pass the business name.', 'input_schema' => ['type' => 'object', 'properties' => $name, 'required' => ['name']]],
+            ['name' => 'hunt_income', 'description' => 'The revenue/income the shop has won from its Business Hunt pipeline — money from deals marked won. Returns a lifetime total by default; pass a period for that period\'s won income (with the previous period for comparison). Returns won_value (total AED), won_value_recurring, won_value_one_off, mrr_won (monthly recurring AED added), and won_count.', 'input_schema' => ['type' => 'object', 'properties' => [
+                'period' => ['type' => 'string', 'enum' => ['lifetime', 'this_month', 'last_month', 'this_week', 'last_week', 'this_year'], 'description' => 'Defaults to lifetime.'],
+            ]]],
         ];
     }
 }
