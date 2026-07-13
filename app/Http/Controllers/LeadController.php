@@ -332,14 +332,11 @@ class LeadController extends Controller
         // Capture / update the deal only on a win. deal_won_at is stamped once
         // (first win) so re-winning a lead keeps its original won date.
         if ($data['status'] === 'won') {
-            if (array_key_exists('deal_amount', $data)) {
-                $lead->deal_amount = $data['deal_amount'];
-                $lead->deal_type = $data['deal_type'] ?? 'one_off';
-                $lead->deal_term_months = ($lead->deal_type === 'recurring')
-                    ? ($data['deal_term_months'] ?? null)
-                    : null;
-            }
-            $lead->deal_won_at = $lead->deal_won_at ?? now();
+            $lead->applyWonDeal(
+                $data['deal_amount'] ?? null,
+                $data['deal_type'] ?? null,
+                $data['deal_term_months'] ?? null,
+            );
         }
 
         $lead->save();

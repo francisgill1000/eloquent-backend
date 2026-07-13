@@ -166,4 +166,42 @@ class LeadDealValueTest extends TestCase
             ->assertOk()
             ->assertJsonPath('won_value', 2300);
     }
+
+    public function test_apply_won_deal_sets_recurring_fields_and_stamps_won_at(): void
+    {
+        $shop = Shop::factory()->create();
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'A', 'status' => 'demo']);
+
+        $lead->applyWonDeal(150.0, 'recurring', 6);
+
+        $this->assertSame(150.0, $lead->deal_amount);
+        $this->assertSame('recurring', $lead->deal_type);
+        $this->assertSame(6, $lead->deal_term_months);
+        $this->assertSame(900.0, $lead->deal_total);
+        $this->assertNotNull($lead->deal_won_at);
+    }
+
+    public function test_apply_won_deal_one_off_nulls_term_and_no_amount_stamps_only(): void
+    {
+        $shop = Shop::factory()->create();
+        $oneOff = Lead::create(['shop_id' => $shop->id, 'name' => 'B', 'status' => 'demo']);
+        $oneOff->applyWonDeal(500.0, 'one_off', 6);
+        $this->assertNull($oneOff->deal_term_months);
+        $this->assertSame(500.0, $oneOff->deal_total);
+
+        $blank = Lead::create(['shop_id' => $shop->id, 'name' => 'C', 'status' => 'demo']);
+        $blank->applyWonDeal(null);
+        $this->assertNull($blank->deal_amount);
+        $this->assertNull($blank->deal_total);
+        $this->assertNotNull($blank->deal_won_at);
+    }
+
+    public function test_apply_won_deal_does_not_reset_existing_won_at(): void
+    {
+        $shop = Shop::factory()->create();
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'D', 'status' => 'won', 'deal_won_at' => now()->subDays(5)]);
+        $original = $lead->deal_won_at->toDateTimeString();
+        $lead->applyWonDeal(200.0, 'one_off');
+        $this->assertSame($original, $lead->deal_won_at->toDateTimeString());
+    }
 }
