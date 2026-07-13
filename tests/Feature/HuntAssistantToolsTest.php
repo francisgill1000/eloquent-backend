@@ -185,6 +185,44 @@ class HuntAssistantToolsTest extends TestCase
         $this->assertSame('invalid_status', $out['error']);
     }
 
+    public function test_update_lead_status_won_captures_recurring_deal(): void
+    {
+        $shop = $this->leadsShop();
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'Marina Gym', 'status' => 'demo']);
+
+        $preview = $this->exec($shop, 'update_lead_status', ['name' => 'marina', 'status' => 'won', 'deal_amount' => 150, 'deal_type' => 'recurring', 'deal_term_months' => 6]);
+        $this->assertTrue($preview['preview']);
+        $this->assertStringContainsString('900', $preview['action']); // 150 × 6 shown
+
+        $done = $this->exec($shop, 'update_lead_status', ['name' => 'marina', 'status' => 'won', 'deal_amount' => 150, 'deal_type' => 'recurring', 'deal_term_months' => 6, 'confirmed' => true]);
+        $this->assertTrue($done['done']);
+        $fresh = $lead->fresh();
+        $this->assertSame('won', $fresh->status);
+        $this->assertSame(150.0, $fresh->deal_amount);
+        $this->assertSame(6, $fresh->deal_term_months);
+        $this->assertSame(900.0, $fresh->deal_total);
+        $this->assertNotNull($fresh->deal_won_at);
+    }
+
+    public function test_update_lead_status_won_requires_term_for_recurring(): void
+    {
+        $shop = $this->leadsShop();
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Marina Gym', 'status' => 'demo']);
+        $out = $this->exec($shop, 'update_lead_status', ['name' => 'marina', 'status' => 'won', 'deal_amount' => 150, 'deal_type' => 'recurring', 'confirmed' => true]);
+        $this->assertSame('missing_deal_term', $out['error']);
+    }
+
+    public function test_update_lead_status_won_without_amount_still_wins(): void
+    {
+        $shop = $this->leadsShop();
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'Marina Gym', 'status' => 'demo']);
+        $done = $this->exec($shop, 'update_lead_status', ['name' => 'marina', 'status' => 'won', 'confirmed' => true]);
+        $this->assertTrue($done['done']);
+        $this->assertSame('won', $lead->fresh()->status);
+        $this->assertNull($lead->fresh()->deal_amount);
+        $this->assertNotNull($lead->fresh()->deal_won_at);
+    }
+
     public function test_search_preview_shows_interpreted_term_not_raw_input(): void
     {
         $shop = $this->leadsShop();
