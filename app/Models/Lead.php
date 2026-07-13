@@ -188,6 +188,23 @@ class Lead extends Model
         return round((float) $this->deal_amount, 2);
     }
 
+    /**
+     * Apply a won deal's value to this lead — shared by the web controller and
+     * the voice tool so capture rules live in one place. Sets the deal fields
+     * only when an amount is given; always stamps deal_won_at once (a re-win
+     * keeps the original date). Does NOT set status or save — the caller owns
+     * the transaction.
+     */
+    public function applyWonDeal(?float $amount, ?string $type = null, ?int $term = null): void
+    {
+        if ($amount !== null) {
+            $this->deal_amount = $amount;
+            $this->deal_type = $type ?? 'one_off';
+            $this->deal_term_months = $this->deal_type === 'recurring' ? $term : null;
+        }
+        $this->deal_won_at = $this->deal_won_at ?? now();
+    }
+
     /** Human label for the lead's industry (slug -> Title Case), else null. */
     public function categoryLabel(): ?string
     {
