@@ -66,6 +66,7 @@ export default function Leads() {
   const { shop } = useShop();
   const [mode, setMode] = useState<Mode>('find');
   const [funnel, setFunnel] = useState<LeadFunnel>(EMPTY_FUNNEL);
+  const [wonValue, setWonValue] = useState(0);
 
   const funnelTotal = useMemo(
     () => Object.values(funnel).reduce((a, b) => a + b, 0),
@@ -77,7 +78,7 @@ export default function Leads() {
   useEffect(() => {
     if (!shop?.id) return;
     let alive = true;
-    listLeads().then((r) => { if (alive) setFunnel(r.funnel); }).catch(() => {});
+    listLeads().then((r) => { if (alive) { setFunnel(r.funnel); setWonValue(r.won_value ?? 0); } }).catch(() => {});
     return () => { alive = false; };
   }, [shop?.id]);
 
@@ -96,6 +97,11 @@ export default function Leads() {
         <button role="tab" aria-selected={mode === 'pipeline'} className={`lf-seg-btn${mode === 'pipeline' ? ' on' : ''}`} onClick={() => setMode('pipeline')}>
           Pipeline <span className="lf-seg-count">{funnelTotal}</span>
         </button>
+        {wonValue > 0 && (
+          <span className="lf-seg">
+            Won <span className="lf-seg-count">AED {wonValue.toLocaleString('en-AE')}</span>
+          </span>
+        )}
       </div>
 
       {mode === 'find'
