@@ -309,6 +309,48 @@ class ReportsAggregator
     }
 
     /**
+     * Won-deal value for a shop — lifetime when no dates are given, or a period
+     * (attributed by deal_won_at) when [from,to] is passed. Only leads whose
+     * CURRENT status is 'won' count (a reversed win no longer does). For
+     * recurring, deal_amount is the monthly price; total = amount × term.
+     */
+    public function wonValueTotals(int $shopId, ?Carbon $from = null, ?Carbon $to = null): array
+    {
+        $q = DB::table('leads')->where('shop_id', $shopId)->where('status', 'won');
+        if ($from !== null && $to !== null) {
+            $q->whereNotNull('deal_won_at')->whereBetween('deal_won_at', [$from, $to]);
+        }
+        $rows = $q->get(['deal_amount', 'deal_type', 'deal_term_months']);
+
+        $wonValue = 0.0; $recurring = 0.0; $oneOff = 0.0; $mrr = 0.0; $count = 0;
+        foreach ($rows as $d) {
+            $amount = (float) ($d->deal_amount ?? 0);
+            if ($amount <= 0) {
+                continue;
+            }
+            if ($d->deal_type === 'recurring') {
+                $term = (int) ($d->deal_term_months ?? 0);
+                if ($term <= 0) {
+                    continue; // incomplete recurring — no computable total
+                }
+                $total = $amount * $term;
+                $wonValue += $total; $recurring += $total; $mrr += $amount;
+            } else {
+                $wonValue += $amount; $oneOff += $amount;
+            }
+            $count++;
+        }
+
+        return [
+            'won_value'           => round($wonValue, 2),
+            'won_value_recurring' => round($recurring, 2),
+            'won_value_one_off'   => round($oneOff, 2),
+            'mrr_won'             => round($mrr, 2),
+            'won_count'           => $count,
+        ];
+    }
+
+    /**
      * Business Hunt pipeline metrics for a shop over a date range. Tenant-scoped
      * via leads.shop_id (lead_activities has no shop_id — joined through leads).
      * `pipeline`/`total_leads` are a CURRENT snapshot; the rest are period-bound.
@@ -359,34 +401,7 @@ class ReportsAggregator
         $searches = (int) DB::table('lead_search_logs')->where('shop_id', $shopId)
             ->whereBetween('created_at', [$from, $to])->count();
 
-        // Won-deal value this period: attributed by deal_won_at, and only for
-        // leads whose CURRENT status is 'won' (a reversed win no longer counts).
-        // For recurring, deal_amount is the monthly price; total = amount × term.
-        $wonValue = 0.0;
-        $wonRecurring = 0.0;
-        $wonOneOff = 0.0;
-        $mrrWon = 0.0;
-        $wonDeals = DB::table('leads')
-            ->where('shop_id', $shopId)
-            ->where('status', 'won')
-            ->whereNotNull('deal_won_at')
-            ->whereBetween('deal_won_at', [$from, $to])
-            ->get(['deal_amount', 'deal_type', 'deal_term_months']);
-        foreach ($wonDeals as $d) {
-            $amount = (float) ($d->deal_amount ?? 0);
-            if ($amount <= 0) {
-                continue; // won without a captured amount
-            }
-            if ($d->deal_type === 'recurring') {
-                $total = $amount * (int) ($d->deal_term_months ?? 0);
-                $wonValue += $total;
-                $wonRecurring += $total;
-                $mrrWon += $amount;
-            } else {
-                $wonValue += $amount;
-                $wonOneOff += $amount;
-            }
-        }
+        $wonTotals = $this->wonValueTotals($shopId, $from, $to);
 
         return [
             'range'        => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
@@ -395,10 +410,10 @@ class ReportsAggregator
             'total_leads'  => array_sum($pipeline),
             'moved'        => $moved,
             'won'          => $moved['won'],
-            'won_value'            => round($wonValue, 2),
-            'won_value_recurring'  => round($wonRecurring, 2),
-            'won_value_one_off'    => round($wonOneOff, 2),
-            'mrr_won'              => round($mrrWon, 2),
+            'won_value'            => $wonTotals['won_value'],
+            'won_value_recurring'  => $wonTotals['won_value_recurring'],
+            'won_value_one_off'    => $wonTotals['won_value_one_off'],
+            'mrr_won'              => $wonTotals['mrr_won'],
             'credits_used' => $creditsUsed,
             'searches'     => $searches,
         ];
