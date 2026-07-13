@@ -323,4 +323,21 @@ class HuntAssistantToolsTest extends TestCase
         $out = $this->exec($this->leadsShop(), 'draft_outreach', ['name' => 'nobody']);
         $this->assertSame('not_found', $out['error']);
     }
+
+    public function test_leads_shop_exposes_new_hunt_tools(): void
+    {
+        $names = array_column(app(AssistantToolRegistry::class)->defs($this->leadsShop()), 'name');
+        foreach (['hunt_income', 'log_followup', 'draft_outreach'] as $t) {
+            $this->assertContains($t, $names);
+        }
+    }
+
+    public function test_bookings_only_shop_hides_new_hunt_tools(): void
+    {
+        $shop = Shop::create(['name' => 'B2', 'shop_code' => '7102', 'pin' => '0', 'status' => 'active', 'category_id' => 11, 'modules' => ['bookings']]);
+        $names = array_column(app(AssistantToolRegistry::class)->defs($shop), 'name');
+        foreach (['hunt_income', 'log_followup', 'draft_outreach'] as $t) {
+            $this->assertNotContains($t, $names);
+        }
+    }
 }

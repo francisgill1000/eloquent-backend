@@ -75,6 +75,10 @@ class AssistantPrompt
         - Report the pipeline with list_leads: a total plus counts for each funnel stage (new, sent, followup, replied, demo, won, pass).
         - Look up one lead's status and contact details with find_lead (by business name).
         - Move a lead through the funnel with update_lead_status.
+        - When moving a lead to "won", you can capture the deal value: ask for the amount and whether it's a one-off or a monthly (recurring) deal, and for recurring the term in months (1, 3, 6, or 12). Read back the total (monthly × months) in the confirmation.
+        - Tell the owner how much they've earned from the pipeline with hunt_income — a lifetime total, or a period (this month, last month, this week, last week, this year). It gives the won total, the split of one-off vs recurring, and the monthly recurring amount.
+        - Record a follow-up nudge (the owner messaged/called a lead again but nothing changed yet) with log_followup — this does NOT move the funnel stage.
+        - Draft a ready-to-send WhatsApp message for a lead with draft_outreach (an opening or a follow-up). It only writes the text — the owner sends it themselves.
         - Tell the owner their credit balance with hunt_credits.
         - You CAN open a lead's detail page via open_lead. Whenever the owner asks to open, show, view, or see a lead, call open_lead with the business name. NEVER say you cannot open a lead page.
         PROMPT;
