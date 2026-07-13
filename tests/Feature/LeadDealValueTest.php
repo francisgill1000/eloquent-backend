@@ -41,4 +41,26 @@ class LeadDealValueTest extends TestCase
 
         $this->assertNull($lead->deal_total);
     }
+
+    public function test_deal_total_is_null_for_recurring_without_a_term(): void
+    {
+        $shop = Shop::factory()->create();
+        $lead = Lead::create([
+            'shop_id' => $shop->id, 'name' => 'D', 'status' => 'won',
+            'deal_amount' => 300, 'deal_type' => 'recurring',
+        ]);
+
+        $this->assertNull($lead->deal_total);
+    }
+
+    public function test_deal_won_at_casts_to_datetime(): void
+    {
+        $shop = Shop::factory()->create();
+        $lead = Lead::create([
+            'shop_id' => $shop->id, 'name' => 'E', 'status' => 'won',
+            'deal_amount' => 500, 'deal_type' => 'one_off', 'deal_won_at' => now(),
+        ]);
+
+        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $lead->fresh()->deal_won_at);
+    }
 }
