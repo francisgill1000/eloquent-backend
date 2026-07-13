@@ -144,6 +144,14 @@ export default function LeadDetail() {
 
   useEffect(() => { void load().finally(() => setLoading(false)); }, [load]);
 
+  // Escape closes the won panel without committing (matches Cancel/backdrop).
+  useEffect(() => {
+    if (!wonModal) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') cancelWon(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [wonModal]);
+
   // Any status change but Won commits right away; Won opens the deal-capture
   // panel first (drag or tap both land here, so both get the panel).
   const setStatus = async (status: LeadStatus) => {
@@ -183,6 +191,14 @@ export default function LeadDetail() {
   const skipWon = async () => {
     setWonModal(false);
     await commitStatus('won');
+  };
+
+  // Back out of the won panel WITHOUT committing — leaves the lead in its prior
+  // status. Used by the Cancel button, backdrop click, and the Escape key, so an
+  // accidental drag onto Won is never a trap. Never calls updateLeadStatus.
+  const cancelWon = () => {
+    setWonModal(false);
+    setDealAmount(''); setDealType('one_off'); setDealTerm(6);
   };
 
   // New lead → open the opening draft, then optimistically move to Sent.
@@ -331,8 +347,9 @@ export default function LeadDetail() {
         {/* Won-deal capture panel — opens instead of committing when the lead
             is marked Won, so we can (optionally) attach a deal value. */}
         {wonModal && (
-          <div className="ld-won-overlay" role="dialog" aria-label="Deal value">
-            <div className="ba-card ld-won-modal">
+          <div className="ld-won-overlay" role="dialog" aria-label="Deal value"
+            onClick={() => { if (!busy) cancelWon(); }}>
+            <div className="ba-card ld-won-modal" onClick={(e) => e.stopPropagation()}>
               <div className="ld-won-head">🎉 Mark as Won</div>
               <p className="ld-won-sub">Add the deal value, or skip to win with no amount.</p>
 
@@ -366,6 +383,7 @@ export default function LeadDetail() {
               )}
 
               <div className="ld-won-actions">
+                <button type="button" className="c-btn-ghost" disabled={busy} onClick={() => cancelWon()}>Cancel</button>
                 <button type="button" className="c-btn-ghost" disabled={busy} onClick={() => void skipWon()}>Skip</button>
                 <button type="button" className="c-btn" disabled={busy} onClick={() => void saveWon()}>
                   {busy ? 'Saving…' : 'Save'}

@@ -282,9 +282,9 @@
 }
 .ld-won-chip.on { background: var(--mint-soft); border-color: var(--border-mint); color: var(--mint-300); }
 .ld-won-chip:disabled { opacity: 0.6; cursor: default; }
-.ld-won-actions { display: flex; gap: 10px; margin-top: 4px; }
-.ld-won-actions .c-btn-ghost { flex: 1; padding: 12px; text-align: center; }
-.ld-won-actions .c-btn { flex: 1; padding: 12px; font-size: 13px; }
+.ld-won-actions { display: flex; gap: 8px; margin-top: 4px; }
+.ld-won-actions .c-btn-ghost { flex: 1; padding: 12px 10px; text-align: center; }
+.ld-won-actions .c-btn { flex: 1; padding: 12px 10px; font-size: 13px; }
 
 /* ===========================================================================
    Dedicated Hunt Credits page (/leads/credits). Mint-glass to match the Hunt

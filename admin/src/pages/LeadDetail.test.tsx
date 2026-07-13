@@ -111,6 +111,26 @@ describe('LeadDetail won-deal capture', () => {
     );
   });
 
+  it('captures a one-off deal with no term months', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'demo' }, activities: [] });
+    const spy = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'won' });
+
+    setup();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^won$/i }));
+    fireEvent.change(await screen.findByLabelText(/amount/i), { target: { value: '500' } });
+    fireEvent.click(screen.getByRole('button', { name: /one-off/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save|confirm/i }));
+
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith(expect.any(Number), 'won', undefined, {
+        deal_amount: 500, deal_type: 'one_off',
+      }),
+    );
+    const callArg = spy.mock.calls[0][3];
+    expect(callArg).not.toHaveProperty('deal_term_months');
+  });
+
   it('skips deal capture and wins the lead with no deal', async () => {
     vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'demo' }, activities: [] });
     const spy = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'won' });
@@ -122,5 +142,19 @@ describe('LeadDetail won-deal capture', () => {
     fireEvent.click(screen.getByRole('button', { name: /^skip$/i }));
 
     await waitFor(() => expect(spy).toHaveBeenCalledWith(expect.any(Number), 'won', undefined, undefined));
+  });
+
+  it('cancels the won panel without committing any status change', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'demo' }, activities: [] });
+    const spy = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'won' });
+
+    setup();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^won$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /^cancel$/i }));
+
+    // Panel closes and no status update fires — lead stays where it was.
+    await waitFor(() => expect(screen.queryByLabelText(/amount/i)).not.toBeInTheDocument());
+    expect(spy).not.toHaveBeenCalled();
   });
 });
