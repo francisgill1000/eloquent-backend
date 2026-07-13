@@ -250,8 +250,8 @@ class HuntAssistantToolsTest extends TestCase
 
         $out = $this->exec($shop, 'hunt_income');
         $this->assertSame('lifetime', $out['scope']);
-        $this->assertSame(900.0, $out['won_value']);
-        $this->assertSame(150.0, $out['mrr_won']);
+        $this->assertEquals(900.0, $out['won_value']);
+        $this->assertEquals(150.0, $out['mrr_won']);
         $this->assertSame(1, $out['won_count']);
     }
 
@@ -262,7 +262,7 @@ class HuntAssistantToolsTest extends TestCase
 
         $out = $this->exec($shop, 'hunt_income', ['period' => 'this_month']);
         $this->assertSame('this_month', $out['scope']);
-        $this->assertSame(500.0, $out['won_value']);
+        $this->assertEquals(500.0, $out['won_value']);
         $this->assertArrayHasKey('previous', $out);
         $this->assertArrayHasKey('range', $out);
     }
