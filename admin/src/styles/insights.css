@@ -391,8 +391,11 @@
   content: ""; position: absolute; inset: 0; z-index: -1;
   box-sizing: border-box; border-radius: inherit; padding: 1.5px;
   pointer-events: none;
+  /* Bright mint alternating with deep teal. The lightness contrast is what makes
+     the rotation visible — an all-mint spectrum (#00ffcc/#6ff5cf/#00d4aa/#00b894)
+     spins but reads as a static ring because the stops are near-identical. */
   background: conic-gradient(from var(--ais-angle),
-    #00ffcc, #6ff5cf, #00d4aa, #00b894, #00ffcc);
+    #00ffcc, #00514a, #00e6b8, #00352f, #00ffcc);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
           mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
