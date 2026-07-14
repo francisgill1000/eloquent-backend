@@ -361,10 +361,15 @@
 /* This page has no page-heading, so the card would ride to the very top. Match
    the sidebar rail's 12px top inset so the card lines up with the left-nav card,
    and drop the left/right inset so the card uses the full content width. */
-.m-scroll.c-aisummary { padding: 12px 0 16px; height: 100%; }
+.m-scroll.c-aisummary { padding: 12px 16px 16px; height: 100%; display: flex; flex-direction: column; }
 
-/* One unified card: mic section (left ~26%) + summary section (right), full height. */
-.c-aisummary .ais-card { display: flex; min-height: 100%; overflow: visible;
+/* One unified card: mic section (left ~26%) + summary section (right).
+   Sized to its content and centered (margin:auto) rather than stretched to full
+   height, so the animated mint border wraps a proper card instead of framing the
+   whole screen. margin:auto also collapses to 0 when the card exceeds the
+   viewport, so it never clips on small screens. */
+.c-aisummary .ais-card { display: flex; min-height: 0; overflow: visible;
+  width: 100%; max-width: 880px; margin: auto;
   background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
   border: 1px solid var(--border-mint); border-radius: var(--r-lg);
   position: relative; isolation: isolate; }
