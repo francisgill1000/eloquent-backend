@@ -366,7 +366,40 @@
 /* One unified card: mic section (left ~26%) + summary section (right), full height. */
 .c-aisummary .ais-card { display: flex; min-height: 100%; overflow: visible;
   background: linear-gradient(135deg, rgba(0, 255, 204, 0.14), rgba(255, 255, 255, 0.04));
-  border: 1px solid var(--border-mint); border-radius: var(--r-lg); }
+  border: 1px solid var(--border-mint); border-radius: var(--r-lg);
+  position: relative; isolation: isolate; }
+
+/* Spinning mint gradient border + soft glow on the AI summary hero.
+   Adapted from the reference border-animation demo, recolored to the mint theme.
+   A rotating conic-gradient (via @property) is masked to just the border ring so
+   it reads as a border over the card's *translucent* surface (a behind-the-card
+   gradient would bleed across the whole face). ::before is the crisp ring;
+   ::after is the same ring blurred for the outer glow. The static border above
+   stays as the fallback where @property / mask-composite are unsupported. */
+@property --ais-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.c-aisummary .ais-card::before,
+.c-aisummary .ais-card::after {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  box-sizing: border-box; border-radius: inherit; padding: 1.5px;
+  pointer-events: none;
+  background: conic-gradient(from var(--ais-angle),
+    #00ffcc, #6ff5cf, #00d4aa, #00b894, #00ffcc);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: aisBorderSpin 5s linear infinite;
+}
+.c-aisummary .ais-card::after { padding: 2px; filter: blur(9px); opacity: 0.55; }
+@keyframes aisBorderSpin { to { --ais-angle: 360deg; } }
+@media (prefers-reduced-motion: reduce) {
+  .c-aisummary .ais-card::before,
+  .c-aisummary .ais-card::after { animation: none; }
+}
 /* Right summary section — strip its own card chrome; it's a column inside the card. */
 .ais-card > .ins-card { flex: 1 1 auto; min-width: 0; background: none; border: none; border-radius: 0; }
 /* Left mic section — no card chrome; a divider separates it from the summary. */
