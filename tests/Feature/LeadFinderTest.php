@@ -72,6 +72,11 @@ class LeadFinderTest extends TestCase
     {
         $shop = Shop::factory()->trialing()->create(['modules' => ['bookings', 'leads']]);
         $user = ShopUser::factory()->create(['shop_id' => $shop->id]);
+        // Owner bypasses the WS2 can.perm:leads.* gates on the Hunt routes.
+        setPermissionsTeamId($shop->id);
+        $user->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]
+        ));
         $token = $shop->createToken('t');
         $token->accessToken->forceFill(['shop_user_id' => $user->id])->save();
 

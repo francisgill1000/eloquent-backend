@@ -89,6 +89,12 @@ class SearchInterpreterTest extends TestCase
     {
         $shop = Shop::factory()->create(['is_master' => true, 'name' => 'Glow Salon']);
         $user = ShopUser::factory()->create(['shop_id' => $shop->id]);
+        // Owner bypasses the WS2 can.perm:leads.* gates (can.perm checks the acting
+        // ShopUser's role, not the shop's is_master flag).
+        setPermissionsTeamId($shop->id);
+        $user->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]
+        ));
         $token = $shop->createToken('t');
         $token->accessToken->forceFill(['shop_user_id' => $user->id])->save();
         return [$shop, $token->plainTextToken];

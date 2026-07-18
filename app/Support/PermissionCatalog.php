@@ -2,54 +2,92 @@
 
 namespace App\Support;
 
+use App\Models\Shop;
+
 /**
  * The single source of truth for every permission the app understands.
  *
  * Consumed by the seeder (to create global spatie Permission rows), the role
  * validation rules (to reject unknown permissions), and the read-only
  * /shop/permissions endpoint (so the admin UI and backend never drift).
+ *
+ * Each group carries a `module` tag: 'bookings' or 'leads' means the group only
+ * belongs to that product; null means shared infrastructure shown for every shop.
+ * The roles screen filters by the shop's enabled modules (see forShop()) so a
+ * Bookings shop and a Business Hunt shop each see only their own product's
+ * permissions — never a mix. This mirrors the module gate the assistant registry
+ * and system prompt already use.
  */
 class PermissionCatalog
 {
     /**
-     * module key => ['label' => string, 'permissions' => [name => human label]]
+     * module key => ['label' => string, 'module' => ?string, 'permissions' => [name => human label]]
      *
-     * @return array<string, array{label: string, permissions: array<string, string>}>
+     * @return array<string, array{label: string, module: ?string, permissions: array<string, string>}>
      */
     public static function grouped(): array
     {
         return [
-            'dashboard' => ['label' => 'Dashboard', 'permissions' => [
+            'dashboard' => ['label' => 'Dashboard', 'module' => 'bookings', 'permissions' => [
                 'reports.view' => 'View dashboard & reports',
             ]],
-            'bookings' => ['label' => 'Bookings', 'permissions' => [
+            'bookings' => ['label' => 'Bookings', 'module' => 'bookings', 'permissions' => [
                 'bookings.view'   => 'View bookings',
                 'bookings.create' => 'Create bookings',
                 'bookings.update' => 'Update bookings',
                 'bookings.delete' => 'Delete bookings',
             ]],
-            // Services, Staff & Working Hours were removed from the primary nav
-            // (they live under Settings, owner-managed), so they're no longer
-            // grantable per-role. Their routes stay owner-gated; see
-            // EnsurePermission (Owner bypasses) and the seeder's prune step.
-            'customers' => ['label' => 'Customers', 'permissions' => [
+            // In Business Hunt these are leads, a different entity — so Customers
+            // belongs to the bookings product only (Francis's call).
+            'customers' => ['label' => 'Customers', 'module' => 'bookings', 'permissions' => [
                 'customers.view'   => 'View customers',
                 'customers.manage' => 'Manage customers',
             ]],
-            'assistant' => ['label' => 'AI Assistant', 'permissions' => [
+            // Business Hunt (leads module). New in WS2 — Hunt had no per-user
+            // permissions before; these gate the Hunt tools + LeadController routes.
+            'hunt' => ['label' => 'Business Hunt', 'module' => 'leads', 'permissions' => [
+                'leads.view'     => 'View leads, pipeline & Hunt summary',
+                'leads.search'   => 'Search businesses (spends credits)',
+                'leads.manage'   => 'Save & work leads (status, follow-ups)',
+                'leads.purchase' => 'Buy credit packs',
+            ]],
+            // Shared infrastructure (module = null) — shown for every shop.
+            'assistant' => ['label' => 'AI Assistant', 'module' => null, 'permissions' => [
                 'assistant.use'    => 'Use the assistant',
                 'assistant.manage' => 'Configure the assistant',
             ]],
-            'access' => ['label' => 'Users & Roles', 'permissions' => [
+            'access' => ['label' => 'Users & Roles', 'module' => null, 'permissions' => [
                 'users.view'   => 'View users',
                 'users.manage' => 'Add, edit & delete users',
                 'roles.view'   => 'View roles',
                 'roles.manage' => 'Add, edit & delete roles',
             ]],
-            'settings' => ['label' => 'Settings', 'permissions' => [
+            'settings' => ['label' => 'Settings', 'module' => null, 'permissions' => [
                 'settings.manage' => 'Manage business settings',
             ]],
         ];
+    }
+
+    /**
+     * The catalog filtered to the groups relevant to a shop's enabled modules,
+     * for the roles UI. A group shows when it's shared (module null), the shop is
+     * a master, or the shop has the group's module enabled. The `module` tag is
+     * stripped so the public shape stays { label, permissions }.
+     *
+     * @return array<string, array{label: string, permissions: array<string, string>}>
+     */
+    public static function forShop(?Shop $shop): array
+    {
+        $out = [];
+        foreach (self::grouped() as $key => $group) {
+            $module = $group['module'];
+            $visible = $module === null
+                || ($shop !== null && ($shop->is_master || $shop->hasModule($module)));
+            if ($visible) {
+                $out[$key] = ['label' => $group['label'], 'permissions' => $group['permissions']];
+            }
+        }
+        return $out;
     }
 
     /**

@@ -26,10 +26,12 @@ class RbacMeController extends Controller
     }
 
     /**
-     * Read-only permission catalog, grouped by module, for the roles UI.
+     * Read-only permission catalog for the roles UI, filtered to the groups
+     * relevant to this shop's enabled modules (Bookings vs Business Hunt never
+     * mix; shared groups always show; master sees all).
      */
-    public function permissions()
+    public function permissions(Request $request)
     {
-        return response()->json(['data' => PermissionCatalog::grouped()]);
+        return response()->json(['data' => PermissionCatalog::forShop($request->user())]);
     }
 }

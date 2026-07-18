@@ -35,11 +35,13 @@ class HuntTools extends MutatingTool
 
     protected function permissions(): array
     {
+        // Live search spends a credit → its own permission; the rest are pipeline
+        // work (owner and untagged sessions bypass, see Rbac).
         return [
-            'search_businesses' => null,
-            'save_leads' => null,
-            'update_lead_status' => null,
-            'log_followup' => null,
+            'search_businesses' => 'leads.search',
+            'save_leads' => 'leads.manage',
+            'update_lead_status' => 'leads.manage',
+            'log_followup' => 'leads.manage',
         ];
     }
 

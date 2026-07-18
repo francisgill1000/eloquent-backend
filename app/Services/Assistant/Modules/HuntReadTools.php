@@ -33,14 +33,15 @@ class HuntReadTools extends AssistantModule
 
     protected function permissions(): array
     {
-        // Leads has no RBAC permission (module-gated only) — null = no check.
+        // All read tools require the Business Hunt "view" permission (owner and
+        // untagged sessions bypass, see Rbac).
         return [
-            'hunt_credits' => null,
-            'list_leads' => null,
-            'find_lead' => null,
-            'open_lead' => null,
-            'hunt_income' => null,
-            'draft_outreach' => null,
+            'hunt_credits' => 'leads.view',
+            'list_leads' => 'leads.view',
+            'find_lead' => 'leads.view',
+            'open_lead' => 'leads.view',
+            'hunt_income' => 'leads.view',
+            'draft_outreach' => 'leads.view',
         ];
     }
 

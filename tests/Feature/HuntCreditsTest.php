@@ -27,6 +27,13 @@ class HuntCreditsTest extends TestCase
     {
         $shop = Shop::factory()->create(['shop_code' => $code, 'modules' => ['leads']]);
         $user = ShopUser::factory()->create(['shop_id' => $shop->id]);
+        // WS2 gated /shop/leads/* behind can.perm:leads.*. Owner bypasses all
+        // permission checks (App\Support\Rbac::isOwner), so make the acting user
+        // an Owner for this shop's team.
+        setPermissionsTeamId($shop->id);
+        $user->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]
+        ));
         $token = $shop->createToken('t');
         $token->accessToken->forceFill(['shop_user_id' => $user->id])->save();
 
