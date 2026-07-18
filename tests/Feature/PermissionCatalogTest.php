@@ -69,8 +69,44 @@ class PermissionCatalogTest extends TestCase
         $this->assertContains('assistant', $keys);
         $this->assertContains('access', $keys);
         $this->assertContains('settings', $keys);
-        // The stripped shape is { label, permissions } — no module key leaks.
-        $this->assertArrayNotHasKey('module', PermissionCatalog::forShop($shop)['bookings']);
+        // The stripped shape is { label, section, permissions } — no module key
+        // leaks, but the nav `section` tag is passed through for UI nesting.
+        $bookings = PermissionCatalog::forShop($shop)['bookings'];
+        $this->assertArrayNotHasKey('module', $bookings);
+        $this->assertArrayHasKey('section', $bookings);
+        $this->assertNull($bookings['section']);
+    }
+
+    public function test_assistant_is_split_by_nav_section(): void
+    {
+        $groups = PermissionCatalog::grouped();
+
+        // "Use the assistant" powers the Home page → top-level (section null).
+        $this->assertNull($groups['assistant']['section']);
+        $this->assertSame(['assistant.use'], array_keys($groups['assistant']['permissions']));
+
+        // "Configure the assistant" is a Settings page → nested under Settings.
+        $this->assertSame('Settings', $groups['assistant_config']['section']);
+        $this->assertSame(['assistant.manage'], array_keys($groups['assistant_config']['permissions']));
+
+        // Both assistant permissions still exist exactly once in the flat list.
+        $this->assertSame(['assistant.use'], array_values(array_filter(PermissionCatalog::all(), fn ($p) => $p === 'assistant.use')));
+        $this->assertContains('assistant.manage', PermissionCatalog::all());
+    }
+
+    public function test_settings_pages_are_tagged_with_the_settings_section(): void
+    {
+        $groups = PermissionCatalog::grouped();
+
+        // Pages reached through the Settings container nest under it.
+        foreach (['catalog', 'staff', 'hours', 'assistant_config', 'access', 'settings'] as $key) {
+            $this->assertSame('Settings', $groups[$key]['section'], "$key should be in the Settings section");
+        }
+
+        // Top-level menu destinations are not sectioned.
+        foreach (['dashboard', 'bookings', 'customers', 'hunt', 'assistant'] as $key) {
+            $this->assertNull($groups[$key]['section'], "$key should be top-level");
+        }
     }
 
     public function test_forshop_leads_only_shows_only_hunt_and_shared(): void
