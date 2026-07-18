@@ -12,6 +12,17 @@ class IntakeNotesTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function actingOwner(\App\Models\Shop $shop): string
+    {
+        setPermissionsTeamId($shop->id);
+        \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]);
+        $u = \App\Models\ShopUser::factory()->create(['shop_id' => $shop->id]);
+        $new = $shop->createToken('t');
+        $new->accessToken->forceFill(['shop_user_id' => $u->id])->save();
+
+        return $new->plainTextToken;
+    }
+
     private function customer(Shop $shop, array $attrs = []): ShopCustomer
     {
         return ShopCustomer::create(array_merge([
@@ -32,7 +43,9 @@ class IntakeNotesTest extends TestCase
             'charges' => 80, 'services' => [], 'customer_name' => 'Aisha',
         ]);
 
-        $res = $this->getJson("/api/shops/{$shop->id}/customers/{$customer->id}")->assertOk();
+        $token = $this->actingOwner($shop);
+        $res = $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->getJson("/api/shops/{$shop->id}/customers/{$customer->id}")->assertOk();
         $res->assertJsonPath('data.notes', 'Allergic to ammonia');
         $res->assertJsonPath('data.preferences.stylist', 'Sara');
         $res->assertJsonPath('data.bookings_count', 1);
@@ -43,21 +56,29 @@ class IntakeNotesTest extends TestCase
     {
         $shop = Shop::factory()->create();
         $customer = $this->customer($shop);
+        $token = $this->actingOwner($shop);
 
-        $this->patchJson("/api/shops/{$shop->id}/customers/{$customer->id}", [
-            'notes' => 'Prefers morning slots',
-            'preferences' => ['allergies' => 'none', 'hair_type' => 'curly'],
-        ])->assertOk();
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->patchJson("/api/shops/{$shop->id}/customers/{$customer->id}", [
+                'notes' => 'Prefers morning slots',
+                'preferences' => ['allergies' => 'none', 'hair_type' => 'curly'],
+            ])->assertOk();
 
         $fresh = $customer->fresh();
         $this->assertSame('Prefers morning slots', $fresh->notes);
         $this->assertSame(['allergies' => 'none', 'hair_type' => 'curly'], $fresh->preferences);
 
-        // Tenant scoping: another shop cannot read or write this customer.
+        // Tenant scoping: a foreign shop's token cannot read or write this shop's customer.
         $other = Shop::factory()->create();
-        $this->getJson("/api/shops/{$other->id}/customers/{$customer->id}")->assertNotFound();
-        $this->patchJson("/api/shops/{$other->id}/customers/{$customer->id}", ['notes' => 'x'])
-            ->assertNotFound();
+        $otherToken = $this->actingOwner($other);
+        // Re-resolve auth so the second request authenticates as the foreign shop
+        // (the sanctum guard caches the first request's user within one test).
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders(['Authorization' => "Bearer $otherToken"])
+            ->getJson("/api/shops/{$shop->id}/customers/{$customer->id}")->assertForbidden();
+        $this->withHeaders(['Authorization' => "Bearer $otherToken"])
+            ->patchJson("/api/shops/{$shop->id}/customers/{$customer->id}", ['notes' => 'x'])
+            ->assertForbidden();
     }
 
     public function test_lookup_includes_notes_and_preferences(): void
@@ -67,7 +88,9 @@ class IntakeNotesTest extends TestCase
             'notes' => 'VIP', 'preferences' => ['stylist' => 'Ali'],
         ]);
 
-        $res = $this->getJson("/api/shops/{$shop->id}/customers/lookup?whatsapp=971555000111")->assertOk();
+        $token = $this->actingOwner($shop);
+        $res = $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->getJson("/api/shops/{$shop->id}/customers/lookup?whatsapp=971555000111")->assertOk();
         $res->assertJsonPath('found', true);
         $res->assertJsonPath('notes', 'VIP');
         $res->assertJsonPath('preferences.stylist', 'Ali');
@@ -82,7 +105,9 @@ class IntakeNotesTest extends TestCase
             'charges' => 0, 'services' => [], 'customer_name' => 'Aisha',
         ]);
 
-        $this->patchJson("/api/booking/{$booking->id}/notes", ['notes' => 'First-time client, patch test done'])
+        $token = $this->actingOwner($shop);
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->patchJson("/api/booking/{$booking->id}/notes", ['notes' => 'First-time client, patch test done'])
             ->assertOk()
             ->assertJsonPath('data.notes', 'First-time client, patch test done');
 

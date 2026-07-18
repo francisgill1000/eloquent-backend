@@ -16,6 +16,16 @@ class BookingInsightsTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function actingOwner(Shop $shop): string
+    {
+        setPermissionsTeamId($shop->id);
+        \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]);
+        $u = \App\Models\ShopUser::factory()->create(['shop_id' => $shop->id]);
+        $new = $shop->createToken('t');
+        $new->accessToken->forceFill(['shop_user_id' => $u->id])->save();
+        return $new->plainTextToken;
+    }
+
     private function booking(Shop $shop, string $status, array $attrs = []): Booking
     {
         return Booking::create(array_merge([
@@ -49,8 +59,10 @@ class BookingInsightsTest extends TestCase
     public function test_update_endpoint_accepts_no_show(): void
     {
         $shop = Shop::factory()->create();
+        $token = $this->actingOwner($shop);
         $b = $this->booking($shop, 'booked');
-        $this->putJson("/api/booking/{$b->id}", ['status' => 'no_show'])
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->putJson("/api/booking/{$b->id}", ['status' => 'no_show'])
             ->assertOk()
             ->assertJsonPath('data.status', 'No_Show');
     }
@@ -58,12 +70,14 @@ class BookingInsightsTest extends TestCase
     public function test_insights_counts_and_rates(): void
     {
         $shop = Shop::factory()->create();
+        $token = $this->actingOwner($shop);
         for ($i = 0; $i < 3; $i++) $this->booking($shop, 'completed');
         $this->booking($shop, 'cancelled');
         $this->booking($shop, 'no_show');
 
-        $res = $this->getJson('/api/shop/reports/insights?shop_id=' . $shop->id
-            . '&from=' . now()->subDays(3)->toDateString() . '&to=' . now()->toDateString())
+        $res = $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->getJson('/api/shop/reports/insights?from=' . now()->subDays(3)->toDateString()
+                . '&to=' . now()->toDateString())
             ->assertOk();
 
         $this->assertSame(5, $res->json('bookings.scheduled'));
@@ -77,6 +91,7 @@ class BookingInsightsTest extends TestCase
     public function test_insights_new_vs_returning_across_range_boundary(): void
     {
         $shop = Shop::factory()->create();
+        $token = $this->actingOwner($shop);
         $a = ShopCustomer::create(['shop_id' => $shop->id, 'name' => 'A', 'whatsapp' => '9711', 'whatsapp_normalized' => '9711']);
         $b = ShopCustomer::create(['shop_id' => $shop->id, 'name' => 'B', 'whatsapp' => '9712', 'whatsapp_normalized' => '9712']);
 
@@ -86,8 +101,9 @@ class BookingInsightsTest extends TestCase
         // B only inside the range → new.
         $this->booking($shop, 'completed', ['shop_customer_id' => $b->id]);
 
-        $res = $this->getJson('/api/shop/reports/insights?shop_id=' . $shop->id
-            . '&from=' . now()->subDays(3)->toDateString() . '&to=' . now()->toDateString())
+        $res = $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->getJson('/api/shop/reports/insights?from=' . now()->subDays(3)->toDateString()
+                . '&to=' . now()->toDateString())
             ->assertOk();
 
         $this->assertSame(2, $res->json('customers.total'));
@@ -99,6 +115,7 @@ class BookingInsightsTest extends TestCase
     public function test_insights_rating_summary_is_tenant_scoped(): void
     {
         $shop = Shop::factory()->create();
+        $token = $this->actingOwner($shop);
         $other = Shop::factory()->create();
         $mk = function (Shop $s, int $rating) {
             $booking = $this->booking($s, 'completed', ['customer_whatsapp' => '971555000111']);
@@ -111,8 +128,9 @@ class BookingInsightsTest extends TestCase
         $mk($shop, 3);
         $mk($other, 1); // must not leak into $shop's summary
 
-        $res = $this->getJson('/api/shop/reports/insights?shop_id=' . $shop->id
-            . '&from=' . now()->subDays(3)->toDateString() . '&to=' . now()->toDateString())
+        $res = $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->getJson('/api/shop/reports/insights?from=' . now()->subDays(3)->toDateString()
+                . '&to=' . now()->toDateString())
             ->assertOk();
 
         $this->assertSame(2, $res->json('reviews.count'));

@@ -223,24 +223,16 @@ class ShopController extends Controller
 
     public function resetPin(Request $request)
     {
-        $validated = $request->validate([
+        $request->validate([
             'shop_code' => 'required|string',
         ]);
 
-        $shop = Shop::where('shop_code', $validated['shop_code'])->first();
-
-        if (!$shop) {
-            return response()->json(['message' => 'Shop not found'], 404);
-        }
-
-        $newPin = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-        $shop->pin = $newPin;
-        $shop->save();
-
+        // Anonymous self-service PIN reset is DISABLED. It previously returned the
+        // new PIN to anyone who knew the business code — an account-takeover hole.
+        // Resets are now handled by the master dashboard / support. Respond
+        // generically: no reset, no PIN, no shop-existence disclosure.
         return response()->json([
-            'message' => 'PIN reset successful',
-            'shop_code' => $shop->shop_code,
-            'pin' => $newPin,
+            'message' => 'For security, PIN resets are handled by support. Please contact us to reset your PIN.',
         ]);
     }
 
@@ -376,11 +368,12 @@ class ShopController extends Controller
     }
 
 
-    public function bookings()
+    public function bookings(Request $request)
     {
         $search = request("search");
         $status = request("status");
-        $shop_id = request("shop_id");
+        // Tenant is the authenticated shop — never a request-supplied shop_id.
+        $shop_id = (int) $request->user()->id;
 
         $bookings = Booking::where('shop_id', $shop_id)
             ->with('staff:id,name,is_active')

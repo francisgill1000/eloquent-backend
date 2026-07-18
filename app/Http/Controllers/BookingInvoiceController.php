@@ -42,9 +42,11 @@ class BookingInvoiceController extends Controller
         return $pdf->stream("{$booking->invoice->invoice_number}.pdf");
     }
 
-    public function markPaid($invoiceId)
+    public function markPaid(Request $request, $invoiceId)
     {
-        $invoice = BookingInvoice::findOrFail($invoiceId);
+        $invoice = BookingInvoice::with('booking:id,shop_id')->findOrFail($invoiceId);
+
+        abort_unless($request->user() && $invoice->booking && $invoice->booking->shop_id === $request->user()->id, 403, 'This action is not permitted.');
 
         if (!$invoice->markPaid()) {
             return response()->json([

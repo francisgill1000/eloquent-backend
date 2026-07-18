@@ -60,6 +60,9 @@ class StaffController extends Controller
         $request->validate(['staff_id' => 'required|integer|exists:staff,id']);
 
         $booking = \App\Models\Booking::findOrFail($bookingId);
+
+        abort_unless($request->user() && $booking->shop_id === $request->user()->id, 403, 'This action is not permitted.');
+
         $target = Staff::findOrFail($request->staff_id);
 
         abort_unless($target->shop_id === $booking->shop_id, 422);

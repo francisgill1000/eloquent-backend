@@ -61,7 +61,6 @@ class ReportsController extends Controller
     public function aiSummaryHistory(Request $request)
     {
         $request->validate([
-            'shop_id'     => 'required|exists:shops,id',
             'period_type' => 'required|in:rolling30,week,month,custom',
             'limit'       => 'sometimes|integer|min:1|max:60',
             'page'        => 'sometimes|integer|min:1',
@@ -70,7 +69,7 @@ class ReportsController extends Controller
         $limit = (int) $request->input('limit', 12);
         $page  = (int) $request->input('page', 1);
 
-        $rows = \App\Models\AiSummary::where('shop_id', (int) $request->shop_id)
+        $rows = \App\Models\AiSummary::where('shop_id', (int) $request->user()->id)
             ->where('period_type', $request->period_type)
             ->orderByDesc('period_from')->orderByDesc('id')
             ->offset(($page - 1) * $limit)->limit($limit + 1)
@@ -94,7 +93,6 @@ class ReportsController extends Controller
     public function export(Request $request)
     {
         $request->validate([
-            'shop_id' => 'required|exists:shops,id',
             'from'    => 'required|date',
             'to'      => 'required|date',
             'type'    => 'required|in:revenue,staff,services,time-patterns',
@@ -139,12 +137,12 @@ class ReportsController extends Controller
     protected function validated(Request $request): array
     {
         $request->validate([
-            'shop_id' => 'required|exists:shops,id',
             'from'    => 'required|date',
             'to'      => 'required|date',
         ]);
 
-        $shopId = (int) $request->shop_id;
+        // Tenant is the authenticated shop — never a request-supplied shop_id.
+        $shopId = (int) $request->user()->id;
         $from = Carbon::parse($request->from)->startOfDay();
         $to   = Carbon::parse($request->to)->endOfDay();
         if ($from->gt($to)) {

@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 
-Route::get('/user-list', [UserController::class, 'dropDown']);
+Route::get('/user-list', [UserController::class, 'dropDown'])->middleware('auth:sanctum');
 
 Route::get('/health', function () {
     return response()->json([
@@ -39,35 +39,55 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/services', [ServiceController::class, 'index']);
 
 Route::get('/shops/nearby', [ShopController::class, 'nearby']);
-Route::apiResource('/shops', ShopController::class);
+// Public reads + self-registration; profile/working-hours writes require the
+// authed shop to own the record (guards ShopController::update's syncWorkingHours).
+Route::apiResource('/shops', ShopController::class)->only(['index', 'show', 'store']);
+Route::middleware(['auth:sanctum', 'shop.self'])->group(function () {
+    Route::apiResource('/shops', ShopController::class)->only(['update', 'destroy']);
+});
+// Staff + availability — public GET reads (needed by the booking page); every
+// write requires the authed shop to own the {shop} record (shop.self).
 Route::get('/shops/{shop}/staff', [\App\Http\Controllers\StaffController::class, 'index']);
-Route::post('/shops/{shop}/staff', [\App\Http\Controllers\StaffController::class, 'store']);
 Route::get('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'show']);
-Route::put('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'update']);
-Route::delete('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'destroy']);
-Route::post('/booking/{booking}/reassign', [\App\Http\Controllers\StaffController::class, 'reassign']);
+Route::get('/shops/{shop}/staff/{staff}/schedule', [\App\Http\Controllers\StaffAvailabilityController::class, 'schedule']);
+Route::get('/shops/{shop}/staff/{staff}/time-off', [\App\Http\Controllers\StaffAvailabilityController::class, 'timeOffIndex']);
 
-// Staff-level availability — weekly schedules + time-off (tenant-scoped to shop/staff).
-Route::get   ('/shops/{shop}/staff/{staff}/schedule',            [\App\Http\Controllers\StaffAvailabilityController::class, 'schedule']);
-Route::put   ('/shops/{shop}/staff/{staff}/schedule',            [\App\Http\Controllers\StaffAvailabilityController::class, 'setSchedule']);
-Route::get   ('/shops/{shop}/staff/{staff}/time-off',            [\App\Http\Controllers\StaffAvailabilityController::class, 'timeOffIndex']);
-Route::post  ('/shops/{shop}/staff/{staff}/time-off',            [\App\Http\Controllers\StaffAvailabilityController::class, 'addTimeOff']);
-Route::delete('/shops/{shop}/staff/{staff}/time-off/{timeOff}',  [\App\Http\Controllers\StaffAvailabilityController::class, 'deleteTimeOff']);
+Route::middleware(['auth:sanctum', 'shop.self'])->group(function () {
+    Route::post  ('/shops/{shop}/staff',                            [\App\Http\Controllers\StaffController::class, 'store']);
+    Route::put   ('/shops/{shop}/staff/{staff}',                    [\App\Http\Controllers\StaffController::class, 'update']);
+    Route::delete('/shops/{shop}/staff/{staff}',                    [\App\Http\Controllers\StaffController::class, 'destroy']);
+    Route::put   ('/shops/{shop}/staff/{staff}/schedule',           [\App\Http\Controllers\StaffAvailabilityController::class, 'setSchedule']);
+    Route::post  ('/shops/{shop}/staff/{staff}/time-off',           [\App\Http\Controllers\StaffAvailabilityController::class, 'addTimeOff']);
+    Route::delete('/shops/{shop}/staff/{staff}/time-off/{timeOff}', [\App\Http\Controllers\StaffAvailabilityController::class, 'deleteTimeOff']);
+});
+
+// Reassign a booking's staff — admin-only; guarded in the controller (uses {booking}, not {shop}).
+Route::post('/booking/{booking}/reassign', [\App\Http\Controllers\StaffController::class, 'reassign'])
+    ->middleware('auth:sanctum');
 Route::post('/shops/{shop}/favourite', [GuestFavouriteController::class, 'toggle']);
-Route::get('/shops/{shop}/customers/lookup', [ShopCustomerController::class, 'lookup']);
-Route::get('/shops/{shop}/customers', [ShopCustomerController::class, 'index']);
-Route::get('/shops/{shop}/customers/{customer}', [ShopCustomerController::class, 'show']);
-Route::patch('/shops/{shop}/customers/{customer}', [ShopCustomerController::class, 'update']);
+// Customer PII — owner-only (guest booking passes customer identity inline to
+// POST /shops/{shop}/book; neither the customer app nor the booking page reads these).
+Route::middleware(['auth:sanctum', 'shop.self'])->group(function () {
+    Route::get  ('/shops/{shop}/customers/lookup',     [ShopCustomerController::class, 'lookup']);
+    Route::get  ('/shops/{shop}/customers',            [ShopCustomerController::class, 'index']);
+    Route::get  ('/shops/{shop}/customers/{customer}', [ShopCustomerController::class, 'show']);
+    Route::patch('/shops/{shop}/customers/{customer}', [ShopCustomerController::class, 'update']);
+});
 Route::post('/shops/{shop}/book', [BookingController::class, 'bookSlot']);
 Route::post('/shops/{shop}/book-recurring', [BookingController::class, 'bookRecurring']);
+// GET stays public — the customer app (customer/) reads a customer's own booking.
 Route::get('/booking/{id}', [BookingController::class, 'show']);
-Route::put('/booking/{id}', [BookingController::class, 'update']);
-Route::post('/booking/{id}/mark-reminder-sent', [BookingController::class, 'markReminderSent']);
-Route::patch('/booking/{id}/notes', [BookingController::class, 'updateNotes']);
+// Writes are admin-only; each verifies booking->shop_id === authed shop (controller).
+Route::middleware('auth:sanctum')->group(function () {
+    Route::put('/booking/{id}', [BookingController::class, 'update']);
+    Route::post('/booking/{id}/mark-reminder-sent', [BookingController::class, 'markReminderSent']);
+    Route::patch('/booking/{id}/notes', [BookingController::class, 'updateNotes']);
+});
 Route::get('/booking/{booking}/invoice', [\App\Http\Controllers\BookingInvoiceController::class, 'show']);
 Route::get('/booking/{booking}/invoice/pdf', [\App\Http\Controllers\BookingInvoiceController::class, 'pdf']);
 Route::post('/booking/{booking}/invoice/pay', [\App\Http\Controllers\BookingInvoiceController::class, 'pay']);
-Route::post('/invoice/{invoice}/mark-paid', [\App\Http\Controllers\BookingInvoiceController::class, 'markPaid']);
+Route::post('/invoice/{invoice}/mark-paid', [\App\Http\Controllers\BookingInvoiceController::class, 'markPaid'])
+    ->middleware('auth:sanctum');
 
 // Ziina payments — public webhook (account-wide; verified by X-Hmac-Signature).
 Route::post('/ziina/webhook', [\App\Http\Controllers\ZiinaWebhookController::class, 'handle']);
@@ -90,30 +110,43 @@ Route::middleware(['auth:sanctum', 'module:bookings'])->group(function () {
     Route::get('/shop/reviews', [\App\Http\Controllers\BookingReviewController::class, 'index']);
 });
 
-// Reports
-Route::get('/shop/reports/revenue',       [\App\Http\Controllers\ReportsController::class, 'revenue']);
-Route::get('/shop/reports/staff',         [\App\Http\Controllers\ReportsController::class, 'staff']);
-Route::get('/shop/reports/services',      [\App\Http\Controllers\ReportsController::class, 'services']);
-Route::get('/shop/reports/time-patterns', [\App\Http\Controllers\ReportsController::class, 'timePatterns']);
-Route::get('/shop/reports/insights',      [\App\Http\Controllers\ReportsController::class, 'insights']);
-Route::get('/shop/reports/ai-summary',    [\App\Http\Controllers\ReportsController::class, 'aiSummary']);
-Route::get('/shop/reports/ai-summaries',   [\App\Http\Controllers\ReportsController::class, 'aiSummaryHistory']);
-Route::get('/shop/reports/export',        [\App\Http\Controllers\ReportsController::class, 'export']);
+// Reports — authenticated; shop is the token's shop (request shop_id ignored, see
+// ReportsController). Booking-specific reports also require the bookings module.
+// The AI summary endpoints are module-aware (Hunt OR bookings), so they need auth
+// only — a Hunt-only shop must still fetch its Hunt summary.
+Route::middleware(['auth:sanctum', 'module:bookings'])->group(function () {
+    Route::get('/shop/reports/revenue',       [\App\Http\Controllers\ReportsController::class, 'revenue']);
+    Route::get('/shop/reports/staff',         [\App\Http\Controllers\ReportsController::class, 'staff']);
+    Route::get('/shop/reports/services',      [\App\Http\Controllers\ReportsController::class, 'services']);
+    Route::get('/shop/reports/time-patterns', [\App\Http\Controllers\ReportsController::class, 'timePatterns']);
+    Route::get('/shop/reports/insights',      [\App\Http\Controllers\ReportsController::class, 'insights']);
+    Route::get('/shop/reports/export',        [\App\Http\Controllers\ReportsController::class, 'export']);
+});
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/shop/reports/ai-summary',   [\App\Http\Controllers\ReportsController::class, 'aiSummary']);
+    Route::get('/shop/reports/ai-summaries', [\App\Http\Controllers\ReportsController::class, 'aiSummaryHistory']);
+});
 
 // Marketing — campaigns + promo codes
-Route::get   ('/shop/marketing/campaigns',                [\App\Http\Controllers\MarketingCampaignController::class, 'index']);
-Route::post  ('/shop/marketing/campaigns',                [\App\Http\Controllers\MarketingCampaignController::class, 'store']);
-Route::get   ('/shop/marketing/campaigns/{campaign}',     [\App\Http\Controllers\MarketingCampaignController::class, 'show']);
-Route::get   ('/shop/marketing/segments',                 [\App\Http\Controllers\MarketingCampaignController::class, 'previewSegment']);
+// Marketing + promo management — authenticated + bookings module; shop derived
+// from the token (see controllers). The guest booking discount lookup stays public.
+Route::middleware(['auth:sanctum', 'module:bookings'])->group(function () {
+    Route::get   ('/shop/marketing/campaigns',            [\App\Http\Controllers\MarketingCampaignController::class, 'index']);
+    Route::post  ('/shop/marketing/campaigns',            [\App\Http\Controllers\MarketingCampaignController::class, 'store']);
+    Route::get   ('/shop/marketing/campaigns/{campaign}', [\App\Http\Controllers\MarketingCampaignController::class, 'show']);
+    Route::get   ('/shop/marketing/segments',             [\App\Http\Controllers\MarketingCampaignController::class, 'previewSegment']);
 
-Route::get   ('/shop/promo-codes',                        [\App\Http\Controllers\PromoCodeController::class, 'index']);
-Route::post  ('/shop/promo-codes',                        [\App\Http\Controllers\PromoCodeController::class, 'store']);
-Route::put   ('/shop/promo-codes/{promoCode}',            [\App\Http\Controllers\PromoCodeController::class, 'update']);
-Route::delete('/shop/promo-codes/{promoCode}',            [\App\Http\Controllers\PromoCodeController::class, 'destroy']);
-Route::get   ('/shops/{shop}/promo-codes/lookup',         [\App\Http\Controllers\PromoCodeController::class, 'lookup']);
+    Route::get   ('/shop/promo-codes',                    [\App\Http\Controllers\PromoCodeController::class, 'index']);
+    Route::post  ('/shop/promo-codes',                    [\App\Http\Controllers\PromoCodeController::class, 'store']);
+    Route::put   ('/shop/promo-codes/{promoCode}',        [\App\Http\Controllers\PromoCodeController::class, 'update']);
+    Route::delete('/shop/promo-codes/{promoCode}',        [\App\Http\Controllers\PromoCodeController::class, 'destroy']);
+});
+Route::get('/shops/{shop}/promo-codes/lookup', [\App\Http\Controllers\PromoCodeController::class, 'lookup']);
 
 Route::post('/shops/login', [ShopController::class, 'login']);
-Route::post('/shops/reset-pin', [ShopController::class, 'resetPin']);
+// Anonymous PIN reset is disabled in the controller (resets are master/support-only).
+// Throttled as defence-in-depth. See WS1 plan Task 9.
+Route::post('/shops/reset-pin', [ShopController::class, 'resetPin'])->middleware('throttle:5,1');
 Route::post('/shops/auto-login', [ShopController::class, 'login_log']);
 
 // Shop login activity (requires either auth:sanctum or ?shop_id= fallback for non-authed clients)
@@ -125,8 +158,13 @@ Route::post('/shops/qr-login/request', [ShopQrLoginController::class, 'requestLo
 Route::get('/shops/qr-login/status/{token}', [ShopQrLoginController::class, 'status']);
 Route::middleware('auth:sanctum')->post('/shops/qr-login/approve/{token}', [ShopQrLoginController::class, 'approve']);
 
-Route::get('/shop/all-bookings', [ShopController::class, 'bookings']);
-Route::get('/shop/bookings', [BookingController::class, 'shopBookings']);
+// Admin booking lists — authenticated + scoped to the token's shop (controllers).
+// Note: GET /bookings (above) stays public — it's the customer app's device-keyed
+// "My Bookings" view (customer/src/pages/Bookings.tsx).
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/shop/all-bookings', [ShopController::class, 'bookings']);
+    Route::get('/shop/bookings', [BookingController::class, 'shopBookings']);
+});
 
 // In-app Live Chat — customer side, keyed by X-Device-Id (no login needed).
 // Throttled: every send can trigger a Claude call.

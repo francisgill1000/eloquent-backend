@@ -16,6 +16,16 @@ class AiSummaryHistoryTest extends TestCase
         return Shop::create(['name' => 'S' . $code, 'shop_code' => $code, 'pin' => '0', 'status' => 'active', 'category_id' => 11]);
     }
 
+    private function actingOwner(Shop $shop): string
+    {
+        setPermissionsTeamId($shop->id);
+        \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]);
+        $u = \App\Models\ShopUser::factory()->create(['shop_id' => $shop->id]);
+        $new = $shop->createToken('t');
+        $new->accessToken->forceFill(['shop_user_id' => $u->id])->save();
+        return $new->plainTextToken;
+    }
+
     private function seedWeek(int $shopId, string $from, string $to): void
     {
         AiSummary::create([
@@ -34,7 +44,9 @@ class AiSummaryHistoryTest extends TestCase
         AiSummary::create(['shop_id' => $shop->id, 'period_type' => 'month', 'summary_date' => '2026-06-30',
             'period_from' => '2026-06-01', 'period_to' => '2026-06-30', 'summary' => 'M', 'patterns' => [], 'recommendations' => []]);
 
-        $res = $this->getJson("/api/shop/reports/ai-summaries?shop_id={$shop->id}&period_type=week");
+        $token = $this->actingOwner($shop);
+        $res = $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->getJson('/api/shop/reports/ai-summaries?period_type=week');
 
         $res->assertOk()
             ->assertJsonCount(2, 'data')
@@ -48,7 +60,10 @@ class AiSummaryHistoryTest extends TestCase
         $b = $this->shop('7303');
         $this->seedWeek($b->id, '2026-06-01', '2026-06-07');
 
-        $res = $this->getJson("/api/shop/reports/ai-summaries?shop_id={$a->id}&period_type=week");
+        // Authenticate as shop A; only A's summaries (none) should be returned.
+        $token = $this->actingOwner($a);
+        $res = $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->getJson('/api/shop/reports/ai-summaries?period_type=week');
         $res->assertOk()->assertJsonCount(0, 'data');
     }
 }

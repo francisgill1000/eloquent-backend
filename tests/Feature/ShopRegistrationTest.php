@@ -10,6 +10,17 @@ class ShopRegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function actingOwner(\App\Models\Shop $shop): string
+    {
+        setPermissionsTeamId($shop->id);
+        \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]);
+        $u = \App\Models\ShopUser::factory()->create(['shop_id' => $shop->id]);
+        $new = $shop->createToken('t');
+        $new->accessToken->forceFill(['shop_user_id' => $u->id])->save();
+
+        return $new->plainTextToken;
+    }
+
     public function test_registers_with_name_and_phone_and_returns_credentials(): void
     {
         $response = $this->postJson('/api/shops', [
@@ -91,8 +102,10 @@ class ShopRegistrationTest extends TestCase
     public function test_phone_can_be_updated_via_shop_update(): void
     {
         $shop = Shop::factory()->create();
+        $token = $this->actingOwner($shop);
 
-        $this->putJson("/api/shops/{$shop->id}", ['phone' => '0501112222'])
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->putJson("/api/shops/{$shop->id}", ['phone' => '0501112222'])
             ->assertOk();
 
         $this->assertSame('0501112222', $shop->fresh()->phone);

@@ -22,8 +22,7 @@ class MarketingCampaignController extends Controller
      */
     public function index(Request $request)
     {
-        $shopId = (int) $request->query('shop_id');
-        abort_if(! $shopId, 400, 'shop_id is required');
+        $shopId = (int) $request->user()->id;
 
         $campaigns = MarketingCampaign::where('shop_id', $shopId)
             ->with('promoCode:id,code,label,discount_type,discount_value')
@@ -75,10 +74,9 @@ class MarketingCampaignController extends Controller
      */
     public function previewSegment(Request $request)
     {
-        $shopId  = (int) $request->query('shop_id');
+        $shopId  = (int) $request->user()->id;
         $segment = (string) $request->query('segment', 'all');
         $params  = (array) $request->query('params', []);
-        abort_if(! $shopId, 400, 'shop_id is required');
 
         $recipients = $this->segments->resolve($shopId, $segment, $params);
 
@@ -98,13 +96,15 @@ class MarketingCampaignController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'shop_id'          => ['required', 'integer'],
             'name'             => ['required', 'string', 'max:120'],
             'segment'          => ['required', 'string'],
             'segment_params'   => ['nullable', 'array'],
             'message_template' => ['required', 'string', 'max:2000'],
             'promo_code_id'    => ['nullable', 'integer'],
         ]);
+
+        // Tenant is the authenticated shop — never a request-supplied shop_id.
+        $data['shop_id'] = (int) $request->user()->id;
 
         // Verify the promo code belongs to this shop, if provided.
         if (! empty($data['promo_code_id'])) {
@@ -162,6 +162,8 @@ class MarketingCampaignController extends Controller
      */
     public function show(MarketingCampaign $campaign)
     {
+        abort_unless(request()->user() && $campaign->shop_id === (int) request()->user()->id, 403, 'This action is not permitted.');
+
         $recipients = $campaign->recipients()
             ->orderByDesc('booked_at')
             ->orderBy('id')

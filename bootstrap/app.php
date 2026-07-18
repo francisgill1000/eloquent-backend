@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'can.perm' => \App\Http\Middleware\EnsurePermission::class,
             'subscription.active' => \App\Http\Middleware\EnsureSubscribed::class,
             'module' => \App\Http\Middleware\EnsureShopModule::class,
+            'shop.self' => \App\Http\Middleware\EnsureShopSelf::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
