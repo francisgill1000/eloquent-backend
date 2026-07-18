@@ -17,6 +17,10 @@ class LeadWhatsAppDraftTest extends TestCase
     {
         $shop = Shop::factory()->create(['is_master' => true]);
         $user = ShopUser::factory()->create(['shop_id' => $shop->id]);
+        setPermissionsTeamId($shop->id);
+        $user->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]
+        ));
         $token = $shop->createToken('t');
         $token->accessToken->forceFill(['shop_user_id' => $user->id])->save();
 

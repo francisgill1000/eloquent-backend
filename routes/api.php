@@ -255,18 +255,18 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->grou
 // Order matters: the static /shop/leads/* routes are declared before the {lead}
 // route so they are not swallowed by model binding.
 Route::middleware(['auth:sanctum', 'rbac.context', 'module:leads'])->group(function () {
-    Route::get   ('/shop/leads/credits',          [\App\Http\Controllers\LeadController::class, 'credits']);
-    Route::post  ('/shop/leads/purchase',         [\App\Http\Controllers\LeadController::class, 'purchase']);
-    Route::get   ('/shop/leads/search',           [\App\Http\Controllers\LeadController::class, 'search']);
+    Route::get   ('/shop/leads/credits',          [\App\Http\Controllers\LeadController::class, 'credits'])->middleware('can.perm:leads.view');
+    Route::post  ('/shop/leads/purchase',         [\App\Http\Controllers\LeadController::class, 'purchase'])->middleware('can.perm:leads.purchase');
+    Route::get   ('/shop/leads/search',           [\App\Http\Controllers\LeadController::class, 'search'])->middleware('can.perm:leads.search');
     // Ad Activity (Meta Ad Library) — async: start a run, then poll it.
-    Route::post  ('/shop/leads/ad-search',           [\App\Http\Controllers\LeadController::class, 'adSearchStart']);
-    Route::get   ('/shop/leads/ad-search/{runId}',   [\App\Http\Controllers\LeadController::class, 'adSearchPoll']);
-    Route::get   ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'index']);
-    Route::post  ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'store']);
-    Route::get   ('/shop/leads/{lead}',           [\App\Http\Controllers\LeadController::class, 'show']);
-    Route::patch ('/shop/leads/{lead}/status',    [\App\Http\Controllers\LeadController::class, 'updateStatus']);
-    Route::post  ('/shop/leads/{lead}/followup',  [\App\Http\Controllers\LeadController::class, 'logFollowup']);
-    Route::post  ('/shop/leads/{lead}/personalize', [\App\Http\Controllers\LeadController::class, 'personalize']);
+    Route::post  ('/shop/leads/ad-search',           [\App\Http\Controllers\LeadController::class, 'adSearchStart'])->middleware('can.perm:leads.search');
+    Route::get   ('/shop/leads/ad-search/{runId}',   [\App\Http\Controllers\LeadController::class, 'adSearchPoll'])->middleware('can.perm:leads.search');
+    Route::get   ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'index'])->middleware('can.perm:leads.view');
+    Route::post  ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'store'])->middleware('can.perm:leads.manage');
+    Route::get   ('/shop/leads/{lead}',           [\App\Http\Controllers\LeadController::class, 'show'])->middleware('can.perm:leads.view');
+    Route::patch ('/shop/leads/{lead}/status',    [\App\Http\Controllers\LeadController::class, 'updateStatus'])->middleware('can.perm:leads.manage');
+    Route::post  ('/shop/leads/{lead}/followup',  [\App\Http\Controllers\LeadController::class, 'logFollowup'])->middleware('can.perm:leads.manage');
+    Route::post  ('/shop/leads/{lead}/personalize', [\App\Http\Controllers\LeadController::class, 'personalize'])->middleware('can.perm:leads.manage');
 });
 
 // Signed (not token-authed) so an <audio> element can load it directly; the
@@ -294,7 +294,11 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->grou
 // RBAC — users, roles, permissions. All per-shop; rbac.context runs AFTER
 // auth:sanctum so the acting ShopUser + team scope are resolved from the token.
 // ---------------------------------------------------------------------------
-Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->group(function () {
+// RBAC is shared infrastructure (managing who can log in) — deliberately NOT
+// behind subscription.active, so a Hunt-only shop (credits, no Lens sub) can
+// manage its own users & roles. Product features stay gated by their own
+// middleware (module:*, subscription.active) elsewhere.
+Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
     Route::get('/auth/me', [\App\Http\Controllers\RbacMeController::class, 'me']);
     Route::get('/shop/permissions', [\App\Http\Controllers\RbacMeController::class, 'permissions'])->middleware('can.perm:roles.view');
 
