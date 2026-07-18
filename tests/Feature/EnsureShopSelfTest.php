@@ -15,8 +15,10 @@ class EnsureShopSelfTest extends TestCase
     private function tokenFor(Shop $shop): string
     {
         setPermissionsTeamId($shop->id);
-        Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]);
+        $owner = Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]);
         $u = ShopUser::factory()->create(['shop_id' => $shop->id]);
+        // Owner bypasses the can.perm gates on the staff route this test hits.
+        $u->assignRole($owner);
         $new = $shop->createToken('t');
         $new->accessToken->forceFill(['shop_user_id' => $u->id])->save();
         return $new->plainTextToken;

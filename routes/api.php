@@ -42,7 +42,8 @@ Route::get('/shops/nearby', [ShopController::class, 'nearby']);
 // Public reads + self-registration; profile/working-hours writes require the
 // authed shop to own the record (guards ShopController::update's syncWorkingHours).
 Route::apiResource('/shops', ShopController::class)->only(['index', 'show', 'store']);
-Route::middleware(['auth:sanctum', 'shop.self'])->group(function () {
+Route::middleware(['auth:sanctum', 'rbac.context', 'shop.self'])->group(function () {
+    // update() gates its working_hours sync on working_hours.manage (see controller).
     Route::apiResource('/shops', ShopController::class)->only(['update', 'destroy']);
 });
 // Staff + availability — public GET reads (needed by the booking page); every
@@ -52,7 +53,7 @@ Route::get('/shops/{shop}/staff/{staff}', [\App\Http\Controllers\StaffController
 Route::get('/shops/{shop}/staff/{staff}/schedule', [\App\Http\Controllers\StaffAvailabilityController::class, 'schedule']);
 Route::get('/shops/{shop}/staff/{staff}/time-off', [\App\Http\Controllers\StaffAvailabilityController::class, 'timeOffIndex']);
 
-Route::middleware(['auth:sanctum', 'shop.self'])->group(function () {
+Route::middleware(['auth:sanctum', 'rbac.context', 'shop.self', 'can.perm:staff.manage'])->group(function () {
     Route::post  ('/shops/{shop}/staff',                            [\App\Http\Controllers\StaffController::class, 'store']);
     Route::put   ('/shops/{shop}/staff/{staff}',                    [\App\Http\Controllers\StaffController::class, 'update']);
     Route::delete('/shops/{shop}/staff/{staff}',                    [\App\Http\Controllers\StaffController::class, 'destroy']);

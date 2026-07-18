@@ -264,6 +264,17 @@ class ShopController extends Controller
 
     public function update(UpdateShopRequest $request, Shop $shop)
     {
+        // Editing working hours is its own grantable permission (owner and untagged
+        // sessions bypass, see Rbac). Checked before the try so the 403 isn't
+        // swallowed into a 500. Profile fields below are not gated (unchanged).
+        if (is_array($request->validated()['working_hours'] ?? null)) {
+            abort_unless(
+                \App\Support\Rbac::userCan(current_shop_user(), 'working_hours.manage'),
+                403,
+                'This action is not permitted.'
+            );
+        }
+
         try {
             $validated = $request->validated();
 
