@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { shopLogin } from '@/lib/shops';
 import { useShop } from '@/context/ShopContext';
 import { storage } from '@/lib/storage';
@@ -110,10 +110,6 @@ export default function Login() {
             {showPin ? 'Hide' : 'Show'}
           </button>
         </div>
-
-        <Link className="c-link" to="/forgot-pin" state={{ shopCode }} style={{ display: 'inline-block', marginBottom: 16 }}>
-          Forgot PIN?
-        </Link>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, color: 'var(--text-2)', fontSize: 14 }}>
           <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />

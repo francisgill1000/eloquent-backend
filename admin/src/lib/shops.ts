@@ -14,10 +14,6 @@ export async function shopLogin(
   };
 }
 
-export async function resetPin(shopCode: string): Promise<unknown> {
-  const { data } = await api.post('shops/reset-pin', { shop_code: shopCode });
-  return data;
-}
 
 export async function registerShop(form: Record<string, unknown>): Promise<{ token?: string; shop?: Shop }> {
   const { data } = await api.post('/shops', form);
