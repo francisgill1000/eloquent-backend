@@ -164,6 +164,8 @@ class BookingController extends Controller
             return response()->json(['message' => 'Booking not found'], 404);
         }
 
+        abort_unless($request->user() && $booking->shop_id === $request->user()->id, 403, 'This action is not permitted.');
+
         $data = $request->validate([
             'notes' => ['present', 'nullable', 'string', 'max:5000'],
         ]);
@@ -228,13 +230,15 @@ class BookingController extends Controller
         return response()->json($booking);
     }
 
-    public function markReminderSent($id)
+    public function markReminderSent(Request $request, $id)
     {
         $booking = Booking::find($id);
 
         if (!$booking) {
             return response()->json(['message' => 'Booking not found'], 404);
         }
+
+        abort_unless($request->user() && $booking->shop_id === $request->user()->id, 403, 'This action is not permitted.');
 
         $booking->update(['reminder_sent_at' => now()]);
 
@@ -243,12 +247,8 @@ class BookingController extends Controller
 
     public function shopBookings(Request $request)
     {
-        // 1. Validate the request
-        $request->validate([
-            'shop_id' => 'required|exists:shops,id',
-        ]);
-
-        $shopId = $request->shop_id;
+        // Tenant is the authenticated shop — never a request-supplied shop_id.
+        $shopId = (int) $request->user()->id;
         // Include past 6 days so the dashboard's 7-day trend chart has data.
         $start = now()->subDays(6)->startOfDay();
         $end = now()->addDays(10)->endOfDay();
@@ -292,6 +292,8 @@ class BookingController extends Controller
         if (!$booking) {
             return response()->json(['message' => 'Booking not found'], 404);
         }
+
+        abort_unless($request->user() && $booking->shop_id === $request->user()->id, 403, 'This action is not permitted.');
 
         $validated = $request->validate([
             'status' => 'required|in:booked,completed,cancelled,queued,no_show,Booked,Completed,Cancelled,Queued,No_show'

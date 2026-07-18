@@ -9,8 +9,7 @@ class PromoCodeController extends Controller
 {
     public function index(Request $request)
     {
-        $shopId = (int) $request->query('shop_id');
-        abort_if(! $shopId, 400, 'shop_id is required');
+        $shopId = (int) $request->user()->id;
 
         $codes = PromoCode::where('shop_id', $shopId)
             ->orderByDesc('is_active')
@@ -23,7 +22,6 @@ class PromoCodeController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'shop_id'        => ['required', 'integer'],
             'code'           => ['required', 'string', 'max:32'],
             'label'          => ['nullable', 'string', 'max:120'],
             'discount_type'  => ['required', 'in:percent,flat'],
@@ -33,6 +31,9 @@ class PromoCodeController extends Controller
             'max_uses'       => ['nullable', 'integer', 'min:1'],
             'is_active'      => ['boolean'],
         ]);
+
+        // Tenant is the authenticated shop — never a request-supplied shop_id.
+        $data['shop_id'] = (int) $request->user()->id;
 
         // Normalise code to uppercase, no spaces.
         $data['code'] = strtoupper(preg_replace('/\s+/', '', $data['code']));
@@ -49,6 +50,8 @@ class PromoCodeController extends Controller
 
     public function update(Request $request, PromoCode $promoCode)
     {
+        abort_unless($request->user() && $promoCode->shop_id === (int) $request->user()->id, 403, 'This action is not permitted.');
+
         $data = $request->validate([
             'label'          => ['nullable', 'string', 'max:120'],
             'discount_type'  => ['sometimes', 'in:percent,flat'],
@@ -63,8 +66,10 @@ class PromoCodeController extends Controller
         return response()->json(['data' => $promoCode->fresh()]);
     }
 
-    public function destroy(PromoCode $promoCode)
+    public function destroy(Request $request, PromoCode $promoCode)
     {
+        abort_unless($request->user() && $promoCode->shop_id === (int) $request->user()->id, 403, 'This action is not permitted.');
+
         $promoCode->delete();
         return response()->json(['ok' => true]);
     }

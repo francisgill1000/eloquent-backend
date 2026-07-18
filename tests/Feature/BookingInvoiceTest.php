@@ -20,6 +20,17 @@ class BookingInvoiceTest extends TestCase
         Http::fake();
     }
 
+    private function actingOwner(\App\Models\Shop $shop): string
+    {
+        setPermissionsTeamId($shop->id);
+        \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]);
+        $u = \App\Models\ShopUser::factory()->create(['shop_id' => $shop->id]);
+        $new = $shop->createToken('t');
+        $new->accessToken->forceFill(['shop_user_id' => $u->id])->save();
+
+        return $new->plainTextToken;
+    }
+
     public function test_completing_a_booking_creates_an_invoice(): void
     {
         $shop = Shop::factory()->create();
@@ -29,8 +40,10 @@ class BookingInvoiceTest extends TestCase
             'status' => 'booked', 'charges' => 75,
             'date' => '2026-05-11', 'start_time' => '10:00:00', 'end_time' => '10:30:00',
         ]);
+        $token = $this->actingOwner($shop);
 
-        $this->putJson("/api/booking/{$booking->id}", ['status' => 'completed'])
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->putJson("/api/booking/{$booking->id}", ['status' => 'completed'])
             ->assertStatus(200);
 
         $this->assertDatabaseHas('booking_invoices', [
@@ -51,8 +64,11 @@ class BookingInvoiceTest extends TestCase
             'date' => '2026-05-11', 'start_time' => '10:00:00', 'end_time' => '10:30:00',
         ]);
 
-        $this->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
-        $this->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
+        $token = $this->actingOwner($shop);
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
 
         $this->assertEquals(1, BookingInvoice::where('booking_id', $booking->id)->count());
     }
@@ -67,8 +83,11 @@ class BookingInvoiceTest extends TestCase
             'date' => '2026-05-11', 'start_time' => '10:00:00', 'end_time' => '10:30:00',
         ]);
 
-        $this->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
-        $this->putJson("/api/booking/{$booking->id}", ['status' => 'cancelled']);
+        $token = $this->actingOwner($shop);
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->putJson("/api/booking/{$booking->id}", ['status' => 'cancelled']);
 
         $this->assertDatabaseHas('booking_invoices', [
             'booking_id' => $booking->id,
@@ -86,7 +105,9 @@ class BookingInvoiceTest extends TestCase
             'date' => '2026-05-11', 'start_time' => '10:00:00', 'end_time' => '10:30:00',
         ]);
 
-        $this->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
+        $token = $this->actingOwner($shop);
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
 
         $this->getJson("/api/booking/{$booking->id}/invoice")
             ->assertStatus(200)
@@ -118,11 +139,14 @@ class BookingInvoiceTest extends TestCase
             'status' => 'booked', 'charges' => 100,
             'date' => '2026-05-11', 'start_time' => '10:00:00', 'end_time' => '10:30:00',
         ]);
-        $this->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
+        $token = $this->actingOwner($shop);
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
 
         $invoiceId = BookingInvoice::where('booking_id', $booking->id)->first()->id;
 
-        $this->postJson("/api/invoice/{$invoiceId}/mark-paid")
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->postJson("/api/invoice/{$invoiceId}/mark-paid")
             ->assertStatus(200)
             ->assertJsonPath('data.status', 'paid');
 
@@ -138,11 +162,15 @@ class BookingInvoiceTest extends TestCase
             'status' => 'booked', 'charges' => 100,
             'date' => '2026-05-11', 'start_time' => '10:00:00', 'end_time' => '10:30:00',
         ]);
-        $this->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
+        $token = $this->actingOwner($shop);
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
         $invoice = BookingInvoice::where('booking_id', $booking->id)->first();
 
-        $this->postJson("/api/invoice/{$invoice->id}/mark-paid")->assertStatus(200);
-        $this->postJson("/api/invoice/{$invoice->id}/mark-paid")->assertStatus(409);
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->postJson("/api/invoice/{$invoice->id}/mark-paid")->assertStatus(200);
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->postJson("/api/invoice/{$invoice->id}/mark-paid")->assertStatus(409);
     }
 
     public function test_pdf_endpoint_returns_pdf_stream(): void
@@ -159,7 +187,9 @@ class BookingInvoiceTest extends TestCase
             ],
             'date' => '2026-05-11', 'start_time' => '10:00:00', 'end_time' => '10:30:00',
         ]);
-        $this->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
+        $token = $this->actingOwner($shop);
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->putJson("/api/booking/{$booking->id}", ['status' => 'completed']);
 
         $response = $this->get("/api/booking/{$booking->id}/invoice/pdf");
         $response->assertStatus(200);

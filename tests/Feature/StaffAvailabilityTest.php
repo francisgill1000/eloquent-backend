@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Shop;
+use App\Models\ShopUser;
 use App\Models\Staff;
 use App\Services\StaffAssigner;
 use App\Services\StaffAvailabilityService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class StaffAvailabilityTest extends TestCase
@@ -15,6 +17,19 @@ class StaffAvailabilityTest extends TestCase
     use RefreshDatabase;
 
     private StaffAvailabilityService $svc;
+
+    private function actingOwner(Shop $shop): string
+    {
+        setPermissionsTeamId($shop->id);
+        $owner = Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]);
+        $u = ShopUser::factory()->create(['shop_id' => $shop->id]);
+        $u->assignRole($owner);
+
+        $new = $shop->createToken('t');
+        $new->accessToken->forceFill(['shop_user_id' => $u->id])->save();
+
+        return $new->plainTextToken;
+    }
 
     protected function setUp(): void
     {
@@ -99,9 +114,11 @@ class StaffAvailabilityTest extends TestCase
     {
         $shop = Shop::factory()->create();
         $staff = $this->staff($shop);
+        $token = $this->actingOwner($shop);
+        $auth = ['Authorization' => "Bearer $token"];
 
         // PUT replace week
-        $this->putJson("/api/shops/{$shop->id}/staff/{$staff->id}/schedule", [
+        $this->withHeaders($auth)->putJson("/api/shops/{$shop->id}/staff/{$staff->id}/schedule", [
             'schedule' => [
                 ['day_of_week' => 1, 'start_time' => '09:00', 'end_time' => '17:00'],
                 ['day_of_week' => 2, 'start_time' => '10:00', 'end_time' => '14:00'],
@@ -109,16 +126,16 @@ class StaffAvailabilityTest extends TestCase
         ])->assertOk()->assertJsonCount(2, 'data');
 
         // Replace again with a single day — old rows gone.
-        $this->putJson("/api/shops/{$shop->id}/staff/{$staff->id}/schedule", [
+        $this->withHeaders($auth)->putJson("/api/shops/{$shop->id}/staff/{$staff->id}/schedule", [
             'schedule' => [['day_of_week' => 3, 'start_time' => '08:00', 'end_time' => '12:00']],
         ])->assertOk()->assertJsonCount(1, 'data');
 
         // Add + delete time-off
-        $off = $this->postJson("/api/shops/{$shop->id}/staff/{$staff->id}/time-off", [
+        $off = $this->withHeaders($auth)->postJson("/api/shops/{$shop->id}/staff/{$staff->id}/time-off", [
             'date' => now()->next(Carbon::MONDAY)->toDateString(), 'reason' => 'Leave',
         ])->assertCreated()->json('data.id');
 
-        $this->deleteJson("/api/shops/{$shop->id}/staff/{$staff->id}/time-off/{$off}")->assertOk();
+        $this->withHeaders($auth)->deleteJson("/api/shops/{$shop->id}/staff/{$staff->id}/time-off/{$off}")->assertOk();
         $this->assertDatabaseMissing('staff_time_off', ['id' => $off]);
 
         // Tenant scoping: another shop cannot touch this staff.
