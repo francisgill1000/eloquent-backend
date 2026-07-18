@@ -411,9 +411,10 @@ function RoleEditor({
           );
         };
 
-        // Top-level groups render flat; sectioned groups (e.g. "Settings") nest
-        // under a header, mirroring how the app is navigated. Section order
-        // follows first-appearance in the catalog.
+        // Top-level groups render as their own permission list. A section (e.g.
+        // "Settings") collapses to ONE checkbox that unlocks every child page
+        // under it — no per-page granularity. Section order follows
+        // first-appearance in the catalog.
         const entries = Object.entries(groups);
         const top = entries.filter(([, g]) => !g.section);
         const sections: Array<[string, Array<[string, PermGroup]>]> = [];
@@ -428,12 +429,24 @@ function RoleEditor({
         return (
           <>
             {top.map((entry) => renderGroup(entry, false))}
-            {sections.map(([section, groupsInSection]) => (
-              <div className="ac-matrix-section" key={section}>
-                <div className="ac-matrix-section-head">{section}</div>
-                {groupsInSection.map((entry) => renderGroup(entry, true))}
-              </div>
-            ))}
+            {sections.map(([section, groupsInSection]) => {
+              // The whole section is a single grant: one toggle sets/clears every
+              // permission of every child page under it.
+              const perms = groupsInSection.flatMap(([, g]) => Object.keys(g.permissions));
+              const allOn = perms.length > 0 && perms.every((p) => selected.has(p));
+              const covers = groupsInSection.map(([, g]) => g.label).join(', ');
+              return (
+                <div className="ac-matrix-group" key={section}>
+                  <div className="ac-matrix-head">
+                    <span className="ac-matrix-label">{section}</span>
+                  </div>
+                  <label className="ac-perm">
+                    <input type="checkbox" checked={allOn} onChange={() => toggleGroup(perms, allOn)} />
+                    <span>Manage all {section} pages <span className="ac-perm-hint">({covers})</span></span>
+                  </label>
+                </div>
+              );
+            })}
           </>
         );
       })()}
