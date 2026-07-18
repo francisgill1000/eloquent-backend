@@ -18,10 +18,10 @@ type NavItem = { label: string; to: string; icon: keyof typeof Icons; end?: bool
 const BOTH: Module[] = ['bookings', 'leads'];
 
 const BASE_NAV: NavItem[] = [
-  { label: 'AI Summary', to: '/ai-summary', icon: 'Sparkle', modules: BOTH, perm: ['reports.view', 'leads.view'] },
+  { label: 'AI Summary', to: '/ai-summary', icon: 'Sparkle', modules: BOTH, perm: 'summary.view' },
   { label: 'Home', to: '/', icon: 'Home', end: true, modules: BOTH, perm: 'assistant.use' },
   // Your past conversations with the Ask assistant.
-  { label: 'Chats', to: '/conversations', icon: 'Chat', modules: BOTH, perm: 'assistant.use' },
+  { label: 'Chats', to: '/conversations', icon: 'Chat', modules: BOTH, perm: 'chats.view' },
   { label: 'Bookings', to: '/bookings', icon: 'Calendar', modules: ['bookings'], perm: 'bookings.view' },
   { label: 'Customers', to: '/customers', icon: 'Users', modules: ['bookings'], perm: 'customers.view' },
   // WhatsApp Chats — hidden while WHATSAPP_ENABLED is off.
@@ -30,7 +30,7 @@ const BASE_NAV: NavItem[] = [
   // Services / Staff / Working Hours are reached via Settings (like on mobile),
   // so they're intentionally not surfaced as top-level sidebar items.
   { label: 'Settings', to: '/settings', icon: 'Sliders', modules: BOTH },
-  { label: 'Profile', to: '/profile', icon: 'Store', modules: BOTH, perm: 'settings.manage' },
+  { label: 'Profile', to: '/profile', icon: 'Store', modules: BOTH, perm: 'profile.view' },
 ];
 
 export function DesktopSidebar() {
