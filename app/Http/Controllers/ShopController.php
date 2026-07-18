@@ -221,21 +221,6 @@ class ShopController extends Controller
         ], 201);
     }
 
-    public function resetPin(Request $request)
-    {
-        $request->validate([
-            'shop_code' => 'required|string',
-        ]);
-
-        // Anonymous self-service PIN reset is DISABLED. It previously returned the
-        // new PIN to anyone who knew the business code — an account-takeover hole.
-        // Resets are now handled by the master dashboard / support. Respond
-        // generically: no reset, no PIN, no shop-existence disclosure.
-        return response()->json([
-            'message' => 'For security, PIN resets are handled by support. Please contact us to reset your PIN.',
-        ]);
-    }
-
     public function show(Request $request, Shop $shop)
     {
         $shop->load(['working_hours', 'catalogs.parentCategory']);

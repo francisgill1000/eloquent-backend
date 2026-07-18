@@ -145,9 +145,8 @@ Route::middleware(['auth:sanctum', 'module:bookings'])->group(function () {
 Route::get('/shops/{shop}/promo-codes/lookup', [\App\Http\Controllers\PromoCodeController::class, 'lookup']);
 
 Route::post('/shops/login', [ShopController::class, 'login']);
-// Anonymous PIN reset is disabled in the controller (resets are master/support-only).
-// Throttled as defence-in-depth. See WS1 plan Task 9.
-Route::post('/shops/reset-pin', [ShopController::class, 'resetPin'])->middleware('throttle:5,1');
+// PIN resets are handled entirely by the master dashboard / support — there is no
+// self-service reset endpoint (removed with the Forgot-PIN page).
 Route::post('/shops/auto-login', [ShopController::class, 'login_log']);
 
 // Shop login activity (requires either auth:sanctum or ?shop_id= fallback for non-authed clients)

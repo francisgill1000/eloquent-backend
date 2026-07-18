@@ -10,7 +10,6 @@ import { RequireShop } from '@/layout/RequireShop';
 import { ModuleGuard } from '@/components/ModuleGuard';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
-import ForgotPin from '@/pages/ForgotPin';
 import Web from '@/pages/Web';
 import ScanApprove from '@/pages/ScanApprove';
 import Bookings from '@/pages/Bookings';
@@ -64,7 +63,6 @@ export default function App() {
         <Route path="/lens" element={<Web variant="lens" />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/forgot-pin" element={<ForgotPin />} />
         <Route path="/scan/:token" element={<ScanApprove />} />
         <Route path="/book/:shopId" element={<PublicBooking />} />
 
