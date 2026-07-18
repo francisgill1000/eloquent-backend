@@ -123,15 +123,9 @@
 .ac-matrix-group { border-top: 1px solid rgba(255, 255, 255, 0.08); padding: 12px 0 4px; }
 .ac-matrix-group:first-of-type { border-top: 0; padding-top: 2px; }
 
-/* A section (e.g. "Settings") groups the permissions for pages reached through
-   that container, mirroring the left nav. Its child groups are nested + indented
-   under a small uppercase header. */
-.ac-matrix-section { margin-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
-.ac-matrix-section-head {
-  font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--text-3); padding: 12px 0 2px;
-}
-.ac-matrix-group.ac-matrix-nested { border-top: 0; padding: 8px 0 4px 12px; margin: 4px 0 0 2px; border-left: 2px solid var(--border-mint); }
+/* A section (e.g. "Settings") collapses to a single grant; the parenthetical
+   list of pages it covers is muted so the toggle label stays the focus. */
+.ac-perm-hint { color: var(--text-3); font-size: 12px; }
 .ac-matrix-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .ac-matrix-label { font-size: 12.5px; font-weight: 700; color: var(--text-1); }
 .ac-selectall { font-size: 11px; font-weight: 700; color: var(--mint-300); background: none; border: 0; cursor: pointer; padding: 0; }
