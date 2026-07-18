@@ -43,6 +43,20 @@ class PermissionCatalog
                 'customers.view'   => 'View customers',
                 'customers.manage' => 'Manage customers',
             ]],
+            // Catalog: services + their parent categories share the services.*
+            // permissions (the catalog + parent-category routes already enforce them).
+            'catalog' => ['label' => 'Services & categories', 'module' => 'bookings', 'permissions' => [
+                'services.view'   => 'View services & categories',
+                'services.manage' => 'Add, edit & delete services & categories',
+            ]],
+            'staff' => ['label' => 'Staff', 'module' => 'bookings', 'permissions' => [
+                'staff.view'   => 'View staff',
+                'staff.manage' => 'Add, edit, delete staff & schedules',
+            ]],
+            'hours' => ['label' => 'Working hours', 'module' => 'bookings', 'permissions' => [
+                'working_hours.view'   => 'View working hours',
+                'working_hours.manage' => 'Set working hours & closures',
+            ]],
             // Business Hunt (leads module). New in WS2 — Hunt had no per-user
             // permissions before; these gate the Hunt tools + LeadController routes.
             'hunt' => ['label' => 'Business Hunt', 'module' => 'leads', 'permissions' => [

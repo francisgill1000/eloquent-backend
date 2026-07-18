@@ -35,13 +35,13 @@ class PermissionCatalogTest extends TestCase
 
     public function test_seeder_prunes_permissions_removed_from_the_catalog(): void
     {
-        // A stray permission from a previous catalog (e.g. the removed
-        // Services/Staff/Working Hours ones) must be cleaned up on re-seed.
-        Permission::create(['name' => 'staff.manage', 'guard_name' => 'web']);
+        // A stray permission that is no longer in the catalog must be cleaned up
+        // on re-seed.
+        Permission::create(['name' => 'obsolete.legacy', 'guard_name' => 'web']);
 
         (new PermissionSeeder())->run();
 
-        $this->assertDatabaseMissing('permissions', ['name' => 'staff.manage']);
+        $this->assertDatabaseMissing('permissions', ['name' => 'obsolete.legacy']);
         $this->assertSame(count(PermissionCatalog::all()), Permission::count());
     }
 
