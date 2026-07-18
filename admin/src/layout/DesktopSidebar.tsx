@@ -2,7 +2,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { WHATSAPP_ENABLED } from '@/lib/features';
-import { navVisible, type Module } from '@/lib/modules';
+import { type Module } from '@/lib/modules';
+import { navAllowed, visibleSettingsOptions, type Perm } from '@/lib/nav';
 
 /**
  * Persistent desktop navigation rail. Rendered by AppShell for every
@@ -12,33 +13,34 @@ import { navVisible, type Module } from '@/lib/modules';
  * rail items. Glass styling matches the app's other frosted surfaces so the
  * ambient background shows through.
  */
-type NavItem = { label: string; to: string; icon: keyof typeof Icons; end?: boolean; modules: Module[] };
+type NavItem = { label: string; to: string; icon: keyof typeof Icons; end?: boolean; modules: Module[]; perm?: Perm };
 
 const BOTH: Module[] = ['bookings', 'leads'];
 
 const BASE_NAV: NavItem[] = [
-  { label: 'AI Summary', to: '/ai-summary', icon: 'Sparkle', modules: BOTH },
-  { label: 'Home', to: '/', icon: 'Home', end: true, modules: BOTH },
+  { label: 'AI Summary', to: '/ai-summary', icon: 'Sparkle', modules: BOTH, perm: ['reports.view', 'leads.view'] },
+  { label: 'Home', to: '/', icon: 'Home', end: true, modules: BOTH, perm: 'assistant.use' },
   // Your past conversations with the Ask assistant.
-  { label: 'Chats', to: '/conversations', icon: 'Chat', modules: BOTH },
-  { label: 'Bookings', to: '/bookings', icon: 'Calendar', modules: ['bookings'] },
-  { label: 'Customers', to: '/customers', icon: 'Users', modules: ['bookings'] },
+  { label: 'Chats', to: '/conversations', icon: 'Chat', modules: BOTH, perm: 'assistant.use' },
+  { label: 'Bookings', to: '/bookings', icon: 'Calendar', modules: ['bookings'], perm: 'bookings.view' },
+  { label: 'Customers', to: '/customers', icon: 'Users', modules: ['bookings'], perm: 'customers.view' },
   // WhatsApp Chats — hidden while WHATSAPP_ENABLED is off.
   { label: 'Chats', to: '/chats', icon: 'Chat', modules: BOTH },
-  { label: 'Business Hunt', to: '/leads', icon: 'Search', modules: ['leads'] },
+  { label: 'Business Hunt', to: '/leads', icon: 'Search', modules: ['leads'], perm: 'leads.view' },
   // Services / Staff / Working Hours are reached via Settings (like on mobile),
   // so they're intentionally not surfaced as top-level sidebar items.
   { label: 'Settings', to: '/settings', icon: 'Sliders', modules: BOTH },
-  { label: 'Profile', to: '/profile', icon: 'Store', modules: BOTH },
+  { label: 'Profile', to: '/profile', icon: 'Store', modules: BOTH, perm: 'settings.manage' },
 ];
 
 export function DesktopSidebar() {
-  const { shop, logoutShop } = useShop();
+  const { shop, can, logoutShop } = useShop();
   const navigate = useNavigate();
 
   const nav = BASE_NAV
     .filter((n) => WHATSAPP_ENABLED || n.to !== '/chats')
-    .filter((n) => navVisible(n.modules, shop));
+    // Settings is a container: show it only if the user can see ≥1 of its items.
+    .filter((n) => (n.to === '/settings' ? visibleSettingsOptions(shop, can).length > 0 : navAllowed(n, shop, can)));
   // A master is the operator account — it only manages other businesses, so it
   // gets a single menu item instead of the shop-operational nav.
   const items: NavItem[] = shop?.is_master

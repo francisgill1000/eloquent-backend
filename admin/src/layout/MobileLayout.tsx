@@ -2,23 +2,24 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { WHATSAPP_ENABLED } from '@/lib/features';
-import { navVisible, type Module } from '@/lib/modules';
+import { type Module } from '@/lib/modules';
+import { navAllowed, visibleSettingsOptions, type Perm } from '@/lib/nav';
 
-type Tab = { id: string; label: string; href: string; icon: keyof typeof Icons; modules: Module[] };
+type Tab = { id: string; label: string; href: string; icon: keyof typeof Icons; modules: Module[]; perm?: Perm };
 
 const BOTH: Module[] = ['bookings', 'leads'];
 
 const ALL_TABS: Tab[] = [
-  { id: 'ai-summary', label: 'Summary', href: '/ai-summary', icon: 'Sparkle', modules: BOTH },
-  { id: 'home', label: 'Home', href: '/', icon: 'Home', modules: BOTH },
+  { id: 'ai-summary', label: 'Summary', href: '/ai-summary', icon: 'Sparkle', modules: BOTH, perm: ['reports.view', 'leads.view'] },
+  { id: 'home', label: 'Home', href: '/', icon: 'Home', modules: BOTH, perm: 'assistant.use' },
   // Past conversations with the Ask assistant.
-  { id: 'conversations', label: 'Chats', href: '/conversations', icon: 'Chat', modules: BOTH },
-  { id: 'bookings', label: 'Bookings', href: '/bookings', icon: 'Calendar', modules: ['bookings'] },
+  { id: 'conversations', label: 'Chats', href: '/conversations', icon: 'Chat', modules: BOTH, perm: 'assistant.use' },
+  { id: 'bookings', label: 'Bookings', href: '/bookings', icon: 'Calendar', modules: ['bookings'], perm: 'bookings.view' },
   // WhatsApp Chats — hidden temporarily behind WHATSAPP_ENABLED.
   { id: 'chats', label: 'Chats', href: '/chats', icon: 'Chat', modules: BOTH },
   // Reminders tab hidden for now — page still reachable at /reminders.
   { id: 'settings', label: 'Settings', href: '/settings', icon: 'Sliders', modules: BOTH },
-  { id: 'profile', label: 'Profile', href: '/profile', icon: 'Store', modules: BOTH },
+  { id: 'profile', label: 'Profile', href: '/profile', icon: 'Store', modules: BOTH, perm: 'settings.manage' },
 ];
 // A master is the operator account — a single "All Businesses" tab, not the
 // shop-operational tabs.
@@ -40,11 +41,16 @@ function activeTab(path: string): string {
 
 export function MobileLayout() {
   const { pathname } = useLocation();
-  const { shop } = useShop();
+  const { shop, can } = useShop();
   const active = shop?.is_master ? 'master' : activeTab(pathname);
   const tabs = shop?.is_master
     ? MASTER_TABS
-    : ALL_TABS.filter((t) => (WHATSAPP_ENABLED || t.id !== 'chats') && navVisible(t.modules, shop));
+    : ALL_TABS.filter(
+        (t) =>
+          (WHATSAPP_ENABLED || t.id !== 'chats') &&
+          // Settings is a container: show only if ≥1 of its items is visible.
+          (t.id === 'settings' ? visibleSettingsOptions(shop, can).length > 0 : navAllowed(t, shop, can)),
+      );
 
   return (
     <div className="mobile-app">

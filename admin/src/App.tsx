@@ -41,6 +41,7 @@ import MasterShopDetail from '@/pages/MasterShopDetail';
 import CategorySetup from '@/pages/CategorySetup';
 import Assistant from '@/pages/Assistant';
 import VoiceAssistant from '@/pages/VoiceAssistant';
+import { Landing } from '@/components/Landing';
 import Conversations from '@/pages/Conversations';
 import Chats from '@/pages/Chats';
 import ChatThread from '@/pages/ChatThread';
@@ -112,7 +113,7 @@ export default function App() {
             {/* The Ask assistant is the home screen; /ask stays as an alias so
                 old links/bookmarks keep working. Both sit inside the tabbed
                 layout so the bottom bar stays visible. */}
-            <Route path="/" element={<VoiceAssistant />} />
+            <Route path="/" element={<Landing />} />
             <Route path="/ask" element={<VoiceAssistant />} />
             <Route path="/ask/:conversationId" element={<VoiceAssistant />} />
             {/* Full-page list of the shop's Ask conversations (sits below Home in the nav). */}
