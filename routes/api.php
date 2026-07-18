@@ -68,11 +68,11 @@ Route::post('/booking/{booking}/reassign', [\App\Http\Controllers\StaffControlle
 Route::post('/shops/{shop}/favourite', [GuestFavouriteController::class, 'toggle']);
 // Customer PII — owner-only (guest booking passes customer identity inline to
 // POST /shops/{shop}/book; neither the customer app nor the booking page reads these).
-Route::middleware(['auth:sanctum', 'shop.self'])->group(function () {
-    Route::get  ('/shops/{shop}/customers/lookup',     [ShopCustomerController::class, 'lookup']);
-    Route::get  ('/shops/{shop}/customers',            [ShopCustomerController::class, 'index']);
-    Route::get  ('/shops/{shop}/customers/{customer}', [ShopCustomerController::class, 'show']);
-    Route::patch('/shops/{shop}/customers/{customer}', [ShopCustomerController::class, 'update']);
+Route::middleware(['auth:sanctum', 'rbac.context', 'shop.self'])->group(function () {
+    Route::get  ('/shops/{shop}/customers/lookup',     [ShopCustomerController::class, 'lookup'])->middleware('can.perm:customers.view');
+    Route::get  ('/shops/{shop}/customers',            [ShopCustomerController::class, 'index'])->middleware('can.perm:customers.view');
+    Route::get  ('/shops/{shop}/customers/{customer}', [ShopCustomerController::class, 'show'])->middleware('can.perm:customers.view');
+    Route::patch('/shops/{shop}/customers/{customer}', [ShopCustomerController::class, 'update'])->middleware('can.perm:customers.manage');
 });
 Route::post('/shops/{shop}/book', [BookingController::class, 'bookSlot']);
 Route::post('/shops/{shop}/book-recurring', [BookingController::class, 'bookRecurring']);
@@ -115,7 +115,7 @@ Route::middleware(['auth:sanctum', 'module:bookings'])->group(function () {
 // ReportsController). Booking-specific reports also require the bookings module.
 // The AI summary endpoints are module-aware (Hunt OR bookings), so they need auth
 // only — a Hunt-only shop must still fetch its Hunt summary.
-Route::middleware(['auth:sanctum', 'module:bookings'])->group(function () {
+Route::middleware(['auth:sanctum', 'rbac.context', 'module:bookings', 'can.perm:reports.view'])->group(function () {
     Route::get('/shop/reports/revenue',       [\App\Http\Controllers\ReportsController::class, 'revenue']);
     Route::get('/shop/reports/staff',         [\App\Http\Controllers\ReportsController::class, 'staff']);
     Route::get('/shop/reports/services',      [\App\Http\Controllers\ReportsController::class, 'services']);
@@ -162,7 +162,7 @@ Route::middleware('auth:sanctum')->post('/shops/qr-login/approve/{token}', [Shop
 // Admin booking lists — authenticated + scoped to the token's shop (controllers).
 // Note: GET /bookings (above) stays public — it's the customer app's device-keyed
 // "My Bookings" view (customer/src/pages/Bookings.tsx).
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'rbac.context', 'can.perm:bookings.view'])->group(function () {
     Route::get('/shop/all-bookings', [ShopController::class, 'bookings']);
     Route::get('/shop/bookings', [BookingController::class, 'shopBookings']);
 });
