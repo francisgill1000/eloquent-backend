@@ -61,14 +61,16 @@ class PermissionCatalogTest extends TestCase
         $shop = Shop::factory()->create(['modules' => ['bookings']]);
         $keys = array_keys(PermissionCatalog::forShop($shop));
 
-        $this->assertContains('dashboard', $keys);
+        // Bookings-only top-level menu rows.
         $this->assertContains('bookings', $keys);
         $this->assertContains('customers', $keys);
         $this->assertNotContains('hunt', $keys);
-        // Shared groups always show.
-        $this->assertContains('assistant', $keys);
-        $this->assertContains('access', $keys);
-        $this->assertContains('settings', $keys);
+        // Insights/reports is a bookings Settings page.
+        $this->assertContains('reports', $keys);
+        // Shared menu rows always show (one per left-menu item).
+        foreach (['summary', 'home', 'chats', 'profile', 'access', 'settings'] as $key) {
+            $this->assertContains($key, $keys);
+        }
         // The stripped shape is { label, section, permissions } — no module key
         // leaks, but the nav `section` tag is passed through for UI nesting.
         $bookings = PermissionCatalog::forShop($shop)['bookings'];
@@ -81,11 +83,11 @@ class PermissionCatalogTest extends TestCase
     {
         $groups = PermissionCatalog::grouped();
 
-        // "Use the assistant" powers the Home page → top-level (section null).
-        $this->assertNull($groups['assistant']['section']);
-        $this->assertSame(['assistant.use'], array_keys($groups['assistant']['permissions']));
+        // "Use the assistant" powers the Home menu → its own top-level row.
+        $this->assertNull($groups['home']['section']);
+        $this->assertSame(['assistant.use'], array_keys($groups['home']['permissions']));
 
-        // "Configure the assistant" is a Settings page → nested under Settings.
+        // "Configure the assistant" is a Settings page → in the Settings section.
         $this->assertSame('Settings', $groups['assistant_config']['section']);
         $this->assertSame(['assistant.manage'], array_keys($groups['assistant_config']['permissions']));
 
@@ -94,17 +96,33 @@ class PermissionCatalogTest extends TestCase
         $this->assertContains('assistant.manage', PermissionCatalog::all());
     }
 
+    public function test_every_top_level_menu_has_its_own_group(): void
+    {
+        $groups = PermissionCatalog::grouped();
+
+        // One group per left-menu item; each is top-level (section null).
+        foreach (['summary', 'home', 'chats', 'bookings', 'customers', 'hunt', 'profile'] as $key) {
+            $this->assertArrayHasKey($key, $groups, "$key menu should have a permission group");
+            $this->assertNull($groups[$key]['section'], "$key should be a top-level row");
+        }
+
+        // The three menus that used to piggy-back on other perms now have their own.
+        $this->assertSame(['summary.view'], array_keys($groups['summary']['permissions']));
+        $this->assertSame(['chats.view'], array_keys($groups['chats']['permissions']));
+        $this->assertSame(['profile.view'], array_keys($groups['profile']['permissions']));
+    }
+
     public function test_settings_pages_are_tagged_with_the_settings_section(): void
     {
         $groups = PermissionCatalog::grouped();
 
-        // Pages reached through the Settings container nest under it.
-        foreach (['catalog', 'staff', 'hours', 'assistant_config', 'access', 'settings'] as $key) {
+        // Pages reached through the Settings container collapse under it.
+        foreach (['reports', 'catalog', 'staff', 'hours', 'assistant_config', 'access', 'settings'] as $key) {
             $this->assertSame('Settings', $groups[$key]['section'], "$key should be in the Settings section");
         }
 
-        // Top-level menu destinations are not sectioned.
-        foreach (['dashboard', 'bookings', 'customers', 'hunt', 'assistant'] as $key) {
+        // Top-level menu rows are not sectioned.
+        foreach (['summary', 'home', 'chats', 'bookings', 'customers', 'hunt', 'profile'] as $key) {
             $this->assertNull($groups[$key]['section'], "$key should be top-level");
         }
     }
@@ -115,12 +133,14 @@ class PermissionCatalogTest extends TestCase
         $keys = array_keys(PermissionCatalog::forShop($shop));
 
         $this->assertContains('hunt', $keys);
-        $this->assertNotContains('dashboard', $keys);
+        // Bookings-only rows are hidden for a Hunt shop.
+        $this->assertNotContains('reports', $keys);
         $this->assertNotContains('bookings', $keys);
         $this->assertNotContains('customers', $keys);
-        $this->assertContains('assistant', $keys);
-        $this->assertContains('access', $keys);
-        $this->assertContains('settings', $keys);
+        // Shared menu rows still show.
+        foreach (['summary', 'home', 'chats', 'profile', 'access', 'settings'] as $key) {
+            $this->assertContains($key, $keys);
+        }
     }
 
     public function test_forshop_both_modules_and_master_see_everything(): void

@@ -18,12 +18,16 @@ use App\Models\Shop;
  * permissions — never a mix. This mirrors the module gate the assistant registry
  * and system prompt already use.
  *
- * Each group also carries a `section` tag that mirrors the left-nav hierarchy so
- * the roles screen can nest permissions the way the app is actually navigated:
- * null = a top-level menu destination (Bookings, Customers, Business Hunt, the
- * Home assistant, the dashboard); 'Settings' = a page reached through the Settings
- * container (Services, Staff, Working hours, AI Assistant config, Users & Roles,
- * business settings). Keep this in step with admin/src/lib/nav.ts.
+ * The catalog is organised to mirror the left-side menu **one group per menu
+ * item** (Francis: "every left menu should have [a row] in [the] permissions
+ * list"). A group's `section` tag says where it sits: null = a top-level menu
+ * destination that gets its own row on the roles screen (AI Summary, Home, Chats,
+ * Bookings, Customers, Business Hunt, Profile); 'Settings' = a page reached
+ * through the Settings container (Insights/reports, Services, Staff, Working
+ * hours, AI Assistant config, Users & Roles, business settings) — the roles
+ * editor collapses the whole 'Settings' section into a single toggle. Keep this
+ * in step with admin/src/lib/nav.ts, admin/src/layout/DesktopSidebar.tsx and
+ * MobileLayout.tsx (the perm on each nav item must match the group here).
  */
 class PermissionCatalog
 {
@@ -35,9 +39,16 @@ class PermissionCatalog
     public static function grouped(): array
     {
         return [
-            // ---- Top-level menu destinations (section = null) ------------------
-            'dashboard' => ['label' => 'Dashboard', 'module' => 'bookings', 'section' => null, 'permissions' => [
-                'reports.view' => 'View dashboard & reports',
+            // ---- One group per top-level left-menu item (section = null) -------
+            // Each corresponds 1:1 to a menu row in the sidebar / bottom tabs.
+            'summary' => ['label' => 'AI Summary', 'module' => null, 'section' => null, 'permissions' => [
+                'summary.view' => 'See the AI summary',
+            ]],
+            'home' => ['label' => 'Home', 'module' => null, 'section' => null, 'permissions' => [
+                'assistant.use' => 'Use the Ask assistant',
+            ]],
+            'chats' => ['label' => 'Chats', 'module' => null, 'section' => null, 'permissions' => [
+                'chats.view' => 'See past assistant chats',
             ]],
             'bookings' => ['label' => 'Bookings', 'module' => 'bookings', 'section' => null, 'permissions' => [
                 'bookings.view'   => 'View bookings',
@@ -59,14 +70,15 @@ class PermissionCatalog
                 'leads.manage'   => 'Save & work leads (status, follow-ups)',
                 'leads.purchase' => 'Buy credit packs',
             ]],
-            // The assistant powers the Home page — a top-level destination — so its
-            // "use" permission lives up here. Its "configure" permission is a
-            // Settings page and lives in the Settings section below.
-            'assistant' => ['label' => 'Assistant', 'module' => null, 'section' => null, 'permissions' => [
-                'assistant.use' => 'Use the assistant',
+            'profile' => ['label' => 'Profile', 'module' => null, 'section' => null, 'permissions' => [
+                'profile.view' => 'View & edit the business profile',
             ]],
 
-            // ---- Reached through Settings (section = 'Settings') ---------------
+            // ---- Everything reached through Settings (section = 'Settings') ----
+            // These collapse to a single "Settings" toggle in the roles editor.
+            'reports' => ['label' => 'Insights & reports', 'module' => 'bookings', 'section' => 'Settings', 'permissions' => [
+                'reports.view' => 'View insights & reports',
+            ]],
             // Catalog: services + their parent categories share the services.*
             // permissions (the catalog + parent-category routes already enforce them).
             'catalog' => ['label' => 'Services & categories', 'module' => 'bookings', 'section' => 'Settings', 'permissions' => [

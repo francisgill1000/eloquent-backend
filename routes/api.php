@@ -123,7 +123,9 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'module:bookings', 'can.perm:
     Route::get('/shop/reports/insights',      [\App\Http\Controllers\ReportsController::class, 'insights']);
     Route::get('/shop/reports/export',        [\App\Http\Controllers\ReportsController::class, 'export']);
 });
-Route::middleware('auth:sanctum')->group(function () {
+// AI Summary is its own top-level menu (both products), gated by summary.view.
+// Owner + untagged tokens bypass (Rbac); a Hunt-only shop still gets its Hunt summary.
+Route::middleware(['auth:sanctum', 'rbac.context', 'can.perm:summary.view'])->group(function () {
     Route::get('/shop/reports/ai-summary',   [\App\Http\Controllers\ReportsController::class, 'aiSummary']);
     Route::get('/shop/reports/ai-summaries', [\App\Http\Controllers\ReportsController::class, 'aiSummaryHistory']);
 });
@@ -243,8 +245,12 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->grou
     Route::get('/shop/assistant/conversations/{conversation}',   [\App\Http\Controllers\OwnerAssistantController::class, 'messages']);
     Route::patch('/shop/assistant/conversations/{conversation}', [\App\Http\Controllers\OwnerAssistantController::class, 'rename']);
     Route::delete('/shop/assistant/conversations/{conversation}',[\App\Http\Controllers\OwnerAssistantController::class, 'destroy']);
-    Route::post('/shop/assistant/text',                          [\App\Http\Controllers\OwnerAssistantController::class, 'text']);
-    Route::post('/shop/assistant/voice',                         [\App\Http\Controllers\OwnerAssistantController::class, 'voice']);
+    // Using the Ask assistant (Home menu) spends money, so gate it on assistant.use.
+    // Reading past conversations (Chats menu) stays open to any authed shop user so
+    // the Home page never partially 403s; the Chats menu itself is hidden client-side
+    // for users without chats.view.
+    Route::post('/shop/assistant/text',                          [\App\Http\Controllers\OwnerAssistantController::class, 'text'])->middleware('can.perm:assistant.use');
+    Route::post('/shop/assistant/voice',                         [\App\Http\Controllers\OwnerAssistantController::class, 'voice'])->middleware('can.perm:assistant.use');
 });
 
 // Lead Finder / Business Hunt — search real UAE businesses, save + work them.

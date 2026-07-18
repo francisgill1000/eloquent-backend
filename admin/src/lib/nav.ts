@@ -72,10 +72,10 @@ export function firstAccessiblePath(shop: NavShop, can: CanFn): string {
     { to: '/', modules: BOTH, perm: 'assistant.use' },
     { to: '/bookings', modules: ['bookings'], perm: 'bookings.view' },
     { to: '/leads', modules: ['leads'], perm: 'leads.view' },
-    { to: '/ai-summary', modules: BOTH, perm: ['reports.view', 'leads.view'] },
+    { to: '/ai-summary', modules: BOTH, perm: 'summary.view' },
     { to: '/customers', modules: ['bookings'], perm: 'customers.view' },
     { to: '/settings', modules: BOTH, settings: true },
-    { to: '/profile', modules: BOTH, perm: 'settings.manage' },
+    { to: '/profile', modules: BOTH, perm: 'profile.view' },
   ];
   for (const c of order) {
     if (c.settings) {

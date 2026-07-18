@@ -10,16 +10,16 @@ type Tab = { id: string; label: string; href: string; icon: keyof typeof Icons; 
 const BOTH: Module[] = ['bookings', 'leads'];
 
 const ALL_TABS: Tab[] = [
-  { id: 'ai-summary', label: 'Summary', href: '/ai-summary', icon: 'Sparkle', modules: BOTH, perm: ['reports.view', 'leads.view'] },
+  { id: 'ai-summary', label: 'Summary', href: '/ai-summary', icon: 'Sparkle', modules: BOTH, perm: 'summary.view' },
   { id: 'home', label: 'Home', href: '/', icon: 'Home', modules: BOTH, perm: 'assistant.use' },
   // Past conversations with the Ask assistant.
-  { id: 'conversations', label: 'Chats', href: '/conversations', icon: 'Chat', modules: BOTH, perm: 'assistant.use' },
+  { id: 'conversations', label: 'Chats', href: '/conversations', icon: 'Chat', modules: BOTH, perm: 'chats.view' },
   { id: 'bookings', label: 'Bookings', href: '/bookings', icon: 'Calendar', modules: ['bookings'], perm: 'bookings.view' },
   // WhatsApp Chats — hidden temporarily behind WHATSAPP_ENABLED.
   { id: 'chats', label: 'Chats', href: '/chats', icon: 'Chat', modules: BOTH },
   // Reminders tab hidden for now — page still reachable at /reminders.
   { id: 'settings', label: 'Settings', href: '/settings', icon: 'Sliders', modules: BOTH },
-  { id: 'profile', label: 'Profile', href: '/profile', icon: 'Store', modules: BOTH, perm: 'settings.manage' },
+  { id: 'profile', label: 'Profile', href: '/profile', icon: 'Store', modules: BOTH, perm: 'profile.view' },
 ];
 // A master is the operator account — a single "All Businesses" tab, not the
 // shop-operational tabs.
