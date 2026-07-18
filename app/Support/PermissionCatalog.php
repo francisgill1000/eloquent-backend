@@ -17,21 +17,29 @@ use App\Models\Shop;
  * Bookings shop and a Business Hunt shop each see only their own product's
  * permissions — never a mix. This mirrors the module gate the assistant registry
  * and system prompt already use.
+ *
+ * Each group also carries a `section` tag that mirrors the left-nav hierarchy so
+ * the roles screen can nest permissions the way the app is actually navigated:
+ * null = a top-level menu destination (Bookings, Customers, Business Hunt, the
+ * Home assistant, the dashboard); 'Settings' = a page reached through the Settings
+ * container (Services, Staff, Working hours, AI Assistant config, Users & Roles,
+ * business settings). Keep this in step with admin/src/lib/nav.ts.
  */
 class PermissionCatalog
 {
     /**
-     * module key => ['label' => string, 'module' => ?string, 'permissions' => [name => human label]]
+     * module key => ['label' => string, 'module' => ?string, 'section' => ?string, 'permissions' => [name => human label]]
      *
-     * @return array<string, array{label: string, module: ?string, permissions: array<string, string>}>
+     * @return array<string, array{label: string, module: ?string, section: ?string, permissions: array<string, string>}>
      */
     public static function grouped(): array
     {
         return [
-            'dashboard' => ['label' => 'Dashboard', 'module' => 'bookings', 'permissions' => [
+            // ---- Top-level menu destinations (section = null) ------------------
+            'dashboard' => ['label' => 'Dashboard', 'module' => 'bookings', 'section' => null, 'permissions' => [
                 'reports.view' => 'View dashboard & reports',
             ]],
-            'bookings' => ['label' => 'Bookings', 'module' => 'bookings', 'permissions' => [
+            'bookings' => ['label' => 'Bookings', 'module' => 'bookings', 'section' => null, 'permissions' => [
                 'bookings.view'   => 'View bookings',
                 'bookings.create' => 'Create bookings',
                 'bookings.update' => 'Update bookings',
@@ -39,44 +47,50 @@ class PermissionCatalog
             ]],
             // In Business Hunt these are leads, a different entity — so Customers
             // belongs to the bookings product only (Francis's call).
-            'customers' => ['label' => 'Customers', 'module' => 'bookings', 'permissions' => [
+            'customers' => ['label' => 'Customers', 'module' => 'bookings', 'section' => null, 'permissions' => [
                 'customers.view'   => 'View customers',
                 'customers.manage' => 'Manage customers',
             ]],
-            // Catalog: services + their parent categories share the services.*
-            // permissions (the catalog + parent-category routes already enforce them).
-            'catalog' => ['label' => 'Services & categories', 'module' => 'bookings', 'permissions' => [
-                'services.view'   => 'View services & categories',
-                'services.manage' => 'Add, edit & delete services & categories',
-            ]],
-            'staff' => ['label' => 'Staff', 'module' => 'bookings', 'permissions' => [
-                'staff.view'   => 'View staff',
-                'staff.manage' => 'Add, edit, delete staff & schedules',
-            ]],
-            'hours' => ['label' => 'Working hours', 'module' => 'bookings', 'permissions' => [
-                'working_hours.view'   => 'View working hours',
-                'working_hours.manage' => 'Set working hours & closures',
-            ]],
             // Business Hunt (leads module). New in WS2 — Hunt had no per-user
             // permissions before; these gate the Hunt tools + LeadController routes.
-            'hunt' => ['label' => 'Business Hunt', 'module' => 'leads', 'permissions' => [
+            'hunt' => ['label' => 'Business Hunt', 'module' => 'leads', 'section' => null, 'permissions' => [
                 'leads.view'     => 'View leads, pipeline & Hunt summary',
                 'leads.search'   => 'Search businesses (spends credits)',
                 'leads.manage'   => 'Save & work leads (status, follow-ups)',
                 'leads.purchase' => 'Buy credit packs',
             ]],
-            // Shared infrastructure (module = null) — shown for every shop.
-            'assistant' => ['label' => 'AI Assistant', 'module' => null, 'permissions' => [
-                'assistant.use'    => 'Use the assistant',
+            // The assistant powers the Home page — a top-level destination — so its
+            // "use" permission lives up here. Its "configure" permission is a
+            // Settings page and lives in the Settings section below.
+            'assistant' => ['label' => 'Assistant', 'module' => null, 'section' => null, 'permissions' => [
+                'assistant.use' => 'Use the assistant',
+            ]],
+
+            // ---- Reached through Settings (section = 'Settings') ---------------
+            // Catalog: services + their parent categories share the services.*
+            // permissions (the catalog + parent-category routes already enforce them).
+            'catalog' => ['label' => 'Services & categories', 'module' => 'bookings', 'section' => 'Settings', 'permissions' => [
+                'services.view'   => 'View services & categories',
+                'services.manage' => 'Add, edit & delete services & categories',
+            ]],
+            'staff' => ['label' => 'Staff', 'module' => 'bookings', 'section' => 'Settings', 'permissions' => [
+                'staff.view'   => 'View staff',
+                'staff.manage' => 'Add, edit, delete staff & schedules',
+            ]],
+            'hours' => ['label' => 'Working hours', 'module' => 'bookings', 'section' => 'Settings', 'permissions' => [
+                'working_hours.view'   => 'View working hours',
+                'working_hours.manage' => 'Set working hours & closures',
+            ]],
+            'assistant_config' => ['label' => 'AI Assistant', 'module' => null, 'section' => 'Settings', 'permissions' => [
                 'assistant.manage' => 'Configure the assistant',
             ]],
-            'access' => ['label' => 'Users & Roles', 'module' => null, 'permissions' => [
+            'access' => ['label' => 'Users & Roles', 'module' => null, 'section' => 'Settings', 'permissions' => [
                 'users.view'   => 'View users',
                 'users.manage' => 'Add, edit & delete users',
                 'roles.view'   => 'View roles',
                 'roles.manage' => 'Add, edit & delete roles',
             ]],
-            'settings' => ['label' => 'Settings', 'module' => null, 'permissions' => [
+            'settings' => ['label' => 'Business settings', 'module' => null, 'section' => 'Settings', 'permissions' => [
                 'settings.manage' => 'Manage business settings',
             ]],
         ];
@@ -86,9 +100,10 @@ class PermissionCatalog
      * The catalog filtered to the groups relevant to a shop's enabled modules,
      * for the roles UI. A group shows when it's shared (module null), the shop is
      * a master, or the shop has the group's module enabled. The `module` tag is
-     * stripped so the public shape stays { label, permissions }.
+     * stripped so the public shape stays { label, section, permissions } — the UI
+     * uses `section` to nest Settings pages under a Settings header.
      *
-     * @return array<string, array{label: string, permissions: array<string, string>}>
+     * @return array<string, array{label: string, section: ?string, permissions: array<string, string>}>
      */
     public static function forShop(?Shop $shop): array
     {
@@ -98,7 +113,11 @@ class PermissionCatalog
             $visible = $module === null
                 || ($shop !== null && ($shop->is_master || $shop->hasModule($module)));
             if ($visible) {
-                $out[$key] = ['label' => $group['label'], 'permissions' => $group['permissions']];
+                $out[$key] = [
+                    'label'       => $group['label'],
+                    'section'     => $group['section'],
+                    'permissions' => $group['permissions'],
+                ];
             }
         }
         return $out;

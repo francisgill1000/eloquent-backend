@@ -389,26 +389,54 @@ function RoleEditor({
       </div>
 
       <label className="ac-label" style={{ marginBottom: 4 }}>Permissions</label>
-      {Object.entries(groups).map(([key, group]) => {
-        const perms = Object.keys(group.permissions);
-        const allOn = perms.every((p) => selected.has(p));
-        return (
-          <div className="ac-matrix-group" key={key}>
-            <div className="ac-matrix-head">
-              <span className="ac-matrix-label">{group.label}</span>
-              <button className="ac-selectall" onClick={() => toggleGroup(perms, allOn)}>
-                {allOn ? 'Clear' : 'Select all'}
-              </button>
+      {(() => {
+        const renderGroup = ([key, group]: [string, PermGroup], nested: boolean) => {
+          const perms = Object.keys(group.permissions);
+          const allOn = perms.every((p) => selected.has(p));
+          return (
+            <div className={`ac-matrix-group${nested ? ' ac-matrix-nested' : ''}`} key={key}>
+              <div className="ac-matrix-head">
+                <span className="ac-matrix-label">{group.label}</span>
+                <button className="ac-selectall" onClick={() => toggleGroup(perms, allOn)}>
+                  {allOn ? 'Clear' : 'Select all'}
+                </button>
+              </div>
+              {Object.entries(group.permissions).map(([perm, label]) => (
+                <label className="ac-perm" key={perm}>
+                  <input type="checkbox" checked={selected.has(perm)} onChange={() => toggle(perm)} />
+                  {label}
+                </label>
+              ))}
             </div>
-            {Object.entries(group.permissions).map(([perm, label]) => (
-              <label className="ac-perm" key={perm}>
-                <input type="checkbox" checked={selected.has(perm)} onChange={() => toggle(perm)} />
-                {label}
-              </label>
+          );
+        };
+
+        // Top-level groups render flat; sectioned groups (e.g. "Settings") nest
+        // under a header, mirroring how the app is navigated. Section order
+        // follows first-appearance in the catalog.
+        const entries = Object.entries(groups);
+        const top = entries.filter(([, g]) => !g.section);
+        const sections: Array<[string, Array<[string, PermGroup]>]> = [];
+        for (const entry of entries) {
+          const section = entry[1].section;
+          if (!section) continue;
+          let bucket = sections.find(([s]) => s === section);
+          if (!bucket) { bucket = [section, []]; sections.push(bucket); }
+          bucket[1].push(entry);
+        }
+
+        return (
+          <>
+            {top.map((entry) => renderGroup(entry, false))}
+            {sections.map(([section, groupsInSection]) => (
+              <div className="ac-matrix-section" key={section}>
+                <div className="ac-matrix-section-head">{section}</div>
+                {groupsInSection.map((entry) => renderGroup(entry, true))}
+              </div>
             ))}
-          </div>
+          </>
         );
-      })}
+      })()}
 
       <div className="ac-editor-actions">
         <button className="c-btn c-btn-ghost" onClick={onCancel}>Cancel</button>

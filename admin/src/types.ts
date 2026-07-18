@@ -147,8 +147,13 @@ export type AuthUser = { id: number | null; name: string; is_active: boolean };
 
 export type Me = { user: AuthUser | null; permissions: string[] };
 
-/** A permission module group from the read-only catalog. */
-export type PermGroup = { label: string; permissions: Record<string, string> };
+/**
+ * A permission module group from the read-only catalog. `section` mirrors the
+ * left-nav hierarchy: null = a top-level menu destination; a string (e.g.
+ * "Settings") = a page reached through that container, and the roles editor
+ * nests the group under a header with that name.
+ */
+export type PermGroup = { label: string; section: string | null; permissions: Record<string, string> };
 
 export type Role = {
   id: number;
