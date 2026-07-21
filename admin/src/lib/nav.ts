@@ -35,14 +35,23 @@ export type SettingsOption = {
   modules: Module[];
   /** View permission that reveals this option. Omitted = always shown. */
   perm?: Perm;
+  /**
+   * True for options that merely duplicate a top-level nav item (Business Hunt,
+   * Customers). They live in the Settings list only so mobile — which has no
+   * bottom-tab for them — can still reach them. They must NOT count toward
+   * whether the (desktop) Settings menu appears: a Manager with only Business
+   * Hunt access should see Business Hunt, not a Settings menu holding a
+   * duplicate Business Hunt link.
+   */
+  shortcut?: boolean;
 };
 
 const ALL_SETTINGS_OPTIONS: SettingsOption[] = [
-  { label: 'Business Hunt', sub: 'Find UAE businesses & win them', to: '/leads', icon: 'Search', modules: ['leads'], perm: 'leads.view' },
+  { label: 'Business Hunt', sub: 'Find UAE businesses & win them', to: '/leads', icon: 'Search', modules: ['leads'], perm: 'leads.view', shortcut: true },
   { label: 'Working Hours', sub: 'Set your open & close times', to: '/working-hours', icon: 'Clock', modules: ['bookings'], perm: 'working_hours.view' },
   { label: 'Services', sub: 'Add or edit what you offer', to: '/services', icon: 'Grid', modules: ['bookings'], perm: 'services.view' },
   { label: 'Staff', sub: 'Add & manage your team', to: '/staff', icon: 'Users', modules: ['bookings'], perm: 'staff.view' },
-  { label: 'Customers', sub: 'Your customer list & visit history', to: '/customers', icon: 'User', modules: ['bookings'], perm: 'customers.view' },
+  { label: 'Customers', sub: 'Your customer list & visit history', to: '/customers', icon: 'User', modules: ['bookings'], perm: 'customers.view', shortcut: true },
   { label: 'Demo simulation', sub: 'Play a scripted voice booking to record demo videos', to: '/settings/simulation', icon: 'Mic', modules: ['bookings'], perm: 'settings.manage' },
   { label: 'Recurring booking', sub: 'Set up a regular weekly or monthly appointment', to: '/bookings/recurring', icon: 'Calendar', modules: ['bookings'], perm: 'bookings.view' },
   { label: 'Booking notifications', sub: 'Reminders, reviews & waitlist messages', to: '/settings/notifications', icon: 'Bell', modules: ['bookings'], perm: 'settings.manage' },
@@ -61,6 +70,16 @@ export const SETTINGS_OPTIONS: SettingsOption[] = ALL_SETTINGS_OPTIONS.filter(
 /** Settings options visible to this shop + user (module + permission gated). */
 export function visibleSettingsOptions(shop: NavShop, can: CanFn): SettingsOption[] {
   return SETTINGS_OPTIONS.filter((o) => navAllowed(o, shop, can));
+}
+
+/**
+ * Visible Settings options that are genuine Settings pages — excludes shortcut
+ * entries that duplicate a top-level nav item. This is what decides whether the
+ * desktop Settings menu appears, so granting only a top-level feature (e.g.
+ * Business Hunt) never surfaces an otherwise-empty Settings menu.
+ */
+export function visibleSettingsPages(shop: NavShop, can: CanFn): SettingsOption[] {
+  return visibleSettingsOptions(shop, can).filter((o) => !o.shortcut);
 }
 
 /**
