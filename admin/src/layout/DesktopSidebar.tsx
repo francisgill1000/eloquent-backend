@@ -3,7 +3,7 @@ import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { WHATSAPP_ENABLED } from '@/lib/features';
 import { type Module } from '@/lib/modules';
-import { navAllowed, visibleSettingsOptions, type Perm } from '@/lib/nav';
+import { navAllowed, visibleSettingsPages, type Perm } from '@/lib/nav';
 
 /**
  * Persistent desktop navigation rail. Rendered by AppShell for every
@@ -39,8 +39,10 @@ export function DesktopSidebar() {
 
   const nav = BASE_NAV
     .filter((n) => WHATSAPP_ENABLED || n.to !== '/chats')
-    // Settings is a container: show it only if the user can see ≥1 of its items.
-    .filter((n) => (n.to === '/settings' ? visibleSettingsOptions(shop, can).length > 0 : navAllowed(n, shop, can)));
+    // Settings is a container: show it only if the user can see ≥1 real Settings
+    // page (shortcuts like Business Hunt are already top-level items here, so they
+    // don't count — otherwise granting only Business Hunt would surface Settings).
+    .filter((n) => (n.to === '/settings' ? visibleSettingsPages(shop, can).length > 0 : navAllowed(n, shop, can)));
   // A master is the operator account — it only manages other businesses, so it
   // gets a single menu item instead of the shop-operational nav.
   const items: NavItem[] = shop?.is_master
