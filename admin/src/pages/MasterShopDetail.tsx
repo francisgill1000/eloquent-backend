@@ -31,6 +31,13 @@ export default function MasterShopDetail() {
   const [grantingCredits, setGrantingCredits] = useState(false);
   const [creditMsg, setCreditMsg] = useState('');
   const [togglingSelfServe, setTogglingSelfServe] = useState(false);
+  const [email, setEmail] = useState(seeded?.email ?? '');
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [emailSaved, setEmailSaved] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [settingPassword, setSettingPassword] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState('');
+  const [justSetPassword, setJustSetPassword] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,6 +51,7 @@ export default function MasterShopDetail() {
         const found = list.find((s) => String(s.id) === String(id)) ?? null;
         setShop(found);
         setPersona(found?.persona ?? '');
+        setEmail(found?.email ?? '');
       })
       .catch(() => { if (alive) setError('Could not load this business.'); })
       .finally(() => { if (alive) setLoading(false); });
@@ -142,13 +150,48 @@ export default function MasterShopDetail() {
     }
   };
 
-  const copyCreds = async () => {
-    if (!shop) return;
+  const saveEmail = async () => {
+    if (!shop || !email.trim()) return;
+    setSavingEmail(true);
+    setError('');
     try {
-      await navigator.clipboard.writeText(`Business ID: ${shop.shop_code}\nPIN: ${shop.pin}`);
+      const updated = await updateMasterShop(shop.id, { email: email.trim() });
+      setShop(updated);
+      setEmail(updated.email ?? '');
+      setEmailSaved(true);
+      setTimeout(() => setEmailSaved(false), 1500);
+    } catch {
+      setError('Could not save the email.');
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
+  const setShopPassword = async () => {
+    if (!shop) return;
+    const pwd = newPassword.trim();
+    if (pwd.length < 8) { setPasswordMsg('Password must be at least 8 characters.'); return; }
+    setSettingPassword(true);
+    setPasswordMsg('');
+    try {
+      await updateMasterShop(shop.id, { password: pwd });
+      setJustSetPassword(pwd);
+      setNewPassword('');
+      setPasswordMsg('Password set ✓ — copy it below before leaving this page.');
+    } catch {
+      setPasswordMsg('Could not set the password.');
+    } finally {
+      setSettingPassword(false);
+    }
+  };
+
+  const copyPassword = async () => {
+    if (!justSetPassword) return;
+    try {
+      await navigator.clipboard.writeText(justSetPassword);
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
-    } catch { /* values stay visible */ }
+    } catch { /* value stays visible */ }
   };
 
   if (loading) return <div className="m-screen"><Spinner label="Loading…" /></div>;
@@ -161,10 +204,6 @@ export default function MasterShopDetail() {
   );
 
   const inactive = shop.status !== 'active';
-  const waHref = shop.phone
-    ? `https://wa.me/${shop.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
-        `Your Business Lens login\nBusiness ID: ${shop.shop_code}\nPIN: ${shop.pin}`)}`
-    : null;
 
   return (
     <div className="m-screen"><div className="m-scroll">
@@ -187,17 +226,33 @@ export default function MasterShopDetail() {
 
       <div className="c-msd-section">
         <h3 className="c-msd-h">Credentials</h3>
-        <div className="c-master-creds">
-          <span><b>ID</b> {shop.shop_code || '—'}</span>
-          <span><b>PIN</b> {shop.pin || '—'}</span>
-          <button className="c-icon-btn" aria-label="Copy credentials" onClick={() => void copyCreds()}>
-            {copied ? <Icons.Check size={14} /> : <Icons.Copy size={14} />}
-          </button>
+        <label className="c-field-label" htmlFor="msd-email">Email</label>
+        <div className="c-input-row" style={{ marginBottom: 10 }}>
+          <input id="msd-email" type="email" value={email}
+            onChange={(e) => { setEmail(e.target.value); setEmailSaved(false); }} />
         </div>
-        {waHref && (
-          <a className="c-btn-ghost c-msd-action" href={waHref} target="_blank" rel="noreferrer">
-            <Icons.WhatsApp size={15} /> Send login to owner
-          </a>
+        <button className="c-btn-ghost c-msd-action" disabled={savingEmail || !email.trim()} onClick={() => void saveEmail()}>
+          {savingEmail ? 'Saving…' : emailSaved ? 'Saved ✓' : 'Save email'}
+        </button>
+
+        <label className="c-field-label" htmlFor="msd-password" style={{ marginTop: 14, display: 'block' }}>New password</label>
+        <div className="c-input-row" style={{ marginBottom: 10 }}>
+          <input id="msd-password" type="text" placeholder="At least 8 characters" value={newPassword}
+            onChange={(e) => { setNewPassword(e.target.value); setPasswordMsg(''); }} />
+        </div>
+        <button className="c-btn-ghost c-msd-action" disabled={settingPassword || newPassword.trim().length < 8}
+          onClick={() => void setShopPassword()}>
+          {settingPassword ? 'Setting…' : 'Set password'}
+        </button>
+        {passwordMsg && <p className="c-msd-help">{passwordMsg}</p>}
+
+        {justSetPassword && (
+          <div className="c-master-creds" style={{ marginTop: 10 }}>
+            <span><b>Password</b> {justSetPassword}</span>
+            <button className="c-icon-btn" aria-label="Copy password" onClick={() => void copyPassword()}>
+              {copied ? <Icons.Check size={14} /> : <Icons.Copy size={14} />}
+            </button>
+          </div>
         )}
         <p className="c-msd-help">Send these login details to the owner.</p>
       </div>
