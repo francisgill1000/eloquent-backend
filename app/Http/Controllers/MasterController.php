@@ -58,6 +58,8 @@ class MasterController extends Controller
             'modules' => ['sometimes', 'array'],
             'modules.*' => ['string', 'in:bookings,leads'],
             'hunt_self_serve' => ['sometimes', 'boolean'],
+            'email' => ['sometimes', 'email', 'max:255', 'unique:shops,email,' . $shop->id],
+            'password' => ['sometimes', 'string', 'min:8'],
         ]);
 
         if (array_key_exists('persona', $data)) {
@@ -79,7 +81,7 @@ class MasterController extends Controller
             'id' => $shop->id,
             'name' => $shop->name,
             'shop_code' => $shop->shop_code,
-            'pin' => $shop->pin,
+            'email' => $shop->email,
             'phone' => $shop->phone,
             'location' => $shop->location,
             'category' => ServiceCategories::name((int) $shop->category_id),
