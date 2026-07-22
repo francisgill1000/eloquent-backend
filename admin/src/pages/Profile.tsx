@@ -50,8 +50,7 @@ export default function Profile() {
 
   const change = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }));
 
-  const shopCode = (shop?.shop_code as string) || '';
-  const pin = (shop?.pin as string) || '';
+  const loginEmail = shop?.email || '';
   // In-app self-service booking page (same admin app, public route). Replaces
   // the old external customer web app.
   const qrTarget = shop?.id ? `${window.location.origin}/book/${shop.id}` : '';
@@ -141,7 +140,7 @@ export default function Profile() {
     ctx.fillText('Scan to book on Business Lens', W / 2, qr + pad * 2 + Math.round(footer * 0.78));
     const link = document.createElement('a');
     link.href = c.toDataURL('image/png');
-    link.download = `${shopCode || shop?.name || 'admin'}-qr.png`.replace(/\s+/g, '-').toLowerCase();
+    link.download = `${shop?.name || 'admin'}-qr.png`.replace(/\s+/g, '-').toLowerCase();
     link.click();
   };
 
@@ -232,22 +231,15 @@ export default function Profile() {
 
           <div className="pf-col pf-col-side">
         {/* Credentials */}
-        {(shopCode || pin) && (
+        {loginEmail && (
           <>
             <div className="c-section-title">Credentials</div>
             <div className="c-cred-grid">
               <div className="c-cred">
-                <div className="c-cred-label">Business Code</div>
+                <div className="c-cred-label">Login Email</div>
                 <div className="c-cred-value-row">
-                  <span className="c-cred-value">{shopCode || '—'}</span>
+                  <span className="c-cred-value">{loginEmail}</span>
                   <span className="c-cred-icon"><Icons.Tag size={16} /></span>
-                </div>
-              </div>
-              <div className="c-cred">
-                <div className="c-cred-label">Access PIN</div>
-                <div className="c-cred-value-row">
-                  <span className="c-cred-value">{pin || '—'}</span>
-                  <span className="c-cred-icon"><Icons.Key size={16} /></span>
                 </div>
               </div>
             </div>
@@ -263,7 +255,7 @@ export default function Profile() {
                 <QRCodeSVG value={appUrl} size={188} level="M" bgColor="#ffffff" fgColor="#0a0e0c" />
               </div>
               <div className="c-qr-name">Open the app</div>
-              <p className="c-qr-hint">Scan to open Business Lens on your phone, then sign in with your business code &amp; PIN.</p>
+              <p className="c-qr-hint">Scan to open Business Lens on your phone, then sign in with your email &amp; password.</p>
               <button className="c-btn-ghost" onClick={() => void copyAppLink()}>
                 <Icons.Copy size={16} /> {appCopied ? 'Copied!' : 'Copy link'}
               </button>
