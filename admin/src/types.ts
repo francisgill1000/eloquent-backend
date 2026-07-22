@@ -173,7 +173,7 @@ export type MasterShop = {
   id: number;
   name: string;
   shop_code?: string;
-  pin?: string;
+  email?: string;
   phone?: string | null;
   location?: string | null;
   category?: string | null;

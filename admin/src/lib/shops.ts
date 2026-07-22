@@ -2,10 +2,10 @@ import api from './api';
 import type { AuthUser, MasterShop, ServiceCategory, Shop, StaffMember, WorkingHours } from '@/types';
 
 export async function shopLogin(
-  shopCode: string,
-  pin: string,
+  email: string,
+  password: string,
 ): Promise<{ token: string; shop: Shop; user: AuthUser | null; permissions: string[] }> {
-  const { data } = await api.post('shops/login', { shop_code: shopCode, pin });
+  const { data } = await api.post('shops/login', { email, password });
   return {
     token: data.token,
     shop: data.shop,
@@ -15,6 +15,7 @@ export async function shopLogin(
 }
 
 
+/** Master account only: create a new business (POST /shops requires master auth). */
 export async function registerShop(form: Record<string, unknown>): Promise<{ token?: string; shop?: Shop }> {
   const { data } = await api.post('/shops', form);
   return data;
@@ -84,6 +85,8 @@ export async function updateMasterShop(
     persona?: string | null;
     modules?: Array<'bookings' | 'leads'>;
     hunt_self_serve?: boolean;
+    email?: string;
+    password?: string;
   },
 ): Promise<MasterShop> {
   const { data } = await api.patch(`/master/shops/${id}`, payload);
