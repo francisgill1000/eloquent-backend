@@ -10,6 +10,7 @@ class ShopLoginActivity extends Model
     use HasFactory;
 
     const METHOD_PIN = 'pin';
+    const METHOD_PASSWORD = 'password';
     const METHOD_QR = 'qr';
     const METHOD_AUTO = 'auto';
 
