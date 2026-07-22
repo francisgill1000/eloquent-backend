@@ -2,43 +2,55 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { getServiceCategories, registerShop } from '@/lib/shops';
+import { useShop } from '@/context/ShopContext';
 import type { ServiceCategory } from '@/types';
 
-type Created = { name: string; code: string; pin: string };
+type Created = { name: string; email: string; password: string };
 
 export default function MasterShopCreate() {
   const navigate = useNavigate();
+  const { shop: me } = useShop();
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState<Created | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (me && !me.is_master) navigate('/');
+  }, [me, navigate]);
 
   useEffect(() => {
     getServiceCategories().then(setCategories).catch(() => { /* non-fatal: empty list */ });
   }, []);
 
-  const resetForm = () => { setName(''); setPhone(''); setCategoryId(''); };
+  const resetForm = () => { setName(''); setPhone(''); setEmail(''); setPassword(''); setCategoryId(''); };
 
   const handleSave = async () => {
     if (!name.trim()) { setError('Business name is required.'); return; }
-    if (!phone.trim()) { setError('Phone number is required.'); return; }
+    if (!email.trim()) { setError('Email is required.'); return; }
+    if (password.trim().length < 8) { setError('Password must be at least 8 characters.'); return; }
     if (!categoryId) { setError('Please choose a category.'); return; }
     setSaving(true);
     setError('');
     try {
       const res = await registerShop({
         name: name.trim(),
-        phone: phone.trim(),
+        phone: phone.trim() || undefined,
+        email: email.trim(),
+        password,
         category_id: Number(categoryId),
         is_verified: true,
       });
       setCreated({
         name: res.shop?.name ?? name.trim(),
-        code: String(res.shop?.shop_code ?? ''),
-        pin: String(res.shop?.pin ?? ''),
+        email: email.trim(),
+        password,
       });
       resetForm();
     } catch (e: unknown) {
@@ -47,6 +59,15 @@ export default function MasterShopCreate() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const copyCreds = async () => {
+    if (!created) return;
+    try {
+      await navigator.clipboard.writeText(`Email: ${created.email}\nPassword: ${created.password}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch { /* values stay visible */ }
   };
 
   return (
@@ -64,11 +85,10 @@ export default function MasterShopCreate() {
           </div>
           <p className="c-msd-sub" style={{ marginTop: 0 }}>Send these login details to the owner.</p>
           <div className="c-master-creds">
-            <span><b>ID</b> {created.code}</span>
-            <span><b>PIN</b> {created.pin}</span>
-            <button className="c-icon-btn" aria-label="Copy new credentials"
-              onClick={() => void navigator.clipboard.writeText(`Business ID: ${created.code}\nPIN: ${created.pin}`).catch(() => undefined)}>
-              <Icons.Copy size={14} />
+            <span><b>Email</b> {created.email}</span>
+            <span><b>Password</b> {created.password}</span>
+            <button className="c-icon-btn" aria-label="Copy new credentials" onClick={() => void copyCreds()}>
+              {copied ? <Icons.Check size={14} /> : <Icons.Copy size={14} />}
             </button>
           </div>
           <button className="c-btn c-btn-block" style={{ marginTop: 16 }} onClick={() => navigate('/master')}>
@@ -90,6 +110,18 @@ export default function MasterShopCreate() {
           <div className="c-input-row">
             <input id="mb-phone" type="tel" placeholder="+9715xxxxxxxx" value={phone}
               onChange={(e) => { setPhone(e.target.value); setError(''); }} />
+          </div>
+
+          <label className="c-field-label" htmlFor="mb-email">Email</label>
+          <div className="c-input-row">
+            <input id="mb-email" type="email" placeholder="owner@business.com" value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(''); }} />
+          </div>
+
+          <label className="c-field-label" htmlFor="mb-password">Password</label>
+          <div className="c-input-row">
+            <input id="mb-password" type="text" placeholder="At least 8 characters" value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(''); }} />
           </div>
 
           <label className="c-field-label" htmlFor="mb-category">Service Category</label>
