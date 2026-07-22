@@ -7,9 +7,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Shop login credentials (pin) and device_id must never leak through public
- * endpoints; owner-facing responses keep showing the PIN (bizrezzy displays
- * it on the Register, Profile and master screens).
+ * Shop login credentials (pin, password) and device_id must never leak
+ * through public endpoints. Since the switch to email+password login, `pin`
+ * is dormant and is no longer exposed anywhere, including login/auto-login.
  */
 class ShopSecretsTest extends TestCase
 {
@@ -30,17 +30,25 @@ class ShopSecretsTest extends TestCase
         $this->assertArrayNotHasKey('device_id', $detail);
     }
 
-    public function test_owner_login_and_register_still_return_pin(): void
+    public function test_owner_login_no_longer_returns_pin(): void
     {
-        $shop = Shop::factory()->create();
+        $shop = Shop::factory()->create(['email' => 'owner@example.com', 'password' => 'correct-horse']);
 
         $login = $this->postJson('/api/shops/login', [
-            'shop_code' => $shop->shop_code,
-            'pin' => $shop->pin,
+            'email' => 'owner@example.com',
+            'password' => 'correct-horse',
         ])->assertCreated()->json();
-        $this->assertSame($shop->pin, $login['shop']['pin']);
-        $this->assertArrayNotHasKey('device_id', $login['shop']);
 
+        $this->assertArrayNotHasKey('pin', $login['shop']);
+        $this->assertArrayNotHasKey('device_id', $login['shop']);
+    }
+
+    public function test_register_still_returns_pin(): void
+    {
+        // Registration (POST /api/shops) is not touched by this task — it's
+        // still the pre-master-gating public endpoint here. A later task
+        // changes this behavior (master-auth-gated, no more pin exposure);
+        // this test documents the current, still-accurate state.
         $register = $this->postJson('/api/shops', [
             'name' => 'Fresh Cuts',
             'category_id' => 1,
@@ -48,7 +56,7 @@ class ShopSecretsTest extends TestCase
         $this->assertNotEmpty($register['shop']['pin']);
     }
 
-    public function test_auto_login_returns_pin_for_the_linked_device(): void
+    public function test_auto_login_no_longer_returns_pin(): void
     {
         $shop = Shop::factory()->create(['device_id' => 'dev-owner-7']);
 
@@ -57,6 +65,6 @@ class ShopSecretsTest extends TestCase
             ->assertOk()->json();
 
         $this->assertTrue($res['authenticated']);
-        $this->assertSame($shop->pin, $res['shop']['pin']);
+        $this->assertArrayNotHasKey('pin', $res['shop']);
     }
 }
