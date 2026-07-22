@@ -156,8 +156,7 @@ class ShopController extends Controller
         if ($shop->category_confirmed_at) {
             return response()->json([
                 'message' => 'Category already set',
-                // bizrezzy replaces its stored shop with this — keep pin visible
-                'shop' => $shop->fresh()->makeVisible('pin'),
+                'shop' => $shop->fresh(),
             ]);
         }
 
@@ -172,8 +171,7 @@ class ShopController extends Controller
 
         return response()->json([
             'message' => 'Category saved',
-            // bizrezzy replaces its stored shop with this — keep pin visible
-            'shop' => $shop->fresh()->makeVisible('pin'),
+            'shop' => $shop->fresh(),
         ]);
     }
 
@@ -181,6 +179,10 @@ class ShopController extends Controller
     {
         $email = $request->input('email');
         $password = $request->input('password');
+
+        if (!$email || !$password) {
+            return response()->json(['message' => 'Invalid credentials'], 401);
+        }
 
         $shop = Shop::where('email', $email)->first();
 

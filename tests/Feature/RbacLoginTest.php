@@ -54,4 +54,10 @@ class RbacLoginTest extends TestCase
             'password' => 'anything',
         ])->assertStatus(401);
     }
+
+    public function test_missing_email_or_password_is_rejected(): void
+    {
+        $this->postJson('/api/shops/login', ['password' => 'anything'])->assertStatus(401);
+        $this->postJson('/api/shops/login', ['email' => 'owner@example.com'])->assertStatus(401);
+    }
 }
