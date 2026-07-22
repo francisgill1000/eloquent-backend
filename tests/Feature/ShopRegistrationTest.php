@@ -21,31 +21,69 @@ class ShopRegistrationTest extends TestCase
         return $new->plainTextToken;
     }
 
-    public function test_registers_with_name_and_phone_and_returns_credentials(): void
+    public function test_registration_requires_master_auth(): void
     {
-        $response = $this->postJson('/api/shops', [
+        $this->postJson('/api/shops', [
             'name' => 'Shakaina Salon',
             'phone' => '0554501483',
+            'email' => 'shakaina@example.com',
+            'password' => 'at-least-8-chars',
+            'category_id' => 1,
+            'is_verified' => true,
+        ])->assertStatus(401);
+    }
+
+    public function test_master_registers_a_shop_with_email_and_password(): void
+    {
+        $master = Shop::factory()->create(['is_master' => true]);
+        $token = $master->createToken('t')->plainTextToken;
+
+        $response = $this->withHeaders(['Authorization' => "Bearer $token"])->postJson('/api/shops', [
+            'name' => 'Shakaina Salon',
+            'phone' => '0554501483',
+            'email' => 'shakaina@example.com',
+            'password' => 'at-least-8-chars',
             'category_id' => 1,
             'is_verified' => true,
         ]);
 
         $response->assertCreated();
         $this->assertNotEmpty($response->json('token'));
-        $this->assertNotEmpty($response->json('shop.shop_code'));
-        $this->assertNotEmpty($response->json('shop.pin'));
+        $this->assertSame('shakaina@example.com', $response->json('shop.email'));
+        $this->assertArrayNotHasKey('pin', $response->json('shop'));
 
         $shop = Shop::where('name', 'Shakaina Salon')->first();
         $this->assertNotNull($shop);
         $this->assertSame('0554501483', $shop->phone);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('at-least-8-chars', $shop->password));
         $this->assertNotNull($shop->category_confirmed_at); // locked at registration
+    }
+
+    public function test_non_master_shop_cannot_register_a_shop(): void
+    {
+        $notMaster = Shop::factory()->create(['is_master' => false]);
+        $token = $notMaster->createToken('t')->plainTextToken;
+
+        $this->withHeaders(['Authorization' => "Bearer $token"])->postJson('/api/shops', [
+            'name' => 'Shakaina Salon',
+            'phone' => '0554501483',
+            'email' => 'shakaina2@example.com',
+            'password' => 'at-least-8-chars',
+            'category_id' => 1,
+            'is_verified' => true,
+        ])->assertStatus(403);
     }
 
     public function test_registers_with_custom_other_category(): void
     {
-        $response = $this->postJson('/api/shops', [
+        $master = Shop::factory()->create(['is_master' => true]);
+        $token = $master->createToken('t')->plainTextToken;
+
+        $response = $this->withHeaders(['Authorization' => "Bearer $token"])->postJson('/api/shops', [
             'name' => 'Falcon Tours',
             'phone' => '0554500000',
+            'email' => 'falcon@example.com',
+            'password' => 'at-least-8-chars',
             'category_id' => 0, // "Other"
             'custom_category' => 'Desert Safari Tours',
             'is_verified' => true,
@@ -62,9 +100,14 @@ class ShopRegistrationTest extends TestCase
 
     public function test_other_category_requires_custom_name(): void
     {
-        $this->postJson('/api/shops', [
+        $master = Shop::factory()->create(['is_master' => true]);
+        $token = $master->createToken('t')->plainTextToken;
+
+        $this->withHeaders(['Authorization' => "Bearer $token"])->postJson('/api/shops', [
             'name' => 'Nameless Other Shop',
             'phone' => '0550000002',
+            'email' => 'nameless@example.com',
+            'password' => 'at-least-8-chars',
             'category_id' => 0, // "Other" but no custom_category
             'is_verified' => true,
         ])->assertStatus(422)->assertJsonValidationErrors('custom_category');
@@ -72,9 +115,14 @@ class ShopRegistrationTest extends TestCase
 
     public function test_rejects_unknown_category(): void
     {
-        $this->postJson('/api/shops', [
+        $master = Shop::factory()->create(['is_master' => true]);
+        $token = $master->createToken('t')->plainTextToken;
+
+        $this->withHeaders(['Authorization' => "Bearer $token"])->postJson('/api/shops', [
             'name' => 'Bad Cat Shop',
             'phone' => '0550000001',
+            'email' => 'badcat@example.com',
+            'password' => 'at-least-8-chars',
             'category_id' => 99,
             'is_verified' => true,
         ])->assertStatus(422);
