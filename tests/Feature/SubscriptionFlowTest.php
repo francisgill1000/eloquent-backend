@@ -15,8 +15,12 @@ class SubscriptionFlowTest extends TestCase
 
     public function test_creating_a_shop_starts_a_30_day_trial(): void
     {
-        $res = $this->postJson('/api/shops', [
-            'name' => 'Glow Salon', 'phone' => '+971500000000', 'category_id' => 1, 'is_verified' => true,
+        $master = Shop::factory()->create(['is_master' => true]);
+        $token = $master->createToken('t')->plainTextToken;
+
+        $res = $this->withHeaders(['Authorization' => "Bearer $token"])->postJson('/api/shops', [
+            'name' => 'Glow Salon', 'phone' => '+971500000000', 'email' => 'glow@example.com',
+            'password' => 'at-least-8-chars', 'category_id' => 1, 'is_verified' => true,
         ]);
         $res->assertSuccessful();
         $shop = Shop::where('name', 'Glow Salon')->firstOrFail();
