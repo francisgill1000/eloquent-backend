@@ -55,7 +55,7 @@ export default function Profile() {
   // the old external customer web app.
   const qrTarget = shop?.id ? `${window.location.origin}/book/${shop.id}` : '';
   // The admin app's own URL for the current environment (staging vs prod), so
-  // scanning opens this same app on a phone to sign in with the business code + PIN.
+  // scanning opens this same app on a phone to sign in with email + password.
   const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const heroPreview = form.hero_image || (shop?.hero_image as string) || null;
   const logoPreview = form.logo || (shop?.logo as string) || null;
