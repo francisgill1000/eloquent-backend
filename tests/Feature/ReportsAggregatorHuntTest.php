@@ -26,7 +26,10 @@ class ReportsAggregatorHuntTest extends TestCase
         Lead::create(['shop_id' => $shop->id, 'name' => 'A', 'status' => 'new']);
         Lead::create(['shop_id' => $shop->id, 'name' => 'B', 'status' => 'new']);
         Lead::create(['shop_id' => $shop->id, 'name' => 'C', 'status' => 'new']);
-        $won = Lead::create(['shop_id' => $shop->id, 'name' => 'D', 'status' => 'won']);
+        // A real win always stamps deal_won_at (LeadController::updateStatus
+        // calls applyWonDeal() on every win, even with no amount) — set it
+        // here too so this fixture matches production data.
+        $won = Lead::create(['shop_id' => $shop->id, 'name' => 'D', 'status' => 'won', 'deal_won_at' => now()]);
 
         // Movement in period: two →sent, one →won.
         $won->activities()->create(['type' => 'status_change', 'payload' => ['from' => 'demo', 'to' => 'won']]);
@@ -112,6 +115,27 @@ class ReportsAggregatorHuntTest extends TestCase
         $this->assertSame(1800.0, $out['won_value_recurring']);
         $this->assertSame(500.0, $out['won_value_one_off']);
         $this->assertSame(300.0, $out['mrr_won']);
+    }
+
+    /** A lead won, reversed, then re-won in the same period generates two
+     *  funnel-move events but is still one lead's revenue — `won` (the
+     *  headline count paired with won_value in the AI summary) must track
+     *  the same distinct leads won_value counts, not raw funnel movement. */
+    public function test_won_count_matches_won_value_leads_even_when_a_lead_is_rewon_in_period(): void
+    {
+        $shop = $this->shop('8011');
+
+        $lead = Lead::create([
+            'shop_id' => $shop->id, 'name' => 'ReWon', 'status' => 'won',
+            'deal_amount' => 500, 'deal_type' => 'one_off', 'deal_won_at' => now(),
+        ]);
+        $lead->activities()->create(['type' => 'status_change', 'payload' => ['from' => 'demo', 'to' => 'won']]);
+        $lead->activities()->create(['type' => 'status_change', 'payload' => ['from' => 'pass', 'to' => 'won']]);
+
+        $out = app(ReportsAggregator::class)->huntSummary($shop->id, now()->startOfMonth(), now()->endOfMonth());
+
+        $this->assertSame(2, $out['moved']['won']); // raw funnel-move activity count
+        $this->assertSame(1, $out['won']); // revenue-attributed distinct-lead count, matches won_value
     }
 
     public function test_won_value_totals_lifetime_and_period(): void

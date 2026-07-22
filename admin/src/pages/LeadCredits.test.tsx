@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ShopProvider } from '@/context/ShopContext';
@@ -38,6 +38,33 @@ describe('LeadCredits', () => {
     const buy = await screen.findByRole('button', { name: /200\s*credits/i });
     await userEvent.setup().click(buy);
     expect(checkout).toHaveBeenCalledWith(1);
+  });
+
+  it('does not start a second checkout on a same-tick double-click', async () => {
+    vi.spyOn(leadsLib, 'getLeadCredits').mockResolvedValue({
+      credits: 110, can_purchase: true, embedded_checkout: false, packs: PACKS,
+    });
+    let resolveCheckout: ((v: { redirect_url: string | null; embedded_url: string | null; intent_id: string | null }) => void) | undefined;
+    const checkout = vi.spyOn(leadsLib, 'startPackCheckout').mockImplementation(
+      () => new Promise((resolve) => { resolveCheckout = resolve; }),
+    );
+
+    setup();
+
+    const buy = await screen.findByRole('button', { name: /200\s*credits/i });
+    // Two raw click events in the same tick — no await between them — is what
+    // a very fast real double-click looks like: both fire before React has a
+    // chance to commit the `disabled` update from the first click's setState.
+    act(() => {
+      fireEvent.click(buy);
+      fireEvent.click(buy);
+    });
+
+    expect(checkout).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveCheckout?.({ redirect_url: 'https://pay.ziina.com/x', embedded_url: null, intent_id: null });
+    });
   });
 
   it('shows a WhatsApp top-up fallback when the shop cannot self-serve', async () => {

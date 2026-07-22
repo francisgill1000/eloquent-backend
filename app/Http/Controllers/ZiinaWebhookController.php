@@ -8,14 +8,6 @@ use Illuminate\Support\Facades\Log;
 
 class ZiinaWebhookController extends Controller
 {
-    /** IPs Ziina sends webhooks from (docs.ziina.com). */
-    private const TRUSTED_IPS = [
-        '3.29.184.186',
-        '3.29.190.95',
-        '20.233.47.127',
-        '13.202.161.181',
-    ];
-
     /**
      * Receive Ziina webhook events. Always returns 200 so Ziina does not
      * retry-storm us; failures are logged. The webhook is the source of
@@ -23,15 +15,20 @@ class ZiinaWebhookController extends Controller
      */
     public function handle(Request $request)
     {
-        // Verify the HMAC signature when a shared secret is configured.
+        // A shared secret is required — without it we cannot tell a real
+        // Ziina event from a forged "payment completed" POST, so refuse to
+        // process rather than silently accepting unsigned requests.
         $secret = config('services.ziina.webhook_secret');
-        if (!empty($secret)) {
-            $expected = hash_hmac('sha256', $request->getContent(), $secret);
-            $signature = (string) $request->header('X-Hmac-Signature');
-            if (!hash_equals($expected, $signature)) {
-                Log::warning('Ziina webhook signature mismatch', ['ip' => $request->ip()]);
-                return response('Forbidden', 403);
-            }
+        if (empty($secret)) {
+            Log::error('Ziina webhook received but ZIINA_WEBHOOK_SECRET is not configured — rejecting.');
+            return response('Webhook not configured', 500);
+        }
+
+        $expected = hash_hmac('sha256', $request->getContent(), $secret);
+        $signature = (string) $request->header('X-Hmac-Signature');
+        if (!hash_equals($expected, $signature)) {
+            Log::warning('Ziina webhook signature mismatch', ['ip' => $request->ip()]);
+            return response('Forbidden', 403);
         }
 
         $payload = $request->all();
@@ -71,11 +68,11 @@ class ZiinaWebhookController extends Controller
             app(\App\Services\SubscriptionService::class)->applyPaidPayment($subPayment);
         }
 
-        // Business Hunt credit-pack purchase. The status guard makes this
-        // idempotent — Ziina retries webhooks, but credits are granted once.
+        // Business Hunt credit-pack purchase. markPaidOnce() is an atomic
+        // DB-level claim — safe even if two webhook deliveries for the same
+        // intent race each other, not just sequential Ziina retries.
         $purchase = \App\Models\CreditPurchase::where('ziina_intent_id', $intentId)->first();
-        if ($purchase && $purchase->status !== 'paid' && $purchase->shop) {
-            $purchase->update(['status' => 'paid', 'paid_at' => now()]);
+        if ($purchase && $purchase->shop && $purchase->markPaidOnce()) {
             app(\App\Services\Credits\HuntCreditService::class)->grant(
                 $purchase->shop,
                 (int) $purchase->credits,

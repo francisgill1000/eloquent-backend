@@ -7,9 +7,11 @@ use App\Models\Shop;
 use App\Models\ShopUser;
 use App\Services\Credits\HuntCreditService;
 use App\Services\Leads\Contracts\LeadSourceInterface;
+use App\Services\Leads\LeadSearchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Mockery;
 use Tests\TestCase;
 
 class HuntCreditsTest extends TestCase
@@ -49,7 +51,12 @@ class HuntCreditsTest extends TestCase
 
     private function fakeSource(array $results): void
     {
-        $this->app->instance(LeadSourceInterface::class, new class($results) implements LeadSourceInterface {
+        $this->app->instance(LeadSourceInterface::class, $this->fakeSourceInstance($results));
+    }
+
+    private function fakeSourceInstance(array $results): LeadSourceInterface
+    {
+        return new class($results) implements LeadSourceInterface {
             public function __construct(private array $results) {}
 
             public function search(string $query, ?string $area): array
@@ -61,7 +68,7 @@ class HuntCreditsTest extends TestCase
             {
                 return 'google_places';
             }
-        });
+        };
     }
 
     private function sample(): array
@@ -174,6 +181,29 @@ class HuntCreditsTest extends TestCase
         $this->assertDatabaseCount('lead_search_logs', 0);
     }
 
+    /** The credit is reserved before the provider call, and refunded on
+     *  provider failure — but a failure while caching/logging the results
+     *  AFTER a successful provider call must refund too, or the shop pays
+     *  for a search it never actually received. */
+    public function test_search_refunds_credit_when_finalizing_results_fails(): void
+    {
+        [$shop, $token] = $this->huntShop('820116');
+        app(HuntCreditService::class)->grant($shop, 3);
+
+        $search = Mockery::mock(LeadSearchService::class, [
+            $this->fakeSourceInstance($this->sample()),
+            app(HuntCreditService::class),
+        ])->makePartial();
+        $search->shouldAllowMockingProtectedMethods();
+        $search->shouldReceive('finalizeSearch')->once()->andThrow(new \RuntimeException('cache write failed'));
+        $this->app->instance(LeadSearchService::class, $search);
+
+        $this->auth($token)->getJson('/api/shop/leads/search?category=salon&area=Marina')->assertStatus(500);
+
+        $this->assertSame(3, app(HuntCreditService::class)->balance($shop->fresh()));
+        $this->assertDatabaseCount('lead_search_logs', 0);
+    }
+
     public function test_hunt_works_without_a_lens_subscription(): void
     {
         // huntShop() has no subscription at all; with credits it must still search.
@@ -272,9 +302,38 @@ class HuntCreditsTest extends TestCase
             && $r['amount'] === 19900 && $r['currency_code'] === 'AED' && $r['test'] === true);
     }
 
+    /** Signs a webhook payload the same way Ziina would, so tests exercise
+     *  the real signature-verification path instead of bypassing it. */
+    private function postSignedZiinaWebhook(array $payload)
+    {
+        $secret = 'test-webhook-secret';
+        config(['services.ziina.webhook_secret' => $secret]);
+        $signature = hash_hmac('sha256', json_encode($payload), $secret);
+
+        return $this->postJson('/api/ziina/webhook', $payload, ['X-Hmac-Signature' => $signature]);
+    }
+
+    /** The stored purchase row's operation_id must be the SAME one sent to
+     *  Ziina — otherwise it's useless for reconciliation, and a retried
+     *  purchase attempt can't be deduped against what Ziina actually saw
+     *  (mirrors the stable key already used for booking invoices). */
+    public function test_checkout_operation_id_matches_the_stored_purchase_row(): void
+    {
+        $this->fakeZiina('pi_opid');
+        [$shop, $token] = $this->huntShop('820117');
+        $shop->update(['hunt_self_serve' => true]);
+        $pack = $this->starterPackId();
+
+        $this->auth($token)->postJson('/api/shop/leads/purchase', ['pack_id' => $pack])->assertOk();
+
+        $purchase = \App\Models\CreditPurchase::where('shop_id', $shop->id)->firstOrFail();
+
+        Http::assertSent(fn ($r) => $r->url() === 'https://api.ziina/api/payment_intent'
+            && $r['operation_id'] === $purchase->ziina_operation_id);
+    }
+
     public function test_webhook_completes_purchase_and_grants_credits_once(): void
     {
-        config(['services.ziina.webhook_secret' => null]);
         [$shop] = $this->huntShop('820112b');
         $purchase = \App\Models\CreditPurchase::create([
             'shop_id' => $shop->id, 'pack_id' => $this->starterPackId(),
@@ -286,7 +345,7 @@ class HuntCreditsTest extends TestCase
             'event' => 'payment_intent.status.updated',
             'data' => ['id' => 'pi_done', 'status' => 'completed'],
         ];
-        $this->postJson('/api/ziina/webhook', $event)->assertOk();
+        $this->postSignedZiinaWebhook($event)->assertOk();
 
         $this->assertSame('paid', $purchase->fresh()->status);
         $this->assertSame(200, app(HuntCreditService::class)->balance($shop->fresh()));
@@ -295,14 +354,60 @@ class HuntCreditsTest extends TestCase
         $this->assertSame('ziina', $tx->meta['via']);
 
         // Ziina retries webhooks — a second delivery must NOT double-grant.
-        $this->postJson('/api/ziina/webhook', $event)->assertOk();
+        $this->postSignedZiinaWebhook($event)->assertOk();
         $this->assertSame(200, app(HuntCreditService::class)->balance($shop->fresh()));
         $this->assertSame(1, \App\Models\HuntCreditTransaction::where('shop_id', $shop->id)->where('reason', 'purchase')->count());
     }
 
-    public function test_webhook_ignores_non_completed_status(): void
+    /** Two webhook deliveries racing to mark the same purchase paid must not
+     *  both "win" — only the first status transition may succeed, so only
+     *  one can go on to grant credits. This is the guard the webhook relies
+     *  on to stay safe under concurrent delivery, not just sequential retries. */
+    public function test_credit_purchase_mark_paid_once_allows_only_one_winner(): void
+    {
+        [$shop] = $this->huntShop('820114');
+        $purchase = \App\Models\CreditPurchase::create([
+            'shop_id' => $shop->id, 'pack_id' => $this->starterPackId(),
+            'credits' => 200, 'amount_fils' => 19900,
+            'ziina_operation_id' => Str::uuid(), 'ziina_intent_id' => 'pi_race', 'status' => 'pending',
+        ]);
+
+        // Simulate two overlapping deliveries: each loads its own copy of the
+        // row (as two separate HTTP requests would), then both race to claim it.
+        $copyA = \App\Models\CreditPurchase::find($purchase->id);
+        $copyB = \App\Models\CreditPurchase::find($purchase->id);
+
+        $first = $copyA->markPaidOnce();
+        $second = $copyB->markPaidOnce();
+
+        $this->assertTrue($first);
+        $this->assertFalse($second);
+        $this->assertSame('paid', $purchase->fresh()->status);
+    }
+
+    /** A missing webhook secret must never fall back to "accept unsigned" —
+     *  that would let anyone POST a fake completed-payment event. */
+    public function test_webhook_rejects_when_secret_not_configured(): void
     {
         config(['services.ziina.webhook_secret' => null]);
+        [$shop] = $this->huntShop('820115');
+        \App\Models\CreditPurchase::create([
+            'shop_id' => $shop->id, 'pack_id' => $this->starterPackId(),
+            'credits' => 200, 'amount_fils' => 19900,
+            'ziina_operation_id' => Str::uuid(), 'ziina_intent_id' => 'pi_unsigned', 'status' => 'pending',
+        ]);
+
+        $this->postJson('/api/ziina/webhook', [
+            'event' => 'payment_intent.status.updated',
+            'data' => ['id' => 'pi_unsigned', 'status' => 'completed'],
+        ])->assertStatus(500);
+
+        $this->assertSame(0, app(HuntCreditService::class)->balance($shop->fresh()));
+        $this->assertSame('pending', \App\Models\CreditPurchase::where('ziina_intent_id', 'pi_unsigned')->first()->status);
+    }
+
+    public function test_webhook_ignores_non_completed_status(): void
+    {
         [$shop] = $this->huntShop('820112c');
         \App\Models\CreditPurchase::create([
             'shop_id' => $shop->id, 'pack_id' => $this->starterPackId(),
@@ -310,7 +415,7 @@ class HuntCreditsTest extends TestCase
             'ziina_operation_id' => Str::uuid(), 'ziina_intent_id' => 'pi_pending', 'status' => 'pending',
         ]);
 
-        $this->postJson('/api/ziina/webhook', [
+        $this->postSignedZiinaWebhook([
             'event' => 'payment_intent.status.updated',
             'data' => ['id' => 'pi_pending', 'status' => 'requires_payment_instrument'],
         ])->assertOk();

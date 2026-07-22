@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLeadCredits, startPackCheckout } from '@/lib/leads';
 import type { CreditPack } from '@/types';
 
@@ -19,6 +19,10 @@ export function useHuntCredits(enabled = true) {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [buyingId, setBuyingId] = useState<number | null>(null);
   const [buyMsg, setBuyMsg] = useState('');
+  // A ref (not the buyingId state) guards re-entrancy: state updates from a
+  // fast double-click can both read the old value before either commits, but
+  // a ref mutation is synchronous and immediately visible to the next call.
+  const buyingRef = useRef(false);
 
   const refresh = useCallback(() => {
     getLeadCredits()
@@ -55,6 +59,8 @@ export function useHuntCredits(enabled = true) {
   // Start checkout for a pack: inline Ziina iframe when embedded mode is on,
   // otherwise a full-page redirect to Ziina's hosted page.
   const buyPack = useCallback(async (pack: CreditPack) => {
+    if (buyingRef.current) return;
+    buyingRef.current = true;
     setBuyingId(pack.id); setBuyMsg('');
     try {
       const { redirect_url, embedded_url } = await startPackCheckout(pack.id);
@@ -67,6 +73,7 @@ export function useHuntCredits(enabled = true) {
     } catch {
       setBuyMsg('Could not start checkout. Please try again.');
     } finally {
+      buyingRef.current = false;
       setBuyingId(null);
     }
   }, [embeddedCheckout]);
