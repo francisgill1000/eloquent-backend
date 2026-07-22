@@ -31,6 +31,28 @@ class CreditPurchase extends Model
     }
 
     /**
+     * Atomically claim the paid transition — the WHERE clause is re-checked
+     * by the DB against the row's latest committed state, so if two webhook
+     * deliveries race on the same row, only one UPDATE actually changes a
+     * row and returns true. The caller must only grant credits when this
+     * returns true.
+     */
+    public function markPaidOnce(): bool
+    {
+        $claimed = static::query()
+            ->where('id', $this->id)
+            ->where('status', '!=', 'paid')
+            ->update(['status' => 'paid', 'paid_at' => now()]);
+
+        if ($claimed) {
+            $this->status = 'paid';
+            $this->paid_at = now();
+        }
+
+        return (bool) $claimed;
+    }
+
+    /**
      * Mark abandoned checkouts — pending rows older than $hours — as failed.
      * Never touches paid rows (so it can't undo a granted purchase). Optionally
      * scoped to one shop. Returns the number expired.

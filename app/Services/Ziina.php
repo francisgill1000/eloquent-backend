@@ -72,17 +72,21 @@ class Ziina
      * the pack's price_fils. `test` mode (ZIINA_TEST) controls sandbox vs live —
      * kept true until real payments are switched on.
      *
+     * $operationId must be the caller's stable CreditPurchase::ziina_operation_id
+     * (not generated here) — same "one key per order, so retries never
+     * double-charge" contract as createIntent() for booking invoices.
+     *
      * @param array{success_url:string,cancel_url:string,failure_url:string} $urls
      * @return array Ziina response (includes `id`, `redirect_url`, `status`).
      */
-    public function createCreditPackIntent(\App\Models\Shop $shop, \App\Models\CreditPack $pack, array $urls): array
+    public function createCreditPackIntent(\App\Models\Shop $shop, \App\Models\CreditPack $pack, string $operationId, array $urls): array
     {
         // Keep the message short (Ziina's MESSAGE_LENGTH_INVALID). Hunt packs use
         // their OWN sandbox toggle (default true) so they stay test-mode while
         // subscriptions are already live — no real money until ZIINA_HUNT_TEST=false.
         return $this->postIntent(
             (int) $pack->price_fils,
-            (string) Str::uuid(),
+            $operationId,
             "Business Hunt {$pack->credits} credits",
             $urls,
             (bool) config('services.ziina.hunt_test', true),

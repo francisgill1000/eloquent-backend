@@ -96,7 +96,7 @@ class LeadController extends Controller
 
         $base = rtrim((string) config('services.ziina.admin_return_base'), '/');
         $return = "{$base}/leads";
-        $intent = $ziina->createCreditPackIntent($shop, $pack, [
+        $intent = $ziina->createCreditPackIntent($shop, $pack, $purchase->ziina_operation_id, [
             'success_url' => "{$return}?pay=success",
             'cancel_url'  => "{$return}?pay=cancel",
             'failure_url' => "{$return}?pay=failed",

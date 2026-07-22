@@ -175,7 +175,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
 
   const runSearch = async () => {
     const q = category.trim();
-    if (!q || !shopReady) return;
+    if (!q || !shopReady || loading) return;
     setError(''); setBlocked(null); setResults(null); setSelected({}); setMeta(null);
     setScanning(false); setMoreFound(null); setVisible(PAGE_SIZE);
     resultsRef.current = null;
@@ -274,7 +274,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   const toggle = (ref: string) => setSelected((s) => ({ ...s, [ref]: !s[ref] }));
 
   const saveSelected = async () => {
-    if (!selectedRefs.length || !results) return;
+    if (!selectedRefs.length || !results || saving) return;
     const listName = pipeline.trim();
     if (!listName) { setError('Enter a pipeline name to save these leads under.'); return; }
     setSaving(true); setError('');
@@ -303,7 +303,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
               placeholder="What & where? e.g. car wash in Dubai Marina"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void runSearch(); }} />
+              onKeyDown={(e) => { if (e.key === 'Enter' && !loading) void runSearch(); }} />
           </div>
         </div>
         <button className="c-btn lf-search-btn" disabled={loading || !category.trim()} onClick={() => void runSearch()}>
@@ -402,7 +402,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
                     placeholder="e.g. digital media pipeline"
                     value={pipeline}
                     onChange={(e) => setPipeline(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && pipeline.trim()) void saveSelected(); }} />
+                    onKeyDown={(e) => { if (e.key === 'Enter' && pipeline.trim() && !saving) void saveSelected(); }} />
                 </div>
               </label>
               <button className="c-btn c-btn-block" disabled={saving || !pipeline.trim()} onClick={() => void saveSelected()}>

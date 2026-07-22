@@ -68,8 +68,13 @@ class LeadSearchService
             ], fn ($v) => $v !== null && $v !== ''));
         }
 
+        // The whole live path — provider call AND persisting/logging its
+        // results — is covered by the same refund guarantee: if anything
+        // here fails, the shop must not be left having paid for a search it
+        // never actually received.
         try {
             $results = $this->source->search($query, $area);
+            $this->finalizeSearch($shop, $query, $area, $queryKey, $results);
         } catch (\Throwable $e) {
             if ($charge) {
                 $this->credits->grant($shop, 1, 'refund', ['query' => $query]);
@@ -77,6 +82,17 @@ class LeadSearchService
             throw $e;
         }
 
+        return [
+            'results' => $results,
+            'from_cache' => false,
+            'credits' => $this->credits->balance($shop),
+        ];
+    }
+
+    /** Cache the results and record the billable usage log. Any failure here
+     *  is caught by search()'s refund logic, same as a provider failure. */
+    protected function finalizeSearch(Shop $shop, string $query, ?string $area, string $queryKey, array $results): void
+    {
         $this->persistCaches($query, $area, $queryKey, $results);
 
         DB::table('lead_search_logs')->insert([
@@ -86,12 +102,6 @@ class LeadSearchService
             'results_count' => count($results),
             'created_at' => now(),
         ]);
-
-        return [
-            'results' => $results,
-            'from_cache' => false,
-            'credits' => $this->credits->balance($shop),
-        ];
     }
 
     /** Record one billable search against the shop's monthly quota. */

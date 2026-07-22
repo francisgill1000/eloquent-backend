@@ -49,11 +49,7 @@ class LeadImporter
                     'shop_id' => $shop->id,
                     'external_ref' => $row['external_ref'],
                 ]);
-                $lead->fill($attrs);
-                if (! $lead->exists) {
-                    $lead->status = 'new';
-                }
-                $lead->save();
+                $lead = $this->saveDeduped($lead, $attrs, $shop->id, $row['external_ref']);
             } else {
                 $lead = Lead::create($attrs + [
                     'shop_id' => $shop->id,
@@ -68,5 +64,29 @@ class LeadImporter
         }
 
         return ['saved' => $saved, 'created' => $created];
+    }
+
+    /**
+     * Save a firstOrNew()'d lead, recovering from the case where a concurrent
+     * import already inserted the same (shop_id, external_ref) row after our
+     * SELECT ran but before our INSERT did — that would otherwise surface as
+     * an uncaught duplicate-key 500 instead of just updating the existing row.
+     */
+    public function saveDeduped(Lead $lead, array $attrs, int $shopId, string $externalRef): Lead
+    {
+        $lead->fill($attrs);
+        if (! $lead->exists) {
+            $lead->status = 'new';
+        }
+
+        try {
+            $lead->save();
+        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            $lead = Lead::where('shop_id', $shopId)->where('external_ref', $externalRef)->firstOrFail();
+            $lead->fill($attrs);
+            $lead->save();
+        }
+
+        return $lead;
     }
 }

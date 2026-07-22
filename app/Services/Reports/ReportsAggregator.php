@@ -403,13 +403,25 @@ class ReportsAggregator
 
         $wonTotals = $this->wonValueTotals($shopId, $from, $to);
 
+        // Distinct leads first-won in this period — NOT raw funnel-move
+        // events (see moved.won, which double-counts a lead won, reversed,
+        // then re-won in the same period). Deliberately NOT wonTotals'
+        // own won_count either — that one only counts leads with a dollar
+        // amount attached, and a win logged without a deal value is still
+        // a real win the owner should see counted here.
+        $wonInPeriod = (int) DB::table('leads')->where('shop_id', $shopId)
+            ->where('status', 'won')
+            ->whereNotNull('deal_won_at')
+            ->whereBetween('deal_won_at', [$from, $to])
+            ->count();
+
         return [
             'range'        => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
             'new_leads'    => $newLeads,
             'pipeline'     => $pipeline,
             'total_leads'  => array_sum($pipeline),
             'moved'        => $moved,
-            'won'          => $moved['won'],
+            'won'          => $wonInPeriod,
             'won_value'            => $wonTotals['won_value'],
             'won_value_recurring'  => $wonTotals['won_value_recurring'],
             'won_value_one_off'    => $wonTotals['won_value_one_off'],

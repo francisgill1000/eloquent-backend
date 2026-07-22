@@ -106,13 +106,16 @@ class SubscriptionFlowTest extends TestCase
             'status' => 'pending', 'period_days' => 365,
         ]);
 
-        // Force the "no shared secret" path so the HMAC check is skipped,
-        // regardless of any ZIINA_WEBHOOK_SECRET in the runtime environment.
-        config(['services.ziina.webhook_secret' => null]);
-        $this->postJson('/api/ziina/webhook', [
+        // Sign the payload the same way Ziina would, exercising the real
+        // signature-verification path (a missing secret now rejects, not skips).
+        $secret = 'test-webhook-secret';
+        config(['services.ziina.webhook_secret' => $secret]);
+        $event = [
             'event' => 'payment_intent.status.updated',
             'data' => ['id' => 'pi_paid', 'status' => 'completed'],
-        ])->assertOk();
+        ];
+        $signature = hash_hmac('sha256', json_encode($event), $secret);
+        $this->postJson('/api/ziina/webhook', $event, ['X-Hmac-Signature' => $signature])->assertOk();
 
         $this->assertSame('paid', $payment->fresh()->status);
         $sub = $shop->subscription()->first();
