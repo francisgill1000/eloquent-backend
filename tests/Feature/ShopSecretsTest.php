@@ -43,17 +43,19 @@ class ShopSecretsTest extends TestCase
         $this->assertArrayNotHasKey('device_id', $login['shop']);
     }
 
-    public function test_register_still_returns_pin(): void
+    public function test_registration_no_longer_returns_pin(): void
     {
-        // Registration (POST /api/shops) is not touched by this task — it's
-        // still the pre-master-gating public endpoint here. A later task
-        // changes this behavior (master-auth-gated, no more pin exposure);
-        // this test documents the current, still-accurate state.
-        $register = $this->postJson('/api/shops', [
+        $master = Shop::factory()->create(['is_master' => true]);
+        $token = $master->createToken('t')->plainTextToken;
+
+        $register = $this->withHeaders(['Authorization' => "Bearer $token"])->postJson('/api/shops', [
             'name' => 'Fresh Cuts',
+            'email' => 'freshcuts@example.com',
+            'password' => 'at-least-8-chars',
             'category_id' => 1,
         ])->assertCreated()->json();
-        $this->assertNotEmpty($register['shop']['pin']);
+
+        $this->assertArrayNotHasKey('pin', $register['shop']);
     }
 
     public function test_auto_login_no_longer_returns_pin(): void

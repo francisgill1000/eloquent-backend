@@ -39,9 +39,11 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/services', [ServiceController::class, 'index']);
 
 Route::get('/shops/nearby', [ShopController::class, 'nearby']);
-// Public reads + self-registration; profile/working-hours writes require the
-// authed shop to own the record (guards ShopController::update's syncWorkingHours).
-Route::apiResource('/shops', ShopController::class)->only(['index', 'show', 'store']);
+// Public reads; profile/working-hours writes require the authed shop to own
+// the record (guards ShopController::update's syncWorkingHours).
+Route::apiResource('/shops', ShopController::class)->only(['index', 'show']);
+// Shop creation is master-only — no public self-registration (see StoreShopRequest::authorize()).
+Route::middleware('auth:sanctum')->post('/shops', [ShopController::class, 'store']);
 Route::middleware(['auth:sanctum', 'rbac.context', 'shop.self'])->group(function () {
     // update() gates its working_hours sync on working_hours.manage (see controller).
     Route::apiResource('/shops', ShopController::class)->only(['update', 'destroy']);

@@ -133,7 +133,7 @@ class ShopController extends Controller
         $token = $shop->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'shop' => $shop->makeVisible('pin'), // shown once on the credentials screen
+            'shop' => $shop,
             'token' => $token
         ], 201);
     }

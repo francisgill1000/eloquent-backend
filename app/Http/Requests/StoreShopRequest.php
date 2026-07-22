@@ -2,19 +2,24 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Shop;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreShopRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // no auth restriction
+        $user = $this->user();
+
+        return $user instanceof Shop && $user->is_master;
     }
 
     public function rules(): array
     {
         return [
             'name'        => 'required|string|max:255|unique:shops,name',
+            'email'       => 'required|email|max:255|unique:shops,email',
+            'password'    => 'required|string|min:8',
             'phone'       => 'nullable|string|max:32',
             'logo'        => 'nullable',
             'hero_image'  => 'nullable',
