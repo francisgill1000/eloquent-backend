@@ -16,7 +16,7 @@ class MasterTest extends TestCase
         return ['Authorization' => "Bearer {$token}"];
     }
 
-    public function test_master_sees_all_shops_with_codes_and_pins(): void
+    public function test_master_sees_all_shops_with_codes_and_emails(): void
     {
         $master = Shop::factory()->create(['is_master' => true]);
         $shopA = Shop::factory()->create(['phone' => '0501112222', 'category_id' => 9]);
@@ -30,11 +30,25 @@ class MasterTest extends TestCase
         $this->assertNull(collect($list)->firstWhere('id', $master->id));
         $rowA = collect($list)->firstWhere('id', $shopA->id);
         $this->assertSame($shopA->shop_code, $rowA['shop_code']);
-        $this->assertSame($shopA->pin, $rowA['pin']);
+        $this->assertSame($shopA->email, $rowA['email']);
         $this->assertSame('0501112222', $rowA['phone']);
         $this->assertSame('Salon', $rowA['category']);
         $this->assertFalse($rowA['wa_connected']);
         $this->assertArrayHasKey('bookings_count', $rowA);
+    }
+
+    public function test_master_can_set_a_shops_email_and_password(): void
+    {
+        $master = Shop::factory()->create(['is_master' => true]);
+        $shop = Shop::factory()->create();
+
+        $response = $this->patchJson("/api/master/shops/{$shop->id}", [
+            'email' => 'new-owner@example.com',
+            'password' => 'brand-new-pass',
+        ], $this->authed($master))->assertOk();
+
+        $this->assertSame('new-owner@example.com', $response->json('data.email'));
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('brand-new-pass', $shop->fresh()->password));
     }
 
     public function test_master_list_includes_status_and_persona(): void
