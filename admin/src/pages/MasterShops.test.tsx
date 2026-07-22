@@ -23,13 +23,13 @@ describe('MasterShops', () => {
   it('lists every business as a summary card (credentials live on the detail screen)', async () => {
     vi.spyOn(shopsLib, 'getMasterShops').mockResolvedValue([
       {
-        id: 30, name: 'Shakaina Salon', shop_code: '730762', pin: '2511',
+        id: 30, name: 'Shakaina Salon', shop_code: '730762', email: 'owner1@example.com',
         phone: '0554501483', category: 'Salon', status: 'active', bookings_count: 4,
         wa_connected: true, wa_number: '+971503744113',
         created_at: '2026-06-06T18:00:00Z', last_login_at: '2026-06-07T10:00:00Z',
       },
       {
-        id: 12, name: 'Quick Fix AC', shop_code: '101010', pin: '9001',
+        id: 12, name: 'Quick Fix AC', shop_code: '101010', email: 'owner2@example.com',
         phone: null, category: 'AC Repair', status: 'inactive', bookings_count: 0, wa_connected: false,
       },
     ]);
