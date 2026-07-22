@@ -5,7 +5,7 @@ import type { MasterShop } from '@/types';
 import { MasterShopCard } from './MasterShopCard';
 
 const base: MasterShop = {
-  id: 7, name: 'Shakaina Salon', shop_code: '339416', pin: '7201',
+  id: 7, name: 'Shakaina Salon', shop_code: '339416', email: 'owner@shakaina.com',
   phone: '+971500000000', category: 'Salon', status: 'active',
   bookings_count: 12, wa_connected: true, created_at: '2026-06-07T00:00:00Z',
 };
