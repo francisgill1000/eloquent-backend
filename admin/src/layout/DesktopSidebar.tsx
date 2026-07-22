@@ -61,10 +61,6 @@ export function DesktopSidebar() {
         </div>
         <div className="ds-head-text">
           <div className="ds-name">{shop?.name ?? 'Business Lens'}</div>
-          <div className="ds-status">
-            <span className={`c-live-dot${shop?.is_open ? '' : ' off'}`} />
-            {shop?.is_open ? 'Open now' : 'Closed'}
-          </div>
         </div>
       </div>
 
