@@ -19,14 +19,14 @@ function setup() {
 describe('Login', () => {
   beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); nav.mockReset(); });
 
-  it('logs in with Business ID and PIN on one page', async () => {
+  it('logs in with email and password', async () => {
     vi.spyOn(shops, 'shopLogin').mockResolvedValue({ token: 't', shop: { id: 1, name: 'Acme' }, user: null, permissions: ['*'] });
     setup();
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText(/business id/i), 'ACME01');
-    await user.type(screen.getByLabelText('PIN'), '1234');
+    await user.type(screen.getByLabelText(/email/i), 'owner@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'secret123');
     await user.click(screen.getByRole('button', { name: /log in/i }));
-    expect(shops.shopLogin).toHaveBeenCalledWith('ACME01', '1234');
+    expect(shops.shopLogin).toHaveBeenCalledWith('owner@example.com', 'secret123');
     expect(localStorage.getItem('shop_token')).toBe('t');
   });
 
@@ -34,9 +34,21 @@ describe('Login', () => {
     vi.spyOn(shops, 'shopLogin').mockRejectedValue(new Error('bad'));
     setup();
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText(/business id/i), 'X');
-    await user.type(screen.getByLabelText('PIN'), '0000');
+    await user.type(screen.getByLabelText(/email/i), 'x@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'wrong');
     await user.click(screen.getByRole('button', { name: /log in/i }));
     expect(await screen.findByText(/failed|invalid|incorrect/i)).toBeInTheDocument();
+  });
+
+  it('remembers only the email, never the password', async () => {
+    vi.spyOn(shops, 'shopLogin').mockResolvedValue({ token: 't', shop: { id: 1, name: 'Acme' }, user: null, permissions: ['*'] });
+    setup();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/email/i), 'owner@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'secret123');
+    await user.click(screen.getByLabelText(/remember/i));
+    await user.click(screen.getByRole('button', { name: /log in/i }));
+    expect(localStorage.getItem('remember_shop_email')).toBe('owner@example.com');
+    expect(Object.keys(localStorage).some((k) => localStorage.getItem(k) === 'secret123')).toBe(false);
   });
 });

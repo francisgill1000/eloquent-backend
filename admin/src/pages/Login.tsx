@@ -7,49 +7,35 @@ import { storage } from '@/lib/storage';
 export default function Login() {
   const navigate = useNavigate();
   const { loginShop, setAccess } = useShop();
-  const [shopCode, setShopCode] = useState('');
-  const [pin, setPin] = useState('');
-  const [showPin, setShowPin] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Prefill after a PIN reset takes priority over remembered credentials.
-    const prefill = storage.get('post_reset_login_prefill');
-    if (prefill) {
-      try {
-        const obj = JSON.parse(prefill) as { shopCode?: string; pin?: string };
-        if (obj.shopCode) setShopCode(obj.shopCode);
-        if (obj.pin) setPin(obj.pin);
-      } catch { /* ignore */ }
-      storage.remove('post_reset_login_prefill');
-      return;
-    }
     if (storage.get('remember_shop_login') === 'true') {
       setRememberMe(true);
-      setShopCode(storage.get('remember_shop_code') ?? '');
-      setPin(storage.get('remember_shop_pin') ?? '');
+      setEmail(storage.get('remember_shop_email') ?? '');
     }
   }, []);
 
   const handleLogin = async () => {
     if (submitting) return;
-    if (!shopCode.trim()) { setError('Please enter your Business ID.'); return; }
-    if (!pin.trim()) { setError('Please enter your PIN.'); return; }
+    if (!email.trim()) { setError('Please enter your email.'); return; }
+    if (!password.trim()) { setError('Please enter your password.'); return; }
     setSubmitting(true);
     setError('');
     try {
-      const { token, shop, user, permissions } = await shopLogin(shopCode.trim(), pin);
+      const { token, shop, user, permissions } = await shopLogin(email.trim(), password);
       if (token && shop) {
         if (rememberMe) {
           storage.set('remember_shop_login', 'true');
-          storage.set('remember_shop_code', shopCode.trim());
-          storage.set('remember_shop_pin', pin);
+          storage.set('remember_shop_email', email.trim());
         } else {
           storage.remove('remember_shop_login');
-          storage.remove('remember_shop_code');
-          storage.remove('remember_shop_pin');
+          storage.remove('remember_shop_email');
         }
         loginShop(shop, token);
         setAccess(user, permissions);
@@ -75,45 +61,44 @@ export default function Login() {
 
         <div className="c-auth-card">
         <h1 className="c-auth-title">Welcome back</h1>
-        <p className="c-auth-sub">Enter your Business ID and PIN to access your dashboard.</p>
+        <p className="c-auth-sub">Enter your email and password to access your dashboard.</p>
 
         {error && <div className="c-error-box">{error}</div>}
 
-        <label className="c-field-label" htmlFor="shop-code">Business ID</label>
+        <label className="c-field-label" htmlFor="email">Email</label>
         <div className="c-input-row">
           <input
-            id="shop-code"
-            type="text"
-            placeholder="Enter business code"
+            id="email"
+            type="email"
+            placeholder="you@business.com"
             autoCapitalize="none"
-            value={shopCode}
-            onChange={(e) => { setShopCode(e.target.value); setError(''); }}
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError(''); }}
           />
         </div>
 
-        <label className="c-field-label" htmlFor="pin">PIN</label>
+        <label className="c-field-label" htmlFor="password">Password</label>
         <div className="c-input-row">
           <input
-            id="pin"
-            type={showPin ? 'text' : 'password'}
-            inputMode="numeric"
-            placeholder="Enter your PIN"
-            value={pin}
-            onChange={(e) => { setPin(e.target.value); setError(''); }}
+            id="password"
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setError(''); }}
             onKeyDown={(e) => { if (e.key === 'Enter') void handleLogin(); }}
           />
           <button
             type="button"
-            onClick={() => setShowPin((v) => !v)}
+            onClick={() => setShowPassword((v) => !v)}
             style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer' }}
           >
-            {showPin ? 'Hide' : 'Show'}
+            {showPassword ? 'Hide' : 'Show'}
           </button>
         </div>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, color: 'var(--text-2)', fontSize: 14 }}>
           <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-          Remember ID &amp; PIN
+          Remember me
         </label>
 
         <button className="c-btn c-btn-block" disabled={submitting} onClick={() => void handleLogin()}>
