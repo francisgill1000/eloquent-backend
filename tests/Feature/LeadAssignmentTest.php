@@ -339,4 +339,102 @@ class LeadAssignmentTest extends TestCase
         $body = $this->authJson($this->tokenFor($shop, $agent), 'GET', '/api/shop/leads')->assertOk()->json();
         $this->assertSame([], $body['assignees']);
     }
+
+    // --- Layer 3: distribution -------------------------------------------
+
+    public function test_round_robin_spreads_new_leads_and_excludes_the_owner(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads'], 'lead_auto_assign' => true]);
+        $owner = $this->owner($shop);
+        $a = $this->agent($shop);
+        $b = $this->agent($shop);
+        $c = $this->agent($shop);
+
+        // Acting as the owner: no self-assign, so rotation takes over.
+        \App\Support\CurrentShopUser::set($owner);
+
+        $rows = collect(range(1, 6))->map(fn ($i) => ['name' => "Biz {$i}"])->all();
+        $out = app(\App\Services\Leads\LeadImporter::class)->import($shop, $rows, 'batch');
+
+        $counts = collect($out['saved'])->map(fn ($l) => $l->fresh()->assigned_to_id)->countBy();
+
+        $this->assertSame(2, $counts[$a->id] ?? 0);
+        $this->assertSame(2, $counts[$b->id] ?? 0);
+        $this->assertSame(2, $counts[$c->id] ?? 0);
+        $this->assertSame(0, $counts[$owner->id] ?? 0);
+        $this->assertNotNull($shop->fresh()->lead_assign_cursor);
+    }
+
+    public function test_rotation_skips_inactive_users_and_users_without_hunt_access(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads'], 'lead_auto_assign' => true]);
+        $a = $this->agent($shop);
+        $this->agent($shop, ['bookings.view']);           // no leads.view — skipped
+        $inactive = $this->agent($shop);
+        $inactive->update(['is_active' => false]);        // skipped
+
+        $pool = app(\App\Services\Leads\LeadAssigner::class)->pool($shop);
+
+        $this->assertSame([$a->id], $pool->pluck('id')->all());
+    }
+
+    public function test_auto_assign_off_by_default_leaves_leads_in_the_pool(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $this->agent($shop);
+
+        \App\Support\CurrentShopUser::set($this->owner($shop));
+
+        $out = app(\App\Services\Leads\LeadImporter::class)->import($shop, [['name' => 'Biz']], 'batch');
+
+        $this->assertNull($out['saved'][0]->fresh()->assigned_to_id);
+    }
+
+    public function test_an_empty_rotation_pool_leaves_leads_unassigned_without_error(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads'], 'lead_auto_assign' => true]);
+
+        \App\Support\CurrentShopUser::set($this->owner($shop));
+
+        $out = app(\App\Services\Leads\LeadImporter::class)->import($shop, [['name' => 'Biz']], 'batch');
+
+        $this->assertNull($out['saved'][0]->fresh()->assigned_to_id);
+    }
+
+    public function test_self_assign_beats_rotation(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads'], 'lead_auto_assign' => true]);
+        $a = $this->agent($shop);
+        $this->agent($shop);
+
+        \App\Support\CurrentShopUser::set($a);
+
+        $out = app(\App\Services\Leads\LeadImporter::class)->import($shop, [['name' => 'Found by A']], 'batch');
+
+        $this->assertSame($a->id, $out['saved'][0]->fresh()->assigned_to_id);
+    }
+
+    public function test_auto_assign_toggle_requires_the_assign_permission(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all', 'leads.assign']);
+        $agent = $this->agent($shop);
+
+        $this->authJson($this->tokenFor($shop, $agent), 'PATCH', '/api/shop/leads/settings', [
+            'lead_auto_assign' => true,
+        ])->assertStatus(403);
+
+        $this->app['auth']->forgetGuards();
+        $this->authJson($this->tokenFor($shop, $manager), 'PATCH', '/api/shop/leads/settings', [
+            'lead_auto_assign' => true,
+        ])->assertOk()->assertJson(['lead_auto_assign' => true]);
+
+        $this->assertTrue($shop->fresh()->lead_auto_assign);
+    }
 }
