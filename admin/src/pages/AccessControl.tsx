@@ -218,7 +218,7 @@ function UserEditor({
         <input
           id="user-password"
           className="ac-input"
-          type="text"
+          type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder={isEdit ? '••••••••' : 'At least 8 characters'}
