@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CreditPack;
 use App\Models\Shop;
 use App\Models\WaAccount;
+use App\Rules\UniqueLoginEmail;
 use App\Services\Credits\HuntCreditService;
 use App\Support\ServiceCategories;
 use Illuminate\Http\Request;
@@ -58,7 +59,7 @@ class MasterController extends Controller
             'modules' => ['sometimes', 'array'],
             'modules.*' => ['string', 'in:bookings,leads'],
             'hunt_self_serve' => ['sometimes', 'boolean'],
-            'email' => ['sometimes', 'email', 'max:255', 'unique:shops,email,' . $shop->id],
+            'email' => ['sometimes', 'email', 'max:255', new UniqueLoginEmail(ignoreShopId: $shop->id)],
             'password' => ['sometimes', 'string', 'min:8'],
         ]);
 

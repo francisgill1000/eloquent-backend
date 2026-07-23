@@ -51,6 +51,18 @@ class MasterTest extends TestCase
         $this->assertTrue(\Illuminate\Support\Facades\Hash::check('brand-new-pass', $shop->fresh()->password));
     }
 
+    public function test_master_cannot_set_a_shops_email_to_one_already_used_by_a_staff_account(): void
+    {
+        \App\Models\ShopUser::factory()->create(['email' => 'staff-taken@example.com']);
+
+        $master = Shop::factory()->create(['is_master' => true]);
+        $shop = Shop::factory()->create();
+
+        $this->patchJson("/api/master/shops/{$shop->id}", [
+            'email' => 'staff-taken@example.com',
+        ], $this->authed($master))->assertStatus(422);
+    }
+
     public function test_master_list_includes_status_and_persona(): void
     {
         $master = Shop::factory()->create(['is_master' => true]);
