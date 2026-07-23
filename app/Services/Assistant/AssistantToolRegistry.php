@@ -66,12 +66,21 @@ class AssistantToolRegistry
         }));
     }
 
-    /** @return array<int, array<string, mixed>> */
-    public function defs(?Shop $shop = null): array
+    /**
+     * Tool schemas for this shop AND this user. Filtered twice: by product module
+     * (activeModules) and by the acting user's permissions, so the model is never
+     * shown a tool it will only get 'no_permission' back from. The acting user
+     * defaults to the request's ShopUser; null (owner/untagged) sees everything.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function defs(?Shop $shop = null, ?\App\Models\ShopUser $actingUser = null): array
     {
+        $user = $actingUser ?? current_shop_user();
+
         $defs = [];
         foreach ($this->activeModules($shop) as $module) {
-            foreach ($module->toolDefs() as $def) {
+            foreach ($module->visibleToolDefs($user) as $def) {
                 $defs[] = $def;
             }
         }

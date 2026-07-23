@@ -13,8 +13,11 @@ class ShopRegistrationTest extends TestCase
     private function actingOwner(\App\Models\Shop $shop): string
     {
         setPermissionsTeamId($shop->id);
-        \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]);
+        $owner = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]);
         $u = \App\Models\ShopUser::factory()->create(['shop_id' => $shop->id]);
+        // Must actually hold the role — Rbac::isOwner() is what grants the bypass,
+        // and creating the role without assigning it yields a permission-less user.
+        $u->assignRole($owner);
         $new = $shop->createToken('t');
         $new->accessToken->forceFill(['shop_user_id' => $u->id])->save();
 

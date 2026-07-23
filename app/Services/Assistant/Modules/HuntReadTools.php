@@ -33,15 +33,18 @@ class HuntReadTools extends AssistantModule
 
     protected function permissions(): array
     {
-        // All read tools require the Business Hunt "view" permission (owner and
-        // untagged sessions bypass, see Rbac).
+        // Read tools require the Business Hunt "view" permission (owner and
+        // untagged sessions bypass, see Rbac). draft_outreach is the exception:
+        // it's pipeline work that costs a Claude call, and the equivalent REST
+        // route (POST /shop/leads/{lead}/personalize) requires leads.manage — the
+        // two paths must not offer the same capability at different bars.
         return [
             'hunt_credits' => 'leads.view',
             'list_leads' => 'leads.view',
             'find_lead' => 'leads.view',
             'open_lead' => 'leads.view',
             'hunt_income' => 'leads.view',
-            'draft_outreach' => 'leads.view',
+            'draft_outreach' => 'leads.manage',
         ];
     }
 

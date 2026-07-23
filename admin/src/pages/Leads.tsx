@@ -136,6 +136,12 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   // buying happens on the dedicated /leads/credits page (this hook is shared
   // with it, so the balance stays in sync after a purchase).
   const { balance, setBalance, canPurchase, buyMsg } = useHuntCredits(shopReady);
+  // Permission gates. `canPurchase` above is the shop's Ziina eligibility, NOT a
+  // permission — buying also needs leads.purchase, so the two are ANDed below.
+  const { can } = useShop();
+  const maySearch = can('leads.search');
+  const maySave = can('leads.manage');
+  const mayBuy = can('leads.purchase');
   // Background enrichment (the slow "advertising" source) runs after the fast
   // results land and quietly appends. `scanning` drives the subtle indicator;
   // `moreFound` is how many extra leads the last scan added.
@@ -303,13 +309,18 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
               placeholder="What & where? e.g. car wash in Dubai Marina"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
+              disabled={!maySearch}
               onKeyDown={(e) => { if (e.key === 'Enter' && !loading) void runSearch(); }} />
           </div>
         </div>
-        <button className="c-btn lf-search-btn" disabled={loading || !category.trim()} onClick={() => void runSearch()}>
+        <button className="c-btn lf-search-btn" disabled={!maySearch || loading || !category.trim()} onClick={() => void runSearch()}>
           {loading ? 'Searching…' : <><Icons.Search size={16} /> Search</>}
         </button>
       </div>
+
+      {!maySearch && (
+        <div className="lf-meta">Your role can view the pipeline but not run new searches.</div>
+      )}
 
       {/* Credit balance chip. Low (<10) turns amber as a gentle top-up nudge. */}
       {balance !== null && (
@@ -317,7 +328,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
           <Icons.Search size={13} /> {balance.toLocaleString('en-AE')} Hunt {balance === 1 ? 'credit' : 'credits'} left
           {/* Both self-serve and low-balance shops go to the dedicated credits
               page, which handles buying (Ziina) or the WhatsApp fallback. */}
-          {(canPurchase || balance <= 10) && (
+          {mayBuy && (canPurchase || balance <= 10) && (
             <button className="lf-topup-link" onClick={() => navigate('/leads/credits')}>
               {canPurchase ? 'Buy credits' : 'Top up'}
             </button>
@@ -337,9 +348,13 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
             <span>
               Each new business search uses 1 credit. Repeat searches you've already run are always free.
             </span>
-            <button className="c-btn-ghost lf-topup-btn" onClick={() => navigate('/leads/credits')}>
-              <Icons.Search size={15} /> {canPurchase ? 'Buy credits' : 'Top up credits'}
-            </button>
+            {mayBuy ? (
+              <button className="c-btn-ghost lf-topup-btn" onClick={() => navigate('/leads/credits')}>
+                <Icons.Search size={15} /> {canPurchase ? 'Buy credits' : 'Top up credits'}
+              </button>
+            ) : (
+              <span>Ask the business owner to top up.</span>
+            )}
           </div>
         </div>
       )}
@@ -373,7 +388,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
               Showing {Math.min(visible, results.length)} of {results.length}
               {selectedRefs.length > 0 && ` · ${selectedRefs.length} selected`}
             </span>
-            {selectableRefs.length > 0 && (
+            {selectableRefs.length > 0 && maySave && (
               <button className="lf-selall" onClick={toggleAll}>
                 {allSelected ? 'Clear all' : 'Select all'}
               </button>
@@ -384,6 +399,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
               <ResultCard key={r.external_ref} r={r}
                 selected={!!selected[r.external_ref]}
                 saved={!!savedRefs[r.external_ref]}
+                selectable={maySave}
                 onToggle={() => toggle(r.external_ref)} />
             ))}
           </div>
@@ -392,7 +408,7 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
               Show more ({results.length - visible} more)
             </button>
           )}
-          {selectedRefs.length > 0 && (
+          {selectedRefs.length > 0 && maySave && (
             <div className="lf-savebar">
               <label className="lf-pipeline">
                 <span className="lf-pipeline-label">Pipeline name</span>
@@ -425,12 +441,12 @@ function FindPane({ shopReady, onSaved }: { shopReady: boolean; onSaved: (delta:
   );
 }
 
-function ResultCard({ r, selected, saved, onToggle }: { r: LeadResult; selected: boolean; saved: boolean; onToggle: () => void }) {
+function ResultCard({ r, selected, saved, selectable, onToggle }: { r: LeadResult; selected: boolean; saved: boolean; selectable: boolean; onToggle: () => void }) {
   const wa = isUaeMobile(r.phone) ? waLink(r.phone) : null;
   const tel = telLink(r.phone);
   return (
     <div className={`lf-card${selected ? ' sel' : ''}${saved ? ' saved' : ''}`}>
-      <button className="lf-check" aria-label={selected ? 'Deselect' : 'Select'} onClick={onToggle} disabled={saved}>
+      <button className="lf-check" aria-label={selected ? 'Deselect' : 'Select'} onClick={onToggle} disabled={saved || !selectable}>
         {saved ? <Icons.Check size={15} /> : selected ? <Icons.Check size={15} /> : <span className="lf-check-empty" />}
       </button>
       <div className="lf-card-body">

@@ -1,6 +1,7 @@
 <?php
 namespace App\Services\Assistant\Support;
 
+use App\Models\ShopUser;
 use App\Services\Assistant\Contracts\AssistantToolModule;
 use App\Support\Rbac;
 
@@ -20,6 +21,24 @@ abstract class AssistantModule implements AssistantToolModule
     public function handles(string $tool): bool
     {
         return array_key_exists($tool, $this->permissions());
+    }
+
+    /**
+     * Hide tool schemas the acting user can't invoke. Without this the model
+     * proposes e.g. search_businesses to a leads.view-only user and the
+     * conversation dead-ends on run()'s no_permission.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function visibleToolDefs(?ShopUser $user): array
+    {
+        $perms = $this->permissions();
+
+        return array_values(array_filter($this->toolDefs(), function (array $def) use ($perms, $user) {
+            $perm = $perms[$def['name'] ?? ''] ?? null;
+
+            return $perm === null || Rbac::userCan($user, $perm);
+        }));
     }
 
     public function run(ToolCall $call): array

@@ -68,3 +68,69 @@ describe('AccessControl — staff users', () => {
     });
   });
 });
+
+describe('AccessControl — role permission matrix', () => {
+  // A Business Hunt shop's catalog: top-level Hunt menu + the pages that sit
+  // under Settings. Mirrors PermissionCatalog::forShop() for modules ['leads'].
+  const HUNT_GROUPS = {
+    hunt: {
+      label: 'Business Hunt', section: null,
+      permissions: { 'leads.view': 'View leads', 'leads.search': 'Search businesses' },
+    },
+    assistant_config: {
+      label: 'AI Assistant', section: 'Settings',
+      permissions: { 'assistant.manage': 'Configure the assistant' },
+    },
+    access: {
+      label: 'Users & Roles', section: 'Settings',
+      permissions: { 'users.manage': 'Add, edit & delete users', 'roles.manage': 'Add, edit & delete roles' },
+    },
+  };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(A, 'listUsers').mockResolvedValue([]);
+    vi.spyOn(A, 'listRoles').mockResolvedValue([]);
+    vi.spyOn(A, 'listPermissionGroups').mockResolvedValue(HUNT_GROUPS as never);
+  });
+
+  async function openRoleEditor() {
+    setup();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('tab', { name: /roles/i }));
+    await user.click(await screen.findByRole('button', { name: /add/i }));
+    return user;
+  }
+
+  it('grants an AI Assistant page without also granting Users & Roles', async () => {
+    const spy = vi.spyOn(A, 'createRole').mockResolvedValue({
+      id: 9, name: 'Assistant editor', permissions: ['assistant.manage'], is_owner: false,
+    });
+    const user = await openRoleEditor();
+
+    await user.type(screen.getByPlaceholderText(/receptionist/i), 'Assistant editor');
+    await user.click(screen.getByLabelText(/configure the assistant/i));
+    await user.click(screen.getByRole('button', { name: /save role/i }));
+
+    expect(spy).toHaveBeenCalledWith({ name: 'Assistant editor', permissions: ['assistant.manage'] });
+    // The whole point: a Settings grant must not drag in user/role management,
+    // which would let the grantee escalate to every permission.
+    const sent = spy.mock.calls[0][0].permissions;
+    expect(sent).not.toContain('users.manage');
+    expect(sent).not.toContain('roles.manage');
+  });
+
+  it('renders each Settings page as its own group, not one aggregate toggle', async () => {
+    await openRoleEditor();
+
+    // Section header present…
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+    // …with each page beneath it individually selectable.
+    expect(screen.getByText('AI Assistant')).toBeInTheDocument();
+    expect(screen.getByText('Users & Roles')).toBeInTheDocument();
+    expect(screen.getByLabelText(/configure the assistant/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/add, edit & delete roles/i)).toBeInTheDocument();
+    // The old collapsed control is gone.
+    expect(screen.queryByText(/manage all settings pages/i)).not.toBeInTheDocument();
+  });
+});

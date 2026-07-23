@@ -83,11 +83,13 @@ class BookingPermissionsTest extends TestCase
     public function test_profile_edit_is_not_blocked_by_missing_working_hours_permission(): void
     {
         // WS3 only gates the working_hours part — a profile-only edit still works
-        // for a user without working_hours.manage.
+        // for a user without working_hours.manage. The profile fields carry
+        // profile.view of their own (they used to carry nothing at all), so the
+        // user needs that and nothing more.
         (new PermissionSeeder())->run();
         $shop = Shop::factory()->create(['modules' => ['bookings']]);
 
-        $this->as($this->staffToken($shop, []))
+        $this->as($this->staffToken($shop, ['profile.view']))
             ->putJson("/api/shops/{$shop->id}", ['name' => 'Renamed Shop'])->assertOk();
     }
 

@@ -224,11 +224,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/wa/push/subscribe', [\App\Http\Controllers\WaPushController::class, 'subscribe']);
     Route::post('/wa/push/unsubscribe', [\App\Http\Controllers\WaPushController::class, 'unsubscribe']);
     Route::post('/shop/category', [ShopController::class, 'confirmCategory']);
-    Route::get('/shop/persona', [\App\Http\Controllers\ShopPersonaController::class, 'show']);
-    Route::put('/shop/persona', [\App\Http\Controllers\ShopPersonaController::class, 'update']);
-    Route::get('/shop/persona/generate', [\App\Http\Controllers\ShopPersonaController::class, 'generate']);
-    Route::get('/shop/simulation', [\App\Http\Controllers\ShopSimulationController::class, 'show']);
-    Route::put('/shop/simulation', [\App\Http\Controllers\ShopSimulationController::class, 'update']);
     Route::get('/shop/wa/account', [\App\Http\Controllers\WaChatController::class, 'account']);
     Route::post('/shop/wa/account', [\App\Http\Controllers\WaChatController::class, 'saveAccount']);
     Route::get('/shop/wa/contacts', [\App\Http\Controllers\WaChatController::class, 'contacts']);
@@ -239,18 +234,34 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shop/wa/contacts/{contact}/status', [\App\Http\Controllers\WaChatController::class, 'setLeadStatus']);
 });
 
+// The AI Assistant settings page (persona) is its own left-menu destination
+// under Settings, so both the read and the writes require assistant.manage —
+// the persona drives what the auto-reply assistant says, and `generate` costs a
+// Claude call. Simulation is a Settings page, so it takes settings.manage.
+Route::middleware(['auth:sanctum', 'rbac.context', 'can.perm:assistant.manage'])->group(function () {
+    Route::get('/shop/persona',          [\App\Http\Controllers\ShopPersonaController::class, 'show']);
+    Route::put('/shop/persona',          [\App\Http\Controllers\ShopPersonaController::class, 'update']);
+    Route::get('/shop/persona/generate', [\App\Http\Controllers\ShopPersonaController::class, 'generate']);
+});
+Route::middleware(['auth:sanctum', 'rbac.context', 'can.perm:settings.manage'])->group(function () {
+    Route::get('/shop/simulation', [\App\Http\Controllers\ShopSimulationController::class, 'show']);
+    Route::put('/shop/simulation', [\App\Http\Controllers\ShopSimulationController::class, 'update']);
+});
+
 // rbac.context resolves current_shop_user() + the spatie team so the assistant's
 // tools enforce the acting user's permissions (owner/untagged tokens stay
 // all-allowed for backward compatibility).
 Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->group(function () {
-    Route::get('/shop/assistant/conversations',                  [\App\Http\Controllers\OwnerAssistantController::class, 'conversations']);
-    Route::get('/shop/assistant/conversations/{conversation}',   [\App\Http\Controllers\OwnerAssistantController::class, 'messages']);
-    Route::patch('/shop/assistant/conversations/{conversation}', [\App\Http\Controllers\OwnerAssistantController::class, 'rename']);
-    Route::delete('/shop/assistant/conversations/{conversation}',[\App\Http\Controllers\OwnerAssistantController::class, 'destroy']);
+    // Past conversations are the Chats menu, so they take chats.view. Transcripts
+    // contain lead names + phone numbers, credit balances and won-deal revenue, so
+    // hiding the menu client-side was never enough. Only the Chats page reads these
+    // (admin/src/pages/Conversations.tsx) — the Ask/Home screen does not, so gating
+    // them cannot make Home partially 403.
+    Route::get('/shop/assistant/conversations',                  [\App\Http\Controllers\OwnerAssistantController::class, 'conversations'])->middleware('can.perm:chats.view');
+    Route::get('/shop/assistant/conversations/{conversation}',   [\App\Http\Controllers\OwnerAssistantController::class, 'messages'])->middleware('can.perm:chats.view');
+    Route::patch('/shop/assistant/conversations/{conversation}', [\App\Http\Controllers\OwnerAssistantController::class, 'rename'])->middleware('can.perm:chats.view');
+    Route::delete('/shop/assistant/conversations/{conversation}',[\App\Http\Controllers\OwnerAssistantController::class, 'destroy'])->middleware('can.perm:chats.view');
     // Using the Ask assistant (Home menu) spends money, so gate it on assistant.use.
-    // Reading past conversations (Chats menu) stays open to any authed shop user so
-    // the Home page never partially 403s; the Chats menu itself is hidden client-side
-    // for users without chats.view.
     Route::post('/shop/assistant/text',                          [\App\Http\Controllers\OwnerAssistantController::class, 'text'])->middleware('can.perm:assistant.use');
     Route::post('/shop/assistant/voice',                         [\App\Http\Controllers\OwnerAssistantController::class, 'voice'])->middleware('can.perm:assistant.use');
 });

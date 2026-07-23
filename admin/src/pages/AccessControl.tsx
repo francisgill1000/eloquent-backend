@@ -421,9 +421,11 @@ function RoleEditor({
           );
         };
 
-        // Top-level groups render as their own permission list. A section (e.g.
-        // "Settings") collapses to ONE checkbox that unlocks every child page
-        // under it — no per-page granularity. Section order follows
+        // Every left-menu destination gets its own permission list — including the
+        // pages reached through Settings, which render nested under a "Settings"
+        // header. They must NOT collapse into one aggregate toggle: that section
+        // holds Users & Roles, so a single grant would hand any user the ability
+        // to edit roles and grant themselves everything. Section order follows
         // first-appearance in the catalog.
         const entries = Object.entries(groups);
         const top = entries.filter(([, g]) => !g.section);
@@ -440,22 +442,19 @@ function RoleEditor({
           <div className="ac-matrix">
             {top.map((entry) => renderGroup(entry, false))}
             {sections.map(([section, groupsInSection]) => {
-              // The whole section is a single grant: one toggle sets/clears every
-              // permission of every child page under it.
+              // The section header is a grouping label plus a convenience
+              // select-all — the real grants are the per-page groups below it.
               const perms = groupsInSection.flatMap(([, g]) => Object.keys(g.permissions));
               const allOn = perms.length > 0 && perms.every((p) => selected.has(p));
-              const covers = groupsInSection.map(([, g]) => g.label).join(', ');
               return (
-                <div className="ac-matrix-group" key={section}>
+                <div className="ac-matrix-section" key={section}>
                   <div className="ac-matrix-head">
                     <span className="ac-matrix-label">{section}</span>
+                    <button className="ac-selectall" onClick={() => toggleGroup(perms, allOn)}>
+                      {allOn ? 'Clear all' : 'Select all'}
+                    </button>
                   </div>
-                  <div className="ac-chips">
-                    <label className="ac-perm">
-                      <input type="checkbox" checked={allOn} onChange={() => toggleGroup(perms, allOn)} />
-                      <span>Manage all {section} pages <span className="ac-perm-hint">({covers})</span></span>
-                    </label>
-                  </div>
+                  {groupsInSection.map((entry) => renderGroup(entry, true))}
                 </div>
               );
             })}

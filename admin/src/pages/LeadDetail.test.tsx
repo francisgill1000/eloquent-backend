@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { ShopProvider } from '@/context/ShopContext';
+import { storage } from '@/lib/storage';
 import * as leadsLib from '@/lib/leads';
 import LeadDetail from './LeadDetail';
 
@@ -13,16 +15,22 @@ const baseLead = {
   whatsapp_followup_url: 'https://wa.me/971501112233?text=Follow%20up%20Pak%20Cargo',
 };
 
-function setup() {
+/** @param perms effective permissions for the acting user (default: full access). */
+function setup(perms: string[] = ['*']) {
+  storage.setJSON('shop_data', { id: 7, name: 'Acme' });
+  storage.set('shop_token', 'tok');
+  storage.setJSON('shop_permissions', perms);
   return render(
     <MemoryRouter initialEntries={['/leads/3']}>
-      <Routes><Route path="/leads/:id" element={<LeadDetail />} /></Routes>
+      <ShopProvider>
+        <Routes><Route path="/leads/:id" element={<LeadDetail />} /></Routes>
+      </ShopProvider>
     </MemoryRouter>,
   );
 }
 
 describe('LeadDetail outreach button', () => {
-  beforeEach(() => { vi.restoreAllMocks(); vi.stubGlobal('open', vi.fn()); });
+  beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); vi.stubGlobal('open', vi.fn()); });
 
   it('shows WhatsApp (opening) for a New lead and marks it Sent on click', async () => {
     vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead }, activities: [] });
@@ -89,8 +97,39 @@ describe('LeadDetail outreach button', () => {
   });
 });
 
+describe('LeadDetail permissions', () => {
+  beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); vi.stubGlobal('open', vi.fn()); });
+
+  it('leaves every write control inert for a leads.view-only user', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead }, activities: [] });
+    const setStatus = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'sent' });
+    const personalize = vi.spyOn(leadsLib, 'personalizeLead').mockResolvedValue('nope');
+
+    setup(['leads.view']);
+    await screen.findByText('Pak Cargo');
+
+    expect(screen.getByRole('button', { name: /whatsapp/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /personalize/i })).toBeDisabled();
+
+    // Tapping a funnel stage must not fire a status write either.
+    fireEvent.click(screen.getByRole('button', { name: /^demo$/i }));
+    await waitFor(() => expect(setStatus).not.toHaveBeenCalled());
+    expect(personalize).not.toHaveBeenCalled();
+  });
+
+  it('keeps the write controls live for a leads.manage user', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead }, activities: [] });
+
+    setup(['leads.view', 'leads.manage']);
+    await screen.findByText('Pak Cargo');
+
+    expect(screen.getByRole('button', { name: /whatsapp/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /personalize/i })).not.toBeDisabled();
+  });
+});
+
 describe('LeadDetail won-deal capture', () => {
-  beforeEach(() => { vi.restoreAllMocks(); vi.stubGlobal('open', vi.fn()); });
+  beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); vi.stubGlobal('open', vi.fn()); });
 
   it('captures a recurring deal when marking a lead won', async () => {
     vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'demo' }, activities: [] });

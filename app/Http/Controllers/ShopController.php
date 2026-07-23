@@ -11,6 +11,7 @@ use App\Models\ShopUser;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
@@ -260,22 +261,51 @@ class ShopController extends Controller
         return response()->json($shop);
     }
 
+    /**
+     * Fields owned by the Settings menu (the Booking notifications page) rather
+     * than the Profile menu. They carry settings.manage; everything else on the
+     * shop record is profile.view (the catalog labels it "View & edit the
+     * business profile"). Keeps PUT /shops/{shop} — which serves three different
+     * left-menu pages — gated per menu instead of not at all.
+     */
+    private const SETTINGS_FIELDS = [
+        'booking_reminders_enabled',
+        'booking_reminder_template',
+        'booking_reviews_enabled',
+        'review_request_template',
+        'google_review_url',
+        'waitlist_notify_enabled',
+        'waitlist_notify_template',
+    ];
+
     public function update(UpdateShopRequest $request, Shop $shop)
     {
-        // Editing working hours is its own grantable permission (owner and untagged
-        // sessions bypass, see Rbac). Checked before the try so the 403 isn't
-        // swallowed into a 500. Profile fields below are not gated (unchanged).
-        if (is_array($request->validated()['working_hours'] ?? null)) {
-            abort_unless(
-                \App\Support\Rbac::userCan(current_shop_user(), 'working_hours.manage'),
-                403,
-                'This action is not permitted.'
-            );
+        // Each group of fields is gated by the permission of the left-menu page
+        // that writes it (owner and untagged sessions bypass, see Rbac). Checked
+        // before the try so a 403 isn't swallowed into a 500.
+        $validated = $request->validated();
+        $user = current_shop_user();
+
+        $deny = fn () => abort(403, 'This action is not permitted.');
+
+        if (is_array($validated['working_hours'] ?? null)
+            && ! \App\Support\Rbac::userCan($user, 'working_hours.manage')) {
+            $deny();
+        }
+
+        $touched = array_keys(Arr::except($validated, ['working_hours']));
+
+        if (array_intersect($touched, self::SETTINGS_FIELDS)
+            && ! \App\Support\Rbac::userCan($user, 'settings.manage')) {
+            $deny();
+        }
+
+        if (array_diff($touched, self::SETTINGS_FIELDS)
+            && ! \App\Support\Rbac::userCan($user, 'profile.view')) {
+            $deny();
         }
 
         try {
-            $validated = $request->validated();
-
             // Extract image fields for special handling
             $logo = $validated['logo'] ?? null;
             $heroImage = $validated['hero_image'] ?? null;

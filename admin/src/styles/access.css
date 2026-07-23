@@ -130,8 +130,20 @@
   padding: 10px 12px 6px;
 }
 
-/* A section (e.g. "Settings") collapses to a single grant; the parenthetical
-   list of pages it covers is muted so the toggle label stays the focus. */
+/* A section (e.g. "Settings") is a grouping band: its header names the section
+   and offers a select-all, and each page beneath it stays an independently
+   grantable nested group. Never collapse a section to one toggle — Users & Roles
+   lives here, so a single grant would be a privilege-escalation path. */
+.ac-matrix-section {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 10px 10px 4px;
+  background: rgba(255, 255, 255, 0.02);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ac-matrix-section > .ac-matrix-head { margin-bottom: 0; padding: 0 2px; }
+.ac-matrix-nested { background: rgba(255, 255, 255, 0.05); }
+
 .ac-perm-hint { color: var(--text-3); font-size: 12px; }
 .ac-matrix-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .ac-matrix-label { font-size: 12.5px; font-weight: 700; color: var(--text-1); }
