@@ -29,6 +29,8 @@ class Lead extends Model
 
     protected $fillable = [
         'shop_id',
+        'assigned_to_id',
+        'assigned_at',
         'name',
         'phone',
         'whatsapp',
@@ -55,6 +57,7 @@ class Lead extends Model
         'lng' => 'float',
         'last_contacted_at' => 'datetime',
         'next_followup_at' => 'datetime',
+        'assigned_at' => 'datetime',
         'deal_amount' => 'float',
         'deal_term_months' => 'integer',
         'deal_won_at' => 'datetime',
@@ -70,6 +73,12 @@ class Lead extends Model
     public function activities(): HasMany
     {
         return $this->hasMany(LeadActivity::class);
+    }
+
+    /** The agent who owns this lead. Null means unassigned (owner-visible pool). */
+    public function assignedTo(): BelongsTo
+    {
+        return $this->belongsTo(ShopUser::class, 'assigned_to_id');
     }
 
     /** Tenant scope — every lead query must go through the current shop. */
