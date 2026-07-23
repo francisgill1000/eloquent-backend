@@ -23,7 +23,7 @@ describe('Leads – Find pane search re-entrancy', () => {
   });
 
   it('does not fire a second search while the first is still in flight (Enter key)', async () => {
-    vi.spyOn(leadsLib, 'listLeads').mockResolvedValue({ data: [], funnel: EMPTY_FUNNEL, pipelines: [], won_value: 0 });
+    vi.spyOn(leadsLib, 'listLeads').mockResolvedValue({ data: [], funnel: EMPTY_FUNNEL, pipelines: [], won_value: 0, assignees: [], auto_assign: false });
     vi.spyOn(leadsLib, 'getLeadCredits').mockResolvedValue({ credits: 50, can_purchase: false, embedded_checkout: false, packs: [] });
     vi.spyOn(leadsLib, 'startAdSearch').mockRejectedValue(new Error('skip'));
 

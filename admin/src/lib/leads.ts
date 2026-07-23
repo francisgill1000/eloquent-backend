@@ -185,6 +185,8 @@ export type LeadFilters = {
   pipeline?: string;
   search?: string;
   followups?: 'due';
+  /** 'me' | 'unassigned' | a shop user id. */
+  assigned_to?: 'me' | 'unassigned' | number;
 };
 
 /** List the shop's leads with filters + funnel counts per status + pipelines. */
@@ -195,5 +197,25 @@ export async function listLeads(filters: LeadFilters = {}): Promise<LeadListResp
     funnel: data?.funnel ?? { new: 0, sent: 0, followup: 0, replied: 0, demo: 0, won: 0, pass: 0 },
     pipelines: Array.isArray(data?.pipelines) ? data.pipelines : [],
     won_value: data?.won_value ?? 0,
+    assignees: Array.isArray(data?.assignees) ? data.assignees : [],
+    auto_assign: Boolean(data?.auto_assign),
   };
+}
+
+/** Hand one lead to a team member, or pass null to return it to the pool. */
+export async function assignLead(id: number, assigneeId: number | null): Promise<Lead> {
+  const { data } = await api.patch(`/shop/leads/${id}/assign`, { assigned_to_id: assigneeId });
+  return data.data;
+}
+
+/** Hand several leads at once. Resolves to the number actually assigned. */
+export async function assignLeadsBulk(ids: number[], assigneeId: number | null): Promise<number> {
+  const { data } = await api.post('/shop/leads/assign', { ids, assigned_to_id: assigneeId });
+  return Number(data?.assigned ?? 0);
+}
+
+/** Turn this shop's automatic round-robin hand-out on or off. */
+export async function setLeadAutoAssign(on: boolean): Promise<boolean> {
+  const { data } = await api.patch('/shop/leads/settings', { lead_auto_assign: on });
+  return Boolean(data?.lead_auto_assign);
 }
