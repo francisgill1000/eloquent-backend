@@ -12,6 +12,8 @@ import {
   startAdSearch,
   pollAdSearch,
   updateLeadStatus,
+  assignLeadsBulk,
+  setLeadAutoAssign,
   waLink,
   telLink,
   leadDigits,
@@ -19,7 +21,7 @@ import {
   InsufficientCreditsError,
 } from '@/lib/leads';
 import { LEAD_STATUSES } from '@/types';
-import type { Lead, LeadFunnel, LeadResult, LeadStatus } from '@/types';
+import type { Assignee, Lead, LeadFunnel, LeadResult, LeadStatus } from '@/types';
 
 type Mode = 'find' | 'pipeline';
 
@@ -486,6 +488,17 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
   );
   useEffect(() => { localStorage.setItem('lf_view', view); }, [view]);
 
+  // --- Assignment ---------------------------------------------------------
+  // The picker and the multi-select only exist for holders of leads.assign;
+  // everyone else just sees who owns what.
+  const { can } = useShop();
+  const mayAssign = can('leads.assign');
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
+  const [autoAssign, setAutoAssign] = useState(false);
+  const [ownerFilter, setOwnerFilter] = useState<'me' | 'unassigned' | number | null>(null);
+  const [picked, setPicked] = useState<Record<number, boolean>>({});
+  const pickedIds = Object.keys(picked).filter((k) => picked[Number(k)]).map(Number);
+
   // Client-side paging over the already-loaded pipeline.
   const total = leads.length;
   const pageSize = perPage === 'all' ? Math.max(total, 1) : perPage;
@@ -495,7 +508,7 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
   const pageLeads = perPage === 'all' ? leads : leads.slice(start, start + pageSize);
 
   // Snap back to the first page whenever the result set or page size changes.
-  useEffect(() => { setPage(1); }, [perPage, statusFilter, dueOnly, search, pipelineFilter]);
+  useEffect(() => { setPage(1); }, [perPage, statusFilter, dueOnly, search, pipelineFilter, ownerFilter]);
 
   const fetch = useCallback(async () => {
     if (!shopReady) return;
@@ -506,10 +519,13 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
         pipeline: pipelineFilter ?? undefined,
         search: search.trim() || undefined,
         followups: dueOnly ? 'due' : undefined,
+        assigned_to: ownerFilter ?? undefined,
       });
       setLeads(res.data);
       setFunnel(res.funnel);
       setPipelines(res.pipelines);
+      setAssignees(res.assignees);
+      setAutoAssign(res.auto_assign);
       // The active filter may have vanished (last lead in it re-filed/deleted).
       if (pipelineFilter && !res.pipelines.includes(pipelineFilter)) setPipelineFilter(null);
     } catch {
@@ -517,7 +533,7 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
     } finally {
       setLoading(false);
     }
-  }, [shopReady, statusFilter, pipelineFilter, dueOnly, search, setFunnel]);
+  }, [shopReady, statusFilter, pipelineFilter, dueOnly, search, ownerFilter, setFunnel]);
 
   useEffect(() => { void fetch(); }, [fetch]);
 
@@ -532,6 +548,27 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
       setError('Could not update status.');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const assignPicked = async (assigneeId: number | null) => {
+    if (pickedIds.length === 0) return;
+    try {
+      await assignLeadsBulk(pickedIds, assigneeId);
+      setPicked({});
+      await fetch();
+    } catch {
+      setError('Could not assign those leads.');
+    }
+  };
+
+  const toggleAutoAssign = async (on: boolean) => {
+    setAutoAssign(on); // optimistic — reverted below if the call fails
+    try {
+      await setLeadAutoAssign(on);
+    } catch {
+      setAutoAssign(!on);
+      setError('Could not change auto-assign.');
     }
   };
 
@@ -565,7 +602,51 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
         <button className={`lf-toggle${dueOnly ? ' on' : ''}`} onClick={() => setDueOnly((v) => !v)}>
           <Icons.Bell size={14} /> Due today
         </button>
+        {mayAssign && (
+          <label className="lf-pipefilter">
+            <Icons.User size={14} />
+            <select
+              value={ownerFilter === null ? '' : String(ownerFilter)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setOwnerFilter(v === '' ? null : v === 'me' || v === 'unassigned' ? v : Number(v));
+              }}
+              aria-label="Filter by owner"
+            >
+              <option value="">All owners</option>
+              <option value="unassigned">Unassigned</option>
+              {assignees.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </label>
+        )}
+        {mayAssign && (
+          <label className="lf-autoassign">
+            <input type="checkbox" checked={autoAssign} aria-label="Auto-assign new leads"
+              onChange={(e) => void toggleAutoAssign(e.target.checked)} />
+            <span>Auto-assign new leads</span>
+          </label>
+        )}
       </div>
+
+      {mayAssign && pickedIds.length > 0 && (
+        <div className="lf-assignbar">
+          <span>{pickedIds.length} selected</span>
+          <select
+            defaultValue=""
+            aria-label="Assign selected to"
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v !== '') void assignPicked(v === 'unassigned' ? null : Number(v));
+              e.target.value = '';
+            }}
+          >
+            <option value="" disabled>Assign to…</option>
+            <option value="unassigned">Unassigned (pool)</option>
+            {assignees.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+          <button className="lf-linkbtn" onClick={() => setPicked({})}>Clear</button>
+        </div>
+      )}
 
       {error && <div className="c-error-box">{error}</div>}
 
@@ -599,7 +680,9 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
             <div className="lf-list">
               {pageLeads.map((l) => (
                 <LeadCard key={l.id} lead={l} busy={busyId === l.id} onStatus={(s) => void changeStatus(l, s)}
-                  onOpen={() => navigate(`/leads/${l.id}`)} />
+                  onOpen={() => navigate(`/leads/${l.id}`)}
+                  selectable={mayAssign} picked={!!picked[l.id]}
+                  onPick={(on) => setPicked((p) => ({ ...p, [l.id]: on }))} />
               ))}
             </div>
           ) : (
@@ -607,7 +690,9 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
               <table className="lf-table">
                 <thead>
                   <tr>
+                    {mayAssign && <th className="lf-pick-th" aria-label="Select" />}
                     <th>Name</th>
+                    <th>Owner</th>
                     <th>Status</th>
                     <th>Follow-up</th>
                     <th className="ta-r">Actions</th>
@@ -616,7 +701,9 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
                 <tbody>
                   {pageLeads.map((l) => (
                     <LeadRow key={l.id} lead={l} busy={busyId === l.id} onStatus={(s) => void changeStatus(l, s)}
-                      onOpen={() => navigate(`/leads/${l.id}`)} />
+                      onOpen={() => navigate(`/leads/${l.id}`)}
+                      selectable={mayAssign} picked={!!picked[l.id]}
+                      onPick={(on) => setPicked((p) => ({ ...p, [l.id]: on }))} />
                   ))}
                 </tbody>
               </table>
@@ -652,16 +739,42 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
   );
 }
 
-function LeadRow({ lead, busy, onStatus, onOpen }: { lead: Lead; busy: boolean; onStatus: (s: LeadStatus) => void; onOpen: () => void }) {
+/** Owner chip — the same shape in both views, so ownership reads identically. */
+function OwnerChip({ lead }: { lead: Lead }) {
+  return (
+    <span className={`lf-owner${lead.assigned_to ? '' : ' none'}`}>
+      {lead.assigned_to?.name ?? 'Unassigned'}
+    </span>
+  );
+}
+
+type LeadItemProps = {
+  lead: Lead;
+  busy: boolean;
+  onStatus: (s: LeadStatus) => void;
+  onOpen: () => void;
+  selectable: boolean;
+  picked: boolean;
+  onPick: (on: boolean) => void;
+};
+
+function LeadRow({ lead, busy, onStatus, onOpen, selectable, picked, onPick }: LeadItemProps) {
   const wa = lead.whatsapp_url && lead.is_mobile ? lead.whatsapp_url : null;
   const follow = followupLabel(lead.next_followup_at);
   return (
     <tr className={`lf-row lf-clickable s-${lead.status}`} onClick={onOpen}>
+      {selectable && (
+        <td onClick={(e) => e.stopPropagation()}>
+          <input type="checkbox" className="lf-pick" aria-label={`Select ${lead.name}`}
+            checked={picked} onChange={(e) => onPick(e.target.checked)} />
+        </td>
+      )}
       <td className="lf-row-name">
         <span className="lf-name">{lead.name}</span>
         {lead.address && <span className="lf-addr"><Icons.MapPin size={11} /> {lead.address}</span>}
         {lead.pipeline && <span className="lf-pipe-tag"><Icons.List size={10} /> {lead.pipeline}</span>}
       </td>
+      <td><OwnerChip lead={lead} /></td>
       <td onClick={(e) => e.stopPropagation()}>
         <select className={`lf-select s-${lead.status}`} value={lead.status} disabled={busy}
           onChange={(e) => onStatus(e.target.value as LeadStatus)} aria-label="Change status">
@@ -685,16 +798,22 @@ function LeadRow({ lead, busy, onStatus, onOpen }: { lead: Lead; busy: boolean; 
   );
 }
 
-function LeadCard({ lead, busy, onStatus, onOpen }: { lead: Lead; busy: boolean; onStatus: (s: LeadStatus) => void; onOpen: () => void }) {
+function LeadCard({ lead, busy, onStatus, onOpen, selectable, picked, onPick }: LeadItemProps) {
   const wa = lead.whatsapp_url && lead.is_mobile ? lead.whatsapp_url : null;
   const follow = followupLabel(lead.next_followup_at);
   return (
     <div className={`lf-card lf-clickable s-${lead.status}`} onClick={onOpen}>
       <div className="lf-card-body">
         <div className="lf-card-top">
+          {selectable && (
+            <input type="checkbox" className="lf-pick" aria-label={`Select ${lead.name}`}
+              checked={picked} onClick={(e) => e.stopPropagation()}
+              onChange={(e) => onPick(e.target.checked)} />
+          )}
           <span className="lf-name">{lead.name}</span>
           <span className={`lf-status s-${lead.status}`}>{STATUS_LABEL[lead.status]}</span>
         </div>
+        <OwnerChip lead={lead} />
         {lead.address && <span className="lf-addr"><Icons.MapPin size={12} /> {lead.address}</span>}
         {lead.pipeline && <span className="lf-pipe-tag"><Icons.List size={11} /> {lead.pipeline}</span>}
         {follow && (
