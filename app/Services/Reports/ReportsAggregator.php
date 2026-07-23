@@ -4,6 +4,7 @@ namespace App\Services\Reports;
 
 use App\Models\Booking;
 use App\Models\Lead;
+use App\Support\Rbac;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -314,9 +315,24 @@ class ReportsAggregator
      * CURRENT status is 'won' count (a reversed win no longer does). For
      * recurring, deal_amount is the monthly price; total = amount × term.
      */
+    /**
+     * The agent whose leads the caller is limited to, or null when they see the
+     * whole shop. These methods use the raw query builder for portability, so
+     * the Lead model's AssignedLeadScope does NOT apply — the filter must be
+     * explicit or an agent would read the whole shop's pipeline and revenue.
+     */
+    private function agentLeadFilter(): ?int
+    {
+        $user = current_shop_user();
+
+        return Rbac::seesAllLeads($user) ? null : $user?->id;
+    }
+
     public function wonValueTotals(int $shopId, ?Carbon $from = null, ?Carbon $to = null): array
     {
-        $q = DB::table('leads')->where('shop_id', $shopId)->where('status', 'won');
+        $agent = $this->agentLeadFilter();
+        $q = DB::table('leads')->where('shop_id', $shopId)->where('status', 'won')
+            ->when($agent !== null, fn ($b) => $b->where('assigned_to_id', $agent));
         if ($from !== null && $to !== null) {
             $q->whereNotNull('deal_won_at')->whereBetween('deal_won_at', [$from, $to]);
         }
@@ -358,11 +374,13 @@ class ReportsAggregator
     public function huntSummary(int $shopId, Carbon $from, Carbon $to): array
     {
         $statuses = Lead::STATUSES;
+        $agent = $this->agentLeadFilter();
 
         // Current pipeline snapshot (not date-bounded), zero-filled.
         $pipeline = array_fill_keys($statuses, 0);
         foreach (
             DB::table('leads')->where('shop_id', $shopId)
+                ->when($agent !== null, fn ($b) => $b->where('assigned_to_id', $agent))
                 ->selectRaw('status, count(*) as c')->groupBy('status')
                 ->pluck('c', 'status') as $st => $c
         ) {
@@ -373,6 +391,7 @@ class ReportsAggregator
 
         // Leads created in the period.
         $newLeads = (int) DB::table('leads')->where('shop_id', $shopId)
+            ->when($agent !== null, fn ($b) => $b->where('assigned_to_id', $agent))
             ->whereBetween('created_at', [$from, $to])->count();
 
         // Status changes in the period, aggregated by target status IN PHP
@@ -381,6 +400,7 @@ class ReportsAggregator
         $payloads = DB::table('lead_activities')
             ->join('leads', 'leads.id', '=', 'lead_activities.lead_id')
             ->where('leads.shop_id', $shopId)
+            ->when($agent !== null, fn ($b) => $b->where('leads.assigned_to_id', $agent))
             ->where('lead_activities.type', 'status_change')
             ->whereBetween('lead_activities.created_at', [$from, $to])
             ->pluck('lead_activities.payload');
@@ -410,6 +430,7 @@ class ReportsAggregator
         // amount attached, and a win logged without a deal value is still
         // a real win the owner should see counted here.
         $wonInPeriod = (int) DB::table('leads')->where('shop_id', $shopId)
+            ->when($agent !== null, fn ($b) => $b->where('assigned_to_id', $agent))
             ->where('status', 'won')
             ->whereNotNull('deal_won_at')
             ->whereBetween('deal_won_at', [$from, $to])
@@ -429,6 +450,79 @@ class ReportsAggregator
             'credits_used' => $creditsUsed,
             'searches'     => $searches,
         ];
+    }
+
+    /**
+     * Per-agent Hunt performance for the shop, best revenue first. Returns []
+     * for a caller who cannot see all leads — an agent's own huntSummary
+     * already means "mine", so a one-row leaderboard would be noise.
+     *
+     * `leads` is a current snapshot of leads held; `won` and `won_value` are
+     * period-bound, matching huntSummary's conventions.
+     *
+     * @return array<int, array{id: int, name: string, leads: int, won: int, won_value: float}>
+     */
+    public function huntByAgent(int $shopId, Carbon $from, Carbon $to): array
+    {
+        if ($this->agentLeadFilter() !== null) {
+            return [];
+        }
+
+        $held = DB::table('leads')->where('shop_id', $shopId)
+            ->whereNotNull('assigned_to_id')
+            ->selectRaw('assigned_to_id, count(*) as c')
+            ->groupBy('assigned_to_id')
+            ->pluck('c', 'assigned_to_id');
+
+        $wonRows = DB::table('leads')->where('shop_id', $shopId)
+            ->whereNotNull('assigned_to_id')
+            ->where('status', 'won')
+            ->whereNotNull('deal_won_at')
+            ->whereBetween('deal_won_at', [$from, $to])
+            ->get(['assigned_to_id', 'deal_amount', 'deal_type', 'deal_term_months']);
+
+        $wonCount = [];
+        $wonValue = [];
+        foreach ($wonRows as $row) {
+            $id = (int) $row->assigned_to_id;
+            $wonCount[$id] = ($wonCount[$id] ?? 0) + 1;
+
+            $amount = (float) ($row->deal_amount ?? 0);
+            if ($amount <= 0) {
+                continue;
+            }
+            if ($row->deal_type === 'recurring') {
+                $term = (int) ($row->deal_term_months ?? 0);
+                if ($term <= 0) {
+                    continue; // incomplete recurring — no computable total
+                }
+                $amount *= $term;
+            }
+            $wonValue[$id] = ($wonValue[$id] ?? 0) + $amount;
+        }
+
+        $names = DB::table('shop_users')->where('shop_id', $shopId)->pluck('name', 'id');
+
+        $out = [];
+        foreach ($names as $id => $name) {
+            $id = (int) $id;
+            $leads = (int) ($held[$id] ?? 0);
+            $won = (int) ($wonCount[$id] ?? 0);
+            if ($leads === 0 && $won === 0) {
+                continue; // never handed a lead — keep the table to real agents
+            }
+            $out[] = [
+                'id' => $id,
+                'name' => (string) $name,
+                'leads' => $leads,
+                'won' => $won,
+                'won_value' => round((float) ($wonValue[$id] ?? 0), 2),
+            ];
+        }
+
+        usort($out, fn ($a, $b) => $b['won_value'] <=> $a['won_value']);
+
+        return $out;
     }
 
     /**
