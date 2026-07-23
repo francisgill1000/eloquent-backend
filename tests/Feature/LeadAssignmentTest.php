@@ -437,4 +437,67 @@ class LeadAssignmentTest extends TestCase
 
         $this->assertTrue($shop->fresh()->lead_auto_assign);
     }
+
+    // --- Reports ----------------------------------------------------------
+
+    public function test_hunt_reports_show_an_agent_only_their_own_numbers(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $a = $this->agent($shop);
+        $b = $this->agent($shop);
+
+        Lead::create(['shop_id' => $shop->id, 'name' => 'A won', 'status' => 'won',
+            'assigned_to_id' => $a->id, 'deal_amount' => 100, 'deal_type' => 'one_off', 'deal_won_at' => now()]);
+        Lead::create(['shop_id' => $shop->id, 'name' => 'B won', 'status' => 'won',
+            'assigned_to_id' => $b->id, 'deal_amount' => 500, 'deal_type' => 'one_off', 'deal_won_at' => now()]);
+
+        $agg = app(\App\Services\Reports\ReportsAggregator::class);
+        $from = now()->subMonth();
+        $to = now()->addDay();
+
+        \App\Support\CurrentShopUser::set($a);
+        $mine = $agg->huntSummary($shop->id, $from, $to);
+        $this->assertSame(1, $mine['total_leads']);
+        $this->assertSame(1, $mine['won']);
+        $this->assertSame(100.0, $mine['won_value']);
+
+        \App\Support\CurrentShopUser::set($this->owner($shop));
+        $all = $agg->huntSummary($shop->id, $from, $to);
+        $this->assertSame(2, $all['total_leads']);
+        $this->assertSame(600.0, $all['won_value']);
+    }
+
+    public function test_managers_get_a_per_agent_breakdown_and_agents_get_nothing(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $a = $this->agent($shop);
+        $b = $this->agent($shop);
+
+        Lead::create(['shop_id' => $shop->id, 'name' => 'A1', 'status' => 'won',
+            'assigned_to_id' => $a->id, 'deal_amount' => 100, 'deal_type' => 'one_off', 'deal_won_at' => now()]);
+        Lead::create(['shop_id' => $shop->id, 'name' => 'A2', 'status' => 'new', 'assigned_to_id' => $a->id]);
+        Lead::create(['shop_id' => $shop->id, 'name' => 'B1', 'status' => 'won',
+            'assigned_to_id' => $b->id, 'deal_amount' => 50, 'deal_type' => 'one_off', 'deal_won_at' => now()]);
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Pool', 'status' => 'new']);
+
+        $agg = app(\App\Services\Reports\ReportsAggregator::class);
+        $from = now()->subMonth();
+        $to = now()->addDay();
+
+        \App\Support\CurrentShopUser::set($this->owner($shop));
+        $rows = $agg->huntByAgent($shop->id, $from, $to);
+
+        $byId = collect($rows)->keyBy('id');
+        $this->assertSame(2, $byId[$a->id]['leads']);
+        $this->assertSame(1, $byId[$a->id]['won']);
+        $this->assertSame(100.0, $byId[$a->id]['won_value']);
+        $this->assertSame(1, $byId[$b->id]['leads']);
+        $this->assertSame(50.0, $byId[$b->id]['won_value']);
+
+        // An agent gets no leaderboard — their own figures already mean "mine".
+        \App\Support\CurrentShopUser::set($a);
+        $this->assertSame([], $agg->huntByAgent($shop->id, $from, $to));
+    }
 }
