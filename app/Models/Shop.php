@@ -29,6 +29,8 @@ class Shop extends Authenticatable
     protected $appends = ["registered_at", "year_of_experience", "total_bookings", "is_favourite", "is_open"];
 
     protected $casts = [
+        // Business Hunt: auto-distribute newly saved leads across the team.
+        'lead_auto_assign' => 'boolean',
         'last_login_at' => 'datetime',
         'modules' => 'array',
         'simulation_script' => 'array',

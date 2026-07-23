@@ -51,4 +51,14 @@ class Rbac
             return false;
         }
     }
+
+    /**
+     * May this user see every lead in the shop, or only the ones assigned to
+     * them? Delegates to userCan so owners and untagged (legacy) sessions stay
+     * all-allowed, and an unseeded permission fails closed to "own leads only".
+     */
+    public static function seesAllLeads(?ShopUser $user): bool
+    {
+        return self::userCan($user, 'leads.view_all');
+    }
 }

@@ -66,8 +66,13 @@ class PermissionCatalog
             // permissions before; these gate the Hunt tools + LeadController routes.
             'hunt' => ['label' => 'Business Hunt', 'module' => 'leads', 'section' => null, 'permissions' => [
                 'leads.view'     => 'View leads, pipeline & Hunt summary',
+                // Widening permission: WITHOUT it a user sees only the leads
+                // assigned to them. Removing it from a role is what turns an
+                // employee into an agent (see AssignedLeadScope).
+                'leads.view_all' => 'See every lead, not just their own',
                 'leads.search'   => 'Search businesses (spends credits)',
                 'leads.manage'   => 'Save & work leads (status, follow-ups)',
+                'leads.assign'   => 'Assign leads to other users',
                 'leads.purchase' => 'Buy credit packs',
             ]],
             'profile' => ['label' => 'Profile', 'module' => null, 'section' => null, 'permissions' => [
