@@ -43,6 +43,20 @@ class UpdateShopRequest extends FormRequest
             'lon'           => 'nullable|between:-180,180',
             'location'      => 'nullable|string|max:255',
             'hero_image'    => 'nullable|string',
+
+            // Booking notifications (the Settings > Booking notifications page).
+            // Without rules here validated() stripped them and the page's Save
+            // reported success while persisting nothing. `sometimes` keeps a
+            // Profile-page save from touching them — validated() only carries
+            // keys the request actually sent.
+            'booking_reminders_enabled' => 'sometimes|boolean',
+            'booking_reminder_template' => 'nullable|string|max:1000',
+            'booking_reviews_enabled'   => 'sometimes|boolean',
+            'review_request_template'   => 'nullable|string|max:1000',
+            'google_review_url'         => 'nullable|url|max:2048',
+            'waitlist_notify_enabled'   => 'sometimes|boolean',
+            'waitlist_notify_template'  => 'nullable|string|max:1000',
+
             'working_hours' => 'sometimes|array|max:7',
             'working_hours.*.day_of_week' => 'required|integer|between:0,6|distinct',
             'working_hours.*.start_time' => 'required|date_format:H:i',
@@ -55,6 +69,7 @@ class UpdateShopRequest extends FormRequest
     {
         return [
             'website.url' => 'The website must be a valid URL.',
+            'google_review_url.url' => 'The Google review link must be a valid URL.',
         ];
     }
 }

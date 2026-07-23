@@ -123,28 +123,67 @@ class MenuPermissionIsolationTest extends TestCase
         $this->assertSame($shop->name, $shop->fresh()->name);
     }
 
-    /**
-     * Documents current behaviour, not desired behaviour: the booking-notification
-     * fields are absent from UpdateShopRequest::rules(), so validated() strips
-     * them and PUT /shops/{shop} silently no-ops instead of saving. The
-     * settings.manage branch of the controller's field partition therefore cannot
-     * fire today — it guards those fields for when the rules are extended.
-     *
-     * Flagged separately: the Booking notifications page's Save appears to work
-     * but persists nothing.
-     */
-    public function test_notification_fields_are_currently_stripped_by_validation(): void
+    public function test_settings_manage_gates_notification_settings_writes(): void
     {
         $shop = $this->huntShop();
         // Read through fresh(): the factory's in-memory model has no value for
         // this column, so only the DB row shows the real default.
         $before = (bool) $shop->fresh()->booking_reminders_enabled;
 
+        // Notification fields belong to the Settings menu, not the Profile menu —
+        // profile.view alone must not unlock them.
         $this->withHeaders($this->hdrs($this->staffToken($shop, ['profile.view'])))
             ->putJson("/api/shops/{$shop->id}", ['booking_reminders_enabled' => ! $before])
-            ->assertOk();
+            ->assertStatus(403);
 
         $this->assertSame($before, (bool) $shop->fresh()->booking_reminders_enabled);
+
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->hdrs($this->staffToken($shop, ['settings.manage'])))
+            ->putJson("/api/shops/{$shop->id}", [
+                'booking_reminders_enabled' => ! $before,
+                'booking_reminder_template' => 'Hi {name}, see you {date}.',
+                'google_review_url'         => 'https://g.page/r/demo/review',
+            ])
+            ->assertOk();
+
+        // Previously these were absent from UpdateShopRequest::rules(), so
+        // validated() stripped them and Save reported success while persisting
+        // nothing. Assert they actually land now.
+        $fresh = $shop->fresh();
+        $this->assertSame(! $before, (bool) $fresh->booking_reminders_enabled);
+        $this->assertSame('Hi {name}, see you {date}.', $fresh->booking_reminder_template);
+        $this->assertSame('https://g.page/r/demo/review', $fresh->google_review_url);
+    }
+
+    public function test_a_profile_save_does_not_wipe_notification_settings(): void
+    {
+        $shop = $this->huntShop();
+        $shop->forceFill([
+            'booking_reminder_template' => 'Keep me',
+            'waitlist_notify_enabled'   => false,
+        ])->save();
+
+        // The Profile page PUTs only its own fields; `sometimes` on the
+        // notification rules must keep the untouched ones out of validated().
+        $this->withHeaders($this->hdrs($this->staffToken($shop, ['profile.view'])))
+            ->putJson("/api/shops/{$shop->id}", ['name' => 'Renamed'])
+            ->assertOk();
+
+        $fresh = $shop->fresh();
+        $this->assertSame('Renamed', $fresh->name);
+        $this->assertSame('Keep me', $fresh->booking_reminder_template);
+        $this->assertFalse((bool) $fresh->waitlist_notify_enabled);
+    }
+
+    public function test_an_invalid_google_review_url_is_rejected(): void
+    {
+        $shop = $this->huntShop();
+
+        $this->withHeaders($this->hdrs($this->staffToken($shop, ['settings.manage'])))
+            ->putJson("/api/shops/{$shop->id}", ['google_review_url' => 'not-a-url'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('google_review_url');
     }
 
     public function test_working_hours_permission_is_still_enforced_separately(): void

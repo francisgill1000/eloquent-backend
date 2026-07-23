@@ -4,7 +4,7 @@
 **Scope:** Role-based access control for a Business Hunt shop (`modules: ['leads']`), audited against the requirement *"RBAC should be based on the left-side menu — one grantable user per menu item."*
 **Method:** static audit of the permission catalog, API routes, middleware, assistant tool modules, and the admin SPA nav/route guards.
 
-**Status: ALL FINDINGS FIXED (2026-07-24).** The audit below is preserved as written; each finding now carries a **FIXED** note describing the change. See §8 for the verification run and §9 for two issues discovered *while* fixing.
+**Status: ALL FINDINGS FIXED (2026-07-24), deployed to staging + production.** The audit below is preserved as written; each finding now carries a **FIXED** note describing the change. See §8 for the verification run and §9 for three issues discovered *while* fixing (all also fixed).
 
 ---
 
@@ -37,7 +37,7 @@ Verdicts below are **before → after** the fixes.
 | 5 | Settings | `/settings` | *(per-page groups)* | ~~No~~ → **Yes** (F1 fixed) | Yes |
 | 5a | ↳ AI Assistant | `/assistant` | `assistant.manage` | **Yes** | ~~No~~ → **Yes** (F2 fixed) |
 | 5b | ↳ Access Control | `/settings/access` | `users.*`, `roles.*` | **Yes** | Yes — `routes/api.php:311-321` |
-| 5c | ↳ Business settings | `/settings` | `settings.manage` | **Yes** | ~~Partial~~ → **Yes** (F3 fixed, see §9.1) |
+| 5c | ↳ Business settings | `/settings` | `settings.manage` | **Yes** | ~~Partial~~ → **Yes** (F3 + §9.1 fixed) |
 | 6 | Profile | `/profile` | `profile.view` | Yes | ~~No~~ → **Yes** (F3 fixed) |
 
 Catalog source: `app/Support/PermissionCatalog.php:41-108`. Module filtering for the roles screen: `PermissionCatalog::forShop()` (line 120), exercised by `tests/Feature/HuntPermissionsTest.php:79`.
@@ -104,7 +104,7 @@ The route is `PUT /shops/{shop}` behind `['auth:sanctum','rbac.context','shop.se
 
 **Impact.** Any authenticated staff user of a Hunt shop can change the business name, logo, hero image, address and settings via the REST API, regardless of role. The in-code comment shows this was a known carry-over, not an oversight — but it means two menu items in the catalog are decorative.
 
-**FIXED.** `ShopController::update` now partitions the payload by which left-menu page owns each field, and checks a permission per group: `working_hours` → `working_hours.manage` (unchanged), the booking-notification fields (new `SETTINGS_FIELDS` const) → `settings.manage`, every other shop field → `profile.view`. Covered by `test_profile_view_gates_business_profile_writes`, `test_settings_manage_does_not_unlock_profile_fields`, and a regression guard that `profile.view` is not a backdoor into the working-hours sync. See §9.1 — the settings branch is inert until a separate validation bug is fixed.
+**FIXED.** `ShopController::update` now partitions the payload by which left-menu page owns each field, and checks a permission per group: `working_hours` → `working_hours.manage` (unchanged), the booking-notification fields (new `SETTINGS_FIELDS` const) → `settings.manage`, every other shop field → `profile.view`. Covered by `test_profile_view_gates_business_profile_writes`, `test_settings_manage_does_not_unlock_profile_fields`, `test_settings_manage_gates_notification_settings_writes`, and a regression guard that `profile.view` is not a backdoor into the working-hours sync. The `settings.manage` branch is live — see §9.1, which fixed the validation bug that had made those fields unwritable.
 
 ---
 
@@ -246,7 +246,7 @@ But the SPA wraps every authenticated route, `/leads` included, in `RequireSubsc
 - ~~No test that a `leads.view`-only user is denied the ungated surfaces in F2/F3/F4~~ → one test per finding in `MenuPermissionIsolationTest`.
 - ~~No "one user per menu" isolation test~~ → `test_one_user_per_left_menu_reaches_only_its_own_section`, a data-provider test that builds a user per menu item and asserts each reaches its own section and 403s on all the others.
 
-New test files: `tests/Feature/MenuPermissionIsolationTest.php` (15 tests), `admin/src/components/RequirePerm.test.tsx` (5 tests). Extended: `HuntAssistantToolsTest.php` (+2), `AccessControl.test.tsx` (+2), `LeadDetail.test.tsx` (+2).
+New test files: `tests/Feature/MenuPermissionIsolationTest.php` (17 tests), `admin/src/components/RequirePerm.test.tsx` (5 tests). Extended: `HuntAssistantToolsTest.php` (+2), `AccessControl.test.tsx` (+2), `LeadDetail.test.tsx` (+2).
 
 ---
 
@@ -296,19 +296,24 @@ Tests      11 failed | 202 passed (213)
 
 All 11 failures pre-date this work (verified against a clean stash: identical list). They are in `DesktopSidebar.test.tsx` (3), `Chats.test.tsx` (3), `LeadDetail.test.tsx` outreach-button block (4) and `Settings.test.tsx` (1). The LeadDetail ones are a query collision — the funnel stage switch renders a button with `aria-label="Follow-up"`, which `getByRole('button', {name: /follow-up/i})` matches alongside the outreach button. Unrelated to RBAC; left alone.
 
-`npx tsc --noEmit` is clean. Net: **+9 frontend tests, +17 backend tests, 0 regressions.**
+`npx tsc --noEmit` is clean. Net: **+9 frontend tests, +20 backend tests, 0 regressions.**
 
 ---
 
 ## 9. Issues found while fixing
 
-### 9.1 — Booking-notification settings never save
+### 9.1 — Booking-notification settings never saved (FIXED)
 
-`UpdateShopRequest::rules()` does not list `booking_reminders_enabled`, `booking_reminder_template`, `booking_reviews_enabled`, `review_request_template`, `google_review_url`, `waitlist_notify_enabled` or `waitlist_notify_template`. `ShopController::update` fills the model from `$request->validated()`, so those fields are stripped and the write silently no-ops — the Booking notifications page reports success and persists nothing.
+`UpdateShopRequest::rules()` did not list `booking_reminders_enabled`, `booking_reminder_template`, `booking_reviews_enabled`, `review_request_template`, `google_review_url`, `waitlist_notify_enabled` or `waitlist_notify_template`. `ShopController::update` fills the model from `$request->validated()`, so those fields were stripped and the write silently no-opped — the Booking notifications page reported success and persisted nothing. (`Shop` has `$guarded = []`, so validation was the only thing blocking them.)
 
-Consequence for F3: the `settings.manage` branch of the new field partition is correct but currently unreachable. It will start doing work the moment those fields are added to `rules()`.
+**FIXED.** Rules added for all seven: `sometimes|boolean` for the three toggles, `nullable|string|max:1000` for the three templates, `nullable|url|max:2048` for the Google review link (with a friendly message). `sometimes` matters — it keeps a Profile-page save, which PUTs only its own fields, from dropping notification settings out of `validated()` and wiping them.
 
-Pinned by `test_notification_fields_are_currently_stripped_by_validation`, which documents present behaviour so the fix is noticed when it lands. **Not fixed here** — it is a Bookings-product bug outside this audit's scope, and fixing it changes save behaviour on a page that currently appears to work.
+This also makes the `settings.manage` branch of F3's field partition live rather than inert: those fields now both persist *and* require `settings.manage`.
+
+Covered by three tests in `MenuPermissionIsolationTest`:
+- `test_settings_manage_gates_notification_settings_writes` — `profile.view` is refused, `settings.manage` succeeds, and the values actually land in the DB.
+- `test_a_profile_save_does_not_wipe_notification_settings` — a name-only save leaves the notification fields untouched.
+- `test_an_invalid_google_review_url_is_rejected` — 422 on a malformed URL.
 
 ### 9.2 — Permissions were only ever written at login (fixed)
 
