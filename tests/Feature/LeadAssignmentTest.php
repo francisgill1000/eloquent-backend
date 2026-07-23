@@ -89,4 +89,68 @@ class LeadAssignmentTest extends TestCase
 
         $this->assertTrue($role->fresh()->hasPermissionTo('leads.view_all'));
     }
+
+    // --- Layer 2: isolation ----------------------------------------------
+
+    public function test_an_agent_sees_only_their_own_leads(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $a = $this->agent($shop);
+        $b = $this->agent($shop);
+
+        $mine = Lead::create(['shop_id' => $shop->id, 'name' => 'Mine', 'status' => 'new', 'assigned_to_id' => $a->id]);
+        $theirs = Lead::create(['shop_id' => $shop->id, 'name' => 'Theirs', 'status' => 'new', 'assigned_to_id' => $b->id]);
+        $pool = Lead::create(['shop_id' => $shop->id, 'name' => 'Pool', 'status' => 'new']);
+
+        \App\Support\CurrentShopUser::set($a);
+
+        $this->assertSame(['Mine'], Lead::forShop($shop->id)->pluck('name')->all());
+        $this->assertSame($mine->id, Lead::find($mine->id)?->id);
+        $this->assertNull(Lead::find($theirs->id));
+        $this->assertNull(Lead::find($pool->id));
+    }
+
+    public function test_owner_and_view_all_holders_see_every_lead_including_unassigned(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $a = $this->agent($shop);
+
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Mine', 'status' => 'new', 'assigned_to_id' => $a->id]);
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Pool', 'status' => 'new']);
+
+        \App\Support\CurrentShopUser::set($this->owner($shop));
+        $this->assertCount(2, Lead::forShop($shop->id)->get());
+
+        \App\Support\CurrentShopUser::set($this->agent($shop, ['leads.view', 'leads.view_all']));
+        $this->assertCount(2, Lead::forShop($shop->id)->get());
+
+        // Untagged (legacy) session is owner-equivalent throughout Rbac.
+        \App\Support\CurrentShopUser::set(null);
+        $this->assertCount(2, Lead::forShop($shop->id)->get());
+    }
+
+    public function test_importer_updates_a_lead_owned_by_another_agent_instead_of_500ing(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $a = $this->agent($shop);
+        $b = $this->agent($shop);
+
+        $existing = Lead::create([
+            'shop_id' => $shop->id, 'name' => 'Old Name', 'status' => 'new',
+            'external_ref' => 'place-123', 'assigned_to_id' => $b->id,
+        ]);
+
+        \App\Support\CurrentShopUser::set($a);
+
+        $out = app(\App\Services\Leads\LeadImporter::class)
+            ->import($shop, [['name' => 'New Name', 'external_ref' => 'place-123']]);
+
+        $this->assertSame(0, $out['created']);
+        $this->assertSame('New Name', $existing->fresh()->name);
+        // Ownership is not stolen by a re-save.
+        $this->assertSame($b->id, $existing->fresh()->assigned_to_id);
+    }
 }
