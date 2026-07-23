@@ -409,12 +409,14 @@ function RoleEditor({
                   {allOn ? 'Clear' : 'Select all'}
                 </button>
               </div>
-              {Object.entries(group.permissions).map(([perm, label]) => (
-                <label className="ac-perm" key={perm}>
-                  <input type="checkbox" checked={selected.has(perm)} onChange={() => toggle(perm)} />
-                  {label}
-                </label>
-              ))}
+              <div className="ac-chips">
+                {Object.entries(group.permissions).map(([perm, label]) => (
+                  <label className="ac-perm" key={perm}>
+                    <input type="checkbox" checked={selected.has(perm)} onChange={() => toggle(perm)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
             </div>
           );
         };
@@ -435,7 +437,7 @@ function RoleEditor({
         }
 
         return (
-          <>
+          <div className="ac-matrix">
             {top.map((entry) => renderGroup(entry, false))}
             {sections.map(([section, groupsInSection]) => {
               // The whole section is a single grant: one toggle sets/clears every
@@ -448,14 +450,16 @@ function RoleEditor({
                   <div className="ac-matrix-head">
                     <span className="ac-matrix-label">{section}</span>
                   </div>
-                  <label className="ac-perm">
-                    <input type="checkbox" checked={allOn} onChange={() => toggleGroup(perms, allOn)} />
-                    <span>Manage all {section} pages <span className="ac-perm-hint">({covers})</span></span>
-                  </label>
+                  <div className="ac-chips">
+                    <label className="ac-perm">
+                      <input type="checkbox" checked={allOn} onChange={() => toggleGroup(perms, allOn)} />
+                      <span>Manage all {section} pages <span className="ac-perm-hint">({covers})</span></span>
+                    </label>
+                  </div>
                 </div>
               );
             })}
-          </>
+          </div>
         );
       })()}
 
