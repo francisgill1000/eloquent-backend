@@ -299,4 +299,44 @@ class LeadAssignmentTest extends TestCase
         $this->authJson($this->tokenFor($shop, $a), 'GET', "/api/shop/leads/{$theirs->id}")
             ->assertStatus(404);
     }
+
+    public function test_index_exposes_owner_filter_assignees_and_auto_assign_flag(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads'], 'lead_auto_assign' => true]);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all', 'leads.assign']);
+        $agent = $this->agent($shop);
+
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Owned', 'status' => 'new', 'assigned_to_id' => $agent->id]);
+        Lead::create(['shop_id' => $shop->id, 'name' => 'Pool', 'status' => 'new']);
+
+        $token = $this->tokenFor($shop, $manager);
+
+        $all = $this->authJson($token, 'GET', '/api/shop/leads')->assertOk()->json();
+        $this->assertCount(2, $all['data']);
+        $this->assertTrue($all['auto_assign']);
+        $this->assertContains($agent->id, array_column($all['assignees'], 'id'));
+        $owned = collect($all['data'])->firstWhere('name', 'Owned');
+        $this->assertSame($agent->id, $owned['assigned_to']['id']);
+
+        $this->app['auth']->forgetGuards();
+        $pool = $this->authJson($token, 'GET', '/api/shop/leads?assigned_to=unassigned')->assertOk()->json();
+        $this->assertCount(1, $pool['data']);
+        $this->assertSame('Pool', $pool['data'][0]['name']);
+
+        $this->app['auth']->forgetGuards();
+        $byId = $this->authJson($token, 'GET', "/api/shop/leads?assigned_to={$agent->id}")->assertOk()->json();
+        $this->assertCount(1, $byId['data']);
+        $this->assertSame('Owned', $byId['data'][0]['name']);
+    }
+
+    public function test_assignees_are_withheld_from_users_who_cannot_assign(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $agent = $this->agent($shop);
+
+        $body = $this->authJson($this->tokenFor($shop, $agent), 'GET', '/api/shop/leads')->assertOk()->json();
+        $this->assertSame([], $body['assignees']);
+    }
 }
