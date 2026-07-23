@@ -3,6 +3,7 @@
 namespace App\Services\Leads;
 
 use App\Models\Lead;
+use App\Models\Scopes\AssignedLeadScope;
 use App\Models\Shop;
 
 /**
@@ -45,7 +46,10 @@ class LeadImporter
             }
 
             if (! empty($row['external_ref'])) {
-                $lead = Lead::firstOrNew([
+                // Scope-free: an agent re-saving a business owned by a colleague
+                // must find and update that row, not insert a duplicate that
+                // violates unique(shop_id, external_ref) and then fail recovery.
+                $lead = Lead::withoutGlobalScope(AssignedLeadScope::class)->firstOrNew([
                     'shop_id' => $shop->id,
                     'external_ref' => $row['external_ref'],
                 ]);
@@ -82,7 +86,8 @@ class LeadImporter
         try {
             $lead->save();
         } catch (\Illuminate\Database\UniqueConstraintViolationException) {
-            $lead = Lead::where('shop_id', $shopId)->where('external_ref', $externalRef)->firstOrFail();
+            $lead = Lead::withoutGlobalScope(AssignedLeadScope::class)
+                ->where('shop_id', $shopId)->where('external_ref', $externalRef)->firstOrFail();
             $lead->fill($attrs);
             $lead->save();
         }

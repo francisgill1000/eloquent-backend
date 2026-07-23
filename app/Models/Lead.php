@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\AssignedLeadScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -64,6 +65,11 @@ class Lead extends Model
     ];
 
     protected $appends = ['whatsapp_url', 'is_mobile', 'tel_url', 'map_url', 'deal_total'];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new AssignedLeadScope());
+    }
 
     public function shop(): BelongsTo
     {
