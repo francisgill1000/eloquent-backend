@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use App\Models\Scopes\AssignedLeadScope;
+use App\Support\Rbac;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class Lead extends Model
 {
@@ -218,6 +220,51 @@ class Lead extends Model
             $this->deal_term_months = $this->deal_type === 'recurring' ? $term : null;
         }
         $this->deal_won_at = $this->deal_won_at ?? now();
+    }
+
+    /**
+     * Hand this lead to an agent (or null to return it to the pool). Saves the
+     * lead and logs an `assigned` activity in one transaction so the timeline
+     * can never disagree with the column. Shared by the controller and the voice
+     * tool so the rules live in one place. Re-assigning to the same person is a
+     * no-op — it must not spam the timeline.
+     */
+    public function assignTo(?ShopUser $target, ?ShopUser $actor = null): void
+    {
+        $fromId = $this->assigned_to_id;
+        if ($fromId === $target?->id) {
+            return;
+        }
+
+        $fromName = $fromId !== null ? ShopUser::find($fromId)?->name : null;
+
+        DB::transaction(function () use ($target, $actor, $fromId, $fromName) {
+            $this->assigned_to_id = $target?->id;
+            $this->assigned_at = $target !== null ? now() : null;
+            $this->save();
+
+            $this->activities()->create([
+                'type' => LeadActivity::TYPE_ASSIGNED,
+                'payload' => array_filter([
+                    'from_id'   => $fromId,
+                    'from_name' => $fromName,
+                    'to_id'     => $target?->id,
+                    'to_name'   => $target?->name,
+                ], fn ($v) => $v !== null),
+                'user_id' => $actor?->id,
+            ]);
+        });
+    }
+
+    /**
+     * Is this lead visible to $user under the assignment rules? Route-model
+     * binding resolves BEFORE the rbac.context middleware sets the acting user,
+     * so AssignedLeadScope is inert at bind time — controllers must ask this
+     * explicitly or an agent could open a colleague's lead by guessing its id.
+     */
+    public function visibleTo(?ShopUser $user): bool
+    {
+        return Rbac::seesAllLeads($user) || $this->assigned_to_id === $user?->id;
     }
 
     /** Human label for the lead's industry (slug -> Title Case), else null. */

@@ -188,4 +188,115 @@ class LeadAssignmentTest extends TestCase
 
         $this->assertNull($out['saved'][0]->fresh()->assigned_to_id);
     }
+
+    // --- Layer 1: ownership via the API ----------------------------------
+
+    private function tokenFor(Shop $shop, ShopUser $user): string
+    {
+        $new = $shop->createToken('t');
+        $new->accessToken->forceFill(['shop_user_id' => $user->id])->save();
+
+        return $new->plainTextToken;
+    }
+
+    private function authJson(string $token, string $method, string $url, array $body = [])
+    {
+        return $this->withHeaders(['Authorization' => "Bearer $token", 'Accept' => 'application/json'])
+            ->json($method, $url, $body);
+    }
+
+    public function test_assigning_a_lead_records_owner_and_activity(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all', 'leads.assign']);
+        $agent = $this->agent($shop);
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'Acme', 'status' => 'new']);
+
+        $this->authJson($this->tokenFor($shop, $manager), 'PATCH', "/api/shop/leads/{$lead->id}/assign", [
+            'assigned_to_id' => $agent->id,
+        ])->assertOk();
+
+        $this->assertSame($agent->id, $lead->fresh()->assigned_to_id);
+        $this->assertNotNull($lead->fresh()->assigned_at);
+
+        $activity = \App\Models\LeadActivity::where('lead_id', $lead->id)->where('type', 'assigned')->first();
+        $this->assertNotNull($activity);
+        $this->assertSame($agent->id, $activity->payload['to_id']);
+        $this->assertSame($manager->id, $activity->user_id);
+    }
+
+    public function test_assigning_requires_the_assign_permission(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $agent = $this->agent($shop);
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'Acme', 'status' => 'new', 'assigned_to_id' => $agent->id]);
+
+        $this->authJson($this->tokenFor($shop, $agent), 'PATCH', "/api/shop/leads/{$lead->id}/assign", [
+            'assigned_to_id' => $agent->id,
+        ])->assertStatus(403);
+    }
+
+    public function test_null_unassigns_and_a_foreign_or_inactive_user_is_rejected(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $other = Shop::factory()->create(['modules' => ['leads']]);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all', 'leads.assign']);
+        $agent = $this->agent($shop);
+        $outsider = ShopUser::factory()->create(['shop_id' => $other->id]);
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'Acme', 'status' => 'new', 'assigned_to_id' => $agent->id]);
+
+        $token = $this->tokenFor($shop, $manager);
+
+        $this->authJson($token, 'PATCH', "/api/shop/leads/{$lead->id}/assign", ['assigned_to_id' => null])->assertOk();
+        $this->assertNull($lead->fresh()->assigned_to_id);
+
+        $this->app['auth']->forgetGuards();
+        $this->authJson($token, 'PATCH', "/api/shop/leads/{$lead->id}/assign", [
+            'assigned_to_id' => $outsider->id,
+        ])->assertStatus(422);
+
+        $this->app['auth']->forgetGuards();
+        $inactive = ShopUser::factory()->create(['shop_id' => $shop->id, 'is_active' => false]);
+        $this->authJson($token, 'PATCH', "/api/shop/leads/{$lead->id}/assign", [
+            'assigned_to_id' => $inactive->id,
+        ])->assertStatus(422);
+    }
+
+    public function test_bulk_assign_moves_many_leads_at_once(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all', 'leads.assign']);
+        $agent = $this->agent($shop);
+
+        $ids = collect(range(1, 3))->map(fn ($i) => Lead::create([
+            'shop_id' => $shop->id, 'name' => "Lead {$i}", 'status' => 'new',
+        ])->id)->all();
+
+        $this->authJson($this->tokenFor($shop, $manager), 'POST', '/api/shop/leads/assign', [
+            'ids' => $ids, 'assigned_to_id' => $agent->id,
+        ])->assertOk()->assertJson(['assigned' => 3]);
+
+        foreach ($ids as $id) {
+            $this->assertSame(
+                $agent->id,
+                Lead::withoutGlobalScope(\App\Models\Scopes\AssignedLeadScope::class)->find($id)->assigned_to_id,
+            );
+        }
+    }
+
+    public function test_an_agent_cannot_open_another_agents_lead(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $a = $this->agent($shop);
+        $b = $this->agent($shop);
+        $theirs = Lead::create(['shop_id' => $shop->id, 'name' => 'Theirs', 'status' => 'new', 'assigned_to_id' => $b->id]);
+
+        $this->authJson($this->tokenFor($shop, $a), 'GET', "/api/shop/leads/{$theirs->id}")
+            ->assertStatus(404);
+    }
 }

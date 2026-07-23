@@ -7,6 +7,7 @@ use App\Models\CreditPurchase;
 use App\Models\Lead;
 use App\Models\LeadActivity;
 use App\Models\Shop;
+use App\Models\ShopUser;
 use App\Services\Credits\Exceptions\InsufficientCredits;
 use App\Services\Credits\HuntCreditService;
 use App\Services\Leads\AdLibraryService;
@@ -125,6 +126,24 @@ class LeadController extends Controller
         $shop = $request->user();
         abort_unless($shop instanceof Shop, 401, 'Shop authentication required.');
         return $shop;
+    }
+
+    /**
+     * Guard a route-bound lead: right tenant AND visible to the acting user.
+     *
+     * The visibility half cannot be left to AssignedLeadScope — Laravel resolves
+     * route-model bindings in the `api` group's SubstituteBindings, which runs
+     * BEFORE the route-level rbac.context middleware sets the acting ShopUser.
+     * At bind time the scope therefore sees a null user and treats the request
+     * as owner-equivalent. Without this check an agent could open, re-status or
+     * reassign a colleague's lead by guessing its id.
+     *
+     * 404 rather than 403 — an agent should not learn that the id exists.
+     */
+    private function guardLead(Lead $lead, Shop $shop): void
+    {
+        abort_unless($lead->shop_id === $shop->id, 404);
+        abort_unless($lead->visibleTo(current_shop_user()), 404);
     }
 
     /**
@@ -285,7 +304,7 @@ class LeadController extends Controller
     public function show(Request $request, Lead $lead)
     {
         $shop = $this->shop($request);
-        abort_unless($lead->shop_id === $shop->id, 404);
+        $this->guardLead($lead, $shop);
 
         $lead->setRelation('shop', $shop);
         $lead->append(['whatsapp_opening_url', 'whatsapp_followup_url']);
@@ -308,7 +327,7 @@ class LeadController extends Controller
     public function updateStatus(Request $request, Lead $lead)
     {
         $shop = $this->shop($request);
-        abort_unless($lead->shop_id === $shop->id, 404);
+        $this->guardLead($lead, $shop);
 
         $data = $request->validate([
             'status' => ['required', Rule::in(Lead::STATUSES)],
@@ -366,7 +385,7 @@ class LeadController extends Controller
     public function logFollowup(Request $request, Lead $lead)
     {
         $shop = $this->shop($request);
-        abort_unless($lead->shop_id === $shop->id, 404);
+        $this->guardLead($lead, $shop);
 
         $lead->last_contacted_at = now();
         $lead->save();
@@ -381,6 +400,91 @@ class LeadController extends Controller
     }
 
     /**
+     * PATCH /shop/leads/{lead}/assign {assigned_to_id}
+     * Hand one lead to an agent, or pass null to return it to the pool.
+     */
+    public function assign(Request $request, Lead $lead)
+    {
+        $shop = $this->shop($request);
+        $this->guardLead($lead, $shop);
+
+        $data = $request->validate([
+            'assigned_to_id' => ['present', 'nullable', 'integer'],
+        ]);
+
+        $lead->assignTo($this->resolveAssignee($shop, $data['assigned_to_id']), current_shop_user());
+
+        return response()->json(['data' => $lead->fresh()?->load('assignedTo:id,name,is_active')]);
+    }
+
+    /**
+     * POST /shop/leads/assign {ids, assigned_to_id}
+     * Bulk hand-out from the pipeline's multi-select. Deliberately runs through
+     * the normal visibility scope, so a manager can only assign leads they can
+     * already see.
+     */
+    public function assignBulk(Request $request)
+    {
+        $shop = $this->shop($request);
+
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer'],
+            'assigned_to_id' => ['present', 'nullable', 'integer'],
+        ]);
+
+        $target = $this->resolveAssignee($shop, $data['assigned_to_id']);
+        $actor = current_shop_user();
+
+        $leads = Lead::forShop($shop->id)->whereIn('id', $data['ids'])->get();
+        foreach ($leads as $lead) {
+            $lead->assignTo($target, $actor);
+        }
+
+        return response()->json(['assigned' => $leads->count()]);
+    }
+
+    /**
+     * PATCH /shop/leads/settings {lead_auto_assign}
+     * Hunt hand-out behaviour. Lives here rather than under Settings because it
+     * is Hunt behaviour, and Settings is a permission surface we keep narrow.
+     */
+    public function updateSettings(Request $request)
+    {
+        $shop = $this->shop($request);
+
+        $data = $request->validate([
+            'lead_auto_assign' => ['required', 'boolean'],
+        ]);
+
+        $shop->lead_auto_assign = $data['lead_auto_assign'];
+        $shop->save();
+
+        return response()->json(['lead_auto_assign' => (bool) $shop->lead_auto_assign]);
+    }
+
+    /**
+     * Resolve an assignee id to an active ShopUser of THIS shop. The shop comes
+     * from the token, never the body, so a valid id from another tenant is
+     * rejected rather than silently accepted.
+     */
+    private function resolveAssignee(Shop $shop, ?int $id): ?ShopUser
+    {
+        if ($id === null) {
+            return null;
+        }
+
+        $user = ShopUser::where('shop_id', $shop->id)
+            ->where('id', $id)
+            ->where('is_active', true)
+            ->first();
+
+        abort_if($user === null, 422, 'Assignee must be an active user of this shop.');
+
+        return $user;
+    }
+
+    /**
      * POST /shop/leads/{lead}/personalize
      * AI-writes ONE ready-to-send message for this specific lead. Does not change
      * status or log activity (that happens when the user opens WhatsApp).
@@ -388,7 +492,7 @@ class LeadController extends Controller
     public function personalize(Request $request, Lead $lead, OutreachWriter $writer)
     {
         $shop = $this->shop($request);
-        abort_unless($lead->shop_id === $shop->id, 404);
+        $this->guardLead($lead, $shop);
 
         $data = $request->validate([
             'kind' => ['required', Rule::in(['opening', 'followup'])],
