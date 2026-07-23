@@ -19,7 +19,7 @@ class ShopUserApiTest extends TestCase
     {
         setPermissionsTeamId($shop->id);
         $owner = Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web', 'team_id' => $shop->id]);
-        $u = ShopUser::factory()->create(['shop_id' => $shop->id, 'login_pin' => '0001']);
+        $u = ShopUser::factory()->create(['shop_id' => $shop->id]);
         $u->assignRole($owner);
         $this->owner = $u;
 
@@ -40,25 +40,54 @@ class ShopUserApiTest extends TestCase
         $this->withHeaders(['Authorization' => "Bearer $token"])
             ->postJson('/api/shop/users', [
                 'name' => 'Bob',
-                'login_pin' => '7777',
+                'email' => 'bob@example.com',
+                'password' => 'at-least-8-chars',
                 'role_id' => $role->id,
                 'is_active' => true,
             ])
             ->assertStatus(201)
-            ->assertJsonPath('data.role.name', 'Staff');
+            ->assertJsonPath('data.role.name', 'Staff')
+            ->assertJsonPath('data.email', 'bob@example.com');
 
-        $this->assertDatabaseHas('shop_users', ['shop_id' => $shop->id, 'name' => 'Bob', 'login_pin' => '7777']);
+        $this->assertDatabaseHas('shop_users', ['shop_id' => $shop->id, 'name' => 'Bob', 'email' => 'bob@example.com']);
     }
 
-    public function test_pin_must_be_unique_within_shop(): void
+    public function test_email_must_be_unique_across_the_platform(): void
     {
         (new PermissionSeeder())->run();
         $shop = Shop::factory()->trialing()->create();
-        $token = $this->ownerToken($shop); // owner uses 0001
+        $token = $this->ownerToken($shop);
+        ShopUser::factory()->create(['shop_id' => $shop->id, 'email' => 'taken@example.com']);
 
         $this->withHeaders(['Authorization' => "Bearer $token"])
-            ->postJson('/api/shop/users', ['name' => 'Dup', 'login_pin' => '0001', 'role_id' => null, 'is_active' => true])
+            ->postJson('/api/shop/users', [
+                'name' => 'Dup',
+                'email' => 'taken@example.com',
+                'password' => 'at-least-8-chars',
+                'role_id' => null,
+                'is_active' => true,
+            ])
             ->assertStatus(422);
+    }
+
+    public function test_password_is_optional_on_update_and_keeps_the_old_one_when_blank(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->trialing()->create();
+        $token = $this->ownerToken($shop);
+        $staff = ShopUser::factory()->create(['shop_id' => $shop->id, 'email' => 'staff@example.com', 'password' => 'original-pass']);
+
+        $this->withHeaders(['Authorization' => "Bearer $token"])
+            ->putJson("/api/shop/users/{$staff->id}", [
+                'name' => 'Staff Renamed',
+                'email' => 'staff@example.com',
+                'role_id' => null,
+                'is_active' => true,
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('data.email', 'staff@example.com');
+
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('original-pass', $staff->fresh()->password));
     }
 
     public function test_users_are_tenant_isolated(): void
@@ -71,7 +100,12 @@ class ShopUserApiTest extends TestCase
         $token = $this->ownerToken($shopA);
 
         $this->withHeaders(['Authorization' => "Bearer $token"])
-            ->putJson("/api/shop/users/{$foreign->id}", ['name' => 'x', 'role_id' => null, 'is_active' => true])
+            ->putJson("/api/shop/users/{$foreign->id}", [
+                'name' => 'x',
+                'email' => 'x@example.com',
+                'role_id' => null,
+                'is_active' => true,
+            ])
             ->assertStatus(404);
     }
 

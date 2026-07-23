@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\ShopUserResource;
 use App\Models\ShopUser;
+use App\Rules\UniqueLoginEmail;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -29,12 +29,13 @@ class ShopUserController extends Controller
     public function store(Request $request)
     {
         $shopId = $request->user()->id;
-        $data = $this->validateData($request, $shopId, null);
+        $data = $this->validateData($request, null);
 
         $user = ShopUser::create([
             'shop_id' => $shopId,
             'name' => $data['name'],
-            'login_pin' => $data['login_pin'],
+            'email' => $data['email'],
+            'password' => $data['password'],
             'is_active' => $data['is_active'] ?? true,
         ]);
         $this->syncRole($user, $data['role_id'] ?? null, $shopId);
@@ -49,11 +50,12 @@ class ShopUserController extends Controller
         $shopId = $request->user()->id;
         abort_unless($shopUser->shop_id === $shopId, 404);
 
-        $data = $this->validateData($request, $shopId, $shopUser->id);
+        $data = $this->validateData($request, $shopUser->id);
 
         $shopUser->name = $data['name'];
-        if (!empty($data['login_pin'])) {
-            $shopUser->login_pin = $data['login_pin'];
+        $shopUser->email = $data['email'];
+        if (!empty($data['password'])) {
+            $shopUser->password = $data['password'];
         }
         if (array_key_exists('is_active', $data)) {
             $shopUser->is_active = $data['is_active'];
@@ -96,20 +98,14 @@ class ShopUserController extends Controller
         $user->syncRoles([$role]);
     }
 
-    private function validateData(Request $request, int $shopId, ?int $ignoreId): array
+    private function validateData(Request $request, ?int $ignoreId): array
     {
-        $pinRule = [
-            'string', 'max:10',
-            Rule::unique('shop_users', 'login_pin')
-                ->where(fn ($q) => $q->where('shop_id', $shopId))
-                ->ignore($ignoreId),
-        ];
-
         return $request->validate([
             'name' => ['required', 'string', 'max:80'],
-            'login_pin' => $ignoreId
-                ? array_merge(['sometimes', 'nullable'], $pinRule)
-                : array_merge(['required'], $pinRule),
+            'email' => ['required', 'email', 'max:255', new UniqueLoginEmail(ignoreShopUserId: $ignoreId)],
+            'password' => $ignoreId
+                ? ['sometimes', 'nullable', 'string', 'min:8']
+                : ['required', 'string', 'min:8'],
             'role_id' => ['nullable', 'integer'],
             'is_active' => ['boolean'],
         ]);
