@@ -500,4 +500,72 @@ class LeadAssignmentTest extends TestCase
         \App\Support\CurrentShopUser::set($a);
         $this->assertSame([], $agg->huntByAgent($shop->id, $from, $to));
     }
+
+    // --- Voice tool -------------------------------------------------------
+
+    /** @param array<string, mixed> $input */
+    private function huntTool(Shop $shop, ?ShopUser $user, string $tool, array $input, bool $confirmed = true): array
+    {
+        \App\Support\CurrentShopUser::set($user);
+        setPermissionsTeamId($shop->id);
+
+        return app(\App\Services\Assistant\Modules\HuntTools::class)->run(
+            new \App\Services\Assistant\Support\ToolCall($shop, $user, $tool, $input, $confirmed),
+        );
+    }
+
+    public function test_voice_tool_assigns_a_lead(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all', 'leads.assign', 'leads.manage']);
+        $sara = ShopUser::factory()->create(['shop_id' => $shop->id, 'name' => 'Sara']);
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'Acme Salon', 'status' => 'new']);
+
+        $out = $this->huntTool($shop, $manager, 'assign_lead', ['name' => 'Acme', 'assignee' => 'Sara']);
+
+        $this->assertTrue($out['done'] ?? false);
+        $this->assertSame($sara->id, $lead->fresh()->assigned_to_id);
+    }
+
+    public function test_voice_tool_previews_before_writing(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all', 'leads.assign', 'leads.manage']);
+        ShopUser::factory()->create(['shop_id' => $shop->id, 'name' => 'Sara']);
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'Acme Salon', 'status' => 'new']);
+
+        $out = $this->huntTool($shop, $manager, 'assign_lead', ['name' => 'Acme', 'assignee' => 'Sara'], confirmed: false);
+
+        $this->assertTrue($out['preview'] ?? false);
+        $this->assertFalse($out['saved']);
+        $this->assertNull($lead->fresh()->assigned_to_id);
+    }
+
+    public function test_voice_tool_refuses_an_unknown_assignee(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all', 'leads.assign', 'leads.manage']);
+        $lead = Lead::create(['shop_id' => $shop->id, 'name' => 'Acme Salon', 'status' => 'new']);
+
+        $out = $this->huntTool($shop, $manager, 'assign_lead', ['name' => 'Acme', 'assignee' => 'Nobody']);
+
+        $this->assertArrayHasKey('error', $out);
+        $this->assertNull($lead->fresh()->assigned_to_id);
+    }
+
+    public function test_voice_tool_is_hidden_from_users_without_assign(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $agent = $this->agent($shop);
+        setPermissionsTeamId($shop->id);
+
+        $names = collect(app(\App\Services\Assistant\Modules\HuntTools::class)->visibleToolDefs($agent))
+            ->pluck('name')->all();
+
+        $this->assertNotContains('assign_lead', $names);
+    }
 }

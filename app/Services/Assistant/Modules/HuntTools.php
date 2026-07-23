@@ -3,6 +3,7 @@ namespace App\Services\Assistant\Modules;
 
 use App\Models\Lead;
 use App\Models\LeadActivity;
+use App\Models\ShopUser;
 use App\Services\Assistant\Support\MutatingTool;
 use App\Services\Assistant\Support\ResolvesLeads;
 use App\Services\Assistant\Support\ToolCall;
@@ -42,6 +43,7 @@ class HuntTools extends MutatingTool
             'save_leads' => 'leads.manage',
             'update_lead_status' => 'leads.manage',
             'log_followup' => 'leads.manage',
+            'assign_lead' => 'leads.assign',
         ];
     }
 
@@ -52,6 +54,7 @@ class HuntTools extends MutatingTool
             'save_leads' => $this->saveLeads($call),
             'update_lead_status' => $this->updateStatus($call),
             'log_followup' => $this->logFollowup($call),
+            'assign_lead' => $this->assignLead($call),
             default => ['error' => 'unknown_tool'],
         };
     }
@@ -224,6 +227,56 @@ class HuntTools extends MutatingTool
         );
     }
 
+    /**
+     * Hand a lead to a colleague by name. Both the lead and the person are
+     * resolved in PHP against the shop — the model never decides identity, and
+     * an ambiguous or unknown name is refused rather than guessed at.
+     */
+    private function assignLead(ToolCall $call): array
+    {
+        $assignee = $this->resolveAssignee($call);
+        if (is_array($assignee)) {
+            return $assignee; // notFound()/ambiguous() passthrough
+        }
+
+        return $this->gate(
+            $call,
+            resolve: fn () => $this->resolveLead($call),
+            describe: fn ($lead) => [
+                "Assign {$lead->name} to {$assignee->name}",
+                ['owner' => ($lead->assignedTo?->name ?? 'Unassigned')." → {$assignee->name}"],
+            ],
+            write: function ($lead) use ($assignee, $call) {
+                $lead->assignTo($assignee, $call->actingUser);
+
+                return ['name' => $lead->name, 'assigned_to' => $assignee->name];
+            },
+        );
+    }
+
+    /** @return ShopUser|array a ShopUser, or a notFound()/ambiguous() response. */
+    private function resolveAssignee(ToolCall $call): ShopUser|array
+    {
+        $name = trim((string) $call->get('assignee'));
+        if ($name === '') {
+            return $this->notFound('team member');
+        }
+
+        $matches = ShopUser::where('shop_id', $call->shop->id)
+            ->where('is_active', true)
+            ->where('name', 'like', "%{$name}%")
+            ->orderBy('id')->limit(6)->get();
+
+        if ($matches->isEmpty()) {
+            return $this->notFound('team member');
+        }
+        if ($matches->count() > 1) {
+            return $this->ambiguous($matches->map(fn ($u) => ['name' => $u->name])->all());
+        }
+
+        return $matches->first();
+    }
+
     /** Confirm-preview line; names the deal when winning with an amount. */
     private function describeStatusChange(Lead $lead, string $new, ?float $amount, ?string $type, ?int $term): string
     {
@@ -263,6 +316,11 @@ class HuntTools extends MutatingTool
                 'name' => ['type' => 'string', 'description' => 'The business/lead name (fuzzy match).'],
                 'confirmed' => ['type' => 'boolean'],
             ], 'required' => ['name']]],
+            ['name' => 'assign_lead', 'description' => 'Hand a saved lead to a team member so they own it and it appears in their pipeline. Identify the lead by business name and the person by their name. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => [
+                'name' => ['type' => 'string', 'description' => 'The business/lead name (fuzzy match).'],
+                'assignee' => ['type' => 'string', 'description' => 'The team member to give it to (fuzzy match on their name).'],
+                'confirmed' => ['type' => 'boolean'],
+            ], 'required' => ['name', 'assignee']]],
         ];
     }
 }
