@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef, type CSSProperties, type Poin
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
+import { useShop } from '@/context/ShopContext';
 import { getLead, updateLeadStatus, logFollowup, personalizeLead } from '@/lib/leads';
 import { DEAL_TERMS } from '@/types';
 import type { DealInput, DealType, Lead, LeadActivity, LeadStatus } from '@/types';
@@ -118,6 +119,12 @@ export default function LeadDetail() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Every write on this page (status, follow-up, AI draft) is pipeline work, so
+  // it all sits behind leads.manage. `locked` stands in for `busy` on the action
+  // controls so a leads.view-only user sees them inert rather than 403-ing.
+  const { can } = useShop();
+  const mayManage = can('leads.manage');
+  const locked = busy || !mayManage;
   const [aiText, setAiText] = useState<string | null>(null);
   const [aiKind, setAiKind] = useState<'opening' | 'followup'>('opening');
   const [aiBusy, setAiBusy] = useState(false);
@@ -155,7 +162,7 @@ export default function LeadDetail() {
   // Any status change but Won commits right away; Won opens the deal-capture
   // panel first (drag or tap both land here, so both get the panel).
   const setStatus = async (status: LeadStatus) => {
-    if (!lead || status === lead.status || busy) return;
+    if (!lead || status === lead.status || locked) return;
     if (status === 'won') {
       setDealAmount(''); setDealType('one_off'); setDealTerm(6);
       setWonModal(true);
@@ -165,7 +172,7 @@ export default function LeadDetail() {
   };
 
   const commitStatus = async (status: LeadStatus, deal?: DealInput) => {
-    if (!lead) return;
+    if (!lead || !mayManage) return;
     setBusy(true); setError('');
     try {
       await updateLeadStatus(lead.id, status, undefined, deal);
@@ -203,7 +210,7 @@ export default function LeadDetail() {
 
   // New lead → open the opening draft, then optimistically move to Sent.
   const sendOpening = async () => {
-    if (!lead || busy) return;
+    if (!lead || locked) return;
     if (lead.whatsapp_opening_url) window.open(lead.whatsapp_opening_url, '_blank');
     setBusy(true); setError('');
     try {
@@ -218,7 +225,7 @@ export default function LeadDetail() {
 
   // Already contacted → open the follow-up draft and log the nudge.
   const sendFollowup = async () => {
-    if (!lead || busy) return;
+    if (!lead || locked) return;
     if (lead.whatsapp_followup_url) window.open(lead.whatsapp_followup_url, '_blank');
     setBusy(true); setError('');
     try {
@@ -241,7 +248,7 @@ export default function LeadDetail() {
   };
 
   const personalize = async () => {
-    if (!lead || aiBusy) return;
+    if (!lead || aiBusy || !mayManage) return;
     const kind = outreachKind();
     setAiBusy(true); setError('');
     try {
@@ -258,7 +265,7 @@ export default function LeadDetail() {
   // Send the previewed AI message: open WhatsApp with it, then run the same
   // stage transition as the normal outreach button.
   const sendAi = async () => {
-    if (!lead || !aiText || busy) return;
+    if (!lead || !aiText || locked) return;
     const digits = waDigits();
     if (digits) window.open(`https://wa.me/${digits}?text=${encodeURIComponent(aiText)}`, '_blank');
     setBusy(true); setError('');
@@ -297,7 +304,7 @@ export default function LeadDetail() {
 
   // Grab the knob/rail and slide. Tapping a stage label keeps its own onClick.
   const onSwitchPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (busy) return;
+    if (locked) return;
     if ((e.target as HTMLElement).closest('.ba-switch-opts')) return; // label taps = clicks
     e.currentTarget.setPointerCapture(e.pointerId);
     setDragIndex(indexFromPointer(e.clientX, e.clientY));
@@ -356,16 +363,16 @@ export default function LeadDetail() {
               <label className="c-field-label" htmlFor="dealAmount">Amount (AED)</label>
               <div className="c-input-row">
                 <input id="dealAmount" type="number" min="0" step="0.01" inputMode="decimal"
-                  placeholder="0.00" value={dealAmount} disabled={busy}
+                  placeholder="0.00" value={dealAmount} disabled={locked}
                   onChange={(e) => setDealAmount(e.target.value)} />
               </div>
 
               <span className="c-field-label">Type</span>
               <div className="ld-won-toggle">
                 <button type="button" className={`ld-won-seg${dealType === 'one_off' ? ' on' : ''}`}
-                  disabled={busy} onClick={() => setDealType('one_off')}>One-off</button>
+                  disabled={locked} onClick={() => setDealType('one_off')}>One-off</button>
                 <button type="button" className={`ld-won-seg${dealType === 'recurring' ? ' on' : ''}`}
-                  disabled={busy} onClick={() => setDealType('recurring')}>Recurring</button>
+                  disabled={locked} onClick={() => setDealType('recurring')}>Recurring</button>
               </div>
 
               {dealType === 'recurring' && (
@@ -374,7 +381,7 @@ export default function LeadDetail() {
                   <div className="ld-won-chips">
                     {DEAL_TERMS.map((t) => (
                       <button key={t} type="button" className={`ld-won-chip${dealTerm === t ? ' on' : ''}`}
-                        disabled={busy} onClick={() => setDealTerm(t)}>
+                        disabled={locked} onClick={() => setDealTerm(t)}>
                         {t} {t === 1 ? 'month' : 'months'}
                       </button>
                     ))}
@@ -383,9 +390,9 @@ export default function LeadDetail() {
               )}
 
               <div className="ld-won-actions">
-                <button type="button" className="c-btn-ghost" disabled={busy} onClick={() => cancelWon()}>Cancel</button>
-                <button type="button" className="c-btn-ghost" disabled={busy} onClick={() => void skipWon()}>Skip</button>
-                <button type="button" className="c-btn" disabled={busy} onClick={() => void saveWon()}>
+                <button type="button" className="c-btn-ghost" disabled={locked} onClick={() => cancelWon()}>Cancel</button>
+                <button type="button" className="c-btn-ghost" disabled={locked} onClick={() => void skipWon()}>Skip</button>
+                <button type="button" className="c-btn" disabled={locked} onClick={() => void saveWon()}>
                   {busy ? 'Saving…' : 'Save'}
                 </button>
               </div>
@@ -433,17 +440,17 @@ export default function LeadDetail() {
 
             <div className="ld-actions">
               {lead.is_mobile && lead.status === 'new' && (
-                <button type="button" className="ld-act wa" disabled={busy} onClick={() => void sendOpening()}>
+                <button type="button" className="ld-act wa" disabled={locked} onClick={() => void sendOpening()}>
                   <Icons.WhatsApp size={16} /> WhatsApp
                 </button>
               )}
               {lead.is_mobile && (lead.status === 'sent' || lead.status === 'followup' || lead.status === 'replied' || lead.status === 'demo') && (
-                <button type="button" className="ld-act wa" disabled={busy} onClick={() => void sendFollowup()}>
+                <button type="button" className="ld-act wa" disabled={locked} onClick={() => void sendFollowup()}>
                   <Icons.WhatsApp size={16} /> Follow-up
                 </button>
               )}
               {lead.is_mobile && (lead.status === 'new' || lead.status === 'sent' || lead.status === 'followup' || lead.status === 'replied' || lead.status === 'demo') && (
-                <button type="button" className="ld-act" disabled={aiBusy || busy} onClick={() => void personalize()}>
+                <button type="button" className="ld-act" disabled={aiBusy || locked} onClick={() => void personalize()}>
                   <Icons.Sparkle size={16} /> {aiBusy ? 'Writing…' : 'Personalize'}
                 </button>
               )}
@@ -457,10 +464,10 @@ export default function LeadDetail() {
                 <div className="c-field-label" style={{ margin: 0 }}>AI {aiKind === 'opening' ? 'opening' : 'follow-up'} — review before sending</div>
                 <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text-1)', fontSize: 13.5, lineHeight: 1.5 }}>{aiText}</p>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="button" className="ld-act wa" disabled={busy} onClick={() => void sendAi()}>
+                  <button type="button" className="ld-act wa" disabled={locked} onClick={() => void sendAi()}>
                     <Icons.WhatsApp size={16} /> Open WhatsApp
                   </button>
-                  <button type="button" className="c-btn-ghost" disabled={aiBusy} onClick={() => void personalize()}>
+                  <button type="button" className="c-btn-ghost" disabled={aiBusy || !mayManage} onClick={() => void personalize()}>
                     {aiBusy ? 'Writing…' : 'Regenerate'}
                   </button>
                 </div>
@@ -510,7 +517,7 @@ export default function LeadDetail() {
                   <button key={o.status} type="button" aria-label={STATUS_LABEL[o.status]}
                     className={`ba-switch-opt${on ? ' on' : ''}`}
                     style={{ '--optc': STAGE_COLOR[o.status] } as CSSProperties}
-                    disabled={busy} onClick={() => void setStatus(o.status)}>
+                    disabled={locked} onClick={() => void setStatus(o.status)}>
                     <span className="ba-switch-optlabel">{STATUS_LABEL[o.status]}</span>
                     <span className="ba-switch-optstate">{on ? 'Current' : 'Set'}</span>
                   </button>

@@ -349,4 +349,57 @@ class HuntAssistantToolsTest extends TestCase
             $this->assertNotContains($t, $names);
         }
     }
+
+    /**
+     * The registry filters tool schemas by the acting user's permissions, not just
+     * by product module. Without this the model proposes search_businesses to a
+     * leads.view-only user and the conversation dead-ends on no_permission.
+     */
+    public function test_tool_defs_are_filtered_by_the_acting_users_permissions(): void
+    {
+        $shop = $this->leadsShop();
+        (new \Database\Seeders\PermissionSeeder())->run();
+        setPermissionsTeamId($shop->id);
+
+        $role = \Spatie\Permission\Models\Role::create(['name' => 'Viewer', 'guard_name' => 'web', 'team_id' => $shop->id]);
+        $role->syncPermissions(['leads.view']);
+        $user = \App\Models\ShopUser::factory()->create(['shop_id' => $shop->id]);
+        $user->assignRole($role);
+
+        $names = array_column(app(AssistantToolRegistry::class)->defs($shop, $user), 'name');
+
+        // Reads they hold stay visible…
+        $this->assertContains('list_leads', $names);
+        $this->assertContains('hunt_credits', $names);
+        // …everything gated higher disappears.
+        $this->assertNotContains('search_businesses', $names);
+        $this->assertNotContains('save_leads', $names);
+        $this->assertNotContains('update_lead_status', $names);
+        $this->assertNotContains('draft_outreach', $names);
+    }
+
+    /**
+     * draft_outreach costs a Claude call and is pipeline work, so it must sit at
+     * the same bar as POST /shop/leads/{lead}/personalize (leads.manage) rather
+     * than being reachable with a bare leads.view.
+     */
+    public function test_draft_outreach_requires_leads_manage_like_its_rest_twin(): void
+    {
+        $shop = $this->leadsShop();
+        (new \Database\Seeders\PermissionSeeder())->run();
+        setPermissionsTeamId($shop->id);
+
+        $role = \Spatie\Permission\Models\Role::create(['name' => 'Viewer2', 'guard_name' => 'web', 'team_id' => $shop->id]);
+        $role->syncPermissions(['leads.view']);
+        $user = \App\Models\ShopUser::factory()->create(['shop_id' => $shop->id]);
+        $user->assignRole($role);
+        \App\Support\CurrentShopUser::set($user);
+
+        Lead::factory()->create(['shop_id' => $shop->id, 'name' => 'Pak Cargo']);
+
+        $out = $this->exec($shop, 'draft_outreach', ['name' => 'Pak Cargo', 'kind' => 'opening']);
+        $this->assertSame('no_permission', $out['error']);
+
+        \App\Support\CurrentShopUser::set(null);
+    }
 }

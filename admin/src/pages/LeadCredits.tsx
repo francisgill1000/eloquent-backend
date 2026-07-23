@@ -23,10 +23,14 @@ const packWa = (p: CreditPack) =>
  */
 export default function LeadCredits() {
   const navigate = useNavigate();
-  const { shop } = useShop();
+  const { shop, can } = useShop();
   const {
-    balance, packs, canPurchase, buyingId, buyMsg, buyPack, checkoutUrl, setCheckoutUrl,
+    balance, packs, canPurchase: shopCanPurchase, buyingId, buyMsg, buyPack, checkoutUrl, setCheckoutUrl,
   } = useHuntCredits(!!shop?.id);
+  // Buying needs BOTH the shop's Ziina eligibility (server flag) and the user's
+  // leads.purchase grant. Without the grant the packs still show their prices but
+  // route to the WhatsApp top-up path instead of opening checkout.
+  const canPurchase = shopCanPurchase && can('leads.purchase');
 
   return (
     <div className="m-screen lf lfc"><div className="m-scroll">

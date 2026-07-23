@@ -28,6 +28,17 @@ class OwnerAssistantTools implements AssistantToolModule
         return static::defs();
     }
 
+    /**
+     * Legacy reporting tools carry no per-tool permission map, so every tool in
+     * this module is visible to anyone who reaches it.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function visibleToolDefs(?\App\Models\ShopUser $user): array
+    {
+        return $this->toolDefs();
+    }
+
     public function handles(string $tool): bool
     {
         foreach (static::defs() as $def) {

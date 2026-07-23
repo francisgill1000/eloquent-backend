@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { fetchMe } from '@/lib/access';
 import { storage } from '@/lib/storage';
 import type { Shop, AuthUser } from '@/types';
 
@@ -8,8 +9,15 @@ type ShopContextValue = {
   loading: boolean;
   /** The logged-in user (null for a legacy/owner-equivalent session). */
   currentUser: AuthUser | null;
-  /** Effective permission names; ['*'] means all (owner). */
-  permissions: string[];
+  /**
+   * Effective permission names; ['*'] means all (owner). `null` means NOT YET
+   * KNOWN — a session that predates permission storage, or one whose /auth/me
+   * refresh hasn't landed. Null is owner-equivalent, mirroring the backend,
+   * where an untagged token is all-allowed (see App\Support\Rbac::userCan).
+   * Failing open here is safe: the API is the real gate, and failing closed
+   * would lock every already-logged-in user out of the whole app.
+   */
+  permissions: string[] | null;
   /** True if the current user holds the given permission (owner = always). */
   can: (permission: string) => boolean;
   loginShop: (shop: Shop, token: string) => void;
@@ -25,7 +33,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-  const [permissions, setPermissions] = useState<string[]>([]);
+  const [permissions, setPermissions] = useState<string[] | null>(null);
 
   useEffect(() => {
     const saved = storage.getJSON<Shop>('shop_data');
@@ -34,7 +42,19 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       setShop(saved);
       setToken(savedToken);
       setCurrentUser(storage.getJSON<AuthUser>('shop_user'));
-      setPermissions(storage.getJSON<string[]>('shop_permissions') ?? []);
+      setPermissions(storage.getJSON<string[]>('shop_permissions'));
+      // Permissions used to be written only at login, so a session that started
+      // before this existed has none stored — and a role edited since then would
+      // be stale either way. Re-read them from /auth/me on every boot so the
+      // client gate matches the server's. Failure leaves the cached value.
+      fetchMe()
+        .then((me) => {
+          setCurrentUser(me.user);
+          setPermissions(me.permissions);
+          storage.setJSON('shop_user', me.user);
+          storage.setJSON('shop_permissions', me.permissions);
+        })
+        .catch(() => undefined);
     }
     setLoading(false);
   }, []);
@@ -53,14 +73,15 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     storage.setJSON('shop_permissions', perms);
   };
 
+  // null = not yet known → owner-equivalent (see the `permissions` doc above).
   const can = (permission: string) =>
-    permissions.includes('*') || permissions.includes(permission);
+    permissions === null || permissions.includes('*') || permissions.includes(permission);
 
   const logoutShop = () => {
     setShop(null);
     setToken(null);
     setCurrentUser(null);
-    setPermissions([]);
+    setPermissions(null);
     storage.remove('shop_data');
     storage.remove('shop_token');
     storage.remove('shop_user');

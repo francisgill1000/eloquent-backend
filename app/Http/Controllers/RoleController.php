@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\RoleResource;
+use App\Models\Shop;
 use App\Support\PermissionCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -30,7 +31,7 @@ class RoleController extends Controller
     public function store(Request $request)
     {
         $shopId = $request->user()->id;
-        $data = $this->validateData($request, $shopId, null);
+        $data = $this->validateData($request, $request->user(), null);
 
         $role = Role::create([
             'name' => $data['name'],
@@ -50,7 +51,7 @@ class RoleController extends Controller
         abort_unless($role->team_id === $shopId, 404);
         abort_if($role->name === 'Owner', 403, 'The Owner role cannot be modified.');
 
-        $data = $this->validateData($request, $shopId, $role->id);
+        $data = $this->validateData($request, $request->user(), $role->id);
 
         $role->update(['name' => $data['name']]);
         $role->syncPermissions($data['permissions'] ?? []);
@@ -69,17 +70,28 @@ class RoleController extends Controller
         return response()->json(['message' => 'Role deleted']);
     }
 
-    private function validateData(Request $request, int $shopId, ?int $ignoreId): array
+    private function validateData(Request $request, Shop $shop, ?int $ignoreId): array
     {
+        // Grantable set is the shop's OWN catalog, not the global one — a Business
+        // Hunt shop must not be able to persist bookings.* onto a role (those rows
+        // are invisible on its roles screen and its module gate blocks the routes,
+        // so they would only accumulate as meaningless grants).
+        $grantable = [];
+        foreach (PermissionCatalog::forShop($shop) as $group) {
+            foreach (array_keys($group['permissions']) as $perm) {
+                $grantable[] = $perm;
+            }
+        }
+
         return $request->validate([
             'name' => [
                 'required', 'string', 'max:50',
                 Rule::unique('roles', 'name')
-                    ->where(fn ($q) => $q->where('team_id', $shopId))
+                    ->where(fn ($q) => $q->where('team_id', $shop->id))
                     ->ignore($ignoreId),
             ],
             'permissions' => ['array'],
-            'permissions.*' => [Rule::in(PermissionCatalog::all())],
+            'permissions.*' => [Rule::in($grantable)],
         ]);
     }
 }
