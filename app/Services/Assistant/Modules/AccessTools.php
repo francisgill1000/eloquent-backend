@@ -2,9 +2,11 @@
 namespace App\Services\Assistant\Modules;
 
 use App\Models\ShopUser;
+use App\Rules\UniqueLoginEmail;
 use App\Services\Assistant\Support\MutatingTool;
 use App\Services\Assistant\Support\ToolCall;
 use App\Support\PermissionCatalog;
+use Illuminate\Support\Facades\Validator;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -78,17 +80,28 @@ class AccessTools extends MutatingTool
         return $this->gate(
             $call,
             resolve: function () use ($call) {
-                if (! $call->get('name') || ! $call->get('login_pin')) {
-                    return ['error' => 'not_found', 'what' => 'missing_fields'];
-                }
-                $exists = ShopUser::where('shop_id', $call->shop->id)->where('login_pin', $call->get('login_pin'))->exists();
-                return $exists ? ['error' => 'not_found', 'what' => 'pin_taken'] : ['ok' => true];
+                // Same rules as the Access Control UI (ShopUserController): email
+                // is the platform-wide login id, unique across shops + shop_users.
+                $v = Validator::make(
+                    ['name' => $call->get('name'), 'email' => $call->get('email'), 'password' => $call->get('password')],
+                    [
+                        'name'     => ['required', 'string', 'max:80'],
+                        'email'    => ['required', 'email', 'max:255', new UniqueLoginEmail()],
+                        'password' => ['required', 'string', 'min:8'],
+                    ],
+                );
+                // errors() name the attribute, never the value — safe to surface.
+                return $v->fails() ? ['error' => 'invalid', 'what' => $v->errors()->first()] : ['ok' => true];
             },
-            describe: fn () => ["Add user \"{$call->get('name')}\"" . ($call->get('role') ? " as {$call->get('role')}" : ''), ['user' => "new: {$call->get('name')}"]],
+            describe: fn () => [
+                "Add user \"{$call->get('name')}\" ({$call->get('email')})" . ($call->get('role') ? " as {$call->get('role')}" : ''),
+                ['user' => "new: {$call->get('name')}", 'email' => $call->get('email')], // never the password
+            ],
             write: function () use ($call) {
                 $user = ShopUser::create([
                     'shop_id' => $call->shop->id, 'name' => $call->get('name'),
-                    'login_pin' => $call->get('login_pin'), 'is_active' => true,
+                    'email' => $call->get('email'), 'password' => $call->get('password'), // 'hashed' cast hashes it
+                    'is_active' => true,
                 ]);
                 if ($call->get('role') && ($role = $this->resolveRoleByName($call, (string) $call->get('role')))) {
                     $user->syncRoles([$role]);
@@ -102,19 +115,41 @@ class AccessTools extends MutatingTool
     {
         return $this->gate(
             $call,
-            resolve: fn () => $this->resolveUser($call),
+            resolve: function () use ($call) {
+                $u = $this->resolveUser($call);
+                if (is_array($u)) return $u; // notFound / ambiguous
+
+                // Validate only the credential fields the owner actually supplied;
+                // a blank/absent password keeps the existing one (like the UI).
+                $data = $rules = [];
+                if (($email = $call->get('email')) !== null && $email !== '') {
+                    $data['email'] = $email;
+                    $rules['email'] = ['email', 'max:255', new UniqueLoginEmail(ignoreShopUserId: $u->id)];
+                }
+                if (($pw = $call->get('password')) !== null && $pw !== '') {
+                    $data['password'] = $pw;
+                    $rules['password'] = ['string', 'min:8'];
+                }
+                if ($rules) {
+                    $v = Validator::make($data, $rules);
+                    if ($v->fails()) return ['error' => 'invalid', 'what' => $v->errors()->first()];
+                }
+                return $u;
+            },
             describe: function ($u) use ($call) {
                 $changes = [];
                 if ($call->get('new_name')) $changes['name'] = "{$u->name} → {$call->get('new_name')}";
                 if ($call->get('is_active') !== null) $changes['active'] = $call->get('is_active') ? 'active' : 'inactive';
-                if ($call->get('login_pin')) $changes['pin'] = 'reset';
+                if ($call->get('email')) $changes['email'] = $call->get('email');
+                if ($call->get('password')) $changes['password'] = 'set'; // never the value
                 if ($call->get('role')) $changes['role'] = $call->get('role');
                 return ["Update user \"{$u->name}\"", $changes ?: ['user' => $u->name]];
             },
             write: function ($u) use ($call) {
                 if ($call->get('new_name')) $u->name = $call->get('new_name');
                 if ($call->get('is_active') !== null) $u->is_active = (bool) $call->get('is_active');
-                if ($call->get('login_pin')) $u->login_pin = $call->get('login_pin');
+                if ($call->get('email')) $u->email = $call->get('email');
+                if ($call->get('password')) $u->password = $call->get('password'); // 'hashed' cast hashes it
                 $u->save();
                 if ($call->get('role')) {
                     $role = $this->resolveRoleByName($call, (string) $call->get('role'));
@@ -249,17 +284,19 @@ class AccessTools extends MutatingTool
     {
         return [
             ['name' => 'list_users', 'description' => 'List login users and their role.', 'input_schema' => ['type' => 'object', 'properties' => new \stdClass()]],
-            ['name' => 'create_user', 'description' => 'Add a login user. Requires name and login_pin; optional role name. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => [
+            ['name' => 'create_user', 'description' => 'Add a login user. Requires name, email, and password (min 8 chars); optional role name. Email must be unique across the whole platform. Confirm first. Never read the password back to the owner.', 'input_schema' => ['type' => 'object', 'properties' => [
                 'name' => ['type' => 'string'],
-                'login_pin' => ['type' => 'string', 'description' => 'Numeric PIN, up to 10 chars'],
+                'email' => ['type' => 'string', 'description' => 'Login email (unique across all accounts)'],
+                'password' => ['type' => 'string', 'description' => 'Login password, at least 8 characters. Never repeat it back.'],
                 'role' => ['type' => 'string', 'description' => 'Role name to assign'],
                 'confirmed' => ['type' => 'boolean'],
-            ], 'required' => ['name', 'login_pin']]],
-            ['name' => 'update_user', 'description' => 'Update a user: rename, activate/deactivate, reset PIN (login_pin), or change role. Identify by name. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => [
+            ], 'required' => ['name', 'email', 'password']]],
+            ['name' => 'update_user', 'description' => 'Update a user: rename, activate/deactivate, change login email, set a new password, or change role. Identify by name. A blank password keeps the existing one. Confirm first. Never read the password back to the owner.', 'input_schema' => ['type' => 'object', 'properties' => [
                 'name' => ['type' => 'string', 'description' => 'Current name'],
                 'new_name' => ['type' => 'string'],
                 'is_active' => ['type' => 'boolean'],
-                'login_pin' => ['type' => 'string', 'description' => 'New PIN'],
+                'email' => ['type' => 'string', 'description' => 'New login email (unique across all accounts)'],
+                'password' => ['type' => 'string', 'description' => 'New password, at least 8 characters. Never repeat it back.'],
                 'role' => ['type' => 'string'],
                 'confirmed' => ['type' => 'boolean'],
             ], 'required' => ['name']]],
