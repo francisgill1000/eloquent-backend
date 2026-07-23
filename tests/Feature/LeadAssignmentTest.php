@@ -153,4 +153,39 @@ class LeadAssignmentTest extends TestCase
         // Ownership is not stolen by a re-save.
         $this->assertSame($b->id, $existing->fresh()->assigned_to_id);
     }
+
+    public function test_an_agent_saving_search_results_keeps_them(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $a = $this->agent($shop);
+
+        \App\Support\CurrentShopUser::set($a);
+
+        $out = app(\App\Services\Leads\LeadImporter::class)->import($shop, [
+            ['name' => 'Found One', 'external_ref' => 'p1'],
+            ['name' => 'Found Two'],
+        ], 'my pipeline');
+
+        $this->assertSame(2, $out['created']);
+        // Both are visible to the agent that found them — the whole point.
+        $this->assertCount(2, Lead::forShop($shop->id)->get());
+        foreach ($out['saved'] as $lead) {
+            $this->assertSame($a->id, $lead->fresh()->assigned_to_id);
+            $this->assertNotNull($lead->fresh()->assigned_at);
+        }
+    }
+
+    public function test_an_owner_saving_leaves_them_unassigned(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+
+        \App\Support\CurrentShopUser::set($this->owner($shop));
+
+        $out = app(\App\Services\Leads\LeadImporter::class)
+            ->import($shop, [['name' => 'Pool Lead']], 'pipeline');
+
+        $this->assertNull($out['saved'][0]->fresh()->assigned_to_id);
+    }
 }

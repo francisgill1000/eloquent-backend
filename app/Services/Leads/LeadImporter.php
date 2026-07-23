@@ -5,6 +5,7 @@ namespace App\Services\Leads;
 use App\Models\Lead;
 use App\Models\Scopes\AssignedLeadScope;
 use App\Models\Shop;
+use App\Support\Rbac;
 
 /**
  * Persists discovered businesses as leads, deduping on (shop_id, external_ref)
@@ -25,6 +26,12 @@ class LeadImporter
         $created = 0;
         $pipeline = $pipeline !== null ? trim($pipeline) : null;
         $pipeline = $pipeline === '' ? null : $pipeline;
+
+        // An agent who cannot see the whole shop must own what they save —
+        // otherwise the lead vanishes from their screen the instant it is
+        // created. Takes priority over round-robin (you keep what you find).
+        $actor = current_shop_user();
+        $selfAssign = $actor !== null && ! Rbac::seesAllLeads($actor);
 
         foreach ($rows as $row) {
             $attrs = [
@@ -63,6 +70,12 @@ class LeadImporter
 
             if ($lead->wasRecentlyCreated) {
                 $created++;
+
+                if ($selfAssign && $lead->assigned_to_id === null) {
+                    $lead->assigned_to_id = $actor->id;
+                    $lead->assigned_at = now();
+                    $lead->save();
+                }
             }
             $saved[] = $lead;
         }
