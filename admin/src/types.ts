@@ -249,10 +249,17 @@ export type LeadSearchResponse = {
   meta: LeadSearchMeta;
 };
 
+/** A team member a lead can be handed to. */
+export type Assignee = { id: number; name: string; is_active?: boolean };
+
 /** A saved lead the shop is working. Server appends the *_url accessors. */
 export type Lead = {
   id: number;
   name: string;
+  /** The agent who owns this lead. null/absent = unassigned pool. */
+  assigned_to?: Assignee | null;
+  assigned_to_id?: number | null;
+  assigned_at?: string | null;
   phone?: string | null;
   whatsapp?: string | null;
   website?: string | null;
@@ -291,13 +298,17 @@ export type LeadListResponse = {
   /** Distinct pipeline names for this shop, for the group filter. */
   pipelines: string[];
   won_value?: number;
+  /** Team members this user may hand leads to. Empty without leads.assign. */
+  assignees: Assignee[];
+  /** Whether this shop auto-distributes newly saved leads (round-robin). */
+  auto_assign: boolean;
 };
 
 /** One row in a lead's activity history (status changes, notes, contacts). */
 export type LeadActivity = {
   id: number;
-  type: 'status_change' | 'note' | 'contacted' | string;
-  payload?: { from?: string; to?: string; note?: string } | null;
+  type: 'status_change' | 'note' | 'contacted' | 'assigned' | string;
+  payload?: { from?: string; to?: string; note?: string; from_name?: string; to_name?: string } | null;
   created_at?: string | null;
 };
 
