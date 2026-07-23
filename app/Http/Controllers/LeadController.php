@@ -16,6 +16,7 @@ use App\Services\Leads\LeadSearchService;
 use App\Services\Leads\OutreachWriter;
 use App\Services\Leads\SearchInterpreter;
 use App\Services\Ziina;
+use App\Support\Rbac;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -516,7 +517,7 @@ class LeadController extends Controller
     {
         $shop = $this->shop($request);
 
-        $query = Lead::forShop($shop->id);
+        $query = Lead::forShop($shop->id)->with('assignedTo:id,name,is_active');
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);
@@ -539,6 +540,23 @@ class LeadController extends Controller
             $query->whereNotNull('next_followup_at')
                 ->where('next_followup_at', '<=', now())
                 ->whereIn('status', ['sent', 'followup', 'replied']);
+        }
+
+        // Owner filter: 'me' | 'unassigned' | a shop_user id. Independent of the
+        // visibility scope — an agent filtering by 'me' just sees what they
+        // already see.
+        $assigned = $request->query('assigned_to');
+        if ($assigned !== null && $assigned !== '') {
+            if ($assigned === 'unassigned') {
+                $query->whereNull('assigned_to_id');
+            } elseif ($assigned === 'me') {
+                $me = current_shop_user()?->id;
+                // An untagged session has no "me" — return nothing rather than
+                // silently falling back to everything.
+                $me === null ? $query->whereRaw('1 = 0') : $query->where('assigned_to_id', $me);
+            } else {
+                $query->where('assigned_to_id', (int) $assigned);
+            }
         }
 
         $leads = $query->orderByDesc('id')->get();
@@ -572,11 +590,21 @@ class LeadController extends Controller
             ->get(['deal_amount', 'deal_type', 'deal_term_months'])
             ->sum(fn (Lead $l) => $l->deal_total ?? 0);
 
+        // The pool the hand-out picker offers. Withheld from users who cannot
+        // assign, so the staff list never leaks through the leads endpoint to
+        // someone without users.view.
+        $assignees = Rbac::userCan(current_shop_user(), 'leads.assign')
+            ? ShopUser::where('shop_id', $shop->id)->where('is_active', true)
+                ->orderBy('name')->get(['id', 'name'])
+            : collect();
+
         return response()->json([
             'data' => $leads,
             'funnel' => $funnel,
             'pipelines' => $pipelines,
             'won_value' => round((float) $wonValue, 2),
+            'assignees' => $assignees,
+            'auto_assign' => (bool) $shop->lead_auto_assign,
         ]);
     }
 }
