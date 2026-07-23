@@ -15,6 +15,10 @@ use App\Support\Rbac;
  */
 class LeadImporter
 {
+    public function __construct(private LeadAssigner $assigner)
+    {
+    }
+
     /**
      * @param  array<int, array<string, mixed>>  $rows
      * @param  string|null  $pipeline  Named pipeline/list to file these leads under.
@@ -71,10 +75,18 @@ class LeadImporter
             if ($lead->wasRecentlyCreated) {
                 $created++;
 
-                if ($selfAssign && $lead->assigned_to_id === null) {
-                    $lead->assigned_to_id = $actor->id;
-                    $lead->assigned_at = now();
-                    $lead->save();
+                if ($lead->assigned_to_id === null) {
+                    // An agent keeps what they find; otherwise the shop's
+                    // rotation decides. Rotation only runs when switched on.
+                    $owner = $selfAssign
+                        ? $actor
+                        : ($shop->lead_auto_assign ? $this->assigner->next($shop) : null);
+
+                    if ($owner !== null) {
+                        $lead->assigned_to_id = $owner->id;
+                        $lead->assigned_at = now();
+                        $lead->save();
+                    }
                 }
             }
             $saved[] = $lead;
