@@ -158,4 +158,21 @@ class ShopRegistrationTest extends TestCase
 
         $this->assertSame('0501112222', $shop->fresh()->phone);
     }
+
+    public function test_master_cannot_register_a_shop_with_an_email_already_used_by_a_staff_account(): void
+    {
+        \App\Models\ShopUser::factory()->create(['email' => 'staff-taken@example.com']);
+
+        $master = Shop::factory()->create(['is_master' => true]);
+        $token = $master->createToken('t')->plainTextToken;
+
+        $this->withHeaders(['Authorization' => "Bearer $token"])->postJson('/api/shops', [
+            'name' => 'Another Salon',
+            'phone' => '0554500001',
+            'email' => 'staff-taken@example.com',
+            'password' => 'at-least-8-chars',
+            'category_id' => 1,
+            'is_verified' => true,
+        ])->assertStatus(422);
+    }
 }

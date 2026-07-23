@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Shop;
+use App\Rules\UniqueLoginEmail;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreShopRequest extends FormRequest
@@ -18,7 +19,7 @@ class StoreShopRequest extends FormRequest
     {
         return [
             'name'        => 'required|string|max:255|unique:shops,name',
-            'email'       => 'required|email|max:255|unique:shops,email',
+            'email'       => ['required', 'email', 'max:255', new UniqueLoginEmail()],
             'password'    => 'required|string|min:8',
             'phone'       => 'nullable|string|max:32',
             'logo'        => 'nullable',
