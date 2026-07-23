@@ -13,6 +13,7 @@ class LeadActivity extends Model
     public const TYPE_STATUS_CHANGE = 'status_change';
     public const TYPE_NOTE = 'note';
     public const TYPE_CONTACTED = 'contacted';
+    public const TYPE_ASSIGNED = 'assigned';
 
     protected $fillable = [
         'lead_id',

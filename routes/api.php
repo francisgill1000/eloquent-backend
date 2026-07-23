@@ -280,10 +280,15 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'module:leads'])->group(funct
     // Ad Activity (Meta Ad Library) — async: start a run, then poll it.
     Route::post  ('/shop/leads/ad-search',           [\App\Http\Controllers\LeadController::class, 'adSearchStart'])->middleware('can.perm:leads.search');
     Route::get   ('/shop/leads/ad-search/{runId}',   [\App\Http\Controllers\LeadController::class, 'adSearchPoll'])->middleware('can.perm:leads.search');
+    // Assignment: bulk hand-out + the per-shop round-robin toggle. Static paths,
+    // so they must stay above the {lead} routes below.
+    Route::post  ('/shop/leads/assign',           [\App\Http\Controllers\LeadController::class, 'assignBulk'])->middleware('can.perm:leads.assign');
+    Route::patch ('/shop/leads/settings',         [\App\Http\Controllers\LeadController::class, 'updateSettings'])->middleware('can.perm:leads.assign');
     Route::get   ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'index'])->middleware('can.perm:leads.view');
     Route::post  ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'store'])->middleware('can.perm:leads.manage');
     Route::get   ('/shop/leads/{lead}',           [\App\Http\Controllers\LeadController::class, 'show'])->middleware('can.perm:leads.view');
     Route::patch ('/shop/leads/{lead}/status',    [\App\Http\Controllers\LeadController::class, 'updateStatus'])->middleware('can.perm:leads.manage');
+    Route::patch ('/shop/leads/{lead}/assign',    [\App\Http\Controllers\LeadController::class, 'assign'])->middleware('can.perm:leads.assign');
     Route::post  ('/shop/leads/{lead}/followup',  [\App\Http\Controllers\LeadController::class, 'logFollowup'])->middleware('can.perm:leads.manage');
     Route::post  ('/shop/leads/{lead}/personalize', [\App\Http\Controllers\LeadController::class, 'personalize'])->middleware('can.perm:leads.manage');
 });
