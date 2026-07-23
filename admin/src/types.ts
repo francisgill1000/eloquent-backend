@@ -165,6 +165,7 @@ export type Role = {
 export type ShopUser = {
   id: number;
   name: string;
+  email: string | null;
   is_active: boolean;
   role: { id: number; name: string } | null;
 };
