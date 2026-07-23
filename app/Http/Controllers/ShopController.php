@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateShopRequest;
 use App\Models\Booking;
 use App\Models\Shop;
 use App\Models\ShopLoginActivity;
+use App\Models\ShopUser;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -186,23 +187,50 @@ class ShopController extends Controller
 
         $shop = Shop::where('email', $email)->first();
 
-        if (!$shop || !$shop->password || !Hash::check((string) $password, $shop->password)) {
+        if ($shop) {
+            if (!$shop->password || !Hash::check((string) $password, $shop->password)) {
+                return response()->json(['message' => 'Invalid credentials'], 401);
+            }
+
+            setPermissionsTeamId($shop->id);
+
+            $token = $shop->createToken('auth_token')->plainTextToken;
+            $permissions = [\App\Support\Rbac::WILDCARD];
+            $user = ['id' => null, 'name' => $shop->name, 'is_active' => true];
+
+            $shop->recordLogin($request, ShopLoginActivity::METHOD_PASSWORD);
+
+            return response()->json([
+                'shop' => $shop,
+                'user' => $user,
+                'permissions' => $permissions,
+                'token' => $token
+            ], 201);
+        }
+
+        // Not a Shop (owner) email — try a staff (ShopUser) account.
+        $shopUser = ShopUser::where('email', $email)->where('is_active', true)->first();
+
+        if (!$shopUser || !$shopUser->password || !Hash::check((string) $password, $shopUser->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        setPermissionsTeamId($shop->id);
+        $staffShop = $shopUser->shop;
+        setPermissionsTeamId($staffShop->id);
 
-        $token = $shop->createToken('auth_token')->plainTextToken;
-        $permissions = [\App\Support\Rbac::WILDCARD];
-        $user = ['id' => null, 'name' => $shop->name, 'is_active' => true];
+        $newToken = $staffShop->createToken('auth_token');
+        $newToken->accessToken->forceFill(['shop_user_id' => $shopUser->id])->save();
 
-        $shop->recordLogin($request, ShopLoginActivity::METHOD_PASSWORD);
+        $permissions = \App\Support\Rbac::permissionsFor($shopUser->load('roles'));
+        $user = ['id' => $shopUser->id, 'name' => $shopUser->name, 'is_active' => (bool) $shopUser->is_active];
+
+        $staffShop->recordLogin($request, ShopLoginActivity::METHOD_PASSWORD);
 
         return response()->json([
-            'shop' => $shop,
+            'shop' => $staffShop,
             'user' => $user,
             'permissions' => $permissions,
-            'token' => $token
+            'token' => $newToken->plainTextToken
         ], 201);
     }
 
