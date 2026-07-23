@@ -37,7 +37,8 @@ export async function listUsers(): Promise<ShopUser[]> {
 
 export async function createUser(p: {
   name: string;
-  login_pin: string;
+  email: string;
+  password: string;
   role_id: number | null;
   is_active: boolean;
 }): Promise<ShopUser> {
@@ -47,7 +48,7 @@ export async function createUser(p: {
 
 export async function updateUser(
   id: number,
-  p: { name: string; login_pin?: string; role_id: number | null; is_active: boolean },
+  p: { name: string; email: string; password?: string; role_id: number | null; is_active: boolean },
 ): Promise<ShopUser> {
   const { data } = await api.put(`/shop/users/${id}`, p);
   return data.data ?? data;
