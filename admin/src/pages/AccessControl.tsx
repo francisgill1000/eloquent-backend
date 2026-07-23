@@ -172,7 +172,8 @@ function UserEditor({
 }) {
   const isEdit = !!user;
   const [name, setName] = useState(user?.name ?? '');
-  const [pin, setPin] = useState('');
+  const [email, setEmail] = useState(user?.email ?? '');
+  const [password, setPassword] = useState('');
   const [roleId, setRoleId] = useState<number | null>(user?.role?.id ?? null);
   const [active, setActive] = useState(user?.is_active ?? true);
   const [saving, setSaving] = useState(false);
@@ -181,13 +182,14 @@ function UserEditor({
   const save = async () => {
     if (saving) return;
     if (!name.trim()) { setError('Name is required.'); return; }
-    if (!isEdit && !pin.trim()) { setError('PIN is required.'); return; }
+    if (!email.trim()) { setError('Email is required.'); return; }
+    if (!isEdit && password.trim().length < 8) { setError('Password must be at least 8 characters.'); return; }
     setSaving(true);
     setError('');
     try {
       const saved = isEdit
-        ? await A.updateUser(user!.id, { name: name.trim(), login_pin: pin.trim() || undefined, role_id: roleId, is_active: active })
-        : await A.createUser({ name: name.trim(), login_pin: pin.trim(), role_id: roleId, is_active: active });
+        ? await A.updateUser(user!.id, { name: name.trim(), email: email.trim(), password: password.trim() || undefined, role_id: roleId, is_active: active })
+        : await A.createUser({ name: name.trim(), email: email.trim(), password: password.trim(), role_id: roleId, is_active: active });
       onSaved(saved);
     } catch (e) {
       setError(errMsg(e, 'Could not save user.'));
@@ -202,18 +204,24 @@ function UserEditor({
       {error && <div className="ac-error" style={{ margin: '0 0 12px' }}>{error}</div>}
 
       <div className="ac-field">
-        <label className="ac-label">Name</label>
-        <input className="ac-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sara" />
+        <label className="ac-label" htmlFor="user-name">Name</label>
+        <input id="user-name" className="ac-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sara" />
       </div>
 
       <div className="ac-field">
-        <label className="ac-label">{isEdit ? 'PIN — leave blank to keep' : 'Login PIN'}</label>
+        <label className="ac-label" htmlFor="user-email">Email</label>
+        <input id="user-email" className="ac-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sara@business.com" />
+      </div>
+
+      <div className="ac-field">
+        <label className="ac-label" htmlFor="user-password">{isEdit ? 'Password — leave blank to keep' : 'Password'}</label>
         <input
+          id="user-password"
           className="ac-input"
-          inputMode="numeric"
-          value={pin}
-          onChange={(e) => setPin(e.target.value)}
-          placeholder={isEdit ? '••••' : 'Logs in with Business ID + this PIN'}
+          type="text"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={isEdit ? '••••••••' : 'At least 8 characters'}
         />
       </div>
 
