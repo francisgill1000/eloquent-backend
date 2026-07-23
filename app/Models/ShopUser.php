@@ -22,13 +22,14 @@ class ShopUser extends Model
     /** spatie guard the roles/permissions live under. */
     protected $guard_name = 'web';
 
-    protected $fillable = ['shop_id', 'name', 'login_pin', 'is_active'];
+    protected $fillable = ['shop_id', 'name', 'login_pin', 'email', 'password', 'is_active'];
 
-    // Login credential must never leak through API responses.
-    protected $hidden = ['login_pin'];
+    // Login credentials must never leak through API responses.
+    protected $hidden = ['login_pin', 'password'];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'password' => 'hashed',
     ];
 
     public function shop(): BelongsTo
