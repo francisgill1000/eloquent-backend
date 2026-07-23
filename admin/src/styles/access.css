@@ -119,29 +119,56 @@
 .ac-editor-actions { display: flex; gap: 10px; margin-top: 18px; }
 .ac-editor-actions .c-btn { flex: 1; }
 
-/* Permission matrix (inline within the role editor) */
-.ac-matrix-group { border-top: 1px solid rgba(255, 255, 255, 0.08); padding: 12px 0 4px; }
-.ac-matrix-group:first-of-type { border-top: 0; padding-top: 2px; }
+/* Permission matrix (inline within the role editor).
+   Horizontal layout: each group is a soft sub-card and its permissions render
+   as wrapping pill chips instead of a stacked vertical checkbox list. */
+.ac-matrix { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+.ac-matrix-group {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 10px 12px 6px;
+}
 
 /* A section (e.g. "Settings") collapses to a single grant; the parenthetical
    list of pages it covers is muted so the toggle label stays the focus. */
 .ac-perm-hint { color: var(--text-3); font-size: 12px; }
-.ac-matrix-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.ac-matrix-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .ac-matrix-label { font-size: 12.5px; font-weight: 700; color: var(--text-1); }
 .ac-selectall { font-size: 11px; font-weight: 700; color: var(--mint-300); background: none; border: 0; cursor: pointer; padding: 0; }
-.ac-perm { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13.5px; color: var(--text-2); cursor: pointer; }
+
+/* Chip row: permissions flow left-to-right and wrap. */
+.ac-chips { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 6px; }
+.ac-perm {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 13px 7px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 13px; font-weight: 600; color: var(--text-2);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.ac-perm:hover { border-color: var(--mint-300); }
+/* Selected chip lights up mint (the inner checkbox still carries the state for
+   browsers without :has support). */
+.ac-perm:has(input:checked) {
+  background: var(--mint-soft);
+  border-color: var(--border-mint);
+  color: var(--mint-300);
+}
 /* Custom glass checkbox — dark rounded square with a mint border; fills mint
    with a dark checkmark when selected. Matches the app's mint/glass theme. */
 .ac-perm input[type="checkbox"] {
   appearance: none; -webkit-appearance: none; margin: 0;
-  width: 18px; height: 18px; flex: 0 0 auto;
+  width: 16px; height: 16px; flex: 0 0 auto;
   border-radius: 6px; border: 1.5px solid var(--border-mint);
   background: rgba(255, 255, 255, 0.05); cursor: pointer;
   display: grid; place-content: center;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .ac-perm input[type="checkbox"]::before {
-  content: ""; width: 11px; height: 11px;
+  content: ""; width: 10px; height: 10px;
   transform: scale(0); transition: transform 0.12s ease; background: #05130f;
   clip-path: polygon(14% 44%, 0 65%, 45% 100%, 100% 16%, 82% 0, 42% 68%);
 }
@@ -221,4 +248,13 @@
   .c-access .ac-card-grid > .ac-card { margin: 0; }
   .c-access .ac-card-grid > .ac-card:only-child { grid-column: 1 / -1; } /* single record = full width */
   .c-access .ac-card-grid > .ac-editor { grid-column: 1 / -1; }          /* editors span full width */
+
+  /* Permission groups sit two-up on desktop so the editor spreads wide
+     instead of scrolling as one tall column. */
+  .c-access .ac-matrix {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    align-items: start;
+  }
 }
