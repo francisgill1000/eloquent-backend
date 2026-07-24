@@ -4,7 +4,7 @@ import { Icons } from '@/components/Icons';
 import { ChartCard } from '@/components/charts/ChartCard';
 import { Donut } from '@/components/charts/Donut';
 import { Kpi, Delta } from '@/components/charts/Kpi';
-import { RangeFilter } from '@/components/charts/RangeFilter';
+import { RangeFilterCalendar } from '@/components/charts/RangeFilterCalendar';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { useShop } from '@/context/ShopContext';
 import {
@@ -195,11 +195,10 @@ export default function HuntInsights() {
       </div>
 
       <div className="ins-wrap">
-        <RangeFilter
+        <RangeFilterCalendar
           preset={preset} from={from} to={to}
           onPreset={choosePreset}
-          onFrom={(v) => { setFrom(v); setPreset('custom'); }}
-          onTo={(v) => { setTo(v); setPreset('custom'); }}
+          onCustom={(f, t) => { setFrom(f); setTo(t); setPreset('custom'); }}
         />
 
         {error && <div className="c-error-box">{error}</div>}
