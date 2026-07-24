@@ -6,6 +6,7 @@ use App\Models\Shop;
 use App\Services\Credits\HuntCreditService;
 use App\Services\Reports\ReportsAggregator;
 use App\Services\Reports\AiInsightsWriter;
+use App\Support\Rbac;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -73,8 +74,23 @@ class ReportsController extends Controller
         ]);
     }
 
+    /**
+     * The AI summary is generated shop-wide (whole pipeline & revenue), so a lead
+     * agent — a Hunt user who can't see every lead — must never read it, or they'd
+     * bypass the per-agent scoping the rest of Hunt enforces. Bookings-only shops
+     * have no agent concept, so the guard only bites when the leads module is on.
+     */
+    private function blockLeadAgent(): void
+    {
+        $shop = request()->user();
+        if ($shop?->hasModule('leads') && ! Rbac::seesAllLeads(current_shop_user())) {
+            abort(403, 'Agents see only their own leads, not the shop-wide AI summary.');
+        }
+    }
+
     public function aiSummary(Request $request, AiInsightsWriter $writer)
     {
+        $this->blockLeadAgent();
         $request->validate(['period' => 'sometimes|in:rolling30,week,month,custom']);
         [$shopId, $from, $to] = $this->validated($request);
         // Default to rolling30 (the 30-day view a period-less caller — e.g. a
@@ -87,6 +103,7 @@ class ReportsController extends Controller
 
     public function aiSummaryHistory(Request $request)
     {
+        $this->blockLeadAgent();
         $request->validate([
             'period_type' => 'required|in:rolling30,week,month,custom',
             'limit'       => 'sometimes|integer|min:1|max:60',

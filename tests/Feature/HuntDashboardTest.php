@@ -8,6 +8,7 @@ use App\Models\ShopUser;
 use App\Services\Reports\ReportsAggregator;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -363,5 +364,52 @@ class HuntDashboardTest extends TestCase
 
         $this->authJson($this->tokenFor($shop, $manager), 'GET', '/api/shop/reports/hunt?from=2026-07-01&to=2026-07-31')
             ->assertStatus(403);
+    }
+
+    /**
+     * The AI summary is shop-wide, so a Hunt agent (no leads.view_all) must be
+     * denied it even when their role holds summary.view — otherwise they'd read
+     * the whole shop's pipeline while the rest of their app is scoped to their
+     * own leads.
+     */
+    public function test_ai_summary_is_denied_to_a_lead_agent(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop  = Shop::factory()->create(['modules' => ['leads']]);
+        $agent = $this->agent($shop, ['leads.view', 'summary.view']); // no leads.view_all
+        Http::fake();
+
+        $this->authJson($this->tokenFor($shop, $agent), 'GET', '/api/shop/reports/ai-summary?from=2026-07-01&to=2026-07-31')
+            ->assertStatus(403);
+        $this->authJson($this->tokenFor($shop, $agent), 'GET', '/api/shop/reports/ai-summaries?period_type=rolling30')
+            ->assertStatus(403);
+        Http::assertNothingSent();
+    }
+
+    public function test_ai_summary_is_open_to_a_hunt_manager_who_sees_all_leads(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop    = Shop::factory()->create(['modules' => ['leads']]);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all', 'summary.view']);
+        Http::fake();
+
+        // Empty shop → low_data, so no live generation is attempted.
+        $this->authJson($this->tokenFor($shop, $manager), 'GET', '/api/shop/reports/ai-summary?from=2026-07-01&to=2026-07-31')
+            ->assertOk()
+            ->assertJsonPath('state', 'low_data');
+        Http::assertNothingSent();
+    }
+
+    public function test_ai_summary_agent_guard_does_not_touch_a_bookings_shop(): void
+    {
+        (new PermissionSeeder())->run();
+        // No leads module → no "agent" concept, so summary.view alone governs.
+        $shop  = Shop::factory()->create(['modules' => ['bookings']]);
+        $staff = $this->agent($shop, ['summary.view']);
+        Http::fake();
+
+        $this->authJson($this->tokenFor($shop, $staff), 'GET', '/api/shop/reports/ai-summary?from=2026-07-01&to=2026-07-31')
+            ->assertOk();
+        Http::assertNothingSent();
     }
 }

@@ -127,8 +127,13 @@ function Skeleton() {
 
 /* ---------- page ----------------------------------------------------------- */
 export default function HuntInsights() {
-  const { shop } = useShop();
+  const { shop, can } = useShop();
   const today = useMemo(() => new Date(), []);
+
+  // The AI summary is generated shop-wide (all agents' leads). Only show it to
+  // users who may see every lead — an agent's page is scoped to their own, so a
+  // shop-wide narrative would both leak and contradict the rest of the page.
+  const maySeeAiSummary = can('leads.view_all') && can('summary.view');
 
   const [preset, setPreset] = useState<PresetKey>('30d');
   const initial = useMemo(() => presetRange('30d', today), [today]);
@@ -217,7 +222,7 @@ export default function HuntInsights() {
               <Attention a={data.attention} />
             </ChartCard>
 
-            <HuntAiCard shopId={shop!.id} />
+            {maySeeAiSummary && <HuntAiCard shopId={shop!.id} />}
 
             <ChartCard icon="Chart" title="Leads & wins over time"
               sub={rangeLen > 62 ? 'Weekly totals' : 'Daily totals'} span2>
