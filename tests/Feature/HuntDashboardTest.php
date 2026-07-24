@@ -258,4 +258,110 @@ class HuntDashboardTest extends TestCase
         $overdue = $this->authJson($token, 'GET', '/api/shop/leads?followups=overdue');
         $this->assertCount(1, $overdue->json('data'));
     }
+
+    public function test_hunt_report_requires_authentication(): void
+    {
+        $this->getJson('/api/shop/reports/hunt?from=2026-07-01&to=2026-07-31')
+            ->assertStatus(401);
+    }
+
+    public function test_hunt_report_requires_leads_view(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $this->startTrial($shop);
+        $nobody = $this->agent($shop, ['profile.view']);
+
+        $this->authJson($this->tokenFor($shop, $nobody), 'GET', '/api/shop/reports/hunt?from=2026-07-01&to=2026-07-31')
+            ->assertStatus(403);
+    }
+
+    public function test_hunt_report_serves_a_manager_the_whole_shop(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $this->startTrial($shop);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all']);
+        $worker = $this->agent($shop, ['leads.view']);
+
+        Lead::factory()->create([
+            'shop_id' => $shop->id, 'assigned_to_id' => $worker->id,
+            'status' => 'won', 'deal_won_at' => '2026-07-10 12:00:00',
+            'deal_amount' => 400, 'deal_type' => 'one_off',
+            'created_at' => '2026-07-05 09:00:00',
+        ]);
+
+        $res = $this->authJson(
+            $this->tokenFor($shop, $manager),
+            'GET',
+            '/api/shop/reports/hunt?from=2026-07-01&to=2026-07-31',
+        );
+
+        $res->assertOk()
+            ->assertJsonStructure([
+                'range' => ['from', 'to'],
+                'summary' => ['new_leads', 'pipeline', 'won', 'won_value', 'mrr_won'],
+                'daily' => [['date', 'leads', 'won', 'won_value']],
+                'attention' => ['followups_overdue', 'followups_today', 'stale', 'unassigned'],
+                'agents',
+                'credits' => ['balance', 'used', 'searches'],
+            ]);
+
+        // JSON turns 400.0 into a bare 400, decoded as int — compare by value.
+        $this->assertEquals(400.0, $res->json('summary.won_value'));
+        $this->assertCount(31, $res->json('daily'));
+        $this->assertSame($worker->id, $res->json('agents.0.id'));
+    }
+
+    public function test_hunt_report_gives_an_agent_only_their_own_numbers_and_no_leaderboard(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $this->startTrial($shop);
+        $worker = $this->agent($shop, ['leads.view']);
+
+        Lead::factory()->create(['shop_id' => $shop->id, 'assigned_to_id' => $worker->id, 'created_at' => '2026-07-05 09:00:00']);
+        Lead::factory()->create(['shop_id' => $shop->id, 'created_at' => '2026-07-05 09:00:00']);
+
+        $res = $this->authJson(
+            $this->tokenFor($shop, $worker),
+            'GET',
+            '/api/shop/reports/hunt?from=2026-07-01&to=2026-07-31',
+        );
+
+        $res->assertOk();
+        $this->assertSame(1, $res->json('summary.new_leads'));
+        $this->assertSame([], $res->json('agents'));
+    }
+
+    public function test_hunt_report_ignores_a_request_supplied_shop_id(): void
+    {
+        (new PermissionSeeder())->run();
+        $mine = Shop::factory()->create(['modules' => ['leads']]);
+        $theirs = Shop::factory()->create(['modules' => ['leads']]);
+        $this->startTrial($mine);
+        $manager = $this->agent($mine, ['leads.view', 'leads.view_all']);
+
+        Lead::factory()->count(3)->create(['shop_id' => $theirs->id, 'created_at' => '2026-07-05 09:00:00']);
+
+        $res = $this->authJson(
+            $this->tokenFor($mine, $manager),
+            'GET',
+            "/api/shop/reports/hunt?from=2026-07-01&to=2026-07-31&shop_id={$theirs->id}",
+        );
+
+        $res->assertOk();
+        $this->assertSame(0, $res->json('summary.new_leads'));
+    }
+
+    public function test_hunt_report_is_closed_to_a_bookings_only_shop(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['bookings']]);
+        $this->startTrial($shop);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all']);
+
+        $this->authJson($this->tokenFor($shop, $manager), 'GET', '/api/shop/reports/hunt?from=2026-07-01&to=2026-07-31')
+            ->assertStatus(403);
+    }
 }
