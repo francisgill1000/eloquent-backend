@@ -197,3 +197,52 @@ describe('LeadDetail won-deal capture', () => {
     expect(spy).not.toHaveBeenCalled();
   });
 });
+
+describe('LeadDetail assignment', () => {
+  beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); vi.stubGlobal('open', vi.fn()); });
+
+  const listWithSara = () =>
+    vi.spyOn(leadsLib, 'listLeads').mockResolvedValue({
+      data: [], funnel: { new: 0, sent: 0, followup: 0, replied: 0, demo: 0, won: 0, pass: 0 },
+      pipelines: [], won_value: 0, assignees: [{ id: 7, name: 'Sara' }], auto_assign: false,
+    });
+
+  it('assigns the lead from the detail page', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead }, activities: [] });
+    listWithSara();
+    const assign = vi.spyOn(leadsLib, 'assignLead').mockResolvedValue({ ...baseLead });
+
+    setup();
+    const picker = await screen.findByLabelText('Assigned to');
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Sara' })).toBeInTheDocument());
+    await userEvent.selectOptions(picker, '7');
+
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(3, 7));
+  });
+
+  it('shows a read-only owner to a user who cannot assign', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({
+      lead: { ...baseLead, assigned_to: { id: 7, name: 'Sara' } }, activities: [],
+    });
+    const list = listWithSara();
+
+    setup(['leads.view']);
+
+    expect(await screen.findByText('Sara')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Assigned to')).not.toBeInTheDocument();
+    // No assignee list is fetched for someone who cannot hand leads out.
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it('renders an assignment in the activity timeline', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({
+      lead: { ...baseLead },
+      activities: [{ id: 1, type: 'assigned', payload: { to_name: 'Sara', from_name: 'Ali' }, created_at: null }],
+    });
+    listWithSara();
+
+    setup();
+
+    expect(await screen.findByText('Assigned to Sara (was Ali)')).toBeInTheDocument();
+  });
+});
