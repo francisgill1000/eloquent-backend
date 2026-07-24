@@ -132,6 +132,15 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'can.perm:summary.view'])->gr
     Route::get('/shop/reports/ai-summaries', [\App\Http\Controllers\ReportsController::class, 'aiSummaryHistory']);
 });
 
+// Business Hunt dashboard — its own group because the reports group above
+// requires the bookings module, which would lock out a Hunt-only shop. Needs
+// rbac.context: without it current_shop_user() is null, every agent is treated
+// as owner-equivalent, and the whole shop's pipeline leaks.
+Route::middleware(['auth:sanctum', 'rbac.context', 'module:leads', 'can.perm:leads.view'])
+    ->group(function () {
+        Route::get('/shop/reports/hunt', [\App\Http\Controllers\ReportsController::class, 'hunt']);
+    });
+
 // Marketing — campaigns + promo codes
 // Marketing + promo management — authenticated + bookings module; shop derived
 // from the token (see controllers). The guest booking discount lookup stays public.

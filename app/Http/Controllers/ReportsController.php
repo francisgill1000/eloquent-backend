@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Shop;
+use App\Services\Credits\HuntCreditService;
 use App\Services\Reports\ReportsAggregator;
 use App\Services\Reports\AiInsightsWriter;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -44,6 +45,32 @@ class ReportsController extends Controller
     {
         [$shopId, $from, $to] = $this->validated($request);
         return response()->json($this->aggregator->insightsSummary($shopId, $from, $to));
+    }
+
+    /**
+     * The Business Hunt dashboard payload — everything the page needs in one
+     * round-trip. Agent scoping is handled inside the aggregator: huntSummary
+     * filters explicitly, huntDaily/huntAttention inherit AssignedLeadScope,
+     * and huntByAgent returns [] for anyone who can't see all leads, which is
+     * what hides the leaderboard from agents.
+     */
+    public function hunt(Request $request, HuntCreditService $credits)
+    {
+        [$shopId, $from, $to] = $this->validated($request);
+        $summary = $this->aggregator->huntSummary($shopId, $from, $to);
+
+        return response()->json([
+            'range'     => $summary['range'],
+            'summary'   => $summary,
+            'daily'     => $this->aggregator->huntDaily($shopId, $from, $to),
+            'attention' => $this->aggregator->huntAttention($shopId),
+            'agents'    => $this->aggregator->huntByAgent($shopId, $from, $to),
+            'credits'   => [
+                'balance'  => $credits->balance(Shop::findOrFail($shopId)),
+                'used'     => $summary['credits_used'],
+                'searches' => $summary['searches'],
+            ],
+        ]);
     }
 
     public function aiSummary(Request $request, AiInsightsWriter $writer)
