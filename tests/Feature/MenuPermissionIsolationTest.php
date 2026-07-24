@@ -210,7 +210,11 @@ class MenuPermissionIsolationTest extends TestCase
         $shop = $this->huntShop();
         $lead = Lead::factory()->create(['shop_id' => $shop->id]);
 
-        $viewer = $this->staffToken($shop, ['leads.view']);
+        // leads.view_all so these users can SEE the (unassigned) lead — this
+        // test is about leads.manage gating writes, not about assignment
+        // visibility. It mirrors production, where the backfill gave every
+        // existing role holding leads.view the widened leads.view_all.
+        $viewer = $this->staffToken($shop, ['leads.view', 'leads.view_all']);
         $this->withHeaders($this->hdrs($viewer))
             ->patchJson("/api/shop/leads/{$lead->id}/status", ['status' => 'sent'])
             ->assertStatus(403);
@@ -221,7 +225,7 @@ class MenuPermissionIsolationTest extends TestCase
         $this->assertSame($lead->status, $lead->fresh()->status);
 
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->hdrs($this->staffToken($shop, ['leads.view', 'leads.manage'])))
+        $this->withHeaders($this->hdrs($this->staffToken($shop, ['leads.view', 'leads.view_all', 'leads.manage'])))
             ->patchJson("/api/shop/leads/{$lead->id}/status", ['status' => 'sent'])
             ->assertOk();
     }

@@ -32,7 +32,7 @@ class LeadImporterTest extends TestCase
         // key that has since been taken.
         $stale = new Lead(['shop_id' => $shop->id, 'external_ref' => 'place_race']);
 
-        $importer = new LeadImporter();
+        $importer = app(LeadImporter::class);
         $lead = $importer->saveDeduped(
             $stale,
             ['name' => 'From This Request', 'source' => 'google_places'],

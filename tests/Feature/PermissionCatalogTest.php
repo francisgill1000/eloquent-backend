@@ -45,13 +45,13 @@ class PermissionCatalogTest extends TestCase
         $this->assertSame(count(PermissionCatalog::all()), Permission::count());
     }
 
-    public function test_hunt_group_exists_with_four_permissions(): void
+    public function test_hunt_group_exists_with_its_six_permissions(): void
     {
         $groups = PermissionCatalog::grouped();
         $this->assertArrayHasKey('hunt', $groups);
         $this->assertSame('leads', $groups['hunt']['module']);
         $this->assertSame(
-            ['leads.view', 'leads.search', 'leads.manage', 'leads.purchase'],
+            ['leads.view', 'leads.view_all', 'leads.search', 'leads.manage', 'leads.assign', 'leads.purchase'],
             array_keys($groups['hunt']['permissions']),
         );
     }
