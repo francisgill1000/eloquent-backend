@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ShopProvider } from '@/context/ShopContext';
@@ -29,6 +29,18 @@ function setup(perms: string[] = ['*']) {
   );
 }
 
+/**
+ * Query only the outreach action row. These assertions used to run against the
+ * whole document, which also matched the funnel stage switch — it renders a
+ * permanent button with aria-label "Follow-up" for the followup stage, so
+ * "no outreach button" assertions failed on a control that is not outreach.
+ */
+function actions() {
+  const row = document.querySelector('.ld-actions');
+  if (!row) throw new Error('.ld-actions was not rendered');
+  return within(row as HTMLElement);
+}
+
 describe('LeadDetail outreach button', () => {
   beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); vi.stubGlobal('open', vi.fn()); });
 
@@ -37,12 +49,12 @@ describe('LeadDetail outreach button', () => {
     const setStatus = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'sent' });
 
     setup();
-    const btn = await screen.findByRole('button', { name: /whatsapp/i });
-    await userEvent.click(btn);
+    await screen.findByText('Pak Cargo');
+    await userEvent.click(actions().getByRole('button', { name: /whatsapp/i }));
 
     expect(window.open).toHaveBeenCalledWith(baseLead.whatsapp_opening_url, '_blank');
     expect(setStatus).toHaveBeenCalledWith(3, 'sent');
-    expect(screen.queryByRole('button', { name: /follow-up/i })).not.toBeInTheDocument();
+    expect(actions().queryByRole('button', { name: /follow-up/i })).not.toBeInTheDocument();
   });
 
   it('shows Follow-up for a Sent lead and logs a follow-up on click', async () => {
@@ -50,8 +62,8 @@ describe('LeadDetail outreach button', () => {
     const follow = vi.spyOn(leadsLib, 'logFollowup').mockResolvedValue({ ...baseLead, status: 'sent' });
 
     setup();
-    const btn = await screen.findByRole('button', { name: /follow-up/i });
-    await userEvent.click(btn);
+    await screen.findByText('Pak Cargo');
+    await userEvent.click(actions().getByRole('button', { name: /follow-up/i }));
 
     expect(window.open).toHaveBeenCalledWith(baseLead.whatsapp_followup_url, '_blank');
     expect(follow).toHaveBeenCalledWith(3);
@@ -62,8 +74,8 @@ describe('LeadDetail outreach button', () => {
 
     setup();
     await screen.findByText('Pak Cargo');
-    expect(screen.queryByRole('button', { name: /whatsapp/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /follow-up/i })).not.toBeInTheDocument();
+    expect(actions().queryByRole('button', { name: /whatsapp/i })).not.toBeInTheDocument();
+    expect(actions().queryByRole('button', { name: /follow-up/i })).not.toBeInTheDocument();
   });
 
   it('shows no outreach button for a Not-Interested (pass) lead', async () => {
@@ -71,8 +83,8 @@ describe('LeadDetail outreach button', () => {
 
     setup();
     await screen.findByText('Pak Cargo');
-    expect(screen.queryByRole('button', { name: /whatsapp/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /follow-up/i })).not.toBeInTheDocument();
+    expect(actions().queryByRole('button', { name: /whatsapp/i })).not.toBeInTheDocument();
+    expect(actions().queryByRole('button', { name: /follow-up/i })).not.toBeInTheDocument();
   });
 
   it('personalizes a New lead: previews AI text, then opens WhatsApp and marks Sent', async () => {

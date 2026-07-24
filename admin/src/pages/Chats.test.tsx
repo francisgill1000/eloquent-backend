@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ShopProvider } from '@/context/ShopContext';
 import { storage } from '@/lib/storage';
@@ -10,6 +11,15 @@ function setup() {
   storage.setJSON('shop_data', { id: 7, name: 'Acme' });
   storage.set('shop_token', 'tok');
   return render(<MemoryRouter><ShopProvider><Chats /></ShopProvider></MemoryRouter>);
+}
+
+/**
+ * The page deliberately opens on the "Hot lead" filter, so untagged contacts
+ * are hidden until you tap "All" (see the statusFilter default in Chats.tsx).
+ * Any test asserting on contact rows has to do what a user does first.
+ */
+async function showAllChats() {
+  await userEvent.click(await screen.findByRole('button', { name: 'All' }));
 }
 
 describe('Chats', () => {
@@ -25,6 +35,7 @@ describe('Chats', () => {
     });
 
     setup();
+    await showAllChats();
     expect(await screen.findByText('Ali')).toBeInTheDocument();
     expect(screen.getByText('Salam')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
@@ -50,6 +61,7 @@ describe('Chats', () => {
     });
 
     setup();
+    await showAllChats();
     expect(await screen.findByText('Aisha')).toBeInTheDocument();
     expect(screen.getByText('Live')).toBeInTheDocument();
     expect(screen.queryByText(/whatsapp not connected/i)).not.toBeInTheDocument();
@@ -64,6 +76,7 @@ describe('Chats', () => {
     });
 
     setup();
+    await showAllChats();
     expect(await screen.findByText('Live chat customer')).toBeInTheDocument();
   });
 });
