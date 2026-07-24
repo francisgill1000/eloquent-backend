@@ -337,6 +337,13 @@
   border: 1px solid var(--mint-300); cursor: pointer;
 }
 .ins-ai-listen:disabled { opacity: 0.6; cursor: default; }
+.ins-ai-hide {
+  display: inline-flex; align-items: center;
+  padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  color: var(--text-3); background: transparent;
+  border: 1px solid var(--border-2); cursor: pointer;
+}
+.ins-ai-hide:hover { color: var(--text-1); border-color: var(--border-3); }
 .ins-ai-body { padding-top: 4px; transition: opacity 0.2s ease; }
 .ins-ai-body.is-refreshing { opacity: 0.5; }
 .ins-ai-summary { font-size: 15px; line-height: 1.55; color: var(--text-1); margin: 0 0 14px; }

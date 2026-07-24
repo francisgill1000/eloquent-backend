@@ -3,6 +3,9 @@ import { Icons } from '@/components/Icons';
 import { getAiInsights, type AiInsights } from '@/lib/aiInsights';
 import { speak } from '@/lib/simulation';
 
+/** localStorage epoch (ms) until which the card stays hidden. */
+const HIDE_KEY = 'hunt_ai_hidden_until';
+
 /**
  * The AI narrative for the Hunt Overview, embedded in the dashboard flow. It has
  * no date controls of its own — it reads the page's active range (from/to) and
@@ -17,6 +20,11 @@ export function HuntAiCard({ shopId, from, to, rangeLabel }: {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Temporary dismiss: "Hide" tucks the card away for 24h, then it returns on
+  // its own — a low-commitment way to try the page without it before deciding.
+  const [hidden, setHidden] = useState(() => Date.now() < Number(localStorage.getItem(HIDE_KEY) || 0));
+  const hide = () => { localStorage.setItem(HIDE_KEY, String(Date.now() + 864e5)); setHidden(true); };
+
   const fetchAi = useCallback(async (refresh: boolean) => {
     if (!shopId || !from || !to) return;
     refresh ? setRefreshing(true) : setLoading(true);
@@ -28,8 +36,9 @@ export function HuntAiCard({ shopId, from, to, rangeLabel }: {
     } finally { setLoading(false); setRefreshing(false); }
   }, [shopId, from, to]);
 
-  // Auto-generate on mount and whenever the top filter range changes.
-  useEffect(() => { void fetchAi(false); }, [fetchAi]);
+  // Auto-generate on mount and whenever the top filter range changes — but not
+  // while hidden, so a dismissed card never spends a generation.
+  useEffect(() => { if (!hidden) void fetchAi(false); }, [fetchAi, hidden]);
 
   /* ---- listen (TTS) ---- */
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -57,6 +66,9 @@ export function HuntAiCard({ shopId, from, to, rangeLabel }: {
     } catch { setTts('idle'); }
   };
 
+  // Tucked away for now — comes back after 24h.
+  if (hidden) return null;
+
   return (
     <div className="ins-card span2 ins-ai">
       <div className="ins-card-head">
@@ -65,19 +77,22 @@ export function HuntAiCard({ shopId, from, to, rangeLabel }: {
           <span className="ins-card-title">AI summary</span>
           <span className="ins-card-sub">{rangeLabel}</span>
         </span>
-        {data?.state === 'ok' && (
-          <div className="ins-ai-actions">
-            <button className="ins-ai-listen" onClick={toggleListen}
-              disabled={tts === 'loading' || !spokenText}
-              aria-label={tts === 'playing' ? 'Stop' : 'Listen'}>
-              {tts === 'playing' ? <Icons.Stop size={15} /> : <Icons.Speaker size={15} />}
-              {tts === 'playing' ? 'Stop' : tts === 'loading' ? 'Loading…' : 'Listen'}
-            </button>
-            <button className="ins-ai-refresh" onClick={() => fetchAi(true)} disabled={refreshing}>
-              {refreshing ? 'Regenerating…' : 'Regenerate'}
-            </button>
-          </div>
-        )}
+        <div className="ins-ai-actions">
+          {data?.state === 'ok' && (
+            <>
+              <button className="ins-ai-listen" onClick={toggleListen}
+                disabled={tts === 'loading' || !spokenText}
+                aria-label={tts === 'playing' ? 'Stop' : 'Listen'}>
+                {tts === 'playing' ? <Icons.Stop size={15} /> : <Icons.Speaker size={15} />}
+                {tts === 'playing' ? 'Stop' : tts === 'loading' ? 'Loading…' : 'Listen'}
+              </button>
+              <button className="ins-ai-refresh" onClick={() => fetchAi(true)} disabled={refreshing}>
+                {refreshing ? 'Regenerating…' : 'Regenerate'}
+              </button>
+            </>
+          )}
+          <button className="ins-ai-hide" onClick={hide} title="Hide for 24 hours">Hide</button>
+        </div>
       </div>
 
       {loading ? (
