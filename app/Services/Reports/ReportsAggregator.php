@@ -616,6 +616,32 @@ class ReportsAggregator
     }
 
     /**
+     * What needs chasing right now. A CURRENT snapshot, deliberately not
+     * date-filtered: an overdue follow-up is overdue no matter which period the
+     * dashboard happens to be showing.
+     *
+     * Reads through Eloquent, which buys two things: AssignedLeadScope narrows
+     * it to the acting agent, and the bucket definitions are the very Lead
+     * scopes LeadController::index filters on — so a chip's number always
+     * matches the list it opens.
+     *
+     * @return array{followups_overdue: int, followups_today: int, stale: int, unassigned: int}
+     */
+    public function huntAttention(int $shopId): array
+    {
+        $base = fn () => Lead::forShop($shopId);
+
+        return [
+            'followups_overdue' => $base()->followupOverdue()->count(),
+            'followups_today'   => $base()->followupToday()->count(),
+            'stale'             => $base()->stale()->count(),
+            // No manager special-case: AssignedLeadScope rewrites an agent's
+            // query to assigned_to_id = <them>, so this is 0 for them.
+            'unassigned'        => $base()->whereNull('assigned_to_id')->count(),
+        ];
+    }
+
+    /**
      * Per-day booking outcome counts across [from, to], inclusive and
      * zero-filled so charts get a continuous series. Capped at 366 days to
      * keep the payload bounded; longer ranges are downsampled client-side.

@@ -128,4 +128,84 @@ class HuntDashboardTest extends TestCase
 
         $this->assertCount(366, $out);
     }
+
+    /** Seeds one lead in each attention bucket plus decoys. Returns the shop. */
+    private function attentionFixture(): Shop
+    {
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $base = ['shop_id' => $shop->id, 'assigned_to_id' => null];
+
+        // Overdue follow-up.
+        Lead::factory()->create($base + [
+            'status' => 'followup', 'next_followup_at' => now()->subDays(3),
+            'last_contacted_at' => now()->subDays(3),
+        ]);
+        // Due today.
+        Lead::factory()->create($base + [
+            'status' => 'sent', 'next_followup_at' => now()->setTime(18, 0),
+            'last_contacted_at' => now(),
+        ]);
+        // Decoy: won, with an overdue follow-up date left behind. Not actionable.
+        Lead::factory()->create($base + [
+            'status' => 'won', 'next_followup_at' => now()->subDays(9),
+            'deal_won_at' => now(), 'deal_amount' => 100, 'deal_type' => 'one_off',
+        ]);
+        // Stale: worked, then dropped for 20 days.
+        Lead::factory()->create($base + [
+            'status' => 'replied', 'last_contacted_at' => now()->subDays(20),
+        ]);
+        // Decoy: `new` and never contacted. Not stale — it was never worked.
+        Lead::factory()->create($base + ['status' => 'new', 'last_contacted_at' => null]);
+
+        return $shop;
+    }
+
+    public function test_hunt_attention_counts_each_bucket(): void
+    {
+        $shop = $this->attentionFixture();
+
+        $out = app(ReportsAggregator::class)->huntAttention($shop->id);
+
+        $this->assertSame(1, $out['followups_overdue'], 'the won lead must not count');
+        $this->assertSame(1, $out['followups_today']);
+        $this->assertSame(1, $out['stale'], 'a never-worked `new` lead is not stale');
+        $this->assertSame(5, $out['unassigned']);
+    }
+
+    public function test_hunt_attention_is_tenant_scoped(): void
+    {
+        $this->attentionFixture();
+        $other = Shop::factory()->create(['modules' => ['leads']]);
+
+        $out = app(ReportsAggregator::class)->huntAttention($other->id);
+
+        $this->assertSame(
+            ['followups_overdue' => 0, 'followups_today' => 0, 'stale' => 0, 'unassigned' => 0],
+            $out,
+        );
+    }
+
+    public function test_hunt_attention_shows_an_agent_only_their_own_and_never_unassigned(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $agent = $this->agent($shop, ['leads.view']); // no leads.view_all
+
+        Lead::factory()->create([
+            'shop_id' => $shop->id, 'assigned_to_id' => $agent->id,
+            'status' => 'followup', 'next_followup_at' => now()->subDay(),
+        ]);
+        Lead::factory()->create([
+            'shop_id' => $shop->id, 'assigned_to_id' => null,
+            'status' => 'followup', 'next_followup_at' => now()->subDay(),
+        ]);
+
+        \App\Support\CurrentShopUser::set($agent);
+        $out = app(ReportsAggregator::class)->huntAttention($shop->id);
+
+        $this->assertSame(1, $out['followups_overdue']);
+        // AssignedLeadScope rewrites the query to assigned_to_id = <agent>, so
+        // "unassigned" is unreachable for them by construction.
+        $this->assertSame(0, $out['unassigned']);
+    }
 }
