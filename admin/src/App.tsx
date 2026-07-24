@@ -51,6 +51,7 @@ import LeadDetail from '@/pages/LeadDetail';
 import SimulationSettings from '@/pages/SimulationSettings';
 import PublicBooking from '@/pages/PublicBooking';
 import { RequirePerm } from '@/components/RequirePerm';
+import { isLeadAgent } from '@/lib/nav';
 
 export default function App() {
   return (
@@ -144,7 +145,9 @@ export default function App() {
             <Route element={<RequirePerm perm="chats.view" />}>
               <Route path="/conversations" element={<Conversations />} />
             </Route>
-            <Route element={<RequirePerm perm="summary.view" />}>
+            {/* Shop-wide summary — summary.view AND not a lead agent (whose app
+                is scoped to their own leads). Mirrors the backend 403. */}
+            <Route element={<RequirePerm perm="summary.view" extra={(shop, can) => !isLeadAgent(shop, can)} />}>
               <Route path="/ai-summary" element={<AiSummary />} />
             </Route>
             <Route element={<RequirePerm perm="bookings.view" />}>

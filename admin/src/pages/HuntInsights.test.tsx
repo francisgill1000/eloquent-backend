@@ -40,9 +40,11 @@ function payload(over: Partial<Data> = {}): Data {
   };
 }
 
-function setup() {
+function setup(perms?: string[]) {
   storage.setJSON('shop_data', { id: 7, name: 'Acme', modules: ['leads'] });
   storage.set('shop_token', 'tok');
+  // Omit perms → permissions stay null → owner-equivalent (existing tests).
+  if (perms) storage.setJSON('shop_permissions', perms);
   return render(<MemoryRouter><ShopProvider><HuntInsights /></ShopProvider></MemoryRouter>);
 }
 
@@ -132,6 +134,25 @@ describe('HuntInsights', () => {
 
     expect(await screen.findByText('120')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /buy credits/i })).toHaveAttribute('href', '/leads/credits');
+  });
+
+  it('hides the shop-wide AI summary from an agent (no leads.view_all)', async () => {
+    vi.spyOn(lib, 'getHuntInsights').mockResolvedValue(payload());
+
+    setup(['leads.view', 'summary.view']); // agent: can view, but not all leads
+
+    // Page still renders its own (agent-scoped) content...
+    expect(await screen.findByText('New leads')).toBeInTheDocument();
+    // ...but the shop-wide AI summary card is not shown.
+    expect(screen.queryByText('AI summary')).toBeNull();
+  });
+
+  it('shows the AI summary to a manager with leads.view_all + summary.view', async () => {
+    vi.spyOn(lib, 'getHuntInsights').mockResolvedValue(payload());
+
+    setup(['leads.view', 'leads.view_all', 'summary.view']);
+
+    expect(await screen.findByText('AI summary')).toBeInTheDocument();
   });
 
   it('surfaces a load failure', async () => {

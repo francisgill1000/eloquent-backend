@@ -21,6 +21,17 @@ export function navAllowed(item: { modules: Module[]; perm?: Perm }, shop: NavSh
   return navVisible(item.modules, shop) && permAllowed(item.perm, can);
 }
 
+/**
+ * A "lead agent": a Hunt (leads) user who cannot see every lead (no
+ * leads.view_all), so AssignedLeadScope limits them to their own leads. The
+ * whole app is scoped to their own pipeline, so shop-wide insight surfaces (the
+ * AI summary) are kept out of their reach. Bookings-only shops have no agent
+ * concept, so this is false there.
+ */
+export function isLeadAgent(shop: NavShop, can: CanFn): boolean {
+  return navVisible(['leads'], shop) && !can('leads.view_all');
+}
+
 /* ------------------------------------------------------------------ */
 /* Settings sub-menu — the single source of truth, shared by the      */
 /* Settings page and the sidebars (which show "Settings" only when at */
@@ -102,6 +113,8 @@ export function firstAccessiblePath(shop: NavShop, can: CanFn): string {
       if (visibleSettingsOptions(shop, can).length > 0) return c.to;
       continue;
     }
+    // The shop-wide AI summary is not a landing place for a lead agent.
+    if (c.to === '/ai-summary' && isLeadAgent(shop, can)) continue;
     if (navAllowed(c, shop, can)) return c.to;
   }
   return '/profile';

@@ -3,7 +3,7 @@ import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
 import { WHATSAPP_ENABLED } from '@/lib/features';
 import { type Module } from '@/lib/modules';
-import { navAllowed, visibleSettingsOptions, type Perm } from '@/lib/nav';
+import { isLeadAgent, navAllowed, visibleSettingsOptions, type Perm } from '@/lib/nav';
 
 type Tab = { id: string; label: string; href: string; icon: keyof typeof Icons; modules: Module[]; perm?: Perm };
 
@@ -48,6 +48,8 @@ export function MobileLayout() {
     : ALL_TABS.filter(
         (t) =>
           (WHATSAPP_ENABLED || t.id !== 'chats') &&
+          // The shop-wide AI summary is hidden from lead agents.
+          !(t.href === '/ai-summary' && isLeadAgent(shop, can)) &&
           // Settings is a container: show only if ≥1 of its items is visible.
           (t.id === 'settings' ? visibleSettingsOptions(shop, can).length > 0 : navAllowed(t, shop, can)),
       );

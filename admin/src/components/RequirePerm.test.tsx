@@ -48,8 +48,18 @@ describe('RequirePerm', () => {
   });
 
   it('sends a denied user to the first section they CAN see, not to Home', async () => {
-    setup(['summary.view']);
+    // Bookings shop: summary.view is honoured (no lead-agent exclusion applies).
+    setup(['summary.view'], ['bookings']);
     await waitFor(() => expect(screen.getByText('Summary page')).toBeInTheDocument());
+  });
+
+  it('keeps a lead agent out of the shop-wide AI summary', async () => {
+    // Leads shop + summary.view but no leads.view_all → a scoped agent. They must
+    // not be routed to the shop-wide AI summary; with nothing else granted they
+    // land on the no-access dead end instead of the Summary page.
+    setup(['summary.view']); // default modules: ['leads']
+    expect(await screen.findByText(/no access/i)).toBeInTheDocument();
+    expect(screen.queryByText('Summary page')).not.toBeInTheDocument();
   });
 
   it('shows a dead end instead of looping when the user can see nothing', async () => {
