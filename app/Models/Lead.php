@@ -18,6 +18,12 @@ class Lead extends Model
     /** The fixed, opinionated funnel — deliberately not user-configurable. */
     public const STATUSES = ['new', 'sent', 'followup', 'replied', 'demo', 'won', 'pass'];
 
+    /** Stages where a lead is actively being worked — past `new`, not yet decided. */
+    public const WORKING_STATUSES = ['sent', 'followup', 'replied', 'demo'];
+
+    /** Days without contact before a worked lead counts as having gone cold. */
+    public const STALE_DAYS = 14;
+
     /** Deal shape captured at win time. */
     public const DEAL_TYPES = ['one_off', 'recurring'];
 
@@ -93,6 +99,42 @@ class Lead extends Model
     public function scopeForShop(Builder $query, int $shopId): Builder
     {
         return $query->where('shop_id', $shopId);
+    }
+
+    /**
+     * Undecided leads whose follow-up date has already passed.
+     *
+     * Deliberately broader than the older `followups=due` filter, which
+     * restricts to sent/followup/replied and so silently skips a lead sitting
+     * at demo stage. Shared with ReportsAggregator::huntAttention so the
+     * dashboard's count and the list it links to cannot drift apart.
+     */
+    public function scopeFollowupOverdue(Builder $query): Builder
+    {
+        return $query->whereNotNull('next_followup_at')
+            ->where('next_followup_at', '<', now()->startOfDay())
+            ->whereNotIn('status', ['won', 'pass']);
+    }
+
+    /** Undecided leads whose follow-up falls today. */
+    public function scopeFollowupToday(Builder $query): Builder
+    {
+        return $query->whereNotNull('next_followup_at')
+            ->whereBetween('next_followup_at', [now()->startOfDay(), now()->endOfDay()])
+            ->whereNotIn('status', ['won', 'pass']);
+    }
+
+    /**
+     * Leads someone started working and then let go cold. `new` is excluded on
+     * purpose: an uncontacted fresh import is not a dropped ball, and counting
+     * it would make the number the size of the last import.
+     */
+    public function scopeStale(Builder $query): Builder
+    {
+        return $query->whereIn('status', self::WORKING_STATUSES)
+            ->where(fn (Builder $q) => $q
+                ->whereNull('last_contacted_at')
+                ->orWhere('last_contacted_at', '<', now()->subDays(self::STALE_DAYS)));
     }
 
     // --- Enrichment -------------------------------------------------------
