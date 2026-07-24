@@ -161,7 +161,7 @@ export default function HuntInsights() {
       setData(cur.value);
       setPrev(previous.status === 'fulfilled' ? previous.value : null);
     } catch {
-      setError('Could not load your Hunt stats.');
+      setError('Could not load your overview.');
       setData(null); setPrev(null);
     } finally {
       setLoading(false);
@@ -190,7 +190,7 @@ export default function HuntInsights() {
   return (
     <div className="m-screen"><div className="m-scroll">
       <div className="c-page-head">
-        <h1 className="c-page-title">Hunt stats</h1>
+        <h1 className="c-page-title">Overview</h1>
         <p className="c-page-sub">Your pipeline, your wins and what needs chasing.</p>
       </div>
 

@@ -48,7 +48,7 @@ export type SettingsOption = {
 
 const ALL_SETTINGS_OPTIONS: SettingsOption[] = [
   { label: 'Business Hunt', sub: 'Find UAE businesses & win them', to: '/leads', icon: 'Search', modules: ['leads'], perm: 'leads.view', shortcut: true },
-  { label: 'Hunt Stats', sub: 'Pipeline, wins & what needs chasing', to: '/hunt-insights', icon: 'Chart', modules: ['leads'], perm: 'leads.view', shortcut: true },
+  { label: 'Overview', sub: 'Pipeline, wins & what needs chasing', to: '/hunt-insights', icon: 'Chart', modules: ['leads'], perm: 'leads.view', shortcut: true },
   { label: 'Working Hours', sub: 'Set your open & close times', to: '/working-hours', icon: 'Clock', modules: ['bookings'], perm: 'working_hours.view' },
   { label: 'Services', sub: 'Add or edit what you offer', to: '/services', icon: 'Grid', modules: ['bookings'], perm: 'services.view' },
   { label: 'Staff', sub: 'Add & manage your team', to: '/staff', icon: 'Users', modules: ['bookings'], perm: 'staff.view' },

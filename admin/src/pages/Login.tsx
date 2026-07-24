@@ -3,6 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { shopLogin } from '@/lib/shops';
 import { useShop } from '@/context/ShopContext';
 import { storage } from '@/lib/storage';
+import { shopHasModule } from '@/lib/modules';
+import type { Shop } from '@/types';
+
+/**
+ * Where to send a shop straight after login. A Business Hunt shop lands on its
+ * Overview dashboard; everyone else keeps the Ask home. Guarded so a
+ * bookings-only shop (no /hunt-insights) and the master account never go there.
+ */
+function landingPath(shop: Shop, permissions: string[] | null): string {
+  const canViewLeads = permissions === null
+    || permissions.includes('*')
+    || permissions.includes('leads.view');
+  if (!shop.is_master && shopHasModule(shop, 'leads') && canViewLeads) {
+    return '/hunt-insights';
+  }
+  return '/';
+}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -39,7 +56,7 @@ export default function Login() {
         }
         loginShop(shop, token);
         setAccess(user, permissions);
-        navigate('/');
+        navigate(landingPath(shop, permissions));
       } else {
         setError('Invalid response from server.');
       }
