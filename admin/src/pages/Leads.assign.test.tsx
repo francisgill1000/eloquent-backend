@@ -80,4 +80,28 @@ describe('Leads pipeline assignment', () => {
 
     await waitFor(() => expect(toggle).toHaveBeenCalledWith(true));
   });
+
+  it('opens pre-filtered when the URL carries a followups filter', async () => {
+    render(<MemoryRouter initialEntries={['/leads?followups=overdue']}><Leads /></MemoryRouter>);
+
+    await waitFor(() =>
+      expect(leadsLib.listLeads).toHaveBeenCalledWith(expect.objectContaining({ followups: 'overdue' })),
+    );
+  });
+
+  it('opens pre-filtered on stale', async () => {
+    render(<MemoryRouter initialEntries={['/leads?stale=1']}><Leads /></MemoryRouter>);
+
+    await waitFor(() =>
+      expect(leadsLib.listLeads).toHaveBeenCalledWith(expect.objectContaining({ stale: true })),
+    );
+  });
+
+  it('opens pre-filtered on unassigned', async () => {
+    render(<MemoryRouter initialEntries={['/leads?assigned_to=unassigned']}><Leads /></MemoryRouter>);
+
+    await waitFor(() =>
+      expect(leadsLib.listLeads).toHaveBeenCalledWith(expect.objectContaining({ assigned_to: 'unassigned' })),
+    );
+  });
 });

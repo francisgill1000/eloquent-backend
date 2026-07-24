@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { EmptyState } from '@/components/EmptyState';
 import { Icons } from '@/components/Icons';
@@ -66,7 +66,12 @@ function pageWindow(current: number, count: number): (number | '…')[] {
 export default function Leads() {
   const navigate = useNavigate();
   const { shop } = useShop();
-  const [mode, setMode] = useState<Mode>('find');
+  const [params] = useSearchParams();
+  // The dashboard's attention chips deep-link straight into the pipeline with a
+  // filter set — land there rather than on the search tab.
+  const deepLinked = params.has('followups') || params.has('stale')
+    || params.has('assigned_to') || params.has('status');
+  const [mode, setMode] = useState<Mode>(deepLinked ? 'pipeline' : 'find');
   const [funnel, setFunnel] = useState<LeadFunnel>(EMPTY_FUNNEL);
   const [wonValue, setWonValue] = useState(0);
 
@@ -475,8 +480,18 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [statusFilter, setStatusFilter] = useState<LeadStatus | null>(null);
-  const [dueOnly, setDueOnly] = useState(false);
+  const [params] = useSearchParams();
+  // The dashboard's attention chips deep-link in here. This seeds the initial
+  // state only — the URL is not rewritten as the user changes filters after.
+  const [statusFilter, setStatusFilter] = useState<LeadStatus | null>(
+    () => (params.get('status') as LeadStatus | null) ?? null,
+  );
+  const [dueOnly, setDueOnly] = useState(() => params.get('followups') === 'due');
+  const [followupFilter, setFollowupFilter] = useState<'overdue' | 'today' | null>(() => {
+    const f = params.get('followups');
+    return f === 'overdue' || f === 'today' ? f : null;
+  });
+  const [staleOnly, setStaleOnly] = useState(() => params.get('stale') === '1');
   const [search, setSearch] = useState('');
   const [pipelines, setPipelines] = useState<string[]>([]);
   const [pipelineFilter, setPipelineFilter] = useState<string | null>(null);
@@ -495,7 +510,11 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
   const mayAssign = can('leads.assign');
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [autoAssign, setAutoAssign] = useState(false);
-  const [ownerFilter, setOwnerFilter] = useState<'me' | 'unassigned' | number | null>(null);
+  const [ownerFilter, setOwnerFilter] = useState<'me' | 'unassigned' | number | null>(() => {
+    const a = params.get('assigned_to');
+    if (a === 'me' || a === 'unassigned') return a;
+    return a ? Number(a) : null;
+  });
   const [picked, setPicked] = useState<Record<number, boolean>>({});
   const pickedIds = Object.keys(picked).filter((k) => picked[Number(k)]).map(Number);
 
@@ -508,7 +527,7 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
   const pageLeads = perPage === 'all' ? leads : leads.slice(start, start + pageSize);
 
   // Snap back to the first page whenever the result set or page size changes.
-  useEffect(() => { setPage(1); }, [perPage, statusFilter, dueOnly, search, pipelineFilter, ownerFilter]);
+  useEffect(() => { setPage(1); }, [perPage, statusFilter, dueOnly, followupFilter, staleOnly, search, pipelineFilter, ownerFilter]);
 
   const fetch = useCallback(async () => {
     if (!shopReady) return;
@@ -518,7 +537,8 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
         status: statusFilter ?? undefined,
         pipeline: pipelineFilter ?? undefined,
         search: search.trim() || undefined,
-        followups: dueOnly ? 'due' : undefined,
+        followups: followupFilter ?? (dueOnly ? 'due' : undefined),
+        stale: staleOnly || undefined,
         assigned_to: ownerFilter ?? undefined,
       });
       setLeads(res.data);
@@ -533,7 +553,7 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
     } finally {
       setLoading(false);
     }
-  }, [shopReady, statusFilter, pipelineFilter, dueOnly, search, ownerFilter, setFunnel]);
+  }, [shopReady, statusFilter, pipelineFilter, dueOnly, followupFilter, staleOnly, search, ownerFilter, setFunnel]);
 
   useEffect(() => { void fetch(); }, [fetch]);
 
@@ -602,6 +622,13 @@ function PipelinePane({ shopReady, funnel, setFunnel }: { shopReady: boolean; fu
         <button className={`lf-toggle${dueOnly ? ' on' : ''}`} onClick={() => setDueOnly((v) => !v)}>
           <Icons.Bell size={14} /> Due today
         </button>
+        {(followupFilter || staleOnly) && (
+          <button className="lf-toggle on" onClick={() => { setFollowupFilter(null); setStaleOnly(false); }}>
+            {followupFilter === 'overdue' ? 'Overdue follow-ups'
+              : followupFilter === 'today' ? 'Due today'
+              : 'Going cold'} ✕
+          </button>
+        )}
         {mayAssign && (
           <label className="lf-pipefilter">
             <Icons.User size={14} />
