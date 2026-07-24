@@ -46,6 +46,7 @@ import ChatThread from '@/pages/ChatThread';
 import WhatsAppSetup from '@/pages/WhatsAppSetup';
 import Leads from '@/pages/Leads';
 import LeadCredits from '@/pages/LeadCredits';
+import HuntInsights from '@/pages/HuntInsights';
 import LeadDetail from '@/pages/LeadDetail';
 import SimulationSettings from '@/pages/SimulationSettings';
 import PublicBooking from '@/pages/PublicBooking';
@@ -105,6 +106,7 @@ export default function App() {
               <Route path="/leads" element={<Leads />} />
               <Route path="/leads/:id" element={<LeadDetail />} />
               <Route path="/leads/credits" element={<LeadCredits />} />
+              <Route path="/hunt-insights" element={<HuntInsights />} />
             </Route>
           </Route>
           <Route element={<RequirePerm perm={['users.view', 'roles.view']} />}>

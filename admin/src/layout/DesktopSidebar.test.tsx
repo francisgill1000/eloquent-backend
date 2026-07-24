@@ -51,4 +51,14 @@ describe('DesktopSidebar module gating', () => {
     ['Home', 'Settings', 'Profile'].forEach((l) =>
       expect(screen.getByText(l)).toBeTruthy());
   });
+
+  it('shows Hunt Stats for a leads shop', () => {
+    renderWith(['leads']);
+    expect(screen.getByText('Hunt Stats')).toBeTruthy();
+  });
+
+  it('hides Hunt Stats from a bookings-only shop', () => {
+    renderWith(['bookings']);
+    expect(screen.queryByText('Hunt Stats')).toBeNull();
+  });
 });

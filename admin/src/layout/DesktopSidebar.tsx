@@ -27,6 +27,7 @@ const BASE_NAV: NavItem[] = [
   // WhatsApp Chats — hidden while WHATSAPP_ENABLED is off.
   { label: 'Chats', to: '/chats', icon: 'Chat', modules: BOTH },
   { label: 'Business Hunt', to: '/leads', icon: 'Search', modules: ['leads'], perm: 'leads.view' },
+  { label: 'Hunt Stats', to: '/hunt-insights', icon: 'Chart', modules: ['leads'], perm: 'leads.view' },
   // Services / Staff / Working Hours are reached via Settings (like on mobile),
   // so they're intentionally not surfaced as top-level sidebar items.
   { label: 'Settings', to: '/settings', icon: 'Sliders', modules: BOTH },
