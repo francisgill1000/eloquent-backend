@@ -5,6 +5,7 @@ import { ShopProvider } from '@/context/ShopContext';
 import { storage } from '@/lib/storage';
 import * as lib from '@/lib/huntInsights';
 import type { HuntInsights as Data } from '@/lib/huntInsights';
+import * as aiLib from '@/lib/aiInsights';
 import HuntInsights from './HuntInsights';
 
 function payload(over: Partial<Data> = {}): Data {
@@ -46,7 +47,15 @@ function setup() {
 }
 
 describe('HuntInsights', () => {
-  beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); });
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+    // The embedded AI card auto-fetches on mount; keep it off the network.
+    vi.spyOn(aiLib, 'getAiInsights').mockResolvedValue({
+      state: 'low_data', summary: '', patterns: [], recommendations: [],
+      message: 'Not enough activity yet.', generated_at: '', cached: false,
+    });
+  });
 
   it('shows the four headline KPIs', async () => {
     vi.spyOn(lib, 'getHuntInsights').mockResolvedValue(payload());

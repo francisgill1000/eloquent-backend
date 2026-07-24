@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { ChartCard } from '@/components/charts/ChartCard';
 import { Donut } from '@/components/charts/Donut';
+import { HuntAiCard } from '@/components/charts/HuntAiCard';
 import { Kpi, Delta } from '@/components/charts/Kpi';
 import { RangeFilterCalendar } from '@/components/charts/RangeFilterCalendar';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { useShop } from '@/context/ShopContext';
 import {
-  daysBetween, fmtNum, pctChange, presetRange, previousRange, type PresetKey,
+  daysBetween, fmtNum, fmtShort, pctChange, presetRange, previousRange, type PresetKey,
 } from '@/lib/dateRange';
 import { getHuntInsights, type HuntInsights as Data } from '@/lib/huntInsights';
 import type { LeadStatus } from '@/types';
@@ -215,6 +216,9 @@ export default function HuntInsights() {
             <ChartCard icon="Bell" title="Needs attention" sub="Right now — not affected by the date range">
               <Attention a={data.attention} />
             </ChartCard>
+
+            <HuntAiCard shopId={shop!.id} from={nf} to={nt}
+              rangeLabel={`${fmtShort(nf)} – ${fmtShort(nt)}`} />
 
             <ChartCard icon="Chart" title="Leads & wins over time"
               sub={rangeLen > 62 ? 'Weekly totals' : 'Daily totals'} span2>
