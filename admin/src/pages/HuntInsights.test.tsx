@@ -130,6 +130,6 @@ describe('HuntInsights', () => {
 
     setup();
 
-    expect(await screen.findByText('Could not load your Hunt stats.')).toBeInTheDocument();
+    expect(await screen.findByText('Could not load your overview.')).toBeInTheDocument();
   });
 });

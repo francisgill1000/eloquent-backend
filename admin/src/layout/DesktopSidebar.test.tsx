@@ -52,13 +52,13 @@ describe('DesktopSidebar module gating', () => {
       expect(screen.getByText(l)).toBeTruthy());
   });
 
-  it('shows Hunt Stats for a leads shop', () => {
+  it('shows Overview for a leads shop', () => {
     renderWith(['leads']);
-    expect(screen.getByText('Hunt Stats')).toBeTruthy();
+    expect(screen.getByText('Overview')).toBeTruthy();
   });
 
-  it('hides Hunt Stats from a bookings-only shop', () => {
+  it('hides Overview from a bookings-only shop', () => {
     renderWith(['bookings']);
-    expect(screen.queryByText('Hunt Stats')).toBeNull();
+    expect(screen.queryByText('Overview')).toBeNull();
   });
 });

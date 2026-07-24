@@ -30,6 +30,30 @@ describe('Login', () => {
     expect(localStorage.getItem('shop_token')).toBe('t');
   });
 
+  it('sends a Business Hunt shop to the Overview after login', async () => {
+    vi.spyOn(shops, 'shopLogin').mockResolvedValue({
+      token: 't', shop: { id: 1, name: 'Acme', modules: ['leads'] }, user: null, permissions: ['*'],
+    });
+    setup();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/email/i), 'owner@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'secret123');
+    await user.click(screen.getByRole('button', { name: /log in/i }));
+    expect(nav).toHaveBeenCalledWith('/hunt-insights');
+  });
+
+  it('keeps a bookings-only shop on the Ask home', async () => {
+    vi.spyOn(shops, 'shopLogin').mockResolvedValue({
+      token: 't', shop: { id: 1, name: 'Acme', modules: ['bookings'] }, user: null, permissions: ['*'],
+    });
+    setup();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/email/i), 'owner@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'secret123');
+    await user.click(screen.getByRole('button', { name: /log in/i }));
+    expect(nav).toHaveBeenCalledWith('/');
+  });
+
   it('shows an error on failed login', async () => {
     vi.spyOn(shops, 'shopLogin').mockRejectedValue(new Error('bad'));
     setup();

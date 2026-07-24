@@ -18,6 +18,9 @@ type NavItem = { label: string; to: string; icon: keyof typeof Icons; end?: bool
 const BOTH: Module[] = ['bookings', 'leads'];
 
 const BASE_NAV: NavItem[] = [
+  // The Business Hunt at-a-glance dashboard, and the default landing after
+  // login for a Hunt shop — kept at the top, above AI Summary.
+  { label: 'Overview', to: '/hunt-insights', icon: 'Chart', modules: ['leads'], perm: 'leads.view' },
   { label: 'AI Summary', to: '/ai-summary', icon: 'Sparkle', modules: BOTH, perm: 'summary.view' },
   { label: 'Home', to: '/', icon: 'Home', end: true, modules: BOTH, perm: 'assistant.use' },
   // Your past conversations with the Ask assistant.
@@ -27,7 +30,6 @@ const BASE_NAV: NavItem[] = [
   // WhatsApp Chats — hidden while WHATSAPP_ENABLED is off.
   { label: 'Chats', to: '/chats', icon: 'Chat', modules: BOTH },
   { label: 'Business Hunt', to: '/leads', icon: 'Search', modules: ['leads'], perm: 'leads.view' },
-  { label: 'Hunt Stats', to: '/hunt-insights', icon: 'Chart', modules: ['leads'], perm: 'leads.view' },
   // Services / Staff / Working Hours are reached via Settings (like on mobile),
   // so they're intentionally not surfaced as top-level sidebar items.
   { label: 'Settings', to: '/settings', icon: 'Sliders', modules: BOTH },
