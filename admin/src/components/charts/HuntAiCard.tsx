@@ -3,40 +3,47 @@ import { Icons } from '@/components/Icons';
 import { getAiInsights, type AiInsights } from '@/lib/aiInsights';
 import { speak } from '@/lib/simulation';
 
+/* The rolling 30-day window ending yesterday — matches how the nightly job
+   stores its summary, so the server serves the precomputed row for free. */
+const pad = (n: number) => String(n).padStart(2, '0');
+const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+function rolling30Window() {
+  const yesterday = addDays(new Date(), -1);
+  return { from: iso(addDays(yesterday, -29)), to: iso(yesterday) };
+}
+
 /**
- * The AI narrative for the Hunt Overview, embedded in the dashboard flow. It has
- * no date controls of its own — it reads the page's active range (from/to) and
- * re-generates whenever that range changes, so it stays in sync with the top
- * filter. period is always 'custom' here; an uncached range triggers one live
- * generation server-side (then cached 24h), matching the standalone AI page.
+ * The AI narrative for the Hunt Overview. It deliberately does NOT follow the
+ * page's date filter: it shows the shop's nightly-generated `rolling30` summary,
+ * which is precomputed and served free/instant. Tying it to arbitrary filter
+ * ranges would force a live (billable) generation on every range change, which
+ * we don't want here — the standalone AI page is where you explore other ranges.
  */
-export function HuntAiCard({ shopId, from, to, rangeLabel }: {
-  shopId: number; from: string; to: string; rangeLabel: string;
-}) {
+export function HuntAiCard({ shopId }: { shopId: number }) {
   const [data, setData] = useState<AiInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchAi = useCallback(async (refresh: boolean) => {
-    if (!shopId || !from || !to) return;
+    if (!shopId) return;
     refresh ? setRefreshing(true) : setLoading(true);
+    const { from, to } = rolling30Window();
     try {
-      setData(await getAiInsights(shopId, from, to, refresh, 'custom'));
+      setData(await getAiInsights(shopId, from, to, refresh, 'rolling30'));
     } catch {
       setData({ state: 'error', summary: '', patterns: [], recommendations: [],
-        message: 'Could not generate the AI summary right now.', generated_at: '', cached: false });
+        message: 'Could not load the AI summary right now.', generated_at: '', cached: false });
     } finally { setLoading(false); setRefreshing(false); }
-  }, [shopId, from, to]);
+  }, [shopId]);
 
-  // Auto-generate on mount and whenever the top filter range changes.
+  // Load the nightly summary once. No refetch on filter change (see note above).
   useEffect(() => { void fetchAi(false); }, [fetchAi]);
 
   /* ---- listen (TTS) ---- */
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [tts, setTts] = useState<'idle' | 'loading' | 'playing'>('idle');
   useEffect(() => () => { audioRef.current?.pause(); }, []);
-  // A new range invalidates the spoken text — stop any playback.
-  useEffect(() => { audioRef.current?.pause(); setTts('idle'); }, [from, to]);
 
   const spokenText = data && data.state === 'ok'
     ? [data.summary, ...data.patterns, ...data.recommendations].filter(Boolean).join('. ') : '';
@@ -63,7 +70,7 @@ export function HuntAiCard({ shopId, from, to, rangeLabel }: {
         <span className="ins-card-ic"><Icons.Sparkle size={17} /></span>
         <span className="ins-card-titles">
           <span className="ins-card-title">AI summary</span>
-          <span className="ins-card-sub">{rangeLabel}</span>
+          <span className="ins-card-sub">Last 30 days · updated nightly</span>
         </span>
         {data?.state === 'ok' && (
           <div className="ins-ai-actions">
@@ -74,7 +81,7 @@ export function HuntAiCard({ shopId, from, to, rangeLabel }: {
               {tts === 'playing' ? 'Stop' : tts === 'loading' ? 'Loading…' : 'Listen'}
             </button>
             <button className="ins-ai-refresh" onClick={() => fetchAi(true)} disabled={refreshing}>
-              {refreshing ? 'Regenerating…' : 'Regenerate'}
+              {refreshing ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
         )}
@@ -88,7 +95,7 @@ export function HuntAiCard({ shopId, from, to, rangeLabel }: {
         </div>
       ) : !data || data.state === 'error' ? (
         <div className="ins-ai-body">
-          <p className="ins-ai-msg">{data?.message || 'Could not generate the AI summary right now.'}</p>
+          <p className="ins-ai-msg">{data?.message || 'Could not load the AI summary right now.'}</p>
           <button className="ins-ai-retry" onClick={() => fetchAi(true)}>Try again</button>
         </div>
       ) : data.state === 'low_data' ? (

@@ -9,7 +9,7 @@ import { RangeFilterCalendar } from '@/components/charts/RangeFilterCalendar';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { useShop } from '@/context/ShopContext';
 import {
-  daysBetween, fmtNum, fmtShort, pctChange, presetRange, previousRange, type PresetKey,
+  daysBetween, fmtNum, pctChange, presetRange, previousRange, type PresetKey,
 } from '@/lib/dateRange';
 import { getHuntInsights, type HuntInsights as Data } from '@/lib/huntInsights';
 import type { LeadStatus } from '@/types';
@@ -217,8 +217,7 @@ export default function HuntInsights() {
               <Attention a={data.attention} />
             </ChartCard>
 
-            <HuntAiCard shopId={shop!.id} from={nf} to={nt}
-              rangeLabel={`${fmtShort(nf)} – ${fmtShort(nt)}`} />
+            <HuntAiCard shopId={shop!.id} />
 
             <ChartCard icon="Chart" title="Leads & wins over time"
               sub={rangeLen > 62 ? 'Weekly totals' : 'Daily totals'} span2>
