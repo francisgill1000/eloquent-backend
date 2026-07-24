@@ -162,4 +162,46 @@ class ReportsAggregatorHuntTest extends TestCase
         $this->assertSame(900.0 + 500.0 + 700.0, $life['won_value']);
         $this->assertSame(3, $life['won_count']);
     }
+
+    /**
+     * Characterization: pins which won deals can be VALUED, so the shared
+     * dealTotal() helper cannot quietly change the rule. A win with no
+     * computable amount is still a win — it just contributes no money and is
+     * not counted in won_count.
+     */
+    public function test_won_value_skips_deals_that_cannot_be_valued(): void
+    {
+        $shop = $this->shop('DV1');
+
+        // Valued: one-off 500.
+        Lead::create([
+            'shop_id' => $shop->id, 'name' => 'One off', 'status' => 'won',
+            'deal_amount' => 500, 'deal_type' => 'one_off', 'deal_won_at' => now(),
+        ]);
+        // Valued: recurring 100 x 6 = 600, contributes 100 to MRR.
+        Lead::create([
+            'shop_id' => $shop->id, 'name' => 'Recurring', 'status' => 'won',
+            'deal_amount' => 100, 'deal_type' => 'recurring', 'deal_term_months' => 6,
+            'deal_won_at' => now(),
+        ]);
+        // Not valuable: recurring with no term — no computable total.
+        Lead::create([
+            'shop_id' => $shop->id, 'name' => 'No term', 'status' => 'won',
+            'deal_amount' => 900, 'deal_type' => 'recurring', 'deal_term_months' => null,
+            'deal_won_at' => now(),
+        ]);
+        // Not valuable: a win logged with no amount at all.
+        Lead::create([
+            'shop_id' => $shop->id, 'name' => 'No amount', 'status' => 'won',
+            'deal_amount' => null, 'deal_type' => null, 'deal_won_at' => now(),
+        ]);
+
+        $out = app(ReportsAggregator::class)->wonValueTotals($shop->id);
+
+        $this->assertSame(1100.0, $out['won_value']);
+        $this->assertSame(500.0, $out['won_value_one_off']);
+        $this->assertSame(600.0, $out['won_value_recurring']);
+        $this->assertSame(100.0, $out['mrr_won']);
+        $this->assertSame(2, $out['won_count']);
+    }
 }

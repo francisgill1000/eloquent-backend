@@ -328,6 +328,31 @@ class ReportsAggregator
         return Rbac::seesAllLeads($user) ? null : $user?->id;
     }
 
+    /**
+     * What a won deal is worth in total: a one-off is its amount, a recurring
+     * deal is amount × term. Returns null when the row cannot be valued — no
+     * amount, or a recurring deal with no term — so every caller skips such
+     * rows the same way.
+     *
+     * Params are mixed because callers reach this both through Eloquent and
+     * through the raw query builder, which hands back numeric strings on pgsql.
+     */
+    private function dealTotal(mixed $amount, mixed $type, mixed $term): ?float
+    {
+        $amount = (float) ($amount ?? 0);
+        if ($amount <= 0) {
+            return null;
+        }
+
+        if ($type === 'recurring') {
+            $term = (int) ($term ?? 0);
+
+            return $term > 0 ? $amount * $term : null;
+        }
+
+        return $amount;
+    }
+
     public function wonValueTotals(int $shopId, ?Carbon $from = null, ?Carbon $to = null): array
     {
         $agent = $this->agentLeadFilter();
@@ -340,20 +365,17 @@ class ReportsAggregator
 
         $wonValue = 0.0; $recurring = 0.0; $oneOff = 0.0; $mrr = 0.0; $count = 0;
         foreach ($rows as $d) {
-            $amount = (float) ($d->deal_amount ?? 0);
-            if ($amount <= 0) {
+            $total = $this->dealTotal($d->deal_amount, $d->deal_type, $d->deal_term_months);
+            if ($total === null) {
                 continue;
             }
             if ($d->deal_type === 'recurring') {
-                $term = (int) ($d->deal_term_months ?? 0);
-                if ($term <= 0) {
-                    continue; // incomplete recurring — no computable total
-                }
-                $total = $amount * $term;
-                $wonValue += $total; $recurring += $total; $mrr += $amount;
+                $recurring += $total;
+                $mrr += (float) $d->deal_amount;
             } else {
-                $wonValue += $amount; $oneOff += $amount;
+                $oneOff += $total;
             }
+            $wonValue += $total;
             $count++;
         }
 
@@ -487,18 +509,11 @@ class ReportsAggregator
             $id = (int) $row->assigned_to_id;
             $wonCount[$id] = ($wonCount[$id] ?? 0) + 1;
 
-            $amount = (float) ($row->deal_amount ?? 0);
-            if ($amount <= 0) {
+            $total = $this->dealTotal($row->deal_amount, $row->deal_type, $row->deal_term_months);
+            if ($total === null) {
                 continue;
             }
-            if ($row->deal_type === 'recurring') {
-                $term = (int) ($row->deal_term_months ?? 0);
-                if ($term <= 0) {
-                    continue; // incomplete recurring — no computable total
-                }
-                $amount *= $term;
-            }
-            $wonValue[$id] = ($wonValue[$id] ?? 0) + $amount;
+            $wonValue[$id] = ($wonValue[$id] ?? 0) + $total;
         }
 
         $names = DB::table('shop_users')->where('shop_id', $shopId)->pluck('name', 'id');
