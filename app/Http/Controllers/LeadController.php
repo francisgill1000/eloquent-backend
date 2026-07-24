@@ -510,7 +510,7 @@ class LeadController extends Controller
     }
 
     /**
-     * GET /shop/leads?status=&category=&search=&followups=due
+     * GET /shop/leads?status=&category=&search=&followups=due|overdue|today&stale=1
      * The tenant's leads with filters, plus funnel counts per status.
      */
     public function index(Request $request)
@@ -536,10 +536,22 @@ class LeadController extends Controller
                     ->orWhere('pipeline', 'like', "%{$term}%");
             });
         }
-        if ($request->query('followups') === 'due') {
+        // `due` is the original toggle on the Leads page and is left exactly as
+        // it was. `overdue` / `today` / `stale` are the dashboard's chips, and
+        // they share their definitions with ReportsAggregator::huntAttention
+        // through the Lead scopes, so a chip's count always matches its list.
+        $followups = $request->query('followups');
+        if ($followups === 'due') {
             $query->whereNotNull('next_followup_at')
                 ->where('next_followup_at', '<=', now())
                 ->whereIn('status', ['sent', 'followup', 'replied']);
+        } elseif ($followups === 'overdue') {
+            $query->followupOverdue();
+        } elseif ($followups === 'today') {
+            $query->followupToday();
+        }
+        if ($request->boolean('stale')) {
+            $query->stale();
         }
 
         // Owner filter: 'me' | 'unassigned' | a shop_user id. Independent of the
