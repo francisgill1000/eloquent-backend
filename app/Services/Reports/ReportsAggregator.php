@@ -317,9 +317,16 @@ class ReportsAggregator
      */
     /**
      * The agent whose leads the caller is limited to, or null when they see the
-     * whole shop. These methods use the raw query builder for portability, so
-     * the Lead model's AssignedLeadScope does NOT apply — the filter must be
-     * explicit or an agent would read the whole shop's pipeline and revenue.
+     * whole shop.
+     *
+     * `huntSummary`, `huntByAgent` and `wonValueTotals` read through the raw
+     * query builder for portability, so the Lead model's AssignedLeadScope does
+     * NOT apply — they must call this and filter explicitly, or an agent would
+     * read the whole shop's pipeline and revenue.
+     *
+     * `huntDaily` and `huntAttention` read through Eloquent instead, so the
+     * global scope narrows them to the acting agent automatically — they do NOT
+     * call this.
      */
     private function agentLeadFilter(): ?int
     {
@@ -536,6 +543,74 @@ class ReportsAggregator
         }
 
         usort($out, fn ($a, $b) => $b['won_value'] <=> $a['won_value']);
+
+        return $out;
+    }
+
+    /**
+     * Per-day Hunt activity across [from, to], inclusive and zero-filled so the
+     * dashboard charts a continuous line. Capped at 366 entries, matching
+     * dailyBreakdown().
+     *
+     * Buckets in PHP rather than SQL: grouping a timestamp by date differs
+     * between sqlite (tests) and pgsql (prod), the same reason huntSummary
+     * aggregates its status changes in PHP.
+     *
+     * Reads through Eloquent (Lead::), so AssignedLeadScope narrows it to the
+     * acting agent with no explicit filter.
+     *
+     * @return array<int, array{date: string, leads: int, won: int, won_value: float}>
+     */
+    public function huntDaily(int $shopId, Carbon $from, Carbon $to): array
+    {
+        // Bound the queries to whole days so a lead created at 09:00 on the last
+        // day is included even when the caller passed a bare (midnight) date.
+        $start = $from->copy()->startOfDay();
+        $endTs = $to->copy()->endOfDay();
+
+        $created = Lead::where('shop_id', $shopId)
+            ->whereBetween('created_at', [$start, $endTs])
+            ->pluck('created_at');
+
+        $wonRows = Lead::where('shop_id', $shopId)
+            ->where('status', 'won')
+            ->whereNotNull('deal_won_at')
+            ->whereBetween('deal_won_at', [$start, $endTs])
+            ->get(['deal_won_at', 'deal_amount', 'deal_type', 'deal_term_months']);
+
+        $leadsBy = [];
+        foreach ($created as $at) {
+            $key = Carbon::parse($at)->toDateString();
+            $leadsBy[$key] = ($leadsBy[$key] ?? 0) + 1;
+        }
+
+        $wonBy = [];
+        $valueBy = [];
+        foreach ($wonRows as $row) {
+            $key = Carbon::parse($row->deal_won_at)->toDateString();
+            $wonBy[$key] = ($wonBy[$key] ?? 0) + 1;
+            $total = $this->dealTotal($row->deal_amount, $row->deal_type, $row->deal_term_months);
+            if ($total !== null) {
+                $valueBy[$key] = ($valueBy[$key] ?? 0) + $total;
+            }
+        }
+
+        $out = [];
+        $cursor = $from->copy()->startOfDay();
+        $end = $to->copy()->startOfDay();
+        $guard = 0;
+
+        while ($cursor->lte($end) && $guard < 366) {
+            $key = $cursor->toDateString();
+            $out[] = [
+                'date'      => $key,
+                'leads'     => (int) ($leadsBy[$key] ?? 0),
+                'won'       => (int) ($wonBy[$key] ?? 0),
+                'won_value' => round((float) ($valueBy[$key] ?? 0), 2),
+            ];
+            $cursor->addDay();
+            $guard++;
+        }
 
         return $out;
     }
