@@ -208,4 +208,54 @@ class HuntDashboardTest extends TestCase
         // "unassigned" is unreachable for them by construction.
         $this->assertSame(0, $out['unassigned']);
     }
+
+    public function test_index_filters_match_the_attention_counts_exactly(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = $this->attentionFixture();
+        $this->startTrial($shop);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all']);
+        $token = $this->tokenFor($shop, $manager);
+
+        $counts = app(ReportsAggregator::class)->huntAttention($shop->id);
+
+        $overdue = $this->authJson($token, 'GET', '/api/shop/leads?followups=overdue');
+        $overdue->assertOk();
+        $this->assertCount($counts['followups_overdue'], $overdue->json('data'));
+
+        $today = $this->authJson($token, 'GET', '/api/shop/leads?followups=today');
+        $today->assertOk();
+        $this->assertCount($counts['followups_today'], $today->json('data'));
+
+        $stale = $this->authJson($token, 'GET', '/api/shop/leads?stale=1');
+        $stale->assertOk();
+        $this->assertCount($counts['stale'], $stale->json('data'));
+
+        $unassigned = $this->authJson($token, 'GET', '/api/shop/leads?assigned_to=unassigned');
+        $unassigned->assertOk();
+        $this->assertCount($counts['unassigned'], $unassigned->json('data'));
+    }
+
+    public function test_the_legacy_due_filter_still_omits_demo_stage(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create(['modules' => ['leads']]);
+        $this->startTrial($shop);
+        $manager = $this->agent($shop, ['leads.view', 'leads.view_all']);
+        $token = $this->tokenFor($shop, $manager);
+
+        Lead::factory()->create([
+            'shop_id' => $shop->id, 'status' => 'demo',
+            'next_followup_at' => now()->subDays(2),
+        ]);
+
+        // Pinned, not endorsed: `due` restricts to sent/followup/replied, so a
+        // demo-stage lead with an overdue follow-up is invisible to it. The new
+        // `overdue` filter does include it. Changing `due` is out of scope.
+        $due = $this->authJson($token, 'GET', '/api/shop/leads?followups=due');
+        $this->assertCount(0, $due->json('data'));
+
+        $overdue = $this->authJson($token, 'GET', '/api/shop/leads?followups=overdue');
+        $this->assertCount(1, $overdue->json('data'));
+    }
 }
