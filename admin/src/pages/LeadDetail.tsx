@@ -3,9 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
-import { getLead, updateLeadStatus, logFollowup, personalizeLead } from '@/lib/leads';
+import { getLead, updateLeadStatus, logFollowup, personalizeLead, assignLead, listLeads } from '@/lib/leads';
 import { DEAL_TERMS } from '@/types';
-import type { DealInput, DealType, Lead, LeadActivity, LeadStatus } from '@/types';
+import type { Assignee, DealInput, DealType, Lead, LeadActivity, LeadStatus } from '@/types';
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
   new: 'New', sent: 'Sent', followup: 'Follow-up', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Not Interested',
@@ -107,6 +107,10 @@ function activityText(a: LeadActivity): string {
   }
   if (a.type === 'note') return a.payload?.note ?? 'Note added';
   if (a.type === 'contacted') return 'Contacted';
+  if (a.type === 'assigned') {
+    const to = a.payload?.to_name ?? 'nobody';
+    return a.payload?.from_name ? `Assigned to ${to} (was ${a.payload.from_name})` : `Assigned to ${to}`;
+  }
   return a.type;
 }
 
@@ -122,9 +126,13 @@ export default function LeadDetail() {
   // Every write on this page (status, follow-up, AI draft) is pipeline work, so
   // it all sits behind leads.manage. `locked` stands in for `busy` on the action
   // controls so a leads.view-only user sees them inert rather than 403-ing.
-  const { can } = useShop();
+  const { can, loading: shopLoading } = useShop();
   const mayManage = can('leads.manage');
   const locked = busy || !mayManage;
+  // Handing a lead to someone else is its own permission — a user may work a
+  // lead (leads.manage) without being allowed to give it away.
+  const mayAssign = can('leads.assign');
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [aiText, setAiText] = useState<string | null>(null);
   const [aiKind, setAiKind] = useState<'opening' | 'followup'>('opening');
   const [aiBusy, setAiBusy] = useState(false);
@@ -150,6 +158,29 @@ export default function LeadDetail() {
   }, [leadId]);
 
   useEffect(() => { void load().finally(() => setLoading(false)); }, [load]);
+
+  // The assignee list rides along on the leads index — no extra endpoint, and
+  // the API already withholds it from users who cannot hand leads out.
+  // Wait for the shop context to settle: until it does, permissions are null,
+  // which `can()` treats as owner-equivalent — firing this for a user who
+  // turns out not to hold leads.assign.
+  useEffect(() => {
+    if (shopLoading || !mayAssign) return;
+    let alive = true;
+    listLeads().then((r) => { if (alive) setAssignees(r.assignees); }).catch(() => {});
+    return () => { alive = false; };
+  }, [shopLoading, mayAssign]);
+
+  const changeOwner = async (value: string) => {
+    if (!lead) return;
+    try {
+      const updated = await assignLead(lead.id, value === '' ? null : Number(value));
+      setLead((prev) => (prev ? { ...prev, ...updated } : prev));
+      await load(); // refresh the timeline so the assignment shows immediately
+    } catch {
+      setError('Could not change the owner.');
+    }
+  };
 
   // Escape closes the won panel without committing (matches Cancel/backdrop).
   useEffect(() => {
@@ -487,6 +518,20 @@ export default function LeadDetail() {
                   <span className="ba-tile-v">{lead.pipeline}</span>
                 </div>
               )}
+              <div className="ba-tile">
+                <Icons.User size={15} />
+                <span className="ba-tile-l">Owner</span>
+                {mayAssign ? (
+                  <select className="ld-owner-select" aria-label="Assigned to"
+                    value={lead.assigned_to?.id ?? ''}
+                    onChange={(e) => void changeOwner(e.target.value)}>
+                    <option value="">Unassigned</option>
+                    {assignees.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                ) : (
+                  <span className="ba-tile-v">{lead.assigned_to?.name ?? 'Unassigned'}</span>
+                )}
+              </div>
               <div className="ba-tile">
                 <Icons.Calendar size={15} />
                 <span className="ba-tile-l">Added</span>
