@@ -184,7 +184,10 @@ export type LeadFilters = {
   category?: string;
   pipeline?: string;
   search?: string;
-  followups?: 'due';
+  /** `due` is the Leads page toggle; `overdue`/`today` are the dashboard chips. */
+  followups?: 'due' | 'overdue' | 'today';
+  /** Worked leads that have gone cold (no contact in 14 days). */
+  stale?: boolean;
   /** 'me' | 'unassigned' | a shop user id. */
   assigned_to?: 'me' | 'unassigned' | number;
 };
