@@ -4,6 +4,7 @@ import AiSummary from './AiSummary';
 
 vi.mock('@/context/ShopContext', () => ({ useShop: () => ({ shop: { id: 1, name: 'Test' } }) }));
 vi.mock('@/lib/simulation', () => ({ speak: vi.fn() }));
+vi.mock('@/lib/wakeWordApi', () => ({ getWakeWord: vi.fn().mockRejectedValue(new Error('x')) }));
 
 const getAiInsights = vi.fn();
 const getAiSummaryHistory = vi.fn();
