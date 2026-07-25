@@ -22,9 +22,19 @@ question by voice, wake word on any other page, server-side audio processing.
 
 - On `/ai-summary`, the browser listens continuously for the shop's wake phrase.
 - A match plays the summary aloud — identical to tapping the mic button.
-- Saying it again while speaking stops playback (same as tapping again).
-- Recognition runs entirely in the browser's speech API. No audio is uploaded
-  to our backend, and no assistant/Claude credits are spent.
+- Listening stops while the summary speaks, so its own audio cannot re-trigger
+  a wake. Tap the mic to stop it early. *(An earlier draft said saying the
+  phrase again would stop playback; that is unreachable by design — the
+  recogniser is deliberately off while speaking. Corrected 2026-07-26 after the
+  final review so nobody later "fixes" the self-trigger guard to satisfy it.)*
+- Recognition uses the browser's own speech API, and no audio, transcript, or
+  recording is ever sent to our backend — the only network calls this feature
+  makes are `GET`/`PUT /shop/wake-word`, carrying a phrase string. No
+  assistant/Claude credits are spent. **Note:** this is not on-device
+  processing everywhere. Chrome and Edge implement `webkitSpeechRecognition` by
+  streaming captured audio to Google's speech servers for transcription. Worth
+  stating plainly given the UAE PDPL posture — the audio leaves the device, it
+  just never reaches us. *(Clarified 2026-07-26 after the final review.)*
 - The whole feature is additive: with it off, unsupported, or blocked, the page
   behaves exactly as it does today.
 
@@ -137,7 +147,11 @@ Guards:
   sets `blocked`, turns listening off, shows a quiet "Mic blocked" note, and
   does not retry.
 - **Cleanup:** stops on unmount and when the tab is hidden
-  (`visibilitychange`), so the mic is never open on a page the owner has left.
+  (`visibilitychange`), so the mic is never open on a page the owner has left,
+  and resumes when the tab becomes visible again. A denied mic stays terminal
+  and never resumes. *(The resume half was added 2026-07-26 after the Task 4
+  review: pausing without resuming left listening permanently dead after a
+  single tab switch, with nothing to tell the owner why.)*
 - A wake match is debounced — a second match within ~1.5s is ignored, since
   interim results repeat the same text.
 
@@ -162,7 +176,7 @@ The play card in `AiSummary.tsx` gains a small **Listen** toggle.
 | Mic permission denied | Toggle off, "Mic blocked" note, no retry |
 | Recognition errors repeatedly | Backs off, stops, leaves tap-to-play working |
 | No summary loaded yet | Wake is ignored (nothing to speak) |
-| Wake fires while speaking | Stops playback, same as a second tap |
+| Wake fires while speaking | Cannot happen — listening is off while speaking |
 | `GET /shop/wake-word` fails | Falls back to the shop name from context |
 
 ## Testing
