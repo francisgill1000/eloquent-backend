@@ -252,7 +252,14 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'can.perm:assistant.manage'])
     Route::put('/shop/persona',          [\App\Http\Controllers\ShopPersonaController::class, 'update']);
     Route::get('/shop/persona/generate', [\App\Http\Controllers\ShopPersonaController::class, 'generate']);
 });
+// The AI Summary page listens for this phrase, so the READ is auth-only:
+// summary.view users do not necessarily hold settings.manage, and the value is
+// a business name, not a secret. The shop is derived from the token as always.
+Route::middleware(['auth:sanctum', 'rbac.context'])->group(function () {
+    Route::get('/shop/wake-word', [\App\Http\Controllers\ShopWakeWordController::class, 'show']);
+});
 Route::middleware(['auth:sanctum', 'rbac.context', 'can.perm:settings.manage'])->group(function () {
+    Route::put('/shop/wake-word', [\App\Http\Controllers\ShopWakeWordController::class, 'update']);
     Route::get('/shop/simulation', [\App\Http\Controllers\ShopSimulationController::class, 'show']);
     Route::put('/shop/simulation', [\App\Http\Controllers\ShopSimulationController::class, 'update']);
 });
