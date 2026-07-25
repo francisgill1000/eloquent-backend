@@ -86,20 +86,30 @@ function AiInsightsCard({ data, loading, refreshing, subtitle, hint, controls, o
   );
 }
 
-/* ---------- play (mic) card -------------------------------------------------- */
-function PlayCard({ text, ready }: { text: string; ready: boolean }) {
+/* ---------- summary playback ------------------------------------------------ */
+/**
+ * Text-to-speech for the summary. Lifted out of PlayCard so the page can both
+ * trigger playback (from the wake word) and see when it is speaking.
+ */
+function useSpeakSummary(text: string) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'playing'>('idle');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Keep the latest values out of the callback's closure.
+  const textRef = useRef(text);
+  textRef.current = text;
+  const statusRef = useRef(status);
+  statusRef.current = status;
+
   useEffect(() => () => { audioRef.current?.pause(); }, []);
 
-  const toggle = async () => {
-    // Playing → tap stops it.
-    if (status === 'playing') { audioRef.current?.pause(); setStatus('idle'); return; }
-    if (!ready || !text) return;
+  const toggle = useCallback(async () => {
+    // Playing → stop it.
+    if (statusRef.current === 'playing') { audioRef.current?.pause(); setStatus('idle'); return; }
+    if (statusRef.current === 'loading' || !textRef.current) return;
     audioRef.current?.pause();          // start fresh (replay from the beginning)
     try {
       setStatus('loading');
-      const url = await speak(text.slice(0, 900), 'nova');
+      const url = await speak(textRef.current.slice(0, 900), 'nova');
       const el = new Audio(url);
       audioRef.current = el;
       el.onended = () => { setStatus('idle'); URL.revokeObjectURL(url); };
@@ -107,12 +117,19 @@ function PlayCard({ text, ready }: { text: string; ready: boolean }) {
       await el.play();
       setStatus('playing');
     } catch { setStatus('idle'); }
-  };
+  }, []);
 
+  return { status, toggle: () => void toggle() };
+}
+
+/* ---------- play (mic) card -------------------------------------------------- */
+function PlayCard({ ready, status, onToggle }: {
+  ready: boolean; status: 'idle' | 'loading' | 'playing'; onToggle: () => void;
+}) {
   return (
     <div className="ais-play-card">
       <button className={`ais-mic${status === 'playing' ? ' is-playing' : ''}`}
-        onClick={toggle} disabled={!ready || status === 'loading'}
+        onClick={onToggle} disabled={!ready || status === 'loading'}
         aria-label={status === 'playing' ? 'Stop' : 'Play summary'}>
         <span className="ais-mic-rings" aria-hidden="true"><i /><i /><i /></span>
         <span className="ais-mic-core">
@@ -246,10 +263,12 @@ export default function AiSummary() {
     ? [data.summary, ...data.patterns, ...data.recommendations].filter(Boolean).join('. ')
     : '';
 
+  const play = useSpeakSummary(spokenText);
+
   return (
     <div className="m-screen"><div className="m-scroll c-aisummary">
       <div className="ais-card">
-        <PlayCard text={spokenText} ready={!!spokenText} />
+        <PlayCard ready={!!spokenText} status={play.status} onToggle={play.toggle} />
         <AiInsightsCard data={data} loading={loading} refreshing={refreshing}
           subtitle={win.label} controls={controls}
           hint={period === 'custom' ? 'Pick a date range, then tap Submit to see a summary.' : undefined}
