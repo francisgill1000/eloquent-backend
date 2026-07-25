@@ -41,7 +41,11 @@ export function useWakeWord({ phrase, enabled, onWake }: {
     const active = enabled && !!Ctor && phrase.trim().length > 0;
     if (!active) { setListening(false); return; }
 
+    // `stopped` is terminal for this effect run: blocked mic, or torn down
+    // (unmount/disable/phrase change). `paused` is temporary: the tab went
+    // hidden and we intend to resume when it's shown again.
     let stopped = false;
+    let paused = false;
     restartsRef.current = 0;
     setBlocked(false);
 
@@ -54,7 +58,11 @@ export function useWakeWord({ phrase, enabled, onWake }: {
       rec.lang = (typeof navigator !== 'undefined' && navigator.language) || 'en-US';
 
       rec.onresult = (e) => {
-        const text = Array.from(e.results).map((r) => r[0].transcript).join(' ');
+        // A continuous session's `e.results` accumulates for the session's
+        // whole life — finalized results are never removed. Reading only
+        // from `resultIndex` avoids re-matching an old, already-finalized
+        // wake every time any later, unrelated speech is heard.
+        const text = Array.from(e.results).slice(e.resultIndex).map((r) => r[0].transcript).join(' ');
         if (!matchesWakePhrase(text, phraseRef.current)) return;
         const now = Date.now();
         if (now - lastWakeRef.current < WAKE_DEBOUNCE_MS) return;
@@ -63,6 +71,9 @@ export function useWakeWord({ phrase, enabled, onWake }: {
       };
 
       rec.onerror = (e) => {
+        // A stale instance's error, arriving after we've already moved on
+        // (e.g. superseded by a restart) must not touch current state.
+        if (recRef.current !== rec) return;
         // A denied mic is terminal — flag it and stop, never retry in a loop.
         if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
           stopped = true;
@@ -72,7 +83,12 @@ export function useWakeWord({ phrase, enabled, onWake }: {
       };
 
       rec.onend = () => {
+        // A stale instance's end, arriving after we've already moved on to a
+        // new recogniser (e.g. `enabled` toggled off then on again before the
+        // browser's async stop finished), must not clobber the live session.
+        if (recRef.current !== rec) return;
         if (stopped) { setListening(false); return; }
+        if (paused) { setListening(false); return; }
         if (restartsRef.current++ >= MAX_RESTARTS) { setListening(false); return; }
         timerRef.current = window.setTimeout(start, RESTART_MS);
       };
@@ -83,13 +99,26 @@ export function useWakeWord({ phrase, enabled, onWake }: {
 
     start();
 
-    // Never hold the mic open on a page or tab the owner has left.
-    const onHidden = () => { if (document.hidden) { stopped = true; try { recRef.current?.stop(); } catch { /* already stopped */ } } };
-    document.addEventListener('visibilitychange', onHidden);
+    // Never hold the mic open on a tab the owner has left — but, unlike a
+    // real stop, resume when they come back. A terminally blocked or torn
+    // down session must not resume.
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (stopped || paused) return;
+        paused = true;
+        try { recRef.current?.stop(); } catch { /* already stopped */ }
+        setListening(false);
+      } else {
+        if (stopped || !paused) return;
+        paused = false;
+        start();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       stopped = true;
-      document.removeEventListener('visibilitychange', onHidden);
+      document.removeEventListener('visibilitychange', onVisibility);
       if (timerRef.current != null) window.clearTimeout(timerRef.current);
       try { recRef.current?.stop(); } catch { /* already stopped */ }
       recRef.current = null;

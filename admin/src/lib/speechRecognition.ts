@@ -9,7 +9,7 @@ export type SpeechRecognitionLike = {
   lang: string;
   start(): void;
   stop(): void;
-  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>>; resultIndex: number }) => void) | null;
   onend: (() => void) | null;
   onerror: ((e: { error: string }) => void) | null;
 };
