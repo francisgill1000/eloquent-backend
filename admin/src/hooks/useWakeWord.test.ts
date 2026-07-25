@@ -189,6 +189,22 @@ describe('useWakeWord', () => {
     expect(FakeRecognition.instances[1].started).toBe(true);
   });
 
+  // Finding: mounting (or the effect re-running, e.g. after enabled flips
+  // back to true once playback ends) while the tab is already hidden must
+  // not open the mic — otherwise a backgrounded tab, or a session-restore
+  // that mounts several tabs hidden, starts listening unseen.
+  it('does not start listening when mounted while the tab is already hidden', () => {
+    setHidden(true);
+    const { result } = renderHook(() => useWakeWord({ phrase: 'Northside', enabled: true, onWake: vi.fn() }));
+    expect(FakeRecognition.instances.length).toBe(0);
+    expect(result.current.listening).toBe(false);
+
+    act(() => { setHidden(false); });
+    expect(FakeRecognition.instances.length).toBe(1);
+    expect(FakeRecognition.instances[0].started).toBe(true);
+    expect(result.current.listening).toBe(true);
+  });
+
   it('does not resume on becoming visible after the mic was blocked', () => {
     const { result } = renderHook(() => useWakeWord({ phrase: 'Northside', enabled: true, onWake: vi.fn() }));
     act(() => { FakeRecognition.instances[0].fail('not-allowed'); });

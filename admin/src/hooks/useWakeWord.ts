@@ -45,7 +45,7 @@ export function useWakeWord({ phrase, enabled, onWake }: {
     // (unmount/disable/phrase change). `paused` is temporary: the tab went
     // hidden and we intend to resume when it's shown again.
     let stopped = false;
-    let paused = false;
+    let paused = typeof document !== 'undefined' && document.hidden;
     restartsRef.current = 0;
     setBlocked(false);
 
