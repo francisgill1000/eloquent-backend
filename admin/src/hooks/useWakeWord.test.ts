@@ -199,4 +199,28 @@ describe('useWakeWord', () => {
     expect(FakeRecognition.instances.length).toBe(1);
     expect(result.current.blocked).toBe(true);
   });
+
+  // New finding: a restart timer scheduled while still visible must not
+  // escape a hide that happens before it fires — otherwise a stray
+  // recogniser starts while the tab is hidden, and the show branch then
+  // starts a second one on top of it.
+  it('cancels a pending restart timer when the tab is hidden before it fires', () => {
+    const { result } = renderHook(() => useWakeWord({ phrase: 'Northside', enabled: true, onWake: vi.fn() }));
+
+    // A natural onend while still visible schedules a restart via timerRef.
+    act(() => { FakeRecognition.instances[0].onend?.(); });
+    // Hide before that restart timer fires.
+    act(() => { setHidden(true); });
+
+    // Advance well past RESTART_MS: nothing should have started while hidden.
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(FakeRecognition.instances.length).toBe(1);
+    expect(result.current.listening).toBe(false);
+
+    // Coming back resumes exactly once — not a second time on top of a stray start.
+    act(() => { setHidden(false); });
+    expect(FakeRecognition.instances.length).toBe(2);
+    expect(FakeRecognition.instances[1].started).toBe(true);
+    expect(result.current.listening).toBe(true);
+  });
 });

@@ -50,7 +50,7 @@ export function useWakeWord({ phrase, enabled, onWake }: {
     setBlocked(false);
 
     const start = () => {
-      if (stopped) return;
+      if (stopped || paused) return;
       const rec = new Ctor!();
       recRef.current = rec;
       rec.continuous = true;
@@ -106,6 +106,8 @@ export function useWakeWord({ phrase, enabled, onWake }: {
       if (document.hidden) {
         if (stopped || paused) return;
         paused = true;
+        // A restart scheduled while still visible must not escape the pause.
+        if (timerRef.current != null) { window.clearTimeout(timerRef.current); timerRef.current = null; }
         try { recRef.current?.stop(); } catch { /* already stopped */ }
         setListening(false);
       } else {
