@@ -7,6 +7,8 @@ import {
   type AiInsights, type PeriodType, type AiSummaryHistoryItem,
 } from '@/lib/aiInsights';
 import { speak } from '@/lib/simulation';
+import { useWakeWord } from '@/hooks/useWakeWord';
+import { getWakeWord } from '@/lib/wakeWordApi';
 import '@/styles/insights.css';
 
 /* ---------- date helpers ---------------------------------------------------- */
@@ -120,6 +122,26 @@ function useSpeakSummary(text: string) {
   }, []);
 
   return { status, toggle: () => void toggle() };
+}
+
+/* ---------- listen toggle --------------------------------------------------- */
+function ListenToggle({ on, blocked, phrase, onChange }: {
+  on: boolean; blocked: boolean; phrase: string; onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="ais-listen">
+      <button role="switch" aria-checked={on && !blocked} aria-label="Listen for the wake word"
+        className={`c-toggle ${on && !blocked ? 'on' : ''}`}
+        onClick={() => onChange(!on)}>
+        <span className="c-toggle-knob" />
+      </button>
+      <span className="ais-listen-label">
+        {blocked ? 'Mic blocked — allow microphone access to use the wake word'
+          : on ? `Listening for “${phrase}”`
+          : 'Not listening'}
+      </span>
+    </div>
+  );
 }
 
 /* ---------- play (mic) card -------------------------------------------------- */
@@ -265,10 +287,49 @@ export default function AiSummary() {
 
   const play = useSpeakSummary(spokenText);
 
+  /* ---- wake word ---------------------------------------------------------- */
+  // The phrase is shop-wide; whether THIS device listens is a local choice, so a
+  // shared laptop can opt out without changing the business setting.
+  const offKey = `wakeWord.off.${shop?.id ?? 'none'}`;
+  const [phrase, setPhrase] = useState(shop?.name ?? '');
+  const [listenOn, setListenOn] = useState(true);
+
+  useEffect(() => {
+    setListenOn(localStorage.getItem(offKey) !== '1');
+  }, [offKey]);
+
+  useEffect(() => {
+    let alive = true;
+    getWakeWord()
+      .then((r) => { if (alive) setPhrase(r.effective_phrase || shop?.name || ''); })
+      // Offline or a slow API must never break the page — the shop name is a
+      // perfectly good wake phrase on its own.
+      .catch(() => { if (alive) setPhrase(shop?.name ?? ''); });
+    return () => { alive = false; };
+  }, [shop?.id, shop?.name]);
+
+  const setListen = (v: boolean) => {
+    setListenOn(v);
+    if (v) localStorage.removeItem(offKey); else localStorage.setItem(offKey, '1');
+  };
+
+  const wake = useWakeWord({
+    phrase,
+    // Stop listening while the summary is speaking, so its own audio can never
+    // trigger another wake.
+    enabled: listenOn && !!spokenText && play.status === 'idle',
+    onWake: play.toggle,
+  });
+
   return (
     <div className="m-screen"><div className="m-scroll c-aisummary">
       <div className="ais-card">
-        <PlayCard ready={!!spokenText} status={play.status} onToggle={play.toggle} />
+        <div className="ais-play-col">
+          <PlayCard ready={!!spokenText} status={play.status} onToggle={play.toggle} />
+          {wake.supported && (
+            <ListenToggle on={listenOn} blocked={wake.blocked} phrase={phrase} onChange={setListen} />
+          )}
+        </div>
         <AiInsightsCard data={data} loading={loading} refreshing={refreshing}
           subtitle={win.label} controls={controls}
           hint={period === 'custom' ? 'Pick a date range, then tap Submit to see a summary.' : undefined}
