@@ -65,9 +65,6 @@ export function matchesWakePhrase(heard: string, phrase: string): boolean {
     for (let i = 0; i + size <= words.length; i++) {
       const window = words.slice(i, i + size).join(' ');
       if (distance(window, target) <= budget) return true;
-      // A longer window matches when the phrase is a clean prefix of it —
-      // "northside barbers" starts with "northside".
-      if (size > span && distance(window.slice(0, target.length), target) <= budget) return true;
     }
   }
   return false;
