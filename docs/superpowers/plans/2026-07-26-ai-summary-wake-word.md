@@ -545,9 +545,6 @@ export function matchesWakePhrase(heard: string, phrase: string): boolean {
     for (let i = 0; i + size <= words.length; i++) {
       const window = words.slice(i, i + size).join(' ');
       if (distance(window, target) <= budget) return true;
-      // A longer window matches when the phrase is a clean prefix of it —
-      // "northside barbers" starts with "northside".
-      if (size > span && distance(window.slice(0, target.length), target) <= budget) return true;
     }
   }
   return false;
@@ -560,6 +557,14 @@ Run: `cd admin && npx vitest run src/lib/wakeWord.test.ts`
 Expected: PASS — 15 tests.
 
 If `countryside` vs `northside` matches (distance 3, budget 1 for a 9-character phrase — it should not), re-check `tolerance`. If `northsyde` fails, check that `distance` is symmetric.
+
+> **Amended 2026-07-26 after the Task 2 review.** An earlier draft of this step also carried a prefix branch inside the window loop
+> (`if (size > span && distance(window.slice(0, target.length), target) <= budget) return true;`).
+> The review showed it was dead code — every test passes without it, because
+> "northside barbers" already matches "Northside" at `size === span` — and that
+> where it did fire it truncated the window before measuring, making trailing
+> text free against the edit budget. Francis ruled it out on 2026-07-26. Do not
+> reintroduce it.
 
 - [ ] **Step 5: Type-check**
 
