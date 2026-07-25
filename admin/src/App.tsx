@@ -49,6 +49,7 @@ import LeadCredits from '@/pages/LeadCredits';
 import HuntInsights from '@/pages/HuntInsights';
 import LeadDetail from '@/pages/LeadDetail';
 import SimulationSettings from '@/pages/SimulationSettings';
+import WakeWordSettings from '@/pages/WakeWordSettings';
 import PublicBooking from '@/pages/PublicBooking';
 import { RequirePerm } from '@/components/RequirePerm';
 import { isLeadAgent } from '@/lib/nav';
@@ -115,6 +116,7 @@ export default function App() {
           </Route>
           <Route element={<RequirePerm perm="settings.manage" />}>
             <Route path="/settings/simulation" element={<SimulationSettings />} />
+            <Route path="/settings/wake-word" element={<WakeWordSettings />} />
             <Route path="/settings/notifications" element={<BookingNotifications />} />
           </Route>
           <Route element={<RequirePerm perm="working_hours.view" />}>

@@ -65,6 +65,7 @@ const ALL_SETTINGS_OPTIONS: SettingsOption[] = [
   { label: 'Staff', sub: 'Add & manage your team', to: '/staff', icon: 'Users', modules: ['bookings'], perm: 'staff.view' },
   { label: 'Customers', sub: 'Your customer list & visit history', to: '/customers', icon: 'User', modules: ['bookings'], perm: 'customers.view', shortcut: true },
   { label: 'Demo simulation', sub: 'Play a scripted voice booking to record demo videos', to: '/settings/simulation', icon: 'Mic', modules: ['bookings'], perm: 'settings.manage' },
+  { label: 'Voice wake word', sub: 'Say this to hear your summary out loud', to: '/settings/wake-word', icon: 'Mic', modules: BOTH, perm: 'settings.manage' },
   { label: 'Recurring booking', sub: 'Set up a regular weekly or monthly appointment', to: '/bookings/recurring', icon: 'Calendar', modules: ['bookings'], perm: 'bookings.view' },
   { label: 'Booking notifications', sub: 'Reminders, reviews & waitlist messages', to: '/settings/notifications', icon: 'Bell', modules: ['bookings'], perm: 'settings.manage' },
   // Reviews is intentionally left ungated (always visible for a bookings shop).
