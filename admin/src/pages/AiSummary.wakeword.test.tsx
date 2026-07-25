@@ -11,6 +11,21 @@ vi.mock('@/lib/simulation', () => ({ speak: vi.fn().mockResolvedValue('blob:fake
 // actual toggle logic without that console noise.
 HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
 HTMLMediaElement.prototype.pause = vi.fn();
+// jsdom also has no Blob URL registry, so URL.revokeObjectURL — called from
+// the real `onended` handler — doesn't exist at all. Stub it for the same
+// reason as play/pause above.
+URL.revokeObjectURL = vi.fn();
+
+// The self-trigger-guard test needs a handle on the Audio element the page
+// constructs internally, so it can drive the end-of-playback path (onended)
+// directly rather than waiting on real audio to actually play.
+let lastAudioEl: HTMLAudioElement | null = null;
+const RealAudio = window.Audio;
+vi.stubGlobal('Audio', function (...args: ConstructorParameters<typeof RealAudio>) {
+  const el = new RealAudio(...args);
+  lastAudioEl = el;
+  return el;
+});
 
 const getAiInsights = vi.fn();
 const getAiSummaryHistory = vi.fn();
@@ -67,11 +82,13 @@ describe('AiSummary wake word', () => {
     await waitFor(() => expect(hookArgs?.phrase).toBe('Northside Barbers'));
   });
 
-  it('plays the summary when the wake phrase is heard', async () => {
+  it('plays the summary when the wake phrase is heard, and mutes the mic until it stops', async () => {
     const { speak } = await import('@/lib/simulation');
     render(<AiSummary />);
     await waitFor(() => expect(hookArgs).not.toBeNull());
     await waitFor(() => expect(screen.getByLabelText(/play summary/i)).toBeEnabled());
+    expect(hookArgs?.enabled).toBe(true);
+
     // onWake fires a real state update outside React's event system (there's no
     // DOM event here — the mocked hook calls it directly), so wrap it in act and
     // flush a macrotask afterwards to let the toggle's internal await chain
@@ -81,6 +98,26 @@ describe('AiSummary wake word', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     await waitFor(() => expect(speak).toHaveBeenCalled());
+
+    // The self-trigger guard: while the summary's own audio plays, listening
+    // must be off, or that audio would be heard as another wake and loop forever.
+    await waitFor(() => expect(hookArgs?.enabled).toBe(false));
+
+    // Drive the audio element's end-of-playback path directly — jsdom cannot
+    // really play audio — and confirm listening resumes once status is idle again.
+    await act(async () => {
+      lastAudioEl?.onended?.(new Event('ended'));
+    });
+    await waitFor(() => expect(hookArgs?.enabled).toBe(true));
+  });
+
+  it('does not enable listening before there is a summary to play', async () => {
+    // Never resolves, so `data` stays null and spokenText stays '' — this
+    // exercises the guard's `!!spokenText` clause on its own.
+    getAiInsights.mockReturnValue(new Promise(() => {}));
+    render(<AiSummary />);
+    await waitFor(() => expect(hookArgs).not.toBeNull());
+    expect(hookArgs?.enabled).toBe(false);
   });
 
   it('hides the Listen toggle when speech recognition is unsupported', async () => {
