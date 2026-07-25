@@ -47,6 +47,7 @@ tar -cf - app tests database routes | ssh root@64.227.153.90 'cd /root/testrun &
 - Create `tests/Feature/ShopWakeWordTest.php` — endpoint behaviour, permission gating, tenant isolation.
 
 **Frontend**
+- Create `admin/src/lib/speechRecognition.ts` — the browser speech-recognition feature detector and its narrowed types, in one place. *(Added 2026-07-26 during the Task 3 review: the original plan hand-rolled this detector separately in `WakeWordSettings.tsx` and in `useWakeWord.ts`. The review flagged the duplication and Francis ruled it should be shared. Both consumers import `speechRecognitionCtor()` and `SpeechRecognitionLike` from here — do not reintroduce a private copy.)*
 - Create `admin/src/lib/wakeWord.ts` — pure matcher. No DOM, no network. Carries the bulk of the test coverage.
 - Create `admin/src/lib/wakeWord.test.ts`
 - Create `admin/src/lib/wakeWordApi.ts` — `getWakeWord` / `saveWakeWord`. Kept separate so the matcher stays pure.
