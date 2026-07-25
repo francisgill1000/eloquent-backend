@@ -1050,6 +1050,11 @@ Expected: FAIL — `Failed to resolve import "./useWakeWord"`.
 
 - [ ] **Step 3: Write the hook**
 
+> **Amended 2026-07-26 after the Task 4 review.** The reference code below carried three lifecycle bugs that the original fake recogniser (synchronous, non-accumulating) could not expose. All three were fixed in the implementation; do not restore the original forms:
+> 1. `onresult` joined the whole of `e.results`. In a real `continuous` session that list grows for the life of the session, so a finalized wake phrase re-fired `onWake` on every later utterance. Now slices from `e.resultIndex`, and `SpeechRecognitionLike`'s event type carries `resultIndex`.
+> 2. `onend` checked only the per-effect-run `stopped` flag, so a superseded recogniser's late `onend` set `listening: false` while a fresh one was live — hit on every `enabled` toggle, which is the caller's mute-while-speaking pattern. Now guarded by `recRef.current !== rec`.
+> 3. The `visibilitychange` handler set the terminal `stopped` flag, so listening never resumed after a tab switch. Now symmetric: pause on hide, resume on show, while a `blocked` mic stays terminal.
+
 Create `admin/src/hooks/useWakeWord.ts`:
 
 ```ts
