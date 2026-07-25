@@ -1,9 +1,16 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import AiSummary from './AiSummary';
 
 vi.mock('@/context/ShopContext', () => ({ useShop: () => ({ shop: { id: 1, name: 'Northside Barbers' } }) }));
 vi.mock('@/lib/simulation', () => ({ speak: vi.fn().mockResolvedValue('blob:fake') }));
+
+// jsdom has no real media pipeline; the page constructs a real HTMLAudioElement
+// and calls play()/pause() on it, which jsdom logs as "not implemented" and
+// throws. Stub both once so the "plays the summary" test can exercise the
+// actual toggle logic without that console noise.
+HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+HTMLMediaElement.prototype.pause = vi.fn();
 
 const getAiInsights = vi.fn();
 const getAiSummaryHistory = vi.fn();
@@ -65,7 +72,14 @@ describe('AiSummary wake word', () => {
     render(<AiSummary />);
     await waitFor(() => expect(hookArgs).not.toBeNull());
     await waitFor(() => expect(screen.getByLabelText(/play summary/i)).toBeEnabled());
-    hookArgs!.onWake();
+    // onWake fires a real state update outside React's event system (there's no
+    // DOM event here — the mocked hook calls it directly), so wrap it in act and
+    // flush a macrotask afterwards to let the toggle's internal await chain
+    // (speak → new Audio → play) settle before the test ends.
+    await act(async () => {
+      hookArgs!.onWake();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
     await waitFor(() => expect(speak).toHaveBeenCalled());
   });
 
