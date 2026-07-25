@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import * as api from '@/lib/wakeWordApi';
 import WakeWordSettings from './WakeWordSettings';
@@ -9,6 +9,25 @@ vi.mock('react-router-dom', async (orig) => ({ ...(await orig() as object), useN
 vi.mock('@/lib/wakeWordApi');
 
 const unset: api.WakeWordInfo = { phrase: null, effective_phrase: 'Northside Barbers', using_custom: false };
+
+/**
+ * A fake `SpeechRecognition` matching the shape `@/lib/speechRecognition`
+ * feature-detects (the same shape Task 4's hook installs on `window`).
+ * Each construction is pushed onto `instances` so a test can grab the most
+ * recent one and drive its `onresult`/`onerror`/`onend` callbacks directly.
+ */
+class FakeRecognition {
+  static instances: FakeRecognition[] = [];
+  continuous = false;
+  interimResults = false;
+  lang = '';
+  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null = null;
+  onend: (() => void) | null = null;
+  onerror: ((e: { error: string }) => void) | null = null;
+  start = vi.fn();
+  stop = vi.fn();
+  constructor() { FakeRecognition.instances.push(this); }
+}
 
 describe('WakeWordSettings', () => {
   beforeEach(() => {
@@ -62,5 +81,41 @@ describe('WakeWordSettings', () => {
     render(<MemoryRouter><WakeWordSettings /></MemoryRouter>);
     await screen.findByPlaceholderText('Northside Barbers');
     expect(screen.queryByRole('button', { name: /test it/i })).toBeNull();
+  });
+
+  describe('Test it', () => {
+    beforeEach(() => {
+      FakeRecognition.instances = [];
+      (window as unknown as { SpeechRecognition: typeof FakeRecognition }).SpeechRecognition = FakeRecognition;
+    });
+
+    afterEach(() => {
+      delete (window as unknown as { SpeechRecognition?: typeof FakeRecognition }).SpeechRecognition;
+    });
+
+    it('reports a blocked microphone instead of "would not wake it" when recognition errors', async () => {
+      render(<MemoryRouter><WakeWordSettings /></MemoryRouter>);
+      await screen.findByPlaceholderText('Northside Barbers');
+      fireEvent.click(screen.getByRole('button', { name: /test it/i }));
+
+      const rec = FakeRecognition.instances[FakeRecognition.instances.length - 1];
+      act(() => { rec.onerror?.({ error: 'not-allowed' }); });
+      act(() => { rec.onend?.(); });
+
+      expect(await screen.findByText(/microphone access was blocked/i)).toBeInTheDocument();
+      expect(screen.queryByText(/would not wake it/i)).toBeNull();
+    });
+
+    it('reports a hit on a clean run where the phrase is heard', async () => {
+      render(<MemoryRouter><WakeWordSettings /></MemoryRouter>);
+      await screen.findByPlaceholderText('Northside Barbers');
+      fireEvent.click(screen.getByRole('button', { name: /test it/i }));
+
+      const rec = FakeRecognition.instances[FakeRecognition.instances.length - 1];
+      act(() => { rec.onresult?.({ results: [[{ transcript: 'Northside Barbers' }]] }); });
+      act(() => { rec.onend?.(); });
+
+      expect(await screen.findByText(/would wake it/i)).toBeInTheDocument();
+    });
   });
 });
