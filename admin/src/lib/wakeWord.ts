@@ -44,18 +44,34 @@ function tolerance(phrase: string): number {
 }
 
 /**
+ * Normalise, then drop one leading filler.
+ *
+ * This runs on BOTH sides. Owners naturally type the whole spoken phrase into
+ * Settings — "hey jarvis", not "jarvis" — so stripping the filler only from
+ * what was heard left a one-word utterance being compared against a two-word
+ * target, and the wake word could never fire, not even for the exact phrase.
+ *
+ * A phrase that is nothing but a filler keeps its single word: reducing "hey"
+ * to an empty target would match every utterance.
+ */
+function coreWords(text: string): string[] {
+  const words = normalise(text).split(' ').filter(Boolean);
+  return words.length > 1 && FILLERS.includes(words[0]) ? words.slice(1) : words;
+}
+
+/**
  * True when `heard` contains the wake phrase, allowing an optional filler
- * opener and a small number of mishearings.
+ * opener on either side and a small number of mishearings.
  */
 export function matchesWakePhrase(heard: string, phrase: string): boolean {
-  const target = normalise(phrase);
+  const targetWords = coreWords(phrase);
+  const target = targetWords.join(' ');
   if (!target) return false;
 
-  let words = normalise(heard).split(' ').filter(Boolean);
+  const words = coreWords(heard);
   if (!words.length) return false;
-  if (FILLERS.includes(words[0])) words = words.slice(1);
 
-  const span = target.split(' ').length;
+  const span = targetWords.length;
   const budget = tolerance(target);
 
   // Slide a window of the phrase's word count over the heard words. Also try a

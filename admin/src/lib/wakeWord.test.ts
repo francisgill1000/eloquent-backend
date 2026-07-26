@@ -73,3 +73,45 @@ describe('matchesWakePhrase', () => {
     expect(matchesWakePhrase('north', 'Northside Barbers Downtown')).toBe(false);
   });
 });
+
+/**
+ * Regression: the live "hey jarvis" failure. Owners naturally type the whole
+ * spoken phrase into Settings, filler included. Stripping the filler only from
+ * the heard side left a 1-word utterance being matched against a 2-word target,
+ * so the wake word could never fire — not even for the exact phrase.
+ */
+describe('matchesWakePhrase — a phrase that itself opens with a filler', () => {
+  const phrase = 'hey jarvis';
+
+  it('matches the phrase said exactly as written', () => {
+    expect(matchesWakePhrase('hey jarvis', phrase)).toBe(true);
+  });
+
+  it('matches the name on its own, without the filler', () => {
+    expect(matchesWakePhrase('jarvis', phrase)).toBe(true);
+  });
+
+  it('matches mid-sentence', () => {
+    expect(matchesWakePhrase('hey jarvis, read my summary', phrase)).toBe(true);
+  });
+
+  it('tolerates a mishearing of the name', () => {
+    expect(matchesWakePhrase('hey jarvos', phrase)).toBe(true);
+  });
+
+  it('still rejects unrelated speech', () => {
+    expect(matchesWakePhrase('hey what is the weather', phrase)).toBe(false);
+  });
+
+  it('handles a different filler on either side', () => {
+    expect(matchesWakePhrase('ok jarvis', phrase)).toBe(true);
+    expect(matchesWakePhrase('hey jarvis', 'ok jarvis')).toBe(true);
+  });
+
+  it('does not strip the only word, so a bare filler phrase still behaves', () => {
+    // "hey" alone is a 3-char phrase: exact-match only, and it must not
+    // normalise away to an empty target that matches everything.
+    expect(matchesWakePhrase('anything at all', 'hey')).toBe(false);
+    expect(matchesWakePhrase('hey', 'hey')).toBe(true);
+  });
+});
