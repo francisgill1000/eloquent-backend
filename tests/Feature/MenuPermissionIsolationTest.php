@@ -277,39 +277,49 @@ class MenuPermissionIsolationTest extends TestCase
     // ---------------------------------------------------------------------
 
     /**
-     * Each left-menu destination of a Hunt shop, with the permission that should
-     * unlock it and a GET that only that permission should reach.
+     * Each left-menu destination of a Hunt shop, with the permission(s) that
+     * should unlock it and a GET that only those permissions should reach.
      *
-     * @return array<string, array{0: string, 1: string}>
+     * Most menus take a single permission. AI Summary takes two: the summary is
+     * generated shop-wide, so ReportsController::blockLeadAgent() also demands
+     * leads.view_all on a Hunt shop — otherwise an agent scoped to their own
+     * leads could read whole-pipeline revenue. summary.view alone is therefore a
+     * 403 here by design, not a gap. See HuntDashboardTest, which pins both
+     * sides of that rule.
+     *
+     * @return array<string, array{0: array<int,string>, 1: string}>
      */
     public static function menuProvider(): array
     {
         return [
-            'AI Summary'    => ['summary.view',     '/api/shop/reports/ai-summary?from=2026-07-01&to=2026-07-24'],
-            'Chats'         => ['chats.view',       '/api/shop/assistant/conversations'],
-            'Business Hunt' => ['leads.view',       '/api/shop/leads'],
-            'AI Assistant'  => ['assistant.manage', '/api/shop/persona'],
-            'Users & Roles' => ['roles.view',       '/api/shop/roles'],
+            'AI Summary'    => [['summary.view', 'leads.view_all'], '/api/shop/reports/ai-summary?from=2026-07-01&to=2026-07-24'],
+            'Chats'         => [['chats.view'],                     '/api/shop/assistant/conversations'],
+            'Business Hunt' => [['leads.view'],                     '/api/shop/leads'],
+            'AI Assistant'  => [['assistant.manage'],               '/api/shop/persona'],
+            'Users & Roles' => [['roles.view'],                     '/api/shop/roles'],
         ];
     }
 
+    /** @param array<int,string> $perms */
     #[\PHPUnit\Framework\Attributes\DataProvider('menuProvider')]
-    public function test_one_user_per_left_menu_reaches_only_its_own_section(string $perm, string $url): void
+    public function test_one_user_per_left_menu_reaches_only_its_own_section(array $perms, string $url): void
     {
         $shop = $this->huntShop();
 
         // Granted: reachable.
-        $this->withHeaders($this->hdrs($this->staffToken($shop, [$perm])))
+        $this->withHeaders($this->hdrs($this->staffToken($shop, $perms)))
             ->getJson($url)
             ->assertOk();
 
-        // Every OTHER menu's permission: denied on this URL.
-        foreach (self::menuProvider() as [$otherPerm, $_]) {
-            if ($otherPerm === $perm) {
+        // Every OTHER menu's permissions: denied on this URL. Note this also
+        // pins that leads.view_all does NOT stand in for leads.view — the AI
+        // Summary user still cannot reach /shop/leads.
+        foreach (self::menuProvider() as [$otherPerms, $_]) {
+            if ($otherPerms === $perms) {
                 continue;
             }
             $this->app['auth']->forgetGuards();
-            $this->withHeaders($this->hdrs($this->staffToken($shop, [$otherPerm])))
+            $this->withHeaders($this->hdrs($this->staffToken($shop, $otherPerms)))
                 ->getJson($url)
                 ->assertStatus(403);
         }
