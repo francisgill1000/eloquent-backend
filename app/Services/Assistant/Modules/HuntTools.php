@@ -208,23 +208,60 @@ class HuntTools extends MutatingTool
 
     private function logFollowup(ToolCall $call): array
     {
+        $channel = $this->channelArg($call);
+        $direction = $call->get('direction') === LeadActivity::DIRECTION_IN
+            ? LeadActivity::DIRECTION_IN
+            : LeadActivity::DIRECTION_OUT;
+
+        $on = $channel !== null ? ' on ' . $this->channelLabel($channel) : '';
+
         return $this->gate(
             $call,
             resolve: fn () => $this->resolveLead($call),
-            describe: fn ($lead) => ["Log a follow-up with {$lead->name} (no status change)", ['followup' => 'logged']],
-            write: function ($lead) {
-                $lead->last_contacted_at = now();
-                $lead->save();
+            describe: fn ($lead) => [
+                $direction === LeadActivity::DIRECTION_IN
+                    ? "Log that {$lead->name} replied{$on} (no status change)"
+                    : "Log a follow-up with {$lead->name}{$on} (no status change)",
+                array_filter(['followup' => 'logged', 'channel' => $channel]),
+            ],
+            write: function ($lead) use ($channel, $direction) {
+                $lead->recordTouch($channel, $direction, null, current_shop_user());
 
-                $lead->activities()->create([
-                    'type' => LeadActivity::TYPE_CONTACTED,
-                    'payload' => ['channel' => 'whatsapp', 'kind' => 'followup'],
-                    'user_id' => current_shop_user()?->id,
-                ]);
-
-                return ['name' => $lead->name, 'logged' => true];
+                return ['name' => $lead->name, 'logged' => true, 'channel' => $channel];
             },
         );
+    }
+
+    /**
+     * Map what was actually said onto the fixed channel list. Returns null for
+     * anything unrecognised — the assistant must not invent how a conversation
+     * happened, and a null channel is honest.
+     */
+    private function channelArg(ToolCall $call): ?string
+    {
+        $raw = strtolower(trim((string) $call->get('channel')));
+        if ($raw === '') {
+            return null;
+        }
+
+        $aliases = [
+            'ig' => 'instagram', 'insta' => 'instagram', 'gram' => 'instagram',
+            'wa' => 'whatsapp', 'whats app' => 'whatsapp', 'whatsap' => 'whatsapp',
+            'fb' => 'facebook', 'messenger' => 'facebook',
+            'tik tok' => 'tiktok', 'tik-tok' => 'tiktok',
+            'call' => 'phone', 'called' => 'phone', 'phone call' => 'phone',
+            'mail' => 'email', 'e-mail' => 'email',
+            'walk in' => 'walk_in', 'walk-in' => 'walk_in', 'in person' => 'walk_in', 'visit' => 'walk_in',
+        ];
+        $raw = $aliases[$raw] ?? $raw;
+
+        return in_array($raw, LeadActivity::CHANNELS, true) ? $raw : null;
+    }
+
+    /** Human label for a channel, for the confirm-gate preview text. */
+    private function channelLabel(string $channel): string
+    {
+        return $channel === 'walk_in' ? 'a walk-in visit' : ucfirst($channel);
     }
 
     /**
@@ -312,8 +349,10 @@ class HuntTools extends MutatingTool
                 'deal_term_months' => ['type' => 'integer', 'enum' => Lead::DEAL_TERMS, 'description' => 'Contract length for a recurring deal.'],
                 'confirmed' => ['type' => 'boolean'],
             ], 'required' => ['name', 'status']]],
-            ['name' => 'log_followup', 'description' => 'Record that the owner followed up with a lead (a nudge) WITHOUT changing its funnel stage. Use when the owner says they messaged/called a lead again but nothing moved yet. Identify the lead by business name. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => [
+            ['name' => 'log_followup', 'description' => 'Record that a lead was contacted, or that they replied, WITHOUT changing its funnel stage. Use when the owner says they messaged/called a lead again, or that a lead got back to them, but nothing moved yet. Identify the lead by business name. Set channel to how it happened and direction to "out" (we contacted them) or "in" (they contacted us). Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => [
                 'name' => ['type' => 'string', 'description' => 'The business/lead name (fuzzy match).'],
+                'channel' => ['type' => 'string', 'enum' => LeadActivity::CHANNELS, 'description' => 'How the contact happened. Omit only if genuinely unknown.'],
+                'direction' => ['type' => 'string', 'enum' => LeadActivity::DIRECTIONS, 'description' => 'Defaults to "out". Use "in" when the LEAD contacted US.'],
                 'confirmed' => ['type' => 'boolean'],
             ], 'required' => ['name']]],
             ['name' => 'assign_lead', 'description' => 'Hand a saved lead to a team member so they own it and it appears in their pipeline. Identify the lead by business name and the person by their name. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => [

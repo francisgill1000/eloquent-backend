@@ -402,4 +402,69 @@ class HuntAssistantToolsTest extends TestCase
 
         \App\Support\CurrentShopUser::set(null);
     }
+
+    /** A saved lead on $shop for the channel tests. */
+    private function channelLead(Shop $shop, array $attrs = []): Lead
+    {
+        return Lead::create(array_merge([
+            'shop_id' => $shop->id, 'name' => 'Acme Gym', 'phone' => '0501112233',
+            'status' => 'sent', 'source' => 'google',
+        ], $attrs));
+    }
+
+    public function test_log_followup_records_the_spoken_channel(): void
+    {
+        $shop = $this->leadsShop();
+        $lead = $this->channelLead($shop);
+
+        $this->exec($shop, 'log_followup', [
+            'name' => 'Acme Gym', 'channel' => 'instagram', 'confirmed' => true,
+        ]);
+
+        $this->assertDatabaseHas('lead_activities', [
+            'lead_id' => $lead->id, 'channel' => 'instagram', 'direction' => 'out',
+        ]);
+    }
+
+    public function test_log_followup_maps_spoken_aliases_onto_the_fixed_list(): void
+    {
+        $shop = $this->leadsShop();
+        $lead = $this->channelLead($shop);
+
+        $this->exec($shop, 'log_followup', [
+            'name' => 'Acme Gym', 'channel' => 'insta', 'confirmed' => true,
+        ]);
+
+        $this->assertDatabaseHas('lead_activities', [
+            'lead_id' => $lead->id, 'channel' => 'instagram',
+        ]);
+    }
+
+    /** The assistant must not invent how a conversation happened. */
+    public function test_log_followup_without_a_channel_records_null_not_whatsapp(): void
+    {
+        $shop = $this->leadsShop();
+        $lead = $this->channelLead($shop);
+
+        $this->exec($shop, 'log_followup', ['name' => 'Acme Gym', 'confirmed' => true]);
+
+        $this->assertDatabaseHas('lead_activities', [
+            'lead_id' => $lead->id, 'type' => 'contacted', 'channel' => null,
+        ]);
+    }
+
+    public function test_log_followup_can_record_an_inbound_reply(): void
+    {
+        $shop = $this->leadsShop();
+        $lead = $this->channelLead($shop, ['last_contacted_at' => now()->subDays(3)]);
+
+        $this->exec($shop, 'log_followup', [
+            'name' => 'Acme Gym', 'channel' => 'whatsapp', 'direction' => 'in', 'confirmed' => true,
+        ]);
+
+        $this->assertDatabaseHas('lead_activities', [
+            'lead_id' => $lead->id, 'channel' => 'whatsapp', 'direction' => 'in',
+        ]);
+        $this->assertTrue($lead->fresh()->last_contacted_at->lt(now()->subDay()));
+    }
 }
