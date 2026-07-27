@@ -68,7 +68,7 @@ class PermissionCatalogTest extends TestCase
         // Insights/reports is a bookings Settings page.
         $this->assertContains('reports', $keys);
         // Shared menu rows always show (one per left-menu item).
-        foreach (['summary', 'home', 'chats', 'profile', 'access', 'settings'] as $key) {
+        foreach (['summary', 'assistant', 'chats', 'profile', 'access', 'settings'] as $key) {
             $this->assertContains($key, $keys);
         }
         // The stripped shape is { label, section, permissions } — no module key
@@ -83,9 +83,10 @@ class PermissionCatalogTest extends TestCase
     {
         $groups = PermissionCatalog::grouped();
 
-        // "Use the assistant" powers the Home menu → its own top-level row.
-        $this->assertNull($groups['home']['section']);
-        $this->assertSame(['assistant.use'], array_keys($groups['home']['permissions']));
+        // "Use the assistant" gates the mic + /ask → its own top-level row. It is
+        // NOT a Home permission: Home is ungated and composes per section.
+        $this->assertNull($groups['assistant']['section']);
+        $this->assertSame(['assistant.use'], array_keys($groups['assistant']['permissions']));
 
         // "Configure the assistant" is a Settings page → in the Settings section.
         $this->assertSame('Settings', $groups['assistant_config']['section']);
@@ -101,7 +102,7 @@ class PermissionCatalogTest extends TestCase
         $groups = PermissionCatalog::grouped();
 
         // One group per left-menu item; each is top-level (section null).
-        foreach (['summary', 'home', 'chats', 'bookings', 'customers', 'hunt', 'profile'] as $key) {
+        foreach (['summary', 'assistant', 'chats', 'bookings', 'customers', 'hunt', 'profile'] as $key) {
             $this->assertArrayHasKey($key, $groups, "$key menu should have a permission group");
             $this->assertNull($groups[$key]['section'], "$key should be a top-level row");
         }
@@ -122,7 +123,7 @@ class PermissionCatalogTest extends TestCase
         }
 
         // Top-level menu rows are not sectioned.
-        foreach (['summary', 'home', 'chats', 'bookings', 'customers', 'hunt', 'profile'] as $key) {
+        foreach (['summary', 'assistant', 'chats', 'bookings', 'customers', 'hunt', 'profile'] as $key) {
             $this->assertNull($groups[$key]['section'], "$key should be top-level");
         }
     }
@@ -138,7 +139,7 @@ class PermissionCatalogTest extends TestCase
         $this->assertNotContains('bookings', $keys);
         $this->assertNotContains('customers', $keys);
         // Shared menu rows still show.
-        foreach (['summary', 'home', 'chats', 'profile', 'access', 'settings'] as $key) {
+        foreach (['summary', 'assistant', 'chats', 'profile', 'access', 'settings'] as $key) {
             $this->assertContains($key, $keys);
         }
     }

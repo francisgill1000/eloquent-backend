@@ -21,13 +21,23 @@ use App\Models\Shop;
  * The catalog is organised to mirror the left-side menu **one group per menu
  * item** (Francis: "every left menu should have [a row] in [the] permissions
  * list"). A group's `section` tag says where it sits: null = a top-level menu
- * destination that gets its own row on the roles screen (AI Summary, Home, Chats,
- * Bookings, Customers, Business Hunt, Profile); 'Settings' = a page reached
- * through the Settings container (Insights/reports, Services, Staff, Working
- * hours, AI Assistant config, Users & Roles, business settings) — the roles
- * editor collapses the whole 'Settings' section into a single toggle. Keep this
- * in step with admin/src/lib/nav.ts, admin/src/layout/DesktopSidebar.tsx and
- * MobileLayout.tsx (the perm on each nav item must match the group here).
+ * destination that gets its own row on the roles screen (AI Summary, Ask
+ * assistant, Chats, Bookings, Customers, Business Hunt, Profile); 'Settings' = a
+ * page reached through the Settings container (Insights/reports, Services,
+ * Staff, Working hours, AI Assistant config, Users & Roles, business settings) —
+ * the roles editor collapses the whole 'Settings' section into a single toggle.
+ * Keep this in step with admin/src/lib/nav.ts, admin/src/layout/DesktopSidebar.tsx
+ * and MobileLayout.tsx (the perm on each nav item must match the group here).
+ *
+ * **Home is the one deliberate exception, since 2026-07-27.** It carries no
+ * permission at all, so it has no group. Home composes itself per section — the
+ * Hunt dashboard for a user with leads.view, the Ask assistant for a
+ * bookings-only shop, an empty state for neither (see admin/src/components/
+ * Landing.tsx) — so every user has a Home and only its CONTENTS vary. Listing a
+ * "Home" group here would be a lie: granting it would not control Home, and the
+ * thing that does control Home's main content (leads.view) lives under Business
+ * Hunt. What used to be the "Home" group is now "Ask assistant", which is what
+ * assistant.use actually gates: the mic button and /ask.
  */
 class PermissionCatalog
 {
@@ -44,8 +54,10 @@ class PermissionCatalog
             'summary' => ['label' => 'AI Summary', 'module' => null, 'section' => null, 'permissions' => [
                 'summary.view' => 'See the AI summary',
             ]],
-            'home' => ['label' => 'Home', 'module' => null, 'section' => null, 'permissions' => [
-                'assistant.use' => 'Use the Ask assistant',
+            // Gates the Ask assistant itself — the floating mic and /ask — NOT
+            // the Home page, which is ungated (see the class docblock).
+            'assistant' => ['label' => 'Ask assistant', 'module' => null, 'section' => null, 'permissions' => [
+                'assistant.use' => 'Use the Ask assistant (mic)',
             ]],
             'chats' => ['label' => 'Chats', 'module' => null, 'section' => null, 'permissions' => [
                 'chats.view' => 'See past assistant chats',
