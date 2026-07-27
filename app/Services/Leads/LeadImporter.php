@@ -6,6 +6,7 @@ use App\Models\Lead;
 use App\Models\Scopes\AssignedLeadScope;
 use App\Models\Shop;
 use App\Support\Rbac;
+use App\Support\SocialHandle;
 
 /**
  * Persists discovered businesses as leads, deduping on (shop_id, external_ref)
@@ -49,6 +50,15 @@ class LeadImporter
                 'lng' => $row['lng'] ?? null,
                 'source' => $row['source'] ?? 'manual',
             ];
+
+            // AdLibraryService parks Facebook page URLs in `website` (it even
+            // filters on that, AdLibraryService.php:266). A page URL is a
+            // channel, not a website — move it so the lead arrives with a
+            // working Facebook button instead of a misleading site link.
+            if ($attrs['website'] !== null && SocialHandle::detectPlatform($attrs['website']) === 'facebook') {
+                $attrs['facebook'] = SocialHandle::normalize('facebook', $attrs['website']);
+                $attrs['website'] = null;
+            }
 
             // Only stamp the pipeline when one was supplied — the Hunt assistant's
             // save_leads path passes none, so its leads stay unfiled.
