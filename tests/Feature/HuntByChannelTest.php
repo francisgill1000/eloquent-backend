@@ -5,9 +5,12 @@ namespace Tests\Feature;
 use App\Models\Lead;
 use App\Models\LeadActivity;
 use App\Models\Shop;
+use App\Models\ShopUser;
 use App\Services\Reports\ReportsAggregator;
+use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class HuntByChannelTest extends TestCase
@@ -28,6 +31,18 @@ class HuntByChannelTest extends TestCase
         return Lead::create(array_merge([
             'shop_id' => $shop->id, 'name' => 'Acme', 'status' => 'sent', 'source' => 'google',
         ], $attrs));
+    }
+
+    /** A non-owner user holding exactly $perms. Same idiom as HuntDashboardTest::agent(). */
+    private function agent(Shop $shop, array $perms = ['leads.view', 'leads.manage']): ShopUser
+    {
+        setPermissionsTeamId($shop->id);
+        $role = Role::create(['name' => 'R-'.uniqid(), 'guard_name' => 'web', 'team_id' => $shop->id]);
+        $role->syncPermissions($perms);
+        $u = ShopUser::factory()->create(['shop_id' => $shop->id]);
+        $u->assignRole($role);
+
+        return $u;
     }
 
     public function test_touches_and_replies_are_counted_per_channel(): void
@@ -159,5 +174,48 @@ class HuntByChannelTest extends TestCase
 
         $rows = $this->rows($shop->id);
         $this->assertSame(0, $rows['facebook']['touches']);
+    }
+
+    /**
+     * A null channel on the FIRST outbound touch (e.g. HuntTools::logFollowup
+     * when the owner didn't say how they reached out) still IS the opening
+     * touch. The win must land in `unattributed`, not get credited to whatever
+     * channel happened to come second.
+     */
+    public function test_a_null_channel_first_touch_leaves_the_win_unattributed(): void
+    {
+        $shop = Shop::factory()->create();
+        $lead = $this->lead($shop, [
+            'status' => 'won', 'deal_won_at' => now(),
+            'deal_amount' => 500, 'deal_type' => 'one_off',
+        ]);
+
+        $lead->recordTouch(null, LeadActivity::DIRECTION_OUT);
+        $lead->recordTouch('instagram', LeadActivity::DIRECTION_OUT);
+
+        $rows = $this->rows($shop->id);
+        $this->assertSame(1, $rows['unattributed']['won']);
+        $this->assertSame(500.0, $rows['unattributed']['won_value']);
+        $this->assertSame(0, $rows['instagram']['won']);
+    }
+
+    public function test_channels_scope_to_the_acting_agents_own_leads(): void
+    {
+        (new PermissionSeeder())->run();
+        $shop = Shop::factory()->create();
+        $agent = $this->agent($shop, ['leads.view']); // no leads.view_all
+
+        $mine = $this->lead($shop, ['assigned_to_id' => $agent->id]);
+        $mine->recordTouch('instagram', LeadActivity::DIRECTION_OUT);
+
+        $theirs = $this->lead($shop); // someone else's, unassigned to the agent
+        $theirs->recordTouch('instagram', LeadActivity::DIRECTION_OUT);
+        $theirs->recordTouch('whatsapp', LeadActivity::DIRECTION_IN);
+
+        \App\Support\CurrentShopUser::set($agent);
+        $rows = $this->rows($shop->id);
+
+        $this->assertSame(1, $rows['instagram']['touches'], 'only the agent\'s own lead should count');
+        $this->assertSame(0, $rows['whatsapp']['replies'], 'the colleague\'s lead must not leak in');
     }
 }

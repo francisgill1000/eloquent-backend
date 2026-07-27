@@ -589,19 +589,31 @@ class ReportsAggregator
         // in use at closing. Deliberately NOT date-bounded: the opener often
         // predates the report window, and dropping it would silently move real
         // wins into `unattributed`.
+        //
+        // No whereNotNull('channel') here (unlike the count queries above): a
+        // first touch can legitimately have a null channel — HuntTools::logFollowup
+        // records one when the owner didn't say how they reached out — and that
+        // still IS the first touch. Skipping it would credit the win to whatever
+        // channel happened to come second, which is the exact misattribution this
+        // report exists to prevent. A null-channel opener belongs in
+        // `unattributed`, same as no opener at all.
         $firstTouch = [];
         if ($wonRows->isNotEmpty()) {
             $rows = DB::table('lead_activities')
                 ->whereIn('lead_id', $wonRows->pluck('id')->all())
                 ->where('type', 'contacted')
                 ->where('direction', LeadActivity::DIRECTION_OUT)
-                ->whereNotNull('channel')
                 ->orderBy('lead_id')->orderBy('id')
                 ->get(['lead_id', 'channel']);
 
             foreach ($rows as $row) {
-                // Ordered by id, so the first row per lead wins.
-                $firstTouch[(int) $row->lead_id] ??= $row->channel;
+                // Ordered by id, so the first row per lead wins. array_key_exists
+                // (not ??=) because the channel itself may legitimately be null —
+                // ??= would treat that as "unset" and let the next row overwrite it.
+                $leadId = (int) $row->lead_id;
+                if (! array_key_exists($leadId, $firstTouch)) {
+                    $firstTouch[$leadId] = $row->channel;
+                }
             }
         }
 
