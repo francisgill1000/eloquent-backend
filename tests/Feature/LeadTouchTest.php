@@ -157,4 +157,47 @@ class LeadTouchTest extends TestCase
             ->assertJsonPath('activities.0.channel', 'instagram')
             ->assertJsonPath('activities.0.direction', 'out');
     }
+
+    public function test_moving_to_replied_with_a_channel_logs_an_inbound_touch(): void
+    {
+        [$shop, $token] = $this->actingShop();
+        $lead = $this->lead($shop);
+
+        $this->auth($token)->patchJson("/api/shop/leads/{$lead->id}/status", [
+            'status' => 'replied', 'reply_channel' => 'instagram',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('lead_activities', [
+            'lead_id' => $lead->id, 'type' => 'status_change',
+        ]);
+        $this->assertDatabaseHas('lead_activities', [
+            'lead_id' => $lead->id, 'type' => 'contacted',
+            'channel' => 'instagram', 'direction' => 'in',
+        ]);
+        $this->assertSame('replied', $lead->fresh()->status);
+    }
+
+    public function test_omitting_the_reply_channel_logs_no_touch(): void
+    {
+        [$shop, $token] = $this->actingShop();
+        $lead = $this->lead($shop);
+
+        $this->auth($token)->patchJson("/api/shop/leads/{$lead->id}/status", [
+            'status' => 'replied',
+        ])->assertOk();
+
+        $this->assertDatabaseMissing('lead_activities', [
+            'lead_id' => $lead->id, 'type' => 'contacted',
+        ]);
+    }
+
+    public function test_an_unknown_reply_channel_is_rejected(): void
+    {
+        [$shop, $token] = $this->actingShop();
+        $lead = $this->lead($shop);
+
+        $this->auth($token)->patchJson("/api/shop/leads/{$lead->id}/status", [
+            'status' => 'replied', 'reply_channel' => 'carrier_pigeon',
+        ])->assertStatus(422)->assertJsonValidationErrors('reply_channel');
+    }
 }

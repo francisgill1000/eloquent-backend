@@ -345,6 +345,9 @@ class LeadController extends Controller
                 Rule::requiredIf(fn () => ($request->input('deal_type') === 'recurring')),
                 Rule::in(Lead::DEAL_TERMS),
             ],
+            // How the lead got back to us. Only meaningful on a move to
+            // `replied`; absent means unknown, which must not be defaulted.
+            'reply_channel' => ['nullable', Rule::in(LeadActivity::CHANNELS)],
         ]);
 
         $from = $lead->status;
@@ -376,6 +379,17 @@ class LeadController extends Controller
             ], fn ($v) => $v !== null),
             'user_id' => current_shop_user()?->id,
         ]);
+
+        // The reply came in on some channel — record it as a real inbound touch
+        // so the channel report sees it, not just as a note on the status row.
+        if ($data['status'] === 'replied' && ($data['reply_channel'] ?? null) !== null) {
+            $lead->recordTouch(
+                $data['reply_channel'],
+                LeadActivity::DIRECTION_IN,
+                null,
+                current_shop_user(),
+            );
+        }
 
         return response()->json(['data' => $lead->fresh()]);
     }
