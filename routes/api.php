@@ -303,6 +303,7 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'module:leads'])->group(funct
     Route::get   ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'index'])->middleware('can.perm:leads.view');
     Route::post  ('/shop/leads',                  [\App\Http\Controllers\LeadController::class, 'store'])->middleware('can.perm:leads.manage');
     Route::get   ('/shop/leads/{lead}',           [\App\Http\Controllers\LeadController::class, 'show'])->middleware('can.perm:leads.view');
+    Route::patch ('/shop/leads/{lead}',           [\App\Http\Controllers\LeadController::class, 'update'])->middleware('can.perm:leads.manage');
     Route::patch ('/shop/leads/{lead}/status',    [\App\Http\Controllers\LeadController::class, 'updateStatus'])->middleware('can.perm:leads.manage');
     Route::patch ('/shop/leads/{lead}/assign',    [\App\Http\Controllers\LeadController::class, 'assign'])->middleware('can.perm:leads.assign');
     Route::post  ('/shop/leads/{lead}/touch',     [\App\Http\Controllers\LeadController::class, 'logTouch'])->middleware('can.perm:leads.manage');

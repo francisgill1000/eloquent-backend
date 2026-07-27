@@ -17,9 +17,11 @@ use App\Services\Leads\OutreachWriter;
 use App\Services\Leads\SearchInterpreter;
 use App\Services\Ziina;
 use App\Support\Rbac;
+use App\Support\SocialHandle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Lead Finder — a UAE prospecting tool (search real businesses → save →
@@ -421,6 +423,65 @@ class LeadController extends Controller
         ]);
 
         return $this->logTouch($request, $lead);
+    }
+
+    /**
+     * PATCH /shop/leads/{lead}
+     * Edit a lead's contact details — the only lead-editing endpoint.
+     *
+     * Status, assignment and deal value are deliberately absent: each has its
+     * own endpoint with its own permission and its own activity log. This must
+     * not become a side door around leads.assign.
+     */
+    public function update(Request $request, Lead $lead)
+    {
+        $shop = $this->shop($request);
+        $this->guardLead($lead, $shop);
+
+        $data = $request->validate([
+            'phone' => ['nullable', 'string', 'max:60'],
+            'whatsapp' => ['nullable', 'string', 'max:60'],
+            'website' => ['nullable', 'string', 'max:2048'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+            'instagram' => ['nullable', 'string', 'max:2048'],
+            'facebook' => ['nullable', 'string', 'max:2048'],
+            'tiktok' => ['nullable', 'string', 'max:2048'],
+            'linkedin' => ['nullable', 'string', 'max:2048'],
+            'email' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        foreach (SocialHandle::PLATFORMS as $platform) {
+            if (! array_key_exists($platform, $data)) {
+                continue;
+            }
+
+            $raw = trim((string) ($data[$platform] ?? ''));
+            if ($raw === '') {
+                $lead->{$platform} = null;
+                continue;
+            }
+
+            $normalized = SocialHandle::normalize($platform, $raw);
+            if ($normalized === null) {
+                // A 422, never a silent null — storing nothing would look like
+                // the user simply hadn't filled it in.
+                throw ValidationException::withMessages([
+                    $platform => ["That doesn't look like a valid {$platform} handle or link."],
+                ]);
+            }
+
+            $lead->{$platform} = $normalized;
+        }
+
+        foreach (['phone', 'whatsapp', 'website', 'notes'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $lead->{$field} = $data[$field];
+            }
+        }
+
+        $lead->save();
+
+        return response()->json(['data' => $lead->fresh()]);
     }
 
     /**
