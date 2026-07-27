@@ -56,8 +56,11 @@ class LeadImporter
             // channel, not a website — move it so the lead arrives with a
             // working Facebook button instead of a misleading site link.
             if ($attrs['website'] !== null && SocialHandle::detectPlatform($attrs['website']) === 'facebook') {
-                $attrs['facebook'] = SocialHandle::normalize('facebook', $attrs['website']);
-                $attrs['website'] = null;
+                $normalized = SocialHandle::normalize('facebook', $attrs['website']);
+                if ($normalized !== null) {
+                    $attrs['facebook'] = $normalized;
+                    $attrs['website'] = null;
+                }
             }
 
             // Only stamp the pipeline when one was supplied — the Hunt assistant's
