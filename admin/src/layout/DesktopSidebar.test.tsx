@@ -52,13 +52,12 @@ describe('DesktopSidebar module gating', () => {
       expect(screen.getByText(l)).toBeTruthy());
   });
 
-  it('shows Overview for a leads shop', () => {
-    renderWith(['leads']);
-    expect(screen.getByText('Overview')).toBeTruthy();
-  });
-
-  it('hides Overview from a bookings-only shop', () => {
-    renderWith(['bookings']);
+  // Overview was folded into Home: on a Hunt shop, Home IS the dashboard that
+  // Overview used to link to. Two entries landing on the same page reads as a
+  // bug, so the duplicate was removed rather than re-pointed.
+  it.each([['leads'], ['bookings']] as const)('no longer offers a separate Overview entry (%s shop)', (m) => {
+    renderWith([m]);
     expect(screen.queryByText('Overview')).toBeNull();
+    expect(screen.getByText('Home')).toBeTruthy();
   });
 });

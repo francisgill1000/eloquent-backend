@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ShopProvider } from '@/context/ShopContext';
 import { SubscriptionProvider } from '@/context/SubscriptionContext';
 import RequireSubscription from '@/components/RequireSubscription';
@@ -46,7 +46,6 @@ import ChatThread from '@/pages/ChatThread';
 import WhatsAppSetup from '@/pages/WhatsAppSetup';
 import Leads from '@/pages/Leads';
 import LeadCredits from '@/pages/LeadCredits';
-import HuntInsights from '@/pages/HuntInsights';
 import LeadDetail from '@/pages/LeadDetail';
 import SimulationSettings from '@/pages/SimulationSettings';
 import WakeWordSettings from '@/pages/WakeWordSettings';
@@ -108,7 +107,8 @@ export default function App() {
               <Route path="/leads" element={<Leads />} />
               <Route path="/leads/:id" element={<LeadDetail />} />
               <Route path="/leads/credits" element={<LeadCredits />} />
-              <Route path="/hunt-insights" element={<HuntInsights />} />
+              {/* Overview folded into Home; kept so old links and bookmarks still land. */}
+              <Route path="/hunt-insights" element={<Navigate to="/" replace />} />
             </Route>
           </Route>
           <Route element={<RequirePerm perm={['users.view', 'roles.view']} />}>
@@ -135,11 +135,15 @@ export default function App() {
 
           {/* Authenticated tabbed */}
           <Route element={<MobileLayout />}>
-            {/* The Ask assistant is the home screen; /ask stays as an alias so
-                old links/bookmarks keep working. Both sit inside the tabbed
-                layout so the bottom bar stays visible. */}
+            {/* Home is gated per section, not per page: a Hunt user sees the
+                dashboard, a bookings-only user sees the Ask assistant, and a
+                user with neither sees an empty state (see Landing.tsx). Gating
+                the route would bounce one of those groups off their own home
+                page. /ask stays assistant-only, and remains an alias for the
+                assistant so old links and bookmarks keep working. All sit
+                inside the tabbed layout so the bottom bar stays visible. */}
+            <Route path="/" element={<Landing />} />
             <Route element={<RequirePerm perm="assistant.use" />}>
-              <Route path="/" element={<Landing />} />
               <Route path="/ask" element={<VoiceAssistant />} />
               <Route path="/ask/:conversationId" element={<VoiceAssistant />} />
             </Route>

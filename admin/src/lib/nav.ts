@@ -32,6 +32,17 @@ export function isLeadAgent(shop: NavShop, can: CanFn): boolean {
   return navVisible(['leads'], shop) && !can('leads.view_all');
 }
 
+/**
+ * Does Home render the Hunt dashboard for this user, rather than the Ask
+ * assistant? Home is composed per section (see components/Landing.tsx), and
+ * both Landing and VoiceAssistantFab must agree on the answer — the FAB has to
+ * stay hidden when Home is already showing the assistant inline, or it floats
+ * over it. Keeping the predicate here stops the two drifting apart.
+ */
+export function homeShowsDashboard(shop: NavShop, can: CanFn): boolean {
+  return navVisible(['leads'], shop) && can('leads.view');
+}
+
 /* ------------------------------------------------------------------ */
 /* Settings sub-menu — the single source of truth, shared by the      */
 /* Settings page and the sidebars (which show "Settings" only when at */
@@ -100,8 +111,12 @@ export function visibleSettingsPages(shop: NavShop, can: CanFn): SettingsOption[
  * permissions. Walks a priority list and returns the first section they can see.
  */
 export function firstAccessiblePath(shop: NavShop, can: CanFn): string {
+  // Home is reachable on either of its two sections — the Hunt dashboard or the
+  // Ask assistant — so a Hunt user without assistant.use must not be routed
+  // past a Home they can now see.
+  if (homeShowsDashboard(shop, can) || can('assistant.use')) return '/';
+
   const order: Array<{ to: string; modules: Module[]; perm?: Perm; settings?: boolean }> = [
-    { to: '/', modules: BOTH, perm: 'assistant.use' },
     { to: '/bookings', modules: ['bookings'], perm: 'bookings.view' },
     { to: '/leads', modules: ['leads'], perm: 'leads.view' },
     { to: '/ai-summary', modules: BOTH, perm: 'summary.view' },

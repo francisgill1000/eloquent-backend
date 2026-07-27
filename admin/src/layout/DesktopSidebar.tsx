@@ -20,9 +20,11 @@ const BOTH: Module[] = ['bookings', 'leads'];
 const BASE_NAV: NavItem[] = [
   // The Business Hunt at-a-glance dashboard, and the default landing after
   // login for a Hunt shop — kept at the top, above AI Summary.
-  { label: 'Overview', to: '/hunt-insights', icon: 'Chart', modules: ['leads'], perm: 'leads.view' },
   { label: 'AI Summary', to: '/ai-summary', icon: 'Sparkle', modules: BOTH, perm: 'summary.view' },
-  { label: 'Home', to: '/', icon: 'Home', end: true, modules: BOTH, perm: 'assistant.use' },
+  // Home carries no perm: it composes per section (Hunt dashboard, or the Ask
+  // assistant, or an empty state), so every authenticated user has a Home.
+  // The old Overview entry pointed at /hunt-insights, which is now Home.
+  { label: 'Home', to: '/', icon: 'Home', end: true, modules: BOTH },
   // Your past conversations with the Ask assistant.
   { label: 'Chats', to: '/conversations', icon: 'Chat', modules: BOTH, perm: 'chats.view' },
   { label: 'Bookings', to: '/bookings', icon: 'Calendar', modules: ['bookings'], perm: 'bookings.view' },

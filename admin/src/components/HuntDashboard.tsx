@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Icons } from '@/components/Icons';
 import { ChartCard } from '@/components/charts/ChartCard';
 import { Donut } from '@/components/charts/Donut';
 import { HuntAiCard } from '@/components/charts/HuntAiCard';
@@ -125,8 +124,14 @@ function Skeleton() {
   );
 }
 
-/* ---------- page ----------------------------------------------------------- */
-export default function HuntInsights() {
+/* ---------- dashboard ------------------------------------------------------- */
+/**
+ * The Hunt overview — KPIs, what needs chasing, trend, pipeline and agents.
+ *
+ * A component rather than a page, because Home composes it (see Landing.tsx).
+ * `/hunt-insights` now redirects to `/`, so this renders in exactly one place.
+ */
+export function HuntDashboard() {
   const { shop, can } = useShop();
   const today = useMemo(() => new Date(), []);
 
@@ -253,20 +258,6 @@ export default function HuntInsights() {
                   <Leaderboard rows={data.agents} />
                 </ChartCard>
               )}
-
-              <ChartCard icon="Search" title="Credits" sub="1 credit = one live search">
-                <div className="hi-credits">
-                  <span className="hi-cr-big">
-                    <span className="hi-cr-num">{fmtNum(data.credits.balance)}</span>
-                    <span className="hi-cr-cap">credits left</span>
-                  </span>
-                  <span className="hi-cr-meta">
-                    <span>{fmtNum(data.credits.used)} used in this range</span>
-                    <span>{fmtNum(data.credits.searches)} searches run</span>
-                  </span>
-                  <Link className="hi-cr-buy" to="/leads/credits">Buy credits <Icons.ArrowRight size={13} /></Link>
-                </div>
-              </ChartCard>
             </div>
           </>
         ) : null}

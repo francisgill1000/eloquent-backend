@@ -6,7 +6,7 @@ import { storage } from '@/lib/storage';
 import * as lib from '@/lib/huntInsights';
 import type { HuntInsights as Data } from '@/lib/huntInsights';
 import * as aiLib from '@/lib/aiInsights';
-import HuntInsights from './HuntInsights';
+import { HuntDashboard } from './HuntDashboard';
 
 function payload(over: Partial<Data> = {}): Data {
   return {
@@ -45,10 +45,10 @@ function setup(perms?: string[]) {
   storage.set('shop_token', 'tok');
   // Omit perms → permissions stay null → owner-equivalent (existing tests).
   if (perms) storage.setJSON('shop_permissions', perms);
-  return render(<MemoryRouter><ShopProvider><HuntInsights /></ShopProvider></MemoryRouter>);
+  return render(<MemoryRouter><ShopProvider><HuntDashboard /></ShopProvider></MemoryRouter>);
 }
 
-describe('HuntInsights', () => {
+describe('HuntDashboard', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
@@ -125,15 +125,6 @@ describe('HuntInsights', () => {
     expect(await screen.findByText('Pipeline')).toBeInTheDocument();
     // 4 won of 10 decided (4 won + 6 pass) = 40%.
     expect(screen.getByText('40% of decided leads won')).toBeInTheDocument();
-  });
-
-  it('shows the credit balance', async () => {
-    vi.spyOn(lib, 'getHuntInsights').mockResolvedValue(payload());
-
-    setup();
-
-    expect(await screen.findByText('120')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /buy credits/i })).toHaveAttribute('href', '/leads/credits');
   });
 
   it('hides the shop-wide AI summary from an agent (no leads.view_all)', async () => {

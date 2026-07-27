@@ -20,7 +20,7 @@ function rolling30Window() {
  * ranges would force a live (billable) generation on every range change, which
  * we don't want here — the standalone AI page is where you explore other ranges.
  */
-export function HuntAiCard({ shopId }: { shopId: number }) {
+export function HuntAiCard({ shopId, span2 = true }: { shopId: number; span2?: boolean }) {
   const [data, setData] = useState<AiInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -65,7 +65,7 @@ export function HuntAiCard({ shopId }: { shopId: number }) {
   };
 
   return (
-    <div className="ins-card span2 ins-ai">
+    <div className={`ins-card ins-ai${span2 ? ' span2' : ''}`}>
       <div className="ins-card-head">
         <span className="ins-card-ic"><Icons.Sparkle size={17} /></span>
         <span className="ins-card-titles">
