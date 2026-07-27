@@ -4,6 +4,7 @@ namespace App\Services\Reports;
 
 use App\Models\Booking;
 use App\Models\Lead;
+use App\Models\LeadActivity;
 use App\Support\Rbac;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -545,6 +546,92 @@ class ReportsAggregator
         usort($out, fn ($a, $b) => $b['won_value'] <=> $a['won_value']);
 
         return $out;
+    }
+
+    /**
+     * Which channel actually works: outbound touches, inbound replies, wins and
+     * won value per channel, for the Hunt dashboard.
+     *
+     * Reads the real `channel`/`direction` columns, so this is a plain GROUP BY
+     * and behaves identically on sqlite and pgsql — unlike the payload-based
+     * aggregations elsewhere in this class, which must group in PHP.
+     *
+     * @return array<int, array{channel: string, touches: int, replies: int, won: int, won_value: float}>
+     */
+    public function huntByChannel(int $shopId, Carbon $from, Carbon $to): array
+    {
+        $agent = $this->agentLeadFilter();
+
+        $touches = fn (string $direction) => DB::table('lead_activities')
+            ->join('leads', 'leads.id', '=', 'lead_activities.lead_id')
+            ->where('leads.shop_id', $shopId)
+            ->when($agent !== null, fn ($b) => $b->where('leads.assigned_to_id', $agent))
+            ->where('lead_activities.type', 'contacted')
+            ->where('lead_activities.direction', $direction)
+            ->whereNotNull('lead_activities.channel')
+            ->whereBetween('lead_activities.created_at', [$from, $to])
+            ->selectRaw('lead_activities.channel as ch, count(*) as c')
+            ->groupBy('ch')
+            ->pluck('c', 'ch');
+
+        $out = $touches(LeadActivity::DIRECTION_OUT);
+        $in = $touches(LeadActivity::DIRECTION_IN);
+
+        $wonRows = DB::table('leads')->where('shop_id', $shopId)
+            ->when($agent !== null, fn ($b) => $b->where('assigned_to_id', $agent))
+            ->where('status', 'won')
+            ->whereNotNull('deal_won_at')
+            ->whereBetween('deal_won_at', [$from, $to])
+            ->get(['id', 'deal_amount', 'deal_type', 'deal_term_months']);
+
+        // Attribution: the FIRST outbound touch ever recorded on the lead — the
+        // channel that opened the conversation, not whichever one happened to be
+        // in use at closing. Deliberately NOT date-bounded: the opener often
+        // predates the report window, and dropping it would silently move real
+        // wins into `unattributed`.
+        $firstTouch = [];
+        if ($wonRows->isNotEmpty()) {
+            $rows = DB::table('lead_activities')
+                ->whereIn('lead_id', $wonRows->pluck('id')->all())
+                ->where('type', 'contacted')
+                ->where('direction', LeadActivity::DIRECTION_OUT)
+                ->whereNotNull('channel')
+                ->orderBy('lead_id')->orderBy('id')
+                ->get(['lead_id', 'channel']);
+
+            foreach ($rows as $row) {
+                // Ordered by id, so the first row per lead wins.
+                $firstTouch[(int) $row->lead_id] ??= $row->channel;
+            }
+        }
+
+        $wonCount = [];
+        $wonValue = [];
+        foreach ($wonRows as $row) {
+            $channel = $firstTouch[(int) $row->id] ?? 'unattributed';
+            $wonCount[$channel] = ($wonCount[$channel] ?? 0) + 1;
+
+            $total = $this->dealTotal($row->deal_amount, $row->deal_type, $row->deal_term_months);
+            if ($total === null) {
+                continue;
+            }
+            $wonValue[$channel] = ($wonValue[$channel] ?? 0) + $total;
+        }
+
+        // Zero-filled and always in the same order, so the card renders a stable
+        // shape and a channel with no activity is visibly zero rather than absent.
+        $result = [];
+        foreach (array_merge(LeadActivity::CHANNELS, ['unattributed']) as $channel) {
+            $result[] = [
+                'channel' => $channel,
+                'touches' => (int) ($out[$channel] ?? 0),
+                'replies' => (int) ($in[$channel] ?? 0),
+                'won' => (int) ($wonCount[$channel] ?? 0),
+                'won_value' => round((float) ($wonValue[$channel] ?? 0), 2),
+            ];
+        }
+
+        return $result;
     }
 
     /**

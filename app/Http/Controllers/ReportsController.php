@@ -66,6 +66,7 @@ class ReportsController extends Controller
             'daily'     => $this->aggregator->huntDaily($shopId, $from, $to),
             'attention' => $this->aggregator->huntAttention($shopId),
             'agents'    => $this->aggregator->huntByAgent($shopId, $from, $to),
+            'channels'  => $this->aggregator->huntByChannel($shopId, $from, $to),
             'credits'   => [
                 'balance'  => $credits->balance(Shop::findOrFail($shopId)),
                 'used'     => $summary['credits_used'],
