@@ -312,7 +312,7 @@ class LeadController extends Controller
 
         $activities = $lead->activities()
             ->orderByDesc('id')
-            ->get(['id', 'type', 'payload', 'created_at']);
+            ->get(['id', 'type', 'channel', 'direction', 'payload', 'created_at']);
 
         return response()->json([
             'data' => $lead,
@@ -379,25 +379,48 @@ class LeadController extends Controller
     }
 
     /**
-     * POST /shop/leads/{lead}/followup
-     * Record a follow-up nudge: logs a `contacted` activity and bumps
-     * last_contacted_at. Does not change the funnel status.
+     * POST /shop/leads/{lead}/touch {channel, direction, note?}
+     * Record one contact touch. One endpoint for both directions — a touch is a
+     * touch, and two near-identical endpoints would drift. Never changes the
+     * funnel status; that stays under updateStatus().
      */
-    public function logFollowup(Request $request, Lead $lead)
+    public function logTouch(Request $request, Lead $lead)
     {
         $shop = $this->shop($request);
         $this->guardLead($lead, $shop);
 
-        $lead->last_contacted_at = now();
-        $lead->save();
-
-        $lead->activities()->create([
-            'type' => LeadActivity::TYPE_CONTACTED,
-            'payload' => ['channel' => 'whatsapp', 'kind' => 'followup'],
-            'user_id' => current_shop_user()?->id,
+        $data = $request->validate([
+            'channel' => ['required', Rule::in(LeadActivity::CHANNELS)],
+            'direction' => ['required', Rule::in(LeadActivity::DIRECTIONS)],
+            'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        $lead->recordTouch(
+            $data['channel'],
+            $data['direction'],
+            $data['note'] ?? null,
+            current_shop_user(),
+        );
+
         return response()->json(['data' => $lead->fresh()]);
+    }
+
+    /**
+     * POST /shop/leads/{lead}/followup
+     *
+     * @deprecated Deploy-window alias only. The backend ships before the SPA, so
+     * the live admin build still calls this. Delete it (and its route) in the
+     * follow-up commit once the new SPA is deployed — a route that silently
+     * means "whatsapp, outbound" is the exact bug this feature fixes.
+     */
+    public function logFollowup(Request $request, Lead $lead)
+    {
+        $request->merge([
+            'channel' => 'whatsapp',
+            'direction' => LeadActivity::DIRECTION_OUT,
+        ]);
+
+        return $this->logTouch($request, $lead);
     }
 
     /**

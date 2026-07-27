@@ -40,7 +40,9 @@ class LeadFollowupTest extends TestCase
             'status' => 'sent', 'source' => 'google', 'last_contacted_at' => now()->subDays(3),
         ]);
 
-        $this->auth($token)->postJson("/api/shop/leads/{$lead->id}/followup")
+        $this->auth($token)->postJson("/api/shop/leads/{$lead->id}/touch", [
+            'channel' => 'whatsapp', 'direction' => 'out',
+        ])
             ->assertOk()
             ->assertJsonPath('data.status', 'sent');
 
@@ -59,6 +61,8 @@ class LeadFollowupTest extends TestCase
             'status' => 'sent', 'source' => 'google',
         ]);
 
-        $this->auth($token)->postJson("/api/shop/leads/{$lead->id}/followup")->assertNotFound();
+        $this->auth($token)->postJson("/api/shop/leads/{$lead->id}/touch", [
+            'channel' => 'whatsapp', 'direction' => 'out',
+        ])->assertNotFound();
     }
 }

@@ -304,6 +304,39 @@ class Lead extends Model
     }
 
     /**
+     * Record one contact touch on this lead. Shared by the web controller, the
+     * status-change reply capture, and the voice tool, so the rules live in one
+     * place and cannot drift between them.
+     *
+     * A null channel means "we know a touch happened but not how" — honest, and
+     * preferable to defaulting to whatsapp, which is the bug this feature fixes.
+     */
+    public function recordTouch(
+        ?string $channel,
+        string $direction = LeadActivity::DIRECTION_OUT,
+        ?string $note = null,
+        ?ShopUser $actor = null,
+    ): LeadActivity {
+        return DB::transaction(function () use ($channel, $direction, $note, $actor) {
+            // Only OUR outbound work resets the staleness clock. A reply from
+            // the lead leaves the ball in our court — precisely when a lead is
+            // most at risk of being dropped — so it must not look freshly worked.
+            if ($direction === LeadActivity::DIRECTION_OUT) {
+                $this->last_contacted_at = now();
+                $this->save();
+            }
+
+            return $this->activities()->create([
+                'type' => LeadActivity::TYPE_CONTACTED,
+                'channel' => $channel,
+                'direction' => $direction,
+                'payload' => $note !== null && $note !== '' ? ['note' => $note] : null,
+                'user_id' => $actor?->id,
+            ]);
+        });
+    }
+
+    /**
      * Is this lead visible to $user under the assignment rules? Route-model
      * binding resolves BEFORE the rbac.context middleware sets the acting user,
      * so AssignedLeadScope is inert at bind time — controllers must ask this
