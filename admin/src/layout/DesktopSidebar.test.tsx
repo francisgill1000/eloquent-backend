@@ -14,16 +14,19 @@ import type { Shop } from '@/types';
  */
 type Ctx = NonNullable<ComponentProps<typeof ShopContext.Provider>['value']>;
 
-/** These tests cover MODULE gating, so the user is granted every permission. */
-function renderWith(modules: string[]) {
+/**
+ * These tests cover MODULE gating, so by default the user is granted every
+ * permission. Pass `perms` to narrow it and exercise PERMISSION gating instead.
+ */
+function renderWith(modules: string[], perms?: string[]) {
   const shop = { name: 'S', modules } as unknown as Shop;
   const ctx: Ctx = {
     shop,
     token: 'tok',
     loading: false,
     currentUser: null,
-    permissions: ['*'],
-    can: () => true,
+    permissions: perms ?? ['*'],
+    can: (p: string) => perms === undefined || perms.includes(p),
     loginShop: () => {},
     setAccess: () => {},
     logoutShop: () => {},
@@ -59,5 +62,20 @@ describe('DesktopSidebar module gating', () => {
     renderWith([m]);
     expect(screen.queryByText('Overview')).toBeNull();
     expect(screen.getByText('Home')).toBeTruthy();
+  });
+});
+
+describe('DesktopSidebar permission gating', () => {
+  // Home is the post-login landing screen, so it is grantable like any other
+  // menu item rather than being permanently visible.
+  it('shows Home to a user with home.view', () => {
+    renderWith(['leads'], ['home.view']);
+    expect(screen.getByText('Home')).toBeTruthy();
+  });
+
+  it('hides Home from a user without home.view', () => {
+    renderWith(['leads'], ['leads.view']);
+    expect(screen.queryByText('Home')).toBeNull();
+    expect(screen.getByText('Business Hunt')).toBeTruthy();
   });
 });

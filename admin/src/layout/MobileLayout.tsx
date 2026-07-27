@@ -11,8 +11,7 @@ const BOTH: Module[] = ['bookings', 'leads'];
 
 const ALL_TABS: Tab[] = [
   { id: 'ai-summary', label: 'Summary', href: '/ai-summary', icon: 'Sparkle', modules: BOTH, perm: 'summary.view' },
-  // No perm: Home composes per section, so every authenticated user has one.
-  { id: 'home', label: 'Home', href: '/', icon: 'Home', modules: BOTH },
+  { id: 'home', label: 'Home', href: '/', icon: 'Home', modules: BOTH, perm: 'home.view' },
   // Past conversations with the Ask assistant.
   { id: 'conversations', label: 'Chats', href: '/conversations', icon: 'Chat', modules: BOTH, perm: 'chats.view' },
   { id: 'bookings', label: 'Bookings', href: '/bookings', icon: 'Calendar', modules: ['bookings'], perm: 'bookings.view' },

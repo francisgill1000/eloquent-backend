@@ -135,14 +135,16 @@ export default function App() {
 
           {/* Authenticated tabbed */}
           <Route element={<MobileLayout />}>
-            {/* Home is gated per section, not per page: a Hunt user sees the
-                dashboard, a bookings-only user sees the Ask assistant, and a
-                user with neither sees an empty state (see Landing.tsx). Gating
-                the route would bounce one of those groups off their own home
-                page. /ask stays assistant-only, and remains an alias for the
-                assistant so old links and bookmarks keep working. All sit
-                inside the tabbed layout so the bottom bar stays visible. */}
-            <Route path="/" element={<Landing />} />
+            {/* Home is the post-login landing screen, so it is grantable like
+                any other menu item (home.view). What it RENDERS still varies by
+                section — the Hunt dashboard for a user with leads.view, else the
+                Ask assistant (see Landing.tsx). /ask is separate: it stays
+                assistant-only, and remains an alias for the assistant so old
+                links and bookmarks keep working. All sit inside the tabbed
+                layout so the bottom bar stays visible. */}
+            <Route element={<RequirePerm perm="home.view" />}>
+              <Route path="/" element={<Landing />} />
+            </Route>
             <Route element={<RequirePerm perm="assistant.use" />}>
               <Route path="/ask" element={<VoiceAssistant />} />
               <Route path="/ask/:conversationId" element={<VoiceAssistant />} />

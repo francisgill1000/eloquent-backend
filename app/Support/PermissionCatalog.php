@@ -29,15 +29,18 @@ use App\Models\Shop;
  * Keep this in step with admin/src/lib/nav.ts, admin/src/layout/DesktopSidebar.tsx
  * and MobileLayout.tsx (the perm on each nav item must match the group here).
  *
- * **Home is the one deliberate exception, since 2026-07-27.** It carries no
- * permission at all, so it has no group. Home composes itself per section — the
- * Hunt dashboard for a user with leads.view, the Ask assistant for a
- * bookings-only shop, an empty state for neither (see admin/src/components/
- * Landing.tsx) — so every user has a Home and only its CONTENTS vary. Listing a
- * "Home" group here would be a lie: granting it would not control Home, and the
- * thing that does control Home's main content (leads.view) lives under Business
- * Hunt. What used to be the "Home" group is now "Ask assistant", which is what
- * assistant.use actually gates: the mic button and /ask.
+ * Home and the Ask assistant are two groups, not one, since 2026-07-27. Home is
+ * the screen a user lands on after login, so `home.view` gates it like any other
+ * menu item — Francis: "this is the main dashboard, [it] should exist in the
+ * permission list". What Home then RENDERS still varies by section: the Hunt
+ * dashboard for a user with leads.view, otherwise the Ask assistant (see
+ * admin/src/components/Landing.tsx). `assistant.use` is separate because it
+ * gates the assistant itself — the floating mic and /ask — which is reachable
+ * from anywhere, not just Home.
+ *
+ * `home.view` was added after roles already existed, so it is backfilled to
+ * every existing role by `home:backfill-view`; without that, adding a required
+ * permission would have locked every non-owner user out of their landing page.
  */
 class PermissionCatalog
 {
@@ -54,8 +57,15 @@ class PermissionCatalog
             'summary' => ['label' => 'AI Summary', 'module' => null, 'section' => null, 'permissions' => [
                 'summary.view' => 'See the AI summary',
             ]],
-            // Gates the Ask assistant itself — the floating mic and /ask — NOT
-            // the Home page, which is ungated (see the class docblock).
+            // Home is the screen a user lands on after login, so it is grantable
+            // like every other menu item. `home.view` gates the page; what the
+            // page then RENDERS still varies by section — the Hunt dashboard for
+            // a user with leads.view, otherwise the Ask assistant (see
+            // admin/src/components/Landing.tsx).
+            'home' => ['label' => 'Home', 'module' => null, 'section' => null, 'permissions' => [
+                'home.view' => 'See the home dashboard',
+            ]],
+            // Gates the Ask assistant itself — the floating mic and /ask.
             'assistant' => ['label' => 'Ask assistant', 'module' => null, 'section' => null, 'permissions' => [
                 'assistant.use' => 'Use the Ask assistant (mic)',
             ]],

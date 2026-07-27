@@ -111,12 +111,8 @@ export function visibleSettingsPages(shop: NavShop, can: CanFn): SettingsOption[
  * permissions. Walks a priority list and returns the first section they can see.
  */
 export function firstAccessiblePath(shop: NavShop, can: CanFn): string {
-  // Home is reachable on either of its two sections — the Hunt dashboard or the
-  // Ask assistant — so a Hunt user without assistant.use must not be routed
-  // past a Home they can now see.
-  if (homeShowsDashboard(shop, can) || can('assistant.use')) return '/';
-
   const order: Array<{ to: string; modules: Module[]; perm?: Perm; settings?: boolean }> = [
+    { to: '/', modules: BOTH, perm: 'home.view' },
     { to: '/bookings', modules: ['bookings'], perm: 'bookings.view' },
     { to: '/leads', modules: ['leads'], perm: 'leads.view' },
     { to: '/ai-summary', modules: BOTH, perm: 'summary.view' },

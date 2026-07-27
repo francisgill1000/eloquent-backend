@@ -68,7 +68,7 @@ class PermissionCatalogTest extends TestCase
         // Insights/reports is a bookings Settings page.
         $this->assertContains('reports', $keys);
         // Shared menu rows always show (one per left-menu item).
-        foreach (['summary', 'assistant', 'chats', 'profile', 'access', 'settings'] as $key) {
+        foreach (['summary', 'home', 'assistant', 'chats', 'profile', 'access', 'settings'] as $key) {
             $this->assertContains($key, $keys);
         }
         // The stripped shape is { label, section, permissions } — no module key
@@ -102,7 +102,7 @@ class PermissionCatalogTest extends TestCase
         $groups = PermissionCatalog::grouped();
 
         // One group per left-menu item; each is top-level (section null).
-        foreach (['summary', 'assistant', 'chats', 'bookings', 'customers', 'hunt', 'profile'] as $key) {
+        foreach (['summary', 'home', 'assistant', 'chats', 'bookings', 'customers', 'hunt', 'profile'] as $key) {
             $this->assertArrayHasKey($key, $groups, "$key menu should have a permission group");
             $this->assertNull($groups[$key]['section'], "$key should be a top-level row");
         }
@@ -123,7 +123,7 @@ class PermissionCatalogTest extends TestCase
         }
 
         // Top-level menu rows are not sectioned.
-        foreach (['summary', 'assistant', 'chats', 'bookings', 'customers', 'hunt', 'profile'] as $key) {
+        foreach (['summary', 'home', 'assistant', 'chats', 'bookings', 'customers', 'hunt', 'profile'] as $key) {
             $this->assertNull($groups[$key]['section'], "$key should be top-level");
         }
     }
@@ -139,7 +139,7 @@ class PermissionCatalogTest extends TestCase
         $this->assertNotContains('bookings', $keys);
         $this->assertNotContains('customers', $keys);
         // Shared menu rows still show.
-        foreach (['summary', 'assistant', 'chats', 'profile', 'access', 'settings'] as $key) {
+        foreach (['summary', 'home', 'assistant', 'chats', 'profile', 'access', 'settings'] as $key) {
             $this->assertContains($key, $keys);
         }
     }
