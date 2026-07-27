@@ -20,6 +20,7 @@
 - **Static `/shop/leads/*` routes are declared before `{lead}` routes** in `routes/api.php` — order matters (see the comment at `routes/api.php:290`).
 - **Backend tests run on the droplet, never locally** (local PHP is broken), against the isolated `/root/testrun` checkout — **never** the production database.
 - **No feature branches.** Commit directly to `main`.
+- **Stage explicit paths only — never `git add -A` or `git commit -a`.** The working tree carries unrelated in-progress changes (`admin/src/pages/Conversations.tsx`, `admin/src/styles/customer.css`, `docs/superpowers/specs/2026-07-24-hunt-dashboard-design.md`, `docs/superpowers/plans/2026-07-23-staff-login.md`) that must never enter a commit for this feature. Stage only the files your task's **Files** section names.
 
 ### Test harness
 
@@ -3028,7 +3029,8 @@ bash "C:/Users/franc/AppData/Local/Temp/claude/D--Francis-projects-2026-Eloquent
 ```
 
 ```bash
-git add -A
+git add app/Http/Controllers/LeadController.php routes/api.php tests/Feature/LeadTouchTest.php
+git rm tests/Feature/LeadFollowupTest.php
 git commit -m "chore(hunt): drop the deprecated /followup alias now the SPA ships /touch"
 git push origin main
 ```
