@@ -1,9 +1,8 @@
 <?php
-
-namespace Tests\Feature;
+namespace Tests\Unit;
 
 use App\Support\SocialHandle;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class SocialHandleTest extends TestCase
 {
