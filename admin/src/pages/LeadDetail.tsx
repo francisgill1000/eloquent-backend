@@ -8,6 +8,7 @@ import { DEAL_TERMS } from '@/types';
 import type { Assignee, DealInput, DealType, Lead, LeadActivity, LeadChannel, LeadStatus } from '@/types';
 import { CHANNEL_META, availableChannels, channelHref, channelLabel } from '@/lib/channels';
 import { ChannelPicker } from '@/components/ChannelPicker';
+import { ContactDetails } from '@/components/ContactDetails';
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
   new: 'New', sent: 'Sent', followup: 'Follow-up', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Not Interested',
@@ -160,6 +161,10 @@ export default function LeadDetail() {
   // Channel pickers for the generic "Log a touch" / "They replied" controls.
   const [touchPicker, setTouchPicker] = useState(false);
   const [replyPicker, setReplyPicker] = useState(false);
+  // Moving the funnel stage itself to Replied asks which channel they replied
+  // on — distinct from replyPicker above, which logs an inbound touch without
+  // necessarily moving the stage. Mirrors wonModal's precedent exactly.
+  const [replyModal, setReplyModal] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -204,8 +209,9 @@ export default function LeadDetail() {
     return () => window.removeEventListener('keydown', onKey);
   }, [wonModal]);
 
-  // Any status change but Won commits right away; Won opens the deal-capture
-  // panel first (drag or tap both land here, so both get the panel).
+  // Any status change but Won or Replied commits right away; Won opens the
+  // deal-capture panel first, and Replied opens the channel prompt first
+  // (drag or tap both land here, so both get their panel).
   const setStatus = async (status: LeadStatus) => {
     if (!lead || status === lead.status || locked) return;
     if (status === 'won') {
@@ -213,14 +219,18 @@ export default function LeadDetail() {
       setWonModal(true);
       return;
     }
+    if (status === 'replied') {
+      setReplyModal(true);
+      return;
+    }
     await commitStatus(status);
   };
 
-  const commitStatus = async (status: LeadStatus, deal?: DealInput) => {
+  const commitStatus = async (status: LeadStatus, deal?: DealInput, replyChannel?: LeadChannel) => {
     if (!lead || !mayManage) return;
     setBusy(true); setError('');
     try {
-      await updateLeadStatus(lead.id, status, undefined, deal);
+      await updateLeadStatus(lead.id, status, undefined, deal, replyChannel);
       await load();
     } catch {
       setError('Could not update status.');
@@ -633,6 +643,8 @@ export default function LeadDetail() {
           </div>
         </div>
 
+        <ContactDetails lead={lead} canEdit={mayManage} onSaved={() => void load()} />
+
         {/* Activity history */}
         <div className="ba-section">
           <div className="ba-section-title">Activity</div>
@@ -667,6 +679,17 @@ export default function LeadDetail() {
         title="How did they reply?"
         onPick={(channel) => void logReply(channel)}
         onClose={() => setReplyPicker(false)}
+      />
+      {/* Distinct third picker: this one fires when the funnel STAGE itself
+          moves to Replied (via the stage switch), not from the "They
+          replied" quick action above. Dismissing it must still commit the
+          status move — an unknown channel is honest, and blocking the
+          funnel move on it would be worse than recording nothing. */}
+      <ChannelPicker
+        open={replyModal}
+        title="How did they reply?"
+        onPick={(channel) => { setReplyModal(false); void commitStatus('replied', undefined, channel); }}
+        onClose={() => { setReplyModal(false); void commitStatus('replied'); }}
       />
     </div></div>
   );

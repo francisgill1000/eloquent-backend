@@ -1057,3 +1057,25 @@
 .cp-opt:hover { background: color-mix(in srgb, var(--ch) 12%, transparent); }
 .cp-skip { margin-top: 14px; width: 100%; padding: 9px; border-radius: 10px; cursor: pointer;
   background: transparent; border: 1px solid var(--border-1); color: var(--text-3); }
+
+/* Contact details editor — a card of raw contact-channel handles, editable
+   with leads.manage. Read-only rendering (no permission) is the same layout
+   minus the Save button; inputs stay visible but disabled. */
+.ld-contact { margin: 0 16px 14px; padding: 16px 18px; background: var(--surface-1);
+  border: 1px solid var(--border-1); border-radius: var(--r-lg); }
+.ld-contact-title { margin: 0 0 12px; font-size: 13px; font-weight: 700; color: var(--text-1); }
+.ld-contact-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.ld-contact-row { display: flex; flex-direction: column; gap: 4px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-3); }
+.ld-contact-row input {
+  font-family: inherit; text-transform: none; letter-spacing: normal; font-weight: 500;
+  padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border-1);
+  background: rgba(255, 255, 255, 0.03); color: var(--text-1); font-size: 13.5px;
+}
+.ld-contact-row input:disabled { opacity: .6; }
+.ld-contact-row input::placeholder { color: var(--text-4); }
+.ld-contact-err { font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: normal; color: var(--danger); }
+.ld-contact .ld-act { margin-top: 14px; }
+@media (max-width: 640px) {
+  .ld-contact-grid { grid-template-columns: 1fr; }
+}

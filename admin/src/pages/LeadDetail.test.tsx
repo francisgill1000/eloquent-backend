@@ -293,12 +293,14 @@ describe('LeadDetail won-deal capture', () => {
     fireEvent.change(await screen.findByLabelText(/amount/i), { target: { value: '300' } });
     fireEvent.click(screen.getByRole('button', { name: /recurring/i }));
     fireEvent.click(screen.getByRole('button', { name: /6 months/i }));
-    fireEvent.click(screen.getByRole('button', { name: /save|confirm/i }));
+    // Scoped to the deal dialog — the page also has the (unrelated) contact
+    // details editor's own Save button, which also matches /save/i.
+    fireEvent.click(within(screen.getByRole('dialog', { name: /deal value/i })).getByRole('button', { name: /save|confirm/i }));
 
     await waitFor(() =>
       expect(spy).toHaveBeenCalledWith(expect.any(Number), 'won', undefined, {
         deal_amount: 300, deal_type: 'recurring', deal_term_months: 6,
-      }),
+      }, undefined),
     );
   });
 
@@ -311,12 +313,13 @@ describe('LeadDetail won-deal capture', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^won$/i }));
     fireEvent.change(await screen.findByLabelText(/amount/i), { target: { value: '500' } });
     fireEvent.click(screen.getByRole('button', { name: /one-off/i }));
-    fireEvent.click(screen.getByRole('button', { name: /save|confirm/i }));
+    // Scoped to the deal dialog — see the note in the recurring-deal test above.
+    fireEvent.click(within(screen.getByRole('dialog', { name: /deal value/i })).getByRole('button', { name: /save|confirm/i }));
 
     await waitFor(() =>
       expect(spy).toHaveBeenCalledWith(expect.any(Number), 'won', undefined, {
         deal_amount: 500, deal_type: 'one_off',
-      }),
+      }, undefined),
     );
     const callArg = spy.mock.calls[0][3];
     expect(callArg).not.toHaveProperty('deal_term_months');
@@ -332,7 +335,7 @@ describe('LeadDetail won-deal capture', () => {
     await screen.findByLabelText(/amount/i);
     fireEvent.click(screen.getByRole('button', { name: /^skip$/i }));
 
-    await waitFor(() => expect(spy).toHaveBeenCalledWith(expect.any(Number), 'won', undefined, undefined));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith(expect.any(Number), 'won', undefined, undefined, undefined));
   });
 
   it('cancels the won panel without committing any status change', async () => {
@@ -347,6 +350,91 @@ describe('LeadDetail won-deal capture', () => {
     // Panel closes and no status update fires — lead stays where it was.
     await waitFor(() => expect(screen.queryByLabelText(/amount/i)).not.toBeInTheDocument());
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe('LeadDetail contact details editor', () => {
+  beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); vi.stubGlobal('open', vi.fn()); });
+
+  it('mounts the contact details editor for a leads.manage user', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead }, activities: [] });
+
+    setup();
+    await screen.findByText('Pak Cargo');
+
+    expect(screen.getByLabelText(/instagram/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
+  });
+
+  it('renders the contact details editor read-only without leads.manage', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead }, activities: [] });
+
+    setup(['leads.view']);
+    await screen.findByText('Pak Cargo');
+
+    expect(screen.getByLabelText(/instagram/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();
+  });
+
+  it('refreshes the lead after saving contact details', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead }, activities: [] });
+    const update = vi.spyOn(leadsLib, 'updateLead').mockResolvedValue({ ...baseLead, instagram: '@pakcargo' });
+
+    setup();
+    await screen.findByText('Pak Cargo');
+    await userEvent.type(screen.getByLabelText(/instagram/i), '@pakcargo');
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => expect(update).toHaveBeenCalledWith(3, expect.objectContaining({ instagram: '@pakcargo' })));
+    // getLead is called once on initial load and again by onSaved's load().
+    await waitFor(() => expect(leadsLib.getLead).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('LeadDetail reply-channel prompt', () => {
+  beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); vi.stubGlobal('open', vi.fn()); });
+
+  it('asks how they replied when the funnel stage moves to Replied, and commits with the picked channel', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'sent' }, activities: [] });
+    const spy = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'replied' });
+
+    setup();
+    await screen.findByText('Pak Cargo');
+    fireEvent.click(screen.getByRole('button', { name: /^replied$/i }));
+
+    // The status write must not fire until a channel is chosen (or skipped).
+    expect(spy).not.toHaveBeenCalled();
+
+    const dialog = await screen.findByRole('dialog', { name: /how did they reply/i });
+    await userEvent.click(within(dialog).getByRole('button', { name: /^instagram$/i }));
+
+    await waitFor(() => expect(spy).toHaveBeenCalledWith(3, 'replied', undefined, undefined, 'instagram'));
+  });
+
+  it('still commits the move to Replied when the channel prompt is dismissed', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'sent' }, activities: [] });
+    const spy = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'replied' });
+
+    setup();
+    await screen.findByText('Pak Cargo');
+    fireEvent.click(screen.getByRole('button', { name: /^replied$/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /how did they reply/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^skip$/i }));
+
+    await waitFor(() => expect(spy).toHaveBeenCalledWith(3, 'replied', undefined, undefined, undefined));
+  });
+
+  it('does not ask for a channel for any other stage move', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'sent' }, activities: [] });
+    const spy = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'followup' });
+
+    setup();
+    await screen.findByText('Pak Cargo');
+    fireEvent.click(screen.getByRole('button', { name: /^follow-up$/i }));
+
+    await waitFor(() => expect(spy).toHaveBeenCalledWith(3, 'followup', undefined, undefined, undefined));
+    expect(screen.queryByRole('dialog', { name: /how did they reply/i })).not.toBeInTheDocument();
   });
 });
 
