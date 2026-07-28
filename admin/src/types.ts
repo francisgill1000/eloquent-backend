@@ -203,6 +203,16 @@ export type MasterShop = {
 export const LEAD_STATUSES = ['new', 'sent', 'followup', 'replied', 'demo', 'won', 'pass'] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
+/** How a touch happened — mirrors the backend LeadActivity::CHANNELS. */
+export const LEAD_CHANNELS = [
+  'whatsapp', 'instagram', 'facebook', 'tiktok', 'linkedin',
+  'phone', 'email', 'walk_in', 'other',
+] as const;
+export type LeadChannel = (typeof LEAD_CHANNELS)[number];
+
+/** `out` = we contacted them, `in` = they contacted us. */
+export type TouchDirection = 'out' | 'in';
+
 export type DealType = 'one_off' | 'recurring';
 export const DEAL_TERMS = [1, 3, 6, 12] as const;
 export type DealInput = { deal_amount: number; deal_type: DealType; deal_term_months?: number };
@@ -263,6 +273,11 @@ export type Lead = {
   phone?: string | null;
   whatsapp?: string | null;
   website?: string | null;
+  instagram?: string | null;
+  facebook?: string | null;
+  tiktok?: string | null;
+  linkedin?: string | null;
+  email?: string | null;
   address?: string | null;
   category?: string | null;
   /** The named pipeline/list this lead was saved into. */
@@ -308,6 +323,9 @@ export type LeadListResponse = {
 export type LeadActivity = {
   id: number;
   type: 'status_change' | 'note' | 'contacted' | 'assigned' | string;
+  /** Set on `contacted` rows only. Null on rows logged before channels existed. */
+  channel?: LeadChannel | null;
+  direction?: TouchDirection | null;
   payload?: { from?: string; to?: string; note?: string; from_name?: string; to_name?: string } | null;
   created_at?: string | null;
 };

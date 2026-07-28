@@ -35,6 +35,7 @@ function payload(over: Partial<Data> = {}): Data {
       { id: 3, name: 'Sara', leads: 41, won: 3, won_value: 7000 },
       { id: 4, name: 'Omar', leads: 12, won: 1, won_value: 2000 },
     ],
+    channels: [],
     credits: { balance: 120, used: 18, searches: 18 },
     ...over,
   };

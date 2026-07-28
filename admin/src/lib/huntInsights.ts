@@ -12,6 +12,15 @@ export type HuntAttention = {
 
 export type HuntAgentRow = { id: number; name: string; leads: number; won: number; won_value: number };
 
+export type HuntChannelRow = {
+  /** A LeadChannel, or the synthetic `unattributed` bucket. */
+  channel: string;
+  touches: number;
+  replies: number;
+  won: number;
+  won_value: number;
+};
+
 export type HuntSummary = {
   range: { from: string; to: string };
   new_leads: number;
@@ -34,6 +43,7 @@ export type HuntInsights = {
   attention: HuntAttention;
   /** Empty for an agent — the backend hides the leaderboard from them. */
   agents: HuntAgentRow[];
+  channels: HuntChannelRow[];
   credits: { balance: number; used: number; searches: number };
 };
 
@@ -56,6 +66,7 @@ export async function getHuntInsights(from: string, to: string): Promise<HuntIns
     daily: Array.isArray(data?.daily) ? data.daily : [],
     attention: data?.attention ?? { followups_overdue: 0, followups_today: 0, stale: 0, unassigned: 0 },
     agents: Array.isArray(data?.agents) ? data.agents : [],
+    channels: Array.isArray(data?.channels) ? data.channels : [],
     credits: data?.credits ?? { balance: 0, used: 0, searches: 0 },
   };
 }

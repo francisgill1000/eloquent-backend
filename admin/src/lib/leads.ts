@@ -3,11 +3,13 @@ import type {
   CreditPack,
   DealInput,
   Lead,
+  LeadChannel,
   LeadDetailResponse,
   LeadListResponse,
   LeadResult,
   LeadSearchResponse,
   LeadStatus,
+  TouchDirection,
 } from '@/types';
 
 /**
@@ -162,14 +164,37 @@ export async function updateLeadStatus(
   status: LeadStatus,
   note?: string,
   deal?: DealInput,
+  replyChannel?: LeadChannel,
 ): Promise<Lead> {
-  const { data } = await api.patch(`/shop/leads/${id}/status`, { status, note, ...(deal ?? {}) });
+  const { data } = await api.patch(`/shop/leads/${id}/status`, {
+    status, note, ...(deal ?? {}), ...(replyChannel ? { reply_channel: replyChannel } : {}),
+  });
   return data?.data ?? data;
 }
 
 /** Record a follow-up nudge; logs a `contacted` activity + bumps last_contacted_at. */
 export async function logFollowup(id: number): Promise<Lead> {
   const { data } = await api.post(`/shop/leads/${id}/followup`);
+  return data?.data ?? data;
+}
+
+/** Record one contact touch; logs a `contacted` activity with its channel. */
+export async function logTouch(
+  id: number,
+  channel: LeadChannel,
+  direction: TouchDirection = 'out',
+  note?: string,
+): Promise<Lead> {
+  const { data } = await api.post(`/shop/leads/${id}/touch`, { channel, direction, note });
+  return data?.data ?? data;
+}
+
+/** Edit a lead's contact details. Status/assignment/deal have their own endpoints. */
+export async function updateLead(
+  id: number,
+  fields: Partial<Pick<Lead, 'phone' | 'whatsapp' | 'website' | 'notes' | 'instagram' | 'facebook' | 'tiktok' | 'linkedin' | 'email'>>,
+): Promise<Lead> {
+  const { data } = await api.patch(`/shop/leads/${id}`, fields);
   return data?.data ?? data;
 }
 
