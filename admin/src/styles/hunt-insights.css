@@ -92,3 +92,27 @@
   color: var(--mint-300);
   white-space: nowrap;
 }
+
+/* --- Channel breakdown ----------------------------------------------------- */
+.hi-channels { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.hi-channel {
+  display: grid;
+  grid-template-columns: 84px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.hi-channel-name { color: var(--ch); font-weight: 600; }
+.hi-channel-track {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ch) 15%, transparent);
+  overflow: hidden;
+}
+.hi-channel-fill { display: block; height: 100%; background: var(--ch); }
+.hi-channel-stats { color: var(--text-3); white-space: nowrap; }
+
+@media (max-width: 480px) {
+  .hi-channel { grid-template-columns: 72px 1fr; }
+  .hi-channel-stats { grid-column: 2; font-size: 12px; }
+}

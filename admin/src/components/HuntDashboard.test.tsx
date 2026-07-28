@@ -154,4 +154,50 @@ describe('HuntDashboard', () => {
 
     expect(await screen.findByText('Could not load your overview.')).toBeInTheDocument();
   });
+
+  it('ranks channels by wins, then replies, then touches', async () => {
+    vi.spyOn(lib, 'getHuntInsights').mockResolvedValue(payload({
+      channels: [
+        { channel: 'whatsapp', touches: 10, replies: 2, won: 1, won_value: 500 },
+        { channel: 'instagram', touches: 4, replies: 3, won: 3, won_value: 4500 },
+        { channel: 'tiktok', touches: 0, replies: 0, won: 0, won_value: 0 },
+        { channel: 'unattributed', touches: 0, replies: 0, won: 2, won_value: 900 },
+      ],
+    }));
+
+    setup();
+
+    const names = (await screen.findAllByTestId('hi-channel-name')).map((n) => n.textContent);
+
+    // Instagram (3 wins) outranks WhatsApp (1); unattributed is always last.
+    expect(names[0]).toMatch(/Instagram/i);
+    expect(names[1]).toMatch(/WhatsApp/i);
+    expect(names[names.length - 1]).toMatch(/Unattributed/i);
+  });
+
+  it('always shows the unattributed bucket, even at zero', async () => {
+    vi.spyOn(lib, 'getHuntInsights').mockResolvedValue(payload({
+      channels: [{ channel: 'unattributed', touches: 0, replies: 0, won: 0, won_value: 0 }],
+    }));
+
+    setup();
+
+    const names = (await screen.findAllByTestId('hi-channel-name')).map((n) => n.textContent);
+    expect(names).toEqual(['Unattributed']);
+  });
+
+  it('hides channels with no activity at all', async () => {
+    vi.spyOn(lib, 'getHuntInsights').mockResolvedValue(payload({
+      channels: [
+        { channel: 'whatsapp', touches: 3, replies: 0, won: 0, won_value: 0 },
+        { channel: 'tiktok', touches: 0, replies: 0, won: 0, won_value: 0 },
+      ],
+    }));
+
+    setup();
+
+    const names = (await screen.findAllByTestId('hi-channel-name')).map((n) => n.textContent);
+    expect(names).toContain('WhatsApp');
+    expect(names).not.toContain('TikTok');
+  });
 });

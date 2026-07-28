@@ -11,6 +11,7 @@ import {
   daysBetween, fmtNum, pctChange, presetRange, previousRange, type PresetKey,
 } from '@/lib/dateRange';
 import { getHuntInsights, type HuntInsights as Data } from '@/lib/huntInsights';
+import { channelColor, channelLabel } from '@/lib/channels';
 import type { LeadStatus } from '@/types';
 import '@/styles/insights.css';
 import '@/styles/hunt-insights.css';
@@ -107,6 +108,52 @@ function Leaderboard({ rows }: { rows: Data['agents'] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/* ---------- channels -------------------------------------------------------- */
+/**
+ * Which channel actually produces wins. Ranked by wins, then replies, then
+ * touches. Channels with no activity at all are hidden to keep the card
+ * readable — but `unattributed` is always shown, and always last, so wins that
+ * belong to no channel can never silently vanish from the comparison.
+ */
+function Channels({ rows }: { rows: Data['channels'] }) {
+  const unattributed = rows.find((r) => r.channel === 'unattributed');
+  const active = rows
+    .filter((r) => r.channel !== 'unattributed')
+    .filter((r) => r.touches > 0 || r.replies > 0 || r.won > 0)
+    .sort((a, b) => b.won - a.won || b.replies - a.replies || b.touches - a.touches);
+
+  // `unattributed` is ALWAYS shown when present, even at zero, and always last.
+  // It is the guard against silently under-counting wins — a win that belongs
+  // to no channel has to stay visible, or the comparison quietly lies.
+  const shown = unattributed ? [...active, unattributed] : active;
+
+  if (shown.length === 0) {
+    return (
+      <div className="ins-empty">
+        <span className="ins-empty-txt">No touches logged in this range yet.</span>
+      </div>
+    );
+  }
+
+  const max = Math.max(1, ...shown.map((r) => r.touches));
+
+  return (
+    <ul className="hi-channels">
+      {shown.map((row) => (
+        <li key={row.channel} className="hi-channel" style={{ ['--ch' as string]: channelColor(row.channel) }}>
+          <span className="hi-channel-name" data-testid="hi-channel-name">{channelLabel(row.channel)}</span>
+          <span className="hi-channel-track" aria-hidden>
+            <span className="hi-channel-fill" style={{ width: `${Math.round((row.touches / max) * 100)}%` }} />
+          </span>
+          <span className="hi-channel-stats">
+            {fmtNum(row.touches)} sent · {fmtNum(row.replies)} replies · <strong>{fmtNum(row.won)} won</strong>
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -258,6 +305,10 @@ export function HuntDashboard() {
                   <Leaderboard rows={data.agents} />
                 </ChartCard>
               )}
+
+              <ChartCard icon="Chart" title="Which channel works" sub="Ranked by wins in this range">
+                <Channels rows={data.channels} />
+              </ChartCard>
             </div>
           </>
         ) : null}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CHANNEL_META, channelHref, availableChannels } from './channels';
+import { CHANNEL_META, channelColor, channelHref, channelLabel, availableChannels } from './channels';
 import { LEAD_CHANNELS } from '@/types';
 import type { Lead } from '@/types';
 
@@ -11,6 +11,38 @@ describe('CHANNEL_META', () => {
       expect(CHANNEL_META[channel]?.label, channel).toBeTruthy();
       expect(CHANNEL_META[channel]?.color, channel).toBeTruthy();
     }
+  });
+});
+
+describe('channelLabel', () => {
+  it('returns the CHANNEL_META label for a known channel', () => {
+    expect(channelLabel('whatsapp')).toBe(CHANNEL_META.whatsapp.label);
+    expect(channelLabel('instagram')).toBe(CHANNEL_META.instagram.label);
+  });
+
+  it('handles the synthetic unattributed key, which is not in LEAD_CHANNELS', () => {
+    expect(LEAD_CHANNELS).not.toContain('unattributed');
+    expect(channelLabel('unattributed')).toBe('Unattributed');
+  });
+
+  it('falls back to the raw key for an unknown channel', () => {
+    expect(channelLabel('carrier_pigeon')).toBe('carrier_pigeon');
+  });
+});
+
+describe('channelColor', () => {
+  it('returns the CHANNEL_META colour for a known channel', () => {
+    expect(channelColor('whatsapp')).toBe(CHANNEL_META.whatsapp.color);
+    expect(channelColor('instagram')).toBe(CHANNEL_META.instagram.color);
+  });
+
+  it('returns a muted colour for the synthetic unattributed key', () => {
+    expect(LEAD_CHANNELS).not.toContain('unattributed');
+    expect(channelColor('unattributed')).toBe('var(--text-4)');
+  });
+
+  it('falls back to a muted colour for an unknown channel rather than undefined', () => {
+    expect(channelColor('carrier_pigeon')).toBe('var(--text-4)');
   });
 });
 
