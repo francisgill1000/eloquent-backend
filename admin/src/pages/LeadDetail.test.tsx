@@ -47,32 +47,44 @@ describe('LeadDetail outreach button', () => {
   // Task 11 replaced the single WhatsApp/Follow-up pair with a per-channel
   // action row (see `LeadDetail channel actions` below): every reachable
   // channel gets its own button that opens the link and logs a touch via
-  // logTouch, instead of the old New→sendOpening (marks Sent) /
-  // Sent→sendFollowup (logFollowup) special cases. The status-driven
-  // auto-advance-to-Sent behaviour is gone — a touch no longer moves the
-  // funnel stage on its own.
-  it('shows a WhatsApp action for a New lead and logs a touch on click', async () => {
+  // logTouch, instead of the old New→sendOpening / Sent→sendFollowup
+  // special cases. Fix round 1 restored the New→Sent auto-advance as an
+  // explicit second call (advanceIfFirstTouch), so a first outbound touch on
+  // a New lead still moves it to Sent — same end result as before, just
+  // sequenced as touch-then-advance instead of being the same API call.
+  it('shows a WhatsApp action for a New lead: logs a touch and advances it to Sent', async () => {
     vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead }, activities: [] });
     const touch = vi.spyOn(leadsLib, 'logTouch').mockResolvedValue({ ...baseLead, status: 'new' });
+    const setStatus = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'sent' });
 
     setup();
     await screen.findByText('Pak Cargo');
     await userEvent.click(actions().getByRole('button', { name: /whatsapp/i }));
 
     expect(window.open).toHaveBeenCalledWith(baseLead.whatsapp_url, '_blank');
-    expect(touch).toHaveBeenCalledWith(3, 'whatsapp', 'out');
+    await waitFor(() => expect(touch).toHaveBeenCalledWith(3, 'whatsapp', 'out'));
+    await waitFor(() => expect(setStatus).toHaveBeenCalledWith(3, 'sent'));
+    // The touch is recorded before the stage advances, not the other way round.
+    expect(touch.mock.invocationCallOrder[0]).toBeLessThan(setStatus.mock.invocationCallOrder[0]);
     expect(actions().queryByRole('button', { name: /^follow-up$/i })).not.toBeInTheDocument();
   });
 
-  it('offers a WhatsApp action plus generic Log a touch / They replied controls for a Sent lead', async () => {
+  it('logs a touch for a Sent lead via the WhatsApp action without advancing its stage', async () => {
     vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'sent' }, activities: [] });
+    const touch = vi.spyOn(leadsLib, 'logTouch').mockResolvedValue({ ...baseLead, status: 'sent' });
+    const setStatus = vi.spyOn(leadsLib, 'updateLeadStatus');
 
     setup();
     await screen.findByText('Pak Cargo');
-
-    expect(actions().getByRole('button', { name: /whatsapp/i })).toBeInTheDocument();
     expect(actions().getByRole('button', { name: /^log a touch$/i })).toBeInTheDocument();
     expect(actions().getByRole('button', { name: /^they replied$/i })).toBeInTheDocument();
+
+    await userEvent.click(actions().getByRole('button', { name: /whatsapp/i }));
+
+    await waitFor(() => expect(touch).toHaveBeenCalledWith(3, 'whatsapp', 'out'));
+    // Only a New lead's first outbound touch advances the funnel — a lead
+    // already past New must never have its status changed by a touch.
+    expect(setStatus).not.toHaveBeenCalled();
   });
 
   it('shows no outreach button for a Won lead', async () => {
@@ -171,6 +183,7 @@ describe('LeadDetail channel actions', () => {
   it('logs a touch via the channel picker for a Sent lead, and logs it even though window.open is stubbed to do nothing', async () => {
     vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'sent' }, activities: [] });
     const touch = vi.spyOn(leadsLib, 'logTouch').mockResolvedValue({ ...baseLead, status: 'sent' });
+    const setStatus = vi.spyOn(leadsLib, 'updateLeadStatus');
 
     setup();
     await screen.findByText('Pak Cargo');
@@ -182,12 +195,31 @@ describe('LeadDetail channel actions', () => {
     // The touch is logged unconditionally — window.open here is a stub that
     // returns undefined (as a blocked popup would), and the call still happens.
     expect(window.open).toHaveBeenCalledWith(baseLead.whatsapp_url, '_blank');
-    expect(touch).toHaveBeenCalledWith(3, 'whatsapp', 'out');
+    await waitFor(() => expect(touch).toHaveBeenCalledWith(3, 'whatsapp', 'out'));
+    // Already Sent — the picker path must not advance the stage either.
+    expect(setStatus).not.toHaveBeenCalled();
   });
 
-  it('logs an inbound reply via the reply picker', async () => {
+  it('advances a New lead to Sent via the Log a touch picker too, not just the direct channel button', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead }, activities: [] });
+    const touch = vi.spyOn(leadsLib, 'logTouch').mockResolvedValue({ ...baseLead, status: 'new' });
+    const setStatus = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'sent' });
+
+    setup();
+    await screen.findByText('Pak Cargo');
+    await userEvent.click(actions().getByRole('button', { name: /^log a touch$/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /how did you contact them/i });
+    await userEvent.click(within(dialog).getByRole('button', { name: /^whatsapp$/i }));
+
+    await waitFor(() => expect(touch).toHaveBeenCalledWith(3, 'whatsapp', 'out'));
+    await waitFor(() => expect(setStatus).toHaveBeenCalledWith(3, 'sent'));
+  });
+
+  it('logs an inbound reply via the reply picker without advancing the stage', async () => {
     vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'sent' }, activities: [] });
     const touch = vi.spyOn(leadsLib, 'logTouch').mockResolvedValue({ ...baseLead, status: 'sent' });
+    const setStatus = vi.spyOn(leadsLib, 'updateLeadStatus');
 
     setup();
     await screen.findByText('Pak Cargo');
@@ -196,7 +228,24 @@ describe('LeadDetail channel actions', () => {
     const dialog = await screen.findByRole('dialog', { name: /how did they reply/i });
     await userEvent.click(within(dialog).getByRole('button', { name: /^instagram$/i }));
 
-    expect(touch).toHaveBeenCalledWith(3, 'instagram', 'in');
+    await waitFor(() => expect(touch).toHaveBeenCalledWith(3, 'instagram', 'in'));
+    expect(setStatus).not.toHaveBeenCalled();
+  });
+
+  it('never advances a New lead on an inbound reply, even though a New lead is normally auto-advanced on outbound', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead }, activities: [] });
+    const touch = vi.spyOn(leadsLib, 'logTouch').mockResolvedValue({ ...baseLead, status: 'new' });
+    const setStatus = vi.spyOn(leadsLib, 'updateLeadStatus');
+
+    setup();
+    await screen.findByText('Pak Cargo');
+    await userEvent.click(actions().getByRole('button', { name: /^they replied$/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /how did they reply/i });
+    await userEvent.click(within(dialog).getByRole('button', { name: /^whatsapp$/i }));
+
+    await waitFor(() => expect(touch).toHaveBeenCalledWith(3, 'whatsapp', 'in'));
+    expect(setStatus).not.toHaveBeenCalled();
   });
 });
 

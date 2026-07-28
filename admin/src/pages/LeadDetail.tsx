@@ -253,16 +253,38 @@ export default function LeadDetail() {
     setDealAmount(''); setDealType('one_off'); setDealTerm(6);
   };
 
+  // A first outbound touch on a New lead also advances it to Sent — a
+  // client-side convenience layered on top of the touch API, which itself
+  // never changes status (see the backend's
+  // test_a_touch_never_changes_the_funnel_status). Every path that can be a
+  // lead's first outreach — the channel row, the "Log a touch" picker (both
+  // via touchOn), and the AI Personalize "Open WhatsApp" button (sendAi) —
+  // calls this one function so the rule can't drift between them. New→Sent,
+  // once, outbound only; `logReply` never calls this, so inbound replies
+  // never advance the stage regardless of status.
+  // Swallows its own failure: the touch (or AI send) already happened, so a
+  // failed advance must not read as though nothing was recorded.
+  const advanceIfFirstTouch = async (id: number, statusBefore: LeadStatus) => {
+    if (statusBefore !== 'new') return;
+    try {
+      await updateLeadStatus(id, 'sent');
+    } catch {
+      // best-effort — the underlying touch already succeeded
+    }
+  };
+
   // Open the lead on this channel and record the touch. The log must not depend
   // on the window actually opening — a blocked popup should not lose the touch.
   const touchOn = async (channel: LeadChannel) => {
     if (!lead || locked) return;
+    const statusBefore = lead.status;
     const href = channelHref(lead, channel);
     if (href) window.open(href, '_blank');
 
     setBusy(true); setError('');
     try {
       await logTouch(lead.id, channel, 'out');
+      await advanceIfFirstTouch(lead.id, statusBefore);
       await load();
     } catch {
       setError('Could not log the touch.');
@@ -272,6 +294,8 @@ export default function LeadDetail() {
   };
 
   // They got back to us — possibly on a different channel than we sent on.
+  // Inbound never advances the stage, so this deliberately does not call
+  // advanceIfFirstTouch.
   const logReply = async (channel: LeadChannel) => {
     if (!lead || locked) return;
     setReplyPicker(false);
@@ -311,14 +335,16 @@ export default function LeadDetail() {
   };
 
   // Send the previewed AI message: open WhatsApp with it, then run the same
-  // stage transition as the normal outreach button.
+  // stage transition as the normal outreach button — via advanceIfFirstTouch,
+  // so this path and touchOn agree on exactly when a New lead moves to Sent.
   const sendAi = async () => {
     if (!lead || !aiText || locked) return;
     const digits = waDigits();
     if (digits) window.open(`https://wa.me/${digits}?text=${encodeURIComponent(aiText)}`, '_blank');
+    const statusBefore = lead.status;
     setBusy(true); setError('');
     try {
-      if (aiKind === 'opening') await updateLeadStatus(lead.id, 'sent');
+      if (aiKind === 'opening') await advanceIfFirstTouch(lead.id, statusBefore);
       else await logFollowup(lead.id);
       setAiText(null);
       await load();
