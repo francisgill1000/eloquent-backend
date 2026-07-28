@@ -44,29 +44,35 @@ function actions() {
 describe('LeadDetail outreach button', () => {
   beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); vi.stubGlobal('open', vi.fn()); });
 
-  it('shows WhatsApp (opening) for a New lead and marks it Sent on click', async () => {
+  // Task 11 replaced the single WhatsApp/Follow-up pair with a per-channel
+  // action row (see `LeadDetail channel actions` below): every reachable
+  // channel gets its own button that opens the link and logs a touch via
+  // logTouch, instead of the old New→sendOpening (marks Sent) /
+  // Sent→sendFollowup (logFollowup) special cases. The status-driven
+  // auto-advance-to-Sent behaviour is gone — a touch no longer moves the
+  // funnel stage on its own.
+  it('shows a WhatsApp action for a New lead and logs a touch on click', async () => {
     vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead }, activities: [] });
-    const setStatus = vi.spyOn(leadsLib, 'updateLeadStatus').mockResolvedValue({ ...baseLead, status: 'sent' });
+    const touch = vi.spyOn(leadsLib, 'logTouch').mockResolvedValue({ ...baseLead, status: 'new' });
 
     setup();
     await screen.findByText('Pak Cargo');
     await userEvent.click(actions().getByRole('button', { name: /whatsapp/i }));
 
-    expect(window.open).toHaveBeenCalledWith(baseLead.whatsapp_opening_url, '_blank');
-    expect(setStatus).toHaveBeenCalledWith(3, 'sent');
-    expect(actions().queryByRole('button', { name: /follow-up/i })).not.toBeInTheDocument();
+    expect(window.open).toHaveBeenCalledWith(baseLead.whatsapp_url, '_blank');
+    expect(touch).toHaveBeenCalledWith(3, 'whatsapp', 'out');
+    expect(actions().queryByRole('button', { name: /^follow-up$/i })).not.toBeInTheDocument();
   });
 
-  it('shows Follow-up for a Sent lead and logs a follow-up on click', async () => {
+  it('offers a WhatsApp action plus generic Log a touch / They replied controls for a Sent lead', async () => {
     vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'sent' }, activities: [] });
-    const follow = vi.spyOn(leadsLib, 'logFollowup').mockResolvedValue({ ...baseLead, status: 'sent' });
 
     setup();
     await screen.findByText('Pak Cargo');
-    await userEvent.click(actions().getByRole('button', { name: /follow-up/i }));
 
-    expect(window.open).toHaveBeenCalledWith(baseLead.whatsapp_followup_url, '_blank');
-    expect(follow).toHaveBeenCalledWith(3);
+    expect(actions().getByRole('button', { name: /whatsapp/i })).toBeInTheDocument();
+    expect(actions().getByRole('button', { name: /^log a touch$/i })).toBeInTheDocument();
+    expect(actions().getByRole('button', { name: /^they replied$/i })).toBeInTheDocument();
   });
 
   it('shows no outreach button for a Won lead', async () => {
@@ -106,6 +112,91 @@ describe('LeadDetail outreach button', () => {
       '_blank',
     );
     expect(setStatus).toHaveBeenCalledWith(3, 'sent');
+  });
+});
+
+describe('LeadDetail channel actions', () => {
+  beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); vi.stubGlobal('open', vi.fn()); });
+
+  // A lead with no phone at all — reachable only on Instagram. Before Task 11
+  // this lead had NO way to log a touch, because the only outreach control was
+  // gated on lead.is_mobile.
+  const instagramOnlyLead = {
+    ...baseLead, is_mobile: false, phone: null, tel_url: null,
+    whatsapp_url: null, whatsapp_opening_url: null, whatsapp_followup_url: null,
+    instagram: 'https://instagram.com/acmegym',
+  };
+
+  it('offers an Instagram action for a lead with no mobile', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...instagramOnlyLead, status: 'sent' }, activities: [] });
+
+    setup();
+    await screen.findByText('Pak Cargo');
+    expect(actions().getByRole('button', { name: /instagram/i })).toBeInTheDocument();
+  });
+
+  it('does not offer channels the lead has no handle for', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...instagramOnlyLead, status: 'sent' }, activities: [] });
+
+    setup();
+    await screen.findByText('Pak Cargo');
+    actions().getByRole('button', { name: /instagram/i });
+    expect(actions().queryByRole('button', { name: /^linkedin$/i })).not.toBeInTheDocument();
+  });
+
+  it('names the channel and direction in the timeline', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({
+      lead: { ...baseLead, status: 'replied' },
+      activities: [
+        { id: 2, type: 'contacted', channel: 'whatsapp', direction: 'in' },
+        { id: 1, type: 'contacted', channel: 'instagram', direction: 'out' },
+      ],
+    });
+
+    setup();
+    expect(await screen.findByText(/You messaged them on Instagram/i)).toBeInTheDocument();
+    expect(screen.getByText(/They replied on WhatsApp/i)).toBeInTheDocument();
+  });
+
+  it('falls back to Contacted for a touch with no channel', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({
+      lead: { ...baseLead, status: 'sent' },
+      activities: [{ id: 1, type: 'contacted' }],
+    });
+
+    setup();
+    expect(await screen.findByText('Contacted')).toBeInTheDocument();
+  });
+
+  it('logs a touch via the channel picker for a Sent lead, and logs it even though window.open is stubbed to do nothing', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'sent' }, activities: [] });
+    const touch = vi.spyOn(leadsLib, 'logTouch').mockResolvedValue({ ...baseLead, status: 'sent' });
+
+    setup();
+    await screen.findByText('Pak Cargo');
+    await userEvent.click(actions().getByRole('button', { name: /^log a touch$/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /how did you contact them/i });
+    await userEvent.click(within(dialog).getByRole('button', { name: /^whatsapp$/i }));
+
+    // The touch is logged unconditionally — window.open here is a stub that
+    // returns undefined (as a blocked popup would), and the call still happens.
+    expect(window.open).toHaveBeenCalledWith(baseLead.whatsapp_url, '_blank');
+    expect(touch).toHaveBeenCalledWith(3, 'whatsapp', 'out');
+  });
+
+  it('logs an inbound reply via the reply picker', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'sent' }, activities: [] });
+    const touch = vi.spyOn(leadsLib, 'logTouch').mockResolvedValue({ ...baseLead, status: 'sent' });
+
+    setup();
+    await screen.findByText('Pak Cargo');
+    await userEvent.click(actions().getByRole('button', { name: /^they replied$/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /how did they reply/i });
+    await userEvent.click(within(dialog).getByRole('button', { name: /^instagram$/i }));
+
+    expect(touch).toHaveBeenCalledWith(3, 'instagram', 'in');
   });
 });
 

@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
-import { getLead, updateLeadStatus, logFollowup, personalizeLead, assignLead, listLeads } from '@/lib/leads';
+import { getLead, updateLeadStatus, logFollowup, logTouch, personalizeLead, assignLead, listLeads } from '@/lib/leads';
 import { DEAL_TERMS } from '@/types';
-import type { Assignee, DealInput, DealType, Lead, LeadActivity, LeadStatus } from '@/types';
+import type { Assignee, DealInput, DealType, Lead, LeadActivity, LeadChannel, LeadStatus } from '@/types';
+import { CHANNEL_META, availableChannels, channelHref, channelLabel } from '@/lib/channels';
+import { ChannelPicker } from '@/components/ChannelPicker';
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
   new: 'New', sent: 'Sent', followup: 'Follow-up', replied: 'Replied', demo: 'Demo', won: 'Won', pass: 'Not Interested',
@@ -52,6 +54,9 @@ const STAGE_OPTS: { status: LeadStatus }[] = [
 function activityColor(a: LeadActivity): string {
   if (a.type === 'status_change' && a.payload?.to) {
     return STAGE_COLOR[a.payload.to as LeadStatus] ?? 'var(--mint-300)';
+  }
+  if (a.type === 'contacted' && a.channel) {
+    return CHANNEL_META[a.channel]?.color ?? 'var(--mint-300)';
   }
   return 'var(--mint-300)';
 }
@@ -106,7 +111,13 @@ function activityText(a: LeadActivity): string {
     return from ? `Moved from ${from} to ${to}` : `Set to ${to}`;
   }
   if (a.type === 'note') return a.payload?.note ?? 'Note added';
-  if (a.type === 'contacted') return 'Contacted';
+  if (a.type === 'contacted') {
+    // A touch logged before channels existed (or with an unknown channel) keeps
+    // the original wording rather than claiming a channel it never recorded.
+    if (!a.channel) return 'Contacted';
+    const label = channelLabel(a.channel);
+    return a.direction === 'in' ? `They replied on ${label}` : `You messaged them on ${label}`;
+  }
   if (a.type === 'assigned') {
     const to = a.payload?.to_name ?? 'nobody';
     return a.payload?.from_name ? `Assigned to ${to} (was ${a.payload.from_name})` : `Assigned to ${to}`;
@@ -146,6 +157,9 @@ export default function LeadDetail() {
   const [dealAmount, setDealAmount] = useState('');
   const [dealType, setDealType] = useState<DealType>('one_off');
   const [dealTerm, setDealTerm] = useState<number>(6);
+  // Channel pickers for the generic "Log a touch" / "They replied" controls.
+  const [touchPicker, setTouchPicker] = useState(false);
+  const [replyPicker, setReplyPicker] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -239,31 +253,34 @@ export default function LeadDetail() {
     setDealAmount(''); setDealType('one_off'); setDealTerm(6);
   };
 
-  // New lead → open the opening draft, then optimistically move to Sent.
-  const sendOpening = async () => {
+  // Open the lead on this channel and record the touch. The log must not depend
+  // on the window actually opening — a blocked popup should not lose the touch.
+  const touchOn = async (channel: LeadChannel) => {
     if (!lead || locked) return;
-    if (lead.whatsapp_opening_url) window.open(lead.whatsapp_opening_url, '_blank');
+    const href = channelHref(lead, channel);
+    if (href) window.open(href, '_blank');
+
     setBusy(true); setError('');
     try {
-      await updateLeadStatus(lead.id, 'sent');
+      await logTouch(lead.id, channel, 'out');
       await load();
     } catch {
-      setError('Could not update status.');
+      setError('Could not log the touch.');
     } finally {
       setBusy(false);
     }
   };
 
-  // Already contacted → open the follow-up draft and log the nudge.
-  const sendFollowup = async () => {
+  // They got back to us — possibly on a different channel than we sent on.
+  const logReply = async (channel: LeadChannel) => {
     if (!lead || locked) return;
-    if (lead.whatsapp_followup_url) window.open(lead.whatsapp_followup_url, '_blank');
+    setReplyPicker(false);
     setBusy(true); setError('');
     try {
-      await logFollowup(lead.id);
+      await logTouch(lead.id, channel, 'in');
       await load();
     } catch {
-      setError('Could not log the follow-up.');
+      setError('Could not log the reply.');
     } finally {
       setBusy(false);
     }
@@ -470,20 +487,30 @@ export default function LeadDetail() {
             </div>
 
             <div className="ld-actions">
-              {lead.is_mobile && lead.status === 'new' && (
-                <button type="button" className="ld-act wa" disabled={locked} onClick={() => void sendOpening()}>
-                  <Icons.WhatsApp size={16} /> WhatsApp
-                </button>
-              )}
-              {lead.is_mobile && (lead.status === 'sent' || lead.status === 'followup' || lead.status === 'replied' || lead.status === 'demo') && (
-                <button type="button" className="ld-act wa" disabled={locked} onClick={() => void sendFollowup()}>
-                  <Icons.WhatsApp size={16} /> Follow-up
-                </button>
-              )}
-              {lead.is_mobile && (lead.status === 'new' || lead.status === 'sent' || lead.status === 'followup' || lead.status === 'replied' || lead.status === 'demo') && (
-                <button type="button" className="ld-act" disabled={aiBusy || locked} onClick={() => void personalize()}>
-                  <Icons.Sparkle size={16} /> {aiBusy ? 'Writing…' : 'Personalize'}
-                </button>
+              {(lead.status === 'new' || lead.status === 'sent' || lead.status === 'followup' || lead.status === 'replied' || lead.status === 'demo') && (
+                <>
+                  {availableChannels(lead).map((channel) => (
+                    <button
+                      key={channel}
+                      type="button"
+                      className="ld-act ch"
+                      style={{ ['--ch' as string]: CHANNEL_META[channel].color }}
+                      disabled={locked}
+                      onClick={() => void touchOn(channel)}
+                    >
+                      {CHANNEL_META[channel].label}
+                    </button>
+                  ))}
+                  <button type="button" className="ld-act" disabled={locked} onClick={() => setTouchPicker(true)}>
+                    Log a touch
+                  </button>
+                  <button type="button" className="ld-act" disabled={locked} onClick={() => setReplyPicker(true)}>
+                    They replied
+                  </button>
+                  <button type="button" className="ld-act" disabled={aiBusy || locked} onClick={() => void personalize()}>
+                    <Icons.Sparkle size={16} /> {aiBusy ? 'Writing…' : 'Personalize'}
+                  </button>
+                </>
               )}
               {lead.tel_url && <a className="ld-act" href={lead.tel_url}><Icons.Phone size={16} /> Call</a>}
               {lead.website && <a className="ld-act" href={lead.website} target="_blank" rel="noreferrer"><Icons.ArrowRight size={16} /> Website</a>}
@@ -602,6 +629,19 @@ export default function LeadDetail() {
           )}
         </div>
       </div>
+
+      <ChannelPicker
+        open={touchPicker}
+        title="How did you contact them?"
+        onPick={(channel) => { setTouchPicker(false); void touchOn(channel); }}
+        onClose={() => setTouchPicker(false)}
+      />
+      <ChannelPicker
+        open={replyPicker}
+        title="How did they reply?"
+        onPick={(channel) => void logReply(channel)}
+        onClose={() => setReplyPicker(false)}
+      />
     </div></div>
   );
 }

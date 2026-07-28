@@ -1040,3 +1040,20 @@
   padding: 0;
   cursor: pointer;
 }
+
+/* Channel actions — tinted per channel from CHANNEL_META via --ch. */
+.ld-act.ch { border-color: color-mix(in srgb, var(--ch) 45%, transparent); color: var(--ch); }
+.ld-act.ch:hover:not(:disabled) { background: color-mix(in srgb, var(--ch) 12%, transparent); }
+
+/* Channel picker */
+.cp-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+  background: rgba(0, 0, 0, .45); backdrop-filter: blur(2px); }
+.cp-panel { width: min(420px, calc(100vw - 32px)); padding: 20px; border-radius: var(--r-lg);
+  background: var(--surface-1); border: 1px solid var(--border-1); }
+.cp-title { margin: 0 0 14px; font-size: 15px; font-weight: 600; }
+.cp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cp-opt { padding: 10px 8px; border-radius: 10px; font-size: 13px; cursor: pointer;
+  background: transparent; border: 1px solid color-mix(in srgb, var(--ch) 45%, transparent); color: var(--ch); }
+.cp-opt:hover { background: color-mix(in srgb, var(--ch) 12%, transparent); }
+.cp-skip { margin-top: 14px; width: 100%; padding: 9px; border-radius: 10px; cursor: pointer;
+  background: transparent; border: 1px solid var(--border-1); color: var(--text-3); }
