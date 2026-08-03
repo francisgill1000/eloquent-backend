@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/Spinner';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
-import { getLead, updateLeadStatus, logFollowup, logTouch, personalizeLead, assignLead, listLeads } from '@/lib/leads';
+import { getLead, updateLeadStatus, logTouch, personalizeLead, assignLead, listLeads } from '@/lib/leads';
 import { DEAL_TERMS } from '@/types';
 import type { Assignee, DealInput, DealType, Lead, LeadActivity, LeadChannel, LeadStatus } from '@/types';
 import { CHANNEL_META, availableChannels, channelHref, channelLabel } from '@/lib/channels';
@@ -355,7 +355,7 @@ export default function LeadDetail() {
     setBusy(true); setError('');
     try {
       if (aiKind === 'opening') await advanceIfFirstTouch(lead.id, statusBefore);
-      else await logFollowup(lead.id);
+      else await logTouch(lead.id, 'whatsapp', 'out');
       setAiText(null);
       await load();
     } catch {

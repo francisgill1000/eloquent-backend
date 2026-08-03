@@ -35,7 +35,11 @@ export function channelColor(key: string): string {
  */
 export function channelHref(lead: Lead, channel: LeadChannel): string | null {
   switch (channel) {
-    case 'whatsapp': return lead.whatsapp_url ?? null;
+    // WhatsApp is only reachable on a mobile number — the backend appends
+    // whatsapp_url for any parseable number, including landlines, but
+    // is_mobile is the real "WhatsApp is usable here" flag (see
+    // Lead::getIsMobileAttribute: "WhatsApp only valid if true").
+    case 'whatsapp': return lead.is_mobile ? lead.whatsapp_url ?? null : null;
     case 'phone': return lead.tel_url ?? null;
     case 'email': return lead.email ? `mailto:${lead.email}` : null;
     case 'instagram': return lead.instagram ?? null;

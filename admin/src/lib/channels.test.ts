@@ -48,7 +48,7 @@ describe('channelColor', () => {
 
 describe('channelHref', () => {
   it('uses the server-normalized whatsapp and tel urls', () => {
-    const lead = { ...base, whatsapp_url: 'https://wa.me/971501112233', tel_url: 'tel:+971501112233' };
+    const lead = { ...base, is_mobile: true, whatsapp_url: 'https://wa.me/971501112233', tel_url: 'tel:+971501112233' };
     expect(channelHref(lead, 'whatsapp')).toBe('https://wa.me/971501112233');
     expect(channelHref(lead, 'phone')).toBe('tel:+971501112233');
   });
@@ -67,6 +67,15 @@ describe('channelHref', () => {
     expect(channelHref(base, 'whatsapp')).toBeNull();
   });
 
+  it('returns null for whatsapp on a landline — is_mobile false is the real gate, not just whatsapp_url being present', () => {
+    // The backend appends whatsapp_url for any parseable number, including
+    // landlines; is_mobile is the actual "WhatsApp is usable here" flag
+    // (see Lead::getIsMobileAttribute docblock: "WhatsApp only valid if true").
+    const lead = { ...base, is_mobile: false, whatsapp_url: 'https://wa.me/97143334444' };
+    expect(channelHref(lead, 'whatsapp')).toBeNull();
+    expect(availableChannels(lead)).not.toContain('whatsapp');
+  });
+
   it('has no link for walk_in or other', () => {
     expect(channelHref(base, 'walk_in')).toBeNull();
     expect(channelHref(base, 'other')).toBeNull();
@@ -77,6 +86,7 @@ describe('availableChannels', () => {
   it('lists only channels the lead can actually be reached on', () => {
     const lead = {
       ...base,
+      is_mobile: true,
       whatsapp_url: 'https://wa.me/971501112233',
       instagram: 'https://instagram.com/acmegym',
     };

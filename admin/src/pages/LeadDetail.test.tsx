@@ -125,6 +125,31 @@ describe('LeadDetail outreach button', () => {
     );
     expect(setStatus).toHaveBeenCalledWith(3, 'sent');
   });
+
+  // The AI follow-up path used to call the deprecated logFollowup() client
+  // (POST /shop/leads/{lead}/followup), a deploy-window alias scheduled for
+  // deletion. It must log the equivalent modern touch instead, via logTouch,
+  // so the path keeps working once the alias route is gone.
+  it('personalizes a Sent lead: previews AI follow-up text, then opens WhatsApp and logs a touch', async () => {
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: { ...baseLead, status: 'sent' }, activities: [] });
+    const personalize = vi.spyOn(leadsLib, 'personalizeLead').mockResolvedValue('Just checking in, Pak Cargo!');
+    const touch = vi.spyOn(leadsLib, 'logTouch').mockResolvedValue({ ...baseLead, status: 'sent' });
+    const followup = vi.spyOn(leadsLib, 'logFollowup');
+
+    setup();
+    await userEvent.click(await screen.findByRole('button', { name: /personalize/i }));
+
+    expect(await screen.findByText('Just checking in, Pak Cargo!')).toBeInTheDocument();
+    expect(personalize).toHaveBeenCalledWith(3, 'followup');
+
+    await userEvent.click(screen.getByRole('button', { name: /open whatsapp/i }));
+    expect(window.open).toHaveBeenCalledWith(
+      'https://wa.me/971501112233?text=' + encodeURIComponent('Just checking in, Pak Cargo!'),
+      '_blank',
+    );
+    await waitFor(() => expect(touch).toHaveBeenCalledWith(3, 'whatsapp', 'out'));
+    expect(followup).not.toHaveBeenCalled();
+  });
 });
 
 describe('LeadDetail channel actions', () => {
