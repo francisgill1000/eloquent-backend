@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -47,5 +48,42 @@ describe('ContactDetails', () => {
     await userEvent.click(screen.getByRole('button', { name: /save/i }));
 
     await waitFor(() => expect(spy).toHaveBeenCalledWith(7, expect.objectContaining({ instagram: '' })));
+  });
+
+  // Finding 1 (fix round 1): a rejection with no per-field `errors` payload —
+  // a bare network failure, a 500, anything not shaped like a 422 — must
+  // still surface something. Before the fix, setErrors({}) ran and the Save
+  // button just stopped spinning with no visible feedback at all.
+  it('surfaces a generic error when the rejection has no field-errors payload', async () => {
+    vi.spyOn(leads, 'updateLead').mockRejectedValue(new Error('Network Error'));
+    render(<ContactDetails lead={lead} canEdit onSaved={() => {}} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    expect(await screen.findByText(/could not save/i)).toBeInTheDocument();
+  });
+
+  // Finding 2 (fix round 1): after a successful save, the field must show
+  // what the server actually stored (the normalized value), not the raw
+  // text the user typed — otherwise the input silently disagrees with the
+  // database and the next save would re-send the stale raw value.
+  it('shows the server-normalized value once the parent re-renders with the saved lead', async () => {
+    const normalized: Lead = { ...lead, instagram: 'https://instagram.com/acmegym' };
+    vi.spyOn(leads, 'updateLead').mockResolvedValue(normalized);
+
+    // Stands in for LeadDetail: onSaved feeds the server's response back in
+    // as the next `lead` prop, exactly like onSaved={() => void load()} does.
+    function Harness() {
+      const [current, setCurrent] = useState<Lead>(lead);
+      return <ContactDetails lead={current} canEdit onSaved={setCurrent} />;
+    }
+    render(<Harness />);
+
+    await userEvent.type(screen.getByLabelText(/instagram/i), '@acmegym');
+    expect(screen.getByLabelText(/instagram/i)).toHaveValue('@acmegym');
+
+    await userEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => expect(screen.getByLabelText(/instagram/i)).toHaveValue('https://instagram.com/acmegym'));
   });
 });

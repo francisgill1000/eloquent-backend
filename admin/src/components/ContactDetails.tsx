@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { updateLead } from '@/lib/leads';
 import type { Lead } from '@/types';
 
@@ -19,6 +19,10 @@ type Draft = Record<FieldKey, string>;
 
 type Props = { lead: Lead; canEdit: boolean; onSaved: (lead: Lead) => void };
 
+function draftFrom(lead: Lead): Draft {
+  return Object.fromEntries(FIELDS.map((f) => [f.key, lead[f.key] ?? ''])) as Draft;
+}
+
 /**
  * Contact details for a lead. Handles are sent raw — the server normalizes them
  * (one shared implementation, so the SPA and the voice path cannot disagree)
@@ -27,25 +31,45 @@ type Props = { lead: Lead; canEdit: boolean; onSaved: (lead: Lead) => void };
  * sending it.
  */
 export function ContactDetails({ lead, canEdit, onSaved }: Props) {
-  const [draft, setDraft] = useState<Draft>(() =>
-    Object.fromEntries(FIELDS.map((f) => [f.key, lead[f.key] ?? ''])) as Draft,
-  );
+  const [draft, setDraft] = useState<Draft>(() => draftFrom(lead));
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  // Page-level fallback for a rejection with no per-field payload (network
+  // failure, 500, etc.) — without this the Save button just stops spinning
+  // and the user has no way to tell whether the edit actually saved.
+  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Resync the draft when the lead's own contact fields actually change —
+  // e.g. after a save round-trips through the server's normalizer and the
+  // parent reloads with the canonical value. Depending on the field values
+  // themselves (not the `lead` object reference, which changes on every
+  // reload regardless of these fields) means an unrelated reload elsewhere
+  // on the page never clobbers in-progress typing here.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => setDraft(draftFrom(lead)), [lead.id, ...FIELDS.map((f) => lead[f.key] ?? '')]);
 
   const save = async () => {
     setBusy(true);
     setErrors({});
+    setError('');
     try {
       const saved = await updateLead(lead.id, draft);
       onSaved(saved);
     } catch (e) {
-      const raw = (e as { response?: { data?: { errors?: Partial<Record<FieldKey, string[]>> } } })?.response?.data?.errors;
-      setErrors(
-        Object.fromEntries(
-          Object.entries(raw ?? {}).map(([k, v]) => [k, v?.[0]]),
-        ) as Partial<Record<FieldKey, string>>,
-      );
+      const data = (e as { response?: { data?: { errors?: Partial<Record<FieldKey, string[]>>; message?: string } } })?.response?.data;
+      const fieldErrors = data?.errors;
+      if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+        setErrors(
+          Object.fromEntries(
+            Object.entries(fieldErrors).map(([k, v]) => [k, v?.[0]]),
+          ) as Partial<Record<FieldKey, string>>,
+        );
+      } else {
+        // No per-field payload — a network error, a 500, anything shaped
+        // differently. Fall back to a generic message so Save failing is
+        // never silent.
+        setError(data?.message || 'Could not save contact details.');
+      }
     } finally {
       setBusy(false);
     }
@@ -54,6 +78,7 @@ export function ContactDetails({ lead, canEdit, onSaved }: Props) {
   return (
     <section className="ld-contact">
       <h3 className="ld-contact-title">Contact details</h3>
+      {error && <div className="c-error-box">{error}</div>}
       <div className="ld-contact-grid">
         {FIELDS.map((field) => (
           <label key={field.key} className="ld-contact-row">
