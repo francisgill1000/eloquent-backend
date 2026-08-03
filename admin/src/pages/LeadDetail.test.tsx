@@ -150,6 +150,34 @@ describe('LeadDetail outreach button', () => {
     await waitFor(() => expect(touch).toHaveBeenCalledWith(3, 'whatsapp', 'out'));
     expect(followup).not.toHaveBeenCalled();
   });
+
+  // The backend appends whatsapp_url for ANY parseable phone number, including
+  // landlines — is_mobile is the real "WhatsApp is usable here" flag (see
+  // Lead::getIsMobileAttribute). channelHref already respects it for the
+  // per-channel action row; this covers the second path that didn't:
+  // personalize's own wa.me link, which read lead.whatsapp_url directly.
+  // Offering it for a landline opens a dead wa.me tab AND logs a fabricated
+  // whatsapp touch into the very "which channel works" report this feature
+  // exists to produce.
+  it('does not offer a dead WhatsApp send or log a fake touch when personalizing a landline lead', async () => {
+    const landlineLead = { ...baseLead, status: 'sent' as const, is_mobile: false };
+    vi.spyOn(leadsLib, 'getLead').mockResolvedValue({ lead: landlineLead, activities: [] });
+    vi.spyOn(leadsLib, 'personalizeLead').mockResolvedValue('Just checking in, Pak Cargo!');
+    const touch = vi.spyOn(leadsLib, 'logTouch').mockResolvedValue({ ...landlineLead, status: 'sent' });
+
+    setup();
+    await userEvent.click(await screen.findByRole('button', { name: /personalize/i }));
+    expect(await screen.findByText('Just checking in, Pak Cargo!')).toBeInTheDocument();
+
+    // If the (buggy) button is still offered, clicking it must be inert too —
+    // this test must fail for the right reason (a fabricated touch/open),
+    // not merely because a button is missing.
+    const waButton = screen.queryByRole('button', { name: /open whatsapp/i });
+    if (waButton) await userEvent.click(waButton);
+
+    expect(window.open).not.toHaveBeenCalled();
+    expect(touch).not.toHaveBeenCalledWith(expect.anything(), 'whatsapp', expect.anything());
+  });
 });
 
 describe('LeadDetail channel actions', () => {

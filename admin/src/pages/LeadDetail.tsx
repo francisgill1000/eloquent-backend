@@ -323,9 +323,13 @@ export default function LeadDetail() {
   // The AI message we write matches the lead's current stage.
   const outreachKind = (): 'opening' | 'followup' => (lead?.status === 'new' ? 'opening' : 'followup');
 
-  // Digits for the wa.me link (server already normalized whatsapp_url).
+  // Digits for the wa.me link. Goes through channelHref rather than reading
+  // lead.whatsapp_url directly, so a landline (whatsapp_url present but
+  // is_mobile false) yields no digits here either — same rule as the
+  // per-channel action row, one place to change it.
   const waDigits = (): string | null => {
-    const m = lead?.whatsapp_url?.match(/wa\.me\/(\d+)/);
+    const href = lead ? channelHref(lead, 'whatsapp') : null;
+    const m = href?.match(/wa\.me\/(\d+)/);
     return m ? m[1] : null;
   };
 
@@ -350,7 +354,12 @@ export default function LeadDetail() {
   const sendAi = async () => {
     if (!lead || !aiText || locked) return;
     const digits = waDigits();
-    if (digits) window.open(`https://wa.me/${digits}?text=${encodeURIComponent(aiText)}`, '_blank');
+    // No WhatsApp-capable number (e.g. a landline) — the preview stays on
+    // screen so the text can still be copied elsewhere, but there is nothing
+    // to open and nothing real to log as a whatsapp touch. The button that
+    // calls this is hidden in that case too; this guard is belt-and-suspenders.
+    if (!digits) return;
+    window.open(`https://wa.me/${digits}?text=${encodeURIComponent(aiText)}`, '_blank');
     const statusBefore = lead.status;
     setBusy(true); setError('');
     try {
@@ -557,10 +566,17 @@ export default function LeadDetail() {
               <div className="ba-card" style={{ padding: 14, marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div className="c-field-label" style={{ margin: 0 }}>AI {aiKind === 'opening' ? 'opening' : 'follow-up'} — review before sending</div>
                 <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text-1)', fontSize: 13.5, lineHeight: 1.5 }}>{aiText}</p>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="button" className="ld-act wa" disabled={locked} onClick={() => void sendAi()}>
-                    <Icons.WhatsApp size={16} /> Open WhatsApp
-                  </button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {channelHref(lead, 'whatsapp') ? (
+                    <button type="button" className="ld-act wa" disabled={locked} onClick={() => void sendAi()}>
+                      <Icons.WhatsApp size={16} /> Open WhatsApp
+                    </button>
+                  ) : (
+                    // No mobile number on this lead (e.g. a landline) — WhatsApp isn't
+                    // reachable, so don't offer a dead wa.me link or log a fake touch.
+                    // The text above is still selectable/copyable for another channel.
+                    <span className="c-muted" style={{ fontSize: 12.5 }}>No WhatsApp number — copy the text above to send it elsewhere.</span>
+                  )}
                   <button type="button" className="c-btn-ghost" disabled={aiBusy || !mayManage} onClick={() => void personalize()}>
                     {aiBusy ? 'Writing…' : 'Regenerate'}
                   </button>
