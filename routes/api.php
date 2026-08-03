@@ -308,7 +308,6 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'module:leads'])->group(funct
     Route::patch ('/shop/leads/{lead}/assign',    [\App\Http\Controllers\LeadController::class, 'assign'])->middleware('can.perm:leads.assign');
     Route::post  ('/shop/leads/{lead}/touch',     [\App\Http\Controllers\LeadController::class, 'logTouch'])->middleware('can.perm:leads.manage');
     // DEPRECATED deploy-window alias — remove once the new admin SPA is live.
-    Route::post  ('/shop/leads/{lead}/followup',  [\App\Http\Controllers\LeadController::class, 'logFollowup'])->middleware('can.perm:leads.manage');
     Route::post  ('/shop/leads/{lead}/personalize', [\App\Http\Controllers\LeadController::class, 'personalize'])->middleware('can.perm:leads.manage');
 });
 

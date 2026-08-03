@@ -134,16 +134,17 @@ class LeadTouchTest extends TestCase
         ])->assertNotFound();
     }
 
-    public function test_the_deprecated_followup_alias_still_logs_whatsapp_out(): void
+    /**
+     * The deploy-window alias is gone. A route that silently meant
+     * "whatsapp, outbound" is the exact bug this feature exists to fix, so it
+     * must stay gone — not merely be unused.
+     */
+    public function test_the_deprecated_followup_route_no_longer_exists(): void
     {
         [$shop, $token] = $this->actingShop();
         $lead = $this->lead($shop);
 
-        $this->auth($token)->postJson("/api/shop/leads/{$lead->id}/followup")->assertOk();
-
-        $this->assertDatabaseHas('lead_activities', [
-            'lead_id' => $lead->id, 'channel' => 'whatsapp', 'direction' => 'out',
-        ]);
+        $this->auth($token)->postJson("/api/shop/leads/{$lead->id}/followup")->assertNotFound();
     }
 
     public function test_the_detail_endpoint_returns_the_channel_and_direction(): void

@@ -422,24 +422,6 @@ class LeadController extends Controller
     }
 
     /**
-     * POST /shop/leads/{lead}/followup
-     *
-     * @deprecated Deploy-window alias only. The backend ships before the SPA, so
-     * the live admin build still calls this. Delete it (and its route) in the
-     * follow-up commit once the new SPA is deployed — a route that silently
-     * means "whatsapp, outbound" is the exact bug this feature fixes.
-     */
-    public function logFollowup(Request $request, Lead $lead)
-    {
-        $request->merge([
-            'channel' => 'whatsapp',
-            'direction' => LeadActivity::DIRECTION_OUT,
-        ]);
-
-        return $this->logTouch($request, $lead);
-    }
-
-    /**
      * PATCH /shop/leads/{lead}
      * Edit a lead's contact details — the only lead-editing endpoint.
      *

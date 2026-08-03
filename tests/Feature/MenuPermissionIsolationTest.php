@@ -219,7 +219,9 @@ class MenuPermissionIsolationTest extends TestCase
             ->patchJson("/api/shop/leads/{$lead->id}/status", ['status' => 'sent'])
             ->assertStatus(403);
         $this->withHeaders($this->hdrs($viewer))
-            ->postJson("/api/shop/leads/{$lead->id}/followup")
+            ->postJson("/api/shop/leads/{$lead->id}/touch", [
+                'channel' => 'whatsapp', 'direction' => 'out',
+            ])
             ->assertStatus(403);
 
         $this->assertSame($lead->status, $lead->fresh()->status);
