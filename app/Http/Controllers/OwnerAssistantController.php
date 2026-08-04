@@ -145,12 +145,10 @@ class OwnerAssistantController extends Controller
 
         // A first turn creates the thread only after the tool ran, so a pending
         // row written mid-turn has no conversation_id yet. Backfill it.
-        if ($action = $this->actions->pending()) {
-            if (($action['type'] ?? null) === 'confirm') {
-                \App\Models\AssistantPendingAction::where('id', $action['id'])
-                    ->whereNull('conversation_id')
-                    ->update(['conversation_id' => $conversation->id]);
-            }
+        if (($action = $this->actions->pending()) && ($action['type'] ?? null) === 'confirm') {
+            AssistantPendingAction::where('id', $action['id'])
+                ->whereNull('conversation_id')
+                ->update(['conversation_id' => $conversation->id]);
         }
 
         $this->store->append($conversation, 'user', $userText, $userAudio[0] ?? null, $userAudio[1] ?? null);
@@ -192,16 +190,26 @@ class OwnerAssistantController extends Controller
     {
         $data = $request->validate(['id' => ['required', 'integer']]);
 
+        // Existence + ownership first, so another shop's id always 404s and this
+        // endpoint never leaks (via a 409) that the row exists at all.
         $row = AssistantPendingAction::find($data['id']);
         abort_unless($row && $row->shop_id === $request->user()->id, 404);
-        abort_unless($row->isLive(), 409, 'This change was already applied or has expired.');
+
+        // Claim the row BEFORE executing. A check-then-act would let two
+        // concurrent posts (double tap, proxy retry, flaky mobile connection)
+        // both pass isLive() and both write — two staff rows from one card.
+        // Whoever wins the UPDATE runs the tool; the loser gets the 409.
+        $claimed = AssistantPendingAction::whereKey($data['id'])
+            ->where('shop_id', $request->user()->id)
+            ->whereNull('resolved_at')
+            ->where('expires_at', '>', now())
+            ->update(['resolved_at' => now()]);
+        abort_unless($claimed === 1, 409, 'This change was already applied or has expired.');
 
         $result = json_decode(
             $this->registry->execute($request->user(), $row->tool, $row->input, userConfirmed: true),
             true,
         ) ?: [];
-
-        $row->update(['resolved_at' => now()]);
 
         $applied = (bool) ($result['done'] ?? false);
         $line = $applied

@@ -104,6 +104,58 @@ class AssistantConfirmEndpointTest extends TestCase
         $this->assertSame(0, Staff::where('shop_id', $shop->id)->count());
     }
 
+    /**
+     * The row must be claimed atomically BEFORE the tool runs. A retried POST
+     * (flaky mobile connection, proxy retry, double tap) previously passed the
+     * liveness check twice and wrote twice — two staff rows from one card.
+     */
+    public function test_the_same_id_cannot_be_applied_twice(): void
+    {
+        $shop = $this->shop('7428');
+        Sanctum::actingAs($shop, ['*']);
+        $row = $this->pending($shop);
+
+        $this->postJson('/api/shop/assistant/confirm', ['id' => $row->id])
+            ->assertCreated()
+            ->assertJsonPath('applied', true);
+
+        $this->postJson('/api/shop/assistant/confirm', ['id' => $row->id])->assertStatus(409);
+
+        $this->assertSame(1, Staff::where('shop_id', $shop->id)->count());
+    }
+
+    /**
+     * The atomicity itself: by the time the tool runs, the row must ALREADY be
+     * claimed, so a second request that arrives mid-execution loses the race
+     * instead of executing alongside it. Checking the row from inside the tool
+     * call is the deterministic stand-in for two concurrent POSTs.
+     */
+    public function test_the_row_is_claimed_before_the_tool_executes(): void
+    {
+        $shop = $this->shop('7429');
+        Sanctum::actingAs($shop, ['*']);
+        $row = $this->pending($shop);
+
+        $real = app(\App\Services\Assistant\AssistantToolRegistry::class);
+        $liveDuringExecute = null;
+        $spy = \Mockery::mock(\App\Services\Assistant\AssistantToolRegistry::class)->makePartial();
+        $spy->shouldReceive('execute')->andReturnUsing(
+            function (...$args) use ($real, $row, &$liveDuringExecute) {
+                // A concurrent request would run its claim UPDATE right here.
+                $liveDuringExecute = AssistantPendingAction::whereKey($row->id)
+                    ->whereNull('resolved_at')->where('expires_at', '>', now())->exists();
+
+                return $real->execute(...$args);
+            },
+        );
+        $this->app->instance(\App\Services\Assistant\AssistantToolRegistry::class, $spy);
+
+        $this->postJson('/api/shop/assistant/confirm', ['id' => $row->id])->assertCreated();
+
+        $this->assertFalse($liveDuringExecute, 'the pending row was still claimable while its tool was running');
+        $this->assertSame(1, Staff::where('shop_id', $shop->id)->count());
+    }
+
     public function test_the_confirmation_line_is_appended_to_the_thread(): void
     {
         $shop = $this->shop('7427');
