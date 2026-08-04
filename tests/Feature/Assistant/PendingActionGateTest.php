@@ -172,4 +172,46 @@ class PendingActionGateTest extends TestCase
         $this->assertSame(1, Staff::where('shop_id', $shop->id)->count());
         $this->assertFalse($row->fresh()->isLive()); // card can no longer double-write
     }
+
+    // close_day DELETES a weekday's shop_working_hours row — its open/close times
+    // and slot length are gone, and bookings for that weekday stop until the owner
+    // notices. Same class of loss as delete_category, so it needs the owner's tap.
+
+    private function hoursFor(Shop $shop, int $day): int
+    {
+        return \DB::table('shop_working_hours')->where('shop_id', $shop->id)->where('day_of_week', $day)->count();
+    }
+
+    public function test_close_day_refuses_a_model_supplied_confirm_and_deletes_nothing(): void
+    {
+        $shop = $this->shop('7430');
+        \DB::table('shop_working_hours')->updateOrInsert(
+            ['shop_id' => $shop->id, 'day_of_week' => 5],
+            ['start_time' => '09:00:00', 'end_time' => '18:00:00', 'slot_duration' => 30, 'created_at' => now(), 'updated_at' => now()],
+        );
+
+        // confirmed:true, but from the model — not an owner tap.
+        $out = app(\App\Services\Assistant\Modules\HoursTools::class)
+            ->run(new ToolCall($shop, null, 'close_day', ['day_of_week' => 5], true, false));
+
+        $this->assertTrue($out['preview']);
+        $this->assertFalse($out['saved']);
+        $this->assertSame(1, $this->hoursFor($shop, 5)); // Friday's hours survive
+        $this->assertTrue(AssistantPendingAction::where('shop_id', $shop->id)->firstOrFail()->destructive);
+    }
+
+    public function test_close_day_deletes_when_the_owner_confirmed(): void
+    {
+        $shop = $this->shop('7431');
+        \DB::table('shop_working_hours')->updateOrInsert(
+            ['shop_id' => $shop->id, 'day_of_week' => 5],
+            ['start_time' => '09:00:00', 'end_time' => '18:00:00', 'slot_duration' => 30, 'created_at' => now(), 'updated_at' => now()],
+        );
+
+        $out = app(\App\Services\Assistant\Modules\HoursTools::class)
+            ->run(new ToolCall($shop, null, 'close_day', ['day_of_week' => 5], true, true));
+
+        $this->assertTrue($out['done']);
+        $this->assertSame(0, $this->hoursFor($shop, 5));
+    }
 }

@@ -23,6 +23,16 @@ class HoursTools extends MutatingTool
         ];
     }
 
+    /**
+     * close_day deletes the weekday's shop_working_hours row outright — its
+     * times and slot length go with it, and that weekday stops accepting
+     * bookings until someone notices. The owner confirms it, not the model.
+     */
+    protected function destructive(): array
+    {
+        return ['close_day'];
+    }
+
     public function moduleKey(): ?string
     {
         return 'bookings';
