@@ -1,10 +1,11 @@
 <?php
-namespace Tests\Unit;
+namespace Tests\Feature\Assistant;
 
 use App\Models\Shop;
 use App\Services\Assistant\Support\MutatingTool;
 use App\Services\Assistant\Support\ToolCall;
-use PHPUnit\Framework\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 /** Minimal concrete MutatingTool exercising the gate. */
 class FakeRenameTool extends MutatingTool
@@ -38,17 +39,29 @@ class FakeRenameTool extends MutatingTool
     }
 }
 
+/**
+ * Moved from tests/Unit: the gate now persists an AssistantPendingAction row
+ * on every unconfirmed call (Task 3), so this needs a real database — a plain
+ * PHPUnit\Framework\TestCase can no longer exercise it.
+ */
 class MutatingToolTest extends TestCase
 {
-    private function call(bool $confirmed, array $input = ['name' => 'x', 'new' => 'New']): ToolCall
+    use RefreshDatabase;
+
+    private function shop(): Shop
     {
-        return new ToolCall(new Shop(), null, 'rename_thing', $input, $confirmed);
+        return Shop::create(['name' => 'S', 'shop_code' => '9500', 'pin' => '0', 'status' => 'active', 'category_id' => 11]);
+    }
+
+    private function toolCall(bool $confirmed, array $input = ['name' => 'x', 'new' => 'New']): ToolCall
+    {
+        return new ToolCall($this->shop(), null, 'rename_thing', $input, $confirmed);
     }
 
     public function test_unconfirmed_call_returns_preview_and_writes_nothing(): void
     {
         $tool = new FakeRenameTool();
-        $out = $tool->run($this->call(confirmed: false));
+        $out = $tool->run($this->toolCall(confirmed: false));
 
         $this->assertTrue($out['preview']);
         $this->assertSame('Rename to New', $out['action']);
@@ -64,7 +77,7 @@ class MutatingToolTest extends TestCase
     public function test_confirmed_call_performs_the_write(): void
     {
         $tool = new FakeRenameTool();
-        $out = $tool->run($this->call(confirmed: true));
+        $out = $tool->run($this->toolCall(confirmed: true));
 
         $this->assertTrue($out['done']);
         $this->assertTrue($out['saved']); // unambiguous success marker
@@ -74,7 +87,7 @@ class MutatingToolTest extends TestCase
     public function test_resolve_not_found_short_circuits_before_write(): void
     {
         $tool = new FakeRenameTool();
-        $out = $tool->run($this->call(confirmed: true, input: ['name' => 'ghost', 'new' => 'New']));
+        $out = $tool->run($this->toolCall(confirmed: true, input: ['name' => 'ghost', 'new' => 'New']));
 
         $this->assertSame('not_found', $out['error']);
         $this->assertSame('Old', $tool->store[1]); // untouched

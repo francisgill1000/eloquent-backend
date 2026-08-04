@@ -31,9 +31,9 @@ class BookingToolsModuleTest extends TestCase
         return $b->fresh();
     }
 
-    private function toolCall(Shop $shop, string $tool, array $input, bool $confirmed): ToolCall
+    private function toolCall(Shop $shop, string $tool, array $input, bool $confirmed, bool $userConfirmed = false): ToolCall
     {
-        return new ToolCall($shop, null, $tool, $input, $confirmed); // null user = owner-equivalent
+        return new ToolCall($shop, null, $tool, $input, $confirmed, $userConfirmed); // null user = owner-equivalent
     }
 
     public function test_cancel_unconfirmed_previews_and_does_not_write(): void
@@ -50,12 +50,29 @@ class BookingToolsModuleTest extends TestCase
     {
         $shop = $this->shop();
         $this->booking($shop);
-        $out = app(BookingTools::class)->run($this->toolCall($shop, 'cancel_booking', ['reference' => 'BK00001'], true));
+        // cancel_booking is destructive: only an owner tap (userConfirmed) may write.
+        $out = app(BookingTools::class)->run($this->toolCall($shop, 'cancel_booking', ['reference' => 'BK00001'], true, true));
 
         $this->assertTrue($out['done']);
         $fresh = Booking::where('booking_reference', 'BK00001')->first();
         $this->assertSame('cancelled', strtolower($fresh->getRawOriginal('status')));
         $this->assertNull($fresh->staff_id); // side-effect via BookingStatusService
+    }
+
+    public function test_cancel_confirmed_by_the_model_alone_does_not_write(): void
+    {
+        $shop = $this->shop();
+        $this->booking($shop);
+
+        // confirmed:true, but it came from the model — not a user tap. cancel_booking
+        // is destructive, so this must preview, not cancel.
+        $out = app(BookingTools::class)->run($this->toolCall($shop, 'cancel_booking', ['reference' => 'BK00001'], true, false));
+
+        $this->assertTrue($out['preview']);
+        $this->assertFalse($out['saved']);
+        $fresh = Booking::where('booking_reference', 'BK00001')->first();
+        $this->assertSame('booked', strtolower($fresh->getRawOriginal('status')));
+        $this->assertNotNull($fresh->staff_id); // still assigned, untouched
     }
 
     public function test_unknown_reference_returns_not_found(): void
