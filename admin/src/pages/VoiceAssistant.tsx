@@ -102,11 +102,15 @@ export default function VoiceAssistant() {
   // Load the thread named in the route, or start fresh when there is none.
   useEffect(() => {
     let alive = true;
-    setConversationId(cid);
     // A confirm card belongs to the thread that produced it. Leaving that
     // thread — via "Start new chat" or opening another one from Chats —
-    // must not leave it hanging over whatever thread we land on next.
-    setPendingConfirm(null);
+    // must not leave it hanging over whatever thread we land on next. But
+    // `adopt()` navigates to the freshly-created thread's URL in the same
+    // batch that it sets `conversationId` and the pending confirm — that's
+    // not "leaving the thread", it's this thread getting its id. Only clear
+    // when the route id actually diverges from the thread we already have.
+    if (cid !== conversationId) setPendingConfirm(null);
+    setConversationId(cid);
     if (cid == null) {
       setMessages([]);
       restoredCount.current = 0;
