@@ -232,6 +232,53 @@ describe('VoiceAssistant page', () => {
     expect(confirmAction).not.toHaveBeenCalled();
   });
 
+  it('clears a confirm card when the owner switches threads', async () => {
+    asMock(postText).mockResolvedValue({
+      conversation_id: 9, title: 't', reply_text: 'Delete Ali? Confirm below.', reply_audio_url: null,
+      action: { type: 'confirm', id: 45, summary: 'Delete staff member "Ali"', changes: {}, destructive: true },
+    });
+
+    const { rerender } = render(<VoiceAssistant />);
+    await screen.findByPlaceholderText(/type/i);
+    fireEvent.change(screen.getByPlaceholderText(/type/i), { target: { value: 'delete Ali' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(screen.getByText('Delete staff member "Ali"')).toBeInTheDocument());
+
+    // Owner opens a different thread (Chats, or Start new chat). The card
+    // belonged to the thread they left — it must not hang over the new one,
+    // where tapping Confirm would delete Ali under a conversation that never
+    // asked for it.
+    params = { conversationId: '12' };
+    asMock(getConversation).mockResolvedValueOnce([{ id: 1, role: 'assistant', content: 'other thread', audio_url: null }]);
+    rerender(<VoiceAssistant />);
+
+    await screen.findByText('other thread');
+    expect(screen.queryByText('Delete staff member "Ali"')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /confirm/i })).not.toBeInTheDocument();
+  });
+
+  it('treats a 409 as already applied and retires the card', async () => {
+    asMock(postText).mockResolvedValue({
+      conversation_id: 9, title: 't', reply_text: 'Add Jhon? Confirm below.', reply_audio_url: null,
+      action: { type: 'confirm', id: 46, summary: 'Add staff member "Jhon"', changes: { staff: 'new: Jhon' }, destructive: false },
+    });
+    asMock(confirmAction).mockRejectedValue({ response: { status: 409 } });
+
+    render(<VoiceAssistant />);
+    await screen.findByPlaceholderText(/type/i);
+    fireEvent.change(screen.getByPlaceholderText(/type/i), { target: { value: 'add staff Jhon' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() => expect(screen.getByText('Add staff member "Jhon"')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+
+    // The row was already resolved (the model self-confirmed, or it expired):
+    // the write is not pending any more, so this is information, not a failure.
+    await waitFor(() => expect(screen.getByText(/already applied/i)).toBeInTheDocument());
+    expect(screen.queryByText('Could not apply that change.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /confirm/i })).not.toBeInTheDocument();
+  });
+
   it('sim mode plays the script and ends on the booking preview', async () => {
     // jsdom has no real audio — make play() resolve and let us fire `ended`.
     window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);

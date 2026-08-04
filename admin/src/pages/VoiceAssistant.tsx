@@ -103,6 +103,10 @@ export default function VoiceAssistant() {
   useEffect(() => {
     let alive = true;
     setConversationId(cid);
+    // A confirm card belongs to the thread that produced it. Leaving that
+    // thread — via "Start new chat" or opening another one from Chats —
+    // must not leave it hanging over whatever thread we land on next.
+    setPendingConfirm(null);
     if (cid == null) {
       setMessages([]);
       restoredCount.current = 0;
@@ -247,8 +251,17 @@ export default function VoiceAssistant() {
                     const res = await confirmAction(pendingConfirm.id);
                     setMessages((m) => [...m, { role: 'assistant', content: res.reply_text, audioUrl: null }]);
                     setPendingConfirm(null);
-                  } catch {
-                    setError('Could not apply that change.');
+                  } catch (e: unknown) {
+                    if ((e as { response?: { status?: number } })?.response?.status === 409) {
+                      // The row was already resolved (self-confirmed by the
+                      // model, or expired) — the write isn't pending any
+                      // more. That's information, not a failure: retire the
+                      // card instead of inviting a retry that would duplicate it.
+                      setError('That change was already applied (or is no longer pending).');
+                      setPendingConfirm(null);
+                    } else {
+                      setError('Could not apply that change.');
+                    }
                   } finally {
                     setConfirming(false);
                   }
