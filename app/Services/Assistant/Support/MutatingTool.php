@@ -1,6 +1,8 @@
 <?php
 namespace App\Services\Assistant\Support;
 
+use App\Models\AssistantPendingAction;
+
 /**
  * Base for every data-changing tool. Enforces the confirm-everything gate:
  * a tool writes NOTHING unless the model re-calls it with confirmed=true.
@@ -10,6 +12,17 @@ namespace App\Services\Assistant\Support;
  */
 abstract class MutatingTool extends AssistantModule
 {
+    /**
+     * Tools whose write cannot be triggered by the model — only by the owner
+     * tapping Confirm. Override per module.
+     *
+     * @return array<int, string>
+     */
+    protected function destructive(): array
+    {
+        return [];
+    }
+
     /**
      * @param callable():array $resolve  target record, or notFound()/ambiguous() to short-circuit
      * @param callable(array):array $describe  target => [string $action, array $changes]
@@ -27,8 +40,25 @@ abstract class MutatingTool extends AssistantModule
             return $target;
         }
 
-        if (! $call->confirmed) {
+        // A destructive tool ignores a confirmed flag the model set itself: the
+        // model skips the confirm turn ~12% of the time and narrates success
+        // anyway, so its say-so is not enough to delete anything.
+        $destructive = in_array($call->tool, $this->destructive(), true);
+        $mayWrite = $call->confirmed && (! $destructive || $call->userConfirmed);
+
+        if (! $mayWrite) {
             [$action, $changes] = $describe($target);
+            $row = AssistantPendingAction::create([
+                'shop_id' => $call->shop->id,
+                'conversation_id' => app(AssistantActions::class)->conversationId(),
+                'tool' => $call->tool,
+                'input' => $call->input,
+                'summary' => $action,
+                'changes' => $changes,
+                'destructive' => $destructive,
+                'expires_at' => now()->addMinutes(30),
+            ]);
+            app(AssistantActions::class)->confirm($row);
             return $this->preview($action, $changes);
         }
 
