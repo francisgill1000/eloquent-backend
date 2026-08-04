@@ -58,4 +58,18 @@ class AssistantPromptTest extends TestCase
         $this->assertStringContainsString('NEVER state any number', $prompt);
         $this->assertStringContainsString('hunt_credits for credits', $prompt);
     }
+
+    /**
+     * The standing instruction must not contradict what a destructive preview
+     * now tells the model per call. Re-calling a delete/cancel tool can never
+     * succeed — it only burns the tool-loop budget until the turn dead-ends.
+     */
+    public function test_prompt_tells_the_model_not_to_retry_a_change_the_owner_confirms_in_the_app(): void
+    {
+        $shop = Shop::create(['name' => 'B', 'shop_code' => '7204', 'pin' => '0', 'status' => 'active', 'category_id' => 11, 'modules' => ['bookings']]);
+        $prompt = AssistantPrompt::for($shop);
+
+        $this->assertStringContainsString('do NOT call that tool again', $prompt);
+        $this->assertStringContainsString('confirm it in the app', $prompt);
+    }
 }

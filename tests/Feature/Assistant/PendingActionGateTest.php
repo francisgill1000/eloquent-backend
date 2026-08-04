@@ -109,6 +109,33 @@ class PendingActionGateTest extends TestCase
         $this->assertTrue(AssistantPendingAction::where('shop_id', $shop->id)->firstOrFail()->destructive);
     }
 
+    /**
+     * The per-call instruction must not order the model to do something the
+     * gate forbids. Telling a destructive tool's preview to "call again with
+     * confirmed=true" only produces an identical preview, so the model loops
+     * until the turn budget is gone and the owner gets no card at all.
+     */
+    public function test_a_destructive_preview_tells_the_model_not_to_call_again(): void
+    {
+        $shop = $this->shop('7415');
+        Staff::create(['shop_id' => $shop->id, 'name' => 'Ali', 'is_active' => true]);
+
+        $out = app(StaffTools::class)->run(new ToolCall($shop, null, 'delete_staff', ['name' => 'Ali'], false));
+
+        $this->assertStringNotContainsString('confirmed=true', $out['next']);
+        $this->assertStringContainsString('Do NOT call this tool again', $out['next']);
+        $this->assertStringContainsString('in the app', $out['next']);
+    }
+
+    public function test_a_non_destructive_preview_keeps_the_self_confirm_instruction(): void
+    {
+        $shop = $this->shop('7416');
+
+        $out = app(StaffTools::class)->run(new ToolCall($shop, null, 'create_staff', ['name' => 'Jhon'], false));
+
+        $this->assertStringContainsString('confirmed=true', $out['next']);
+    }
+
     public function test_destructive_tool_writes_when_the_user_confirmed(): void
     {
         $shop = $this->shop('7412');

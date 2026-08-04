@@ -132,8 +132,14 @@ class OwnerAssistantController extends Controller
         }
 
         // Failure → persist nothing (no thread, no turns); return a transient fallback.
+        // A tool may still have previewed a change before the loop gave up, so
+        // carry the card: without it the owner sees only an apology while a
+        // pending row sits there with nothing able to act on it.
         if ($replyText === '') {
             $payload = ['reply_text' => "Sorry, I couldn't work that out — please try again.", 'reply_audio_url' => null];
+            if ($action = $this->actions->pending()) {
+                $payload['action'] = $action;
+            }
             if ($transcript !== null) {
                 $payload['transcript'] = $transcript;
             }

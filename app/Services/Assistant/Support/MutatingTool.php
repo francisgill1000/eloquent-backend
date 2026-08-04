@@ -59,7 +59,7 @@ abstract class MutatingTool extends AssistantModule
                 'expires_at' => now()->addMinutes(30),
             ]);
             app(AssistantActions::class)->confirm($row);
-            return $this->preview($action, $changes);
+            return $this->preview($action, $changes, $destructive);
         }
 
         $result = $this->applied($write($target));
@@ -77,16 +77,24 @@ abstract class MutatingTool extends AssistantModule
      * success: `saved => false` plus an explicit `next` instruction keep the
      * model from announcing a done change or inventing a reference number.
      *
+     * A destructive tool gets a DIFFERENT instruction. It can only ever be
+     * written by the owner tapping Confirm, so telling the model to re-call it
+     * with confirmed=true would just return this same preview — the model
+     * obeys, loops, and burns the tool-loop budget until the turn dead-ends
+     * with no card at all. Tell it to read the change back and stop instead.
+     *
      * @param array<string, mixed> $changes
      */
-    protected function preview(string $action, array $changes = []): array
+    protected function preview(string $action, array $changes = [], bool $destructive = false): array
     {
         return [
             'preview' => true,
             'saved' => false,
             'action' => $action,
             'changes' => $changes,
-            'next' => 'NOT SAVED. Nothing has changed yet. Read this back to the owner and ask them to confirm. Only if they clearly agree, call this SAME tool again with confirmed=true. Do NOT tell the owner it is done, and do NOT state any reference number, until you receive a result with done=true.',
+            'next' => $destructive
+                ? 'NOT SAVED. Nothing has changed yet. The owner has been shown a Confirm button for this in the app and will tap it themselves — you cannot make this change and calling this tool again will do nothing. Do NOT call this tool again. Just read the change back in one short sentence, tell the owner to confirm it in the app, and stop. Do NOT say it is done and do NOT state any reference number.'
+                : 'NOT SAVED. Nothing has changed yet. Read this back to the owner and ask them to confirm. Only if they clearly agree, call this SAME tool again with confirmed=true. Do NOT tell the owner it is done, and do NOT state any reference number, until you receive a result with done=true.',
         ];
     }
 
