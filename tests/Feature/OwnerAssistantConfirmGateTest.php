@@ -105,6 +105,39 @@ class OwnerAssistantConfirmGateTest extends TestCase
         $this->assertSame(1, DB::table('staff')->where('shop_id', $shop->id)->count());
     }
 
+    /**
+     * The empty-reply fallback exists so a card the model left mid-turn is
+     * never stranded. But `open_booking` records a `navigate` action, not a
+     * confirm — attaching THAT here would route the SPA away from the "Sorry,
+     * I couldn't work that out" apology before the owner ever sees it. Only a
+     * pending confirm belongs on this path.
+     */
+    public function test_an_exhausted_tool_loop_does_not_carry_a_navigate_action(): void
+    {
+        Storage::fake('public');
+        $shop = Shop::create(['name' => 'E', 'shop_code' => '5', 'pin' => '1', 'status' => 'active', 'category_id' => 11]);
+        $this->startTrial($shop);
+        Sanctum::actingAs($shop, ['*']);
+        DB::table('bookings')->insert([
+            'shop_id' => $shop->id, 'date' => now()->toDateString(), 'start_time' => '10:00',
+            'end_time' => '10:30', 'status' => 'booked', 'charges' => 10, 'discount_amount' => 0,
+            'services' => '[]', 'booking_reference' => 'BK00002', 'customer_name' => 'X',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $toolUse = ['content' => [['type' => 'tool_use', 'id' => 'tu1', 'name' => 'open_booking', 'input' => ['reference' => 'BK00002']]]];
+        $sequence = Http::sequence();
+        for ($i = 0; $i < 5; $i++) { // maxTurns
+            $sequence->push($toolUse);
+        }
+        Http::fake(['api.anthropic.com/*' => $sequence]);
+
+        $res = $this->postJson('/api/shop/assistant/text', ['text' => 'open BK00002'])->assertCreated();
+
+        $this->assertStringContainsString("couldn't work that out", $res->json('reply_text'));
+        $this->assertArrayNotHasKey('action', $res->json());
+    }
+
     public function test_the_pending_row_is_tied_to_the_thread_the_turn_created(): void
     {
         Storage::fake('public');

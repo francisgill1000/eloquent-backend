@@ -160,6 +160,30 @@ class AssistantConfirmEndpointTest extends TestCase
     }
 
     /**
+     * The claim commits `resolved_at` before execute() runs. If execute()
+     * throws (a DB error, a PHP error — not a tool-level failure like
+     * no_permission, which returns normally with done:false), the row must
+     * not be left burned: release the claim so the owner's retry can still
+     * apply the change, rather than being told "already applied" for a write
+     * that never happened.
+     */
+    public function test_an_exception_during_execute_releases_the_claim_and_still_500s(): void
+    {
+        $shop = $this->shop('7430');
+        Sanctum::actingAs($shop, ['*']);
+        $row = $this->pending($shop);
+
+        $spy = \Mockery::mock(\App\Services\Assistant\AssistantToolRegistry::class)->makePartial();
+        $spy->shouldReceive('execute')->once()->andThrow(new \RuntimeException('db exploded'));
+        $this->app->instance(\App\Services\Assistant\AssistantToolRegistry::class, $spy);
+
+        $this->postJson('/api/shop/assistant/confirm', ['id' => $row->id])->assertStatus(500);
+
+        $this->assertNull($row->fresh()->resolved_at);
+        $this->assertSame(0, Staff::where('shop_id', $shop->id)->count());
+    }
+
+    /**
      * A permission-limited actor, exactly as MenuPermissionIsolationTest builds
      * one: a role holding only $perms, a ShopUser wearing it, and a token tagged
      * with that user so rbac.context resolves it into current_shop_user().

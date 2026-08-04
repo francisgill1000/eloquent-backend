@@ -137,7 +137,11 @@ class OwnerAssistantController extends Controller
         // pending row sits there with nothing able to act on it.
         if ($replyText === '') {
             $payload = ['reply_text' => "Sorry, I couldn't work that out — please try again.", 'reply_audio_url' => null];
-            if ($action = $this->actions->pending()) {
+            // Only a confirm card belongs on this path. A pending `navigate`
+            // action would send the SPA away before the apology is ever seen —
+            // the intent here was always to still surface a card the model
+            // left behind, never to route the owner off the page.
+            if (($action = $this->actions->pending()) && ($action['type'] ?? null) === 'confirm') {
                 $payload['action'] = $action;
             }
             if ($transcript !== null) {
@@ -212,10 +216,25 @@ class OwnerAssistantController extends Controller
             ->update(['resolved_at' => now()]);
         abort_unless($claimed === 1, 409, 'This change was already applied or has expired.');
 
-        $result = json_decode(
-            $this->registry->execute($request->user(), $row->tool, $row->input, userConfirmed: true),
-            true,
-        ) ?: [];
+        // The claim above already committed `resolved_at`. If execute() throws
+        // (DB error, PHP error — NOT a tool-level failure like no_permission,
+        // which returns normally with done:false), release the claim so the
+        // row is still live and the owner's retry isn't told "already applied"
+        // for a change that was never written. Tool-level failures keep the
+        // row resolved — that outcome is intentional, not an accident to undo.
+        try {
+            $result = json_decode(
+                $this->registry->execute($request->user(), $row->tool, $row->input, userConfirmed: true),
+                true,
+            ) ?: [];
+        } catch (\Throwable $e) {
+            // Query-builder update, not $row->update(): $row was loaded before
+            // the atomic claim above, so its in-memory resolved_at is still
+            // null — Eloquent would see no dirty change and skip the SQL
+            // entirely, leaving the claim burned despite this "releasing" it.
+            AssistantPendingAction::whereKey($row->id)->update(['resolved_at' => null]);
+            throw $e;
+        }
 
         $applied = (bool) ($result['done'] ?? false);
         $line = $applied
