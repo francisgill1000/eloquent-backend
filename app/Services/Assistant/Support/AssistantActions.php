@@ -21,7 +21,12 @@ class AssistantActions
         $this->action = ['type' => 'navigate', 'route' => $route];
     }
 
-    /** Hand the client a change to confirm. Only the id crosses the wire. */
+    /**
+     * Hand the client a change to confirm: what it will do, in the owner's
+     * words. The tool's arguments are never sent, and the id is the only thing
+     * that comes back — the server re-executes from the row it stored, so the
+     * client cannot influence what gets written.
+     */
     public function confirm(AssistantPendingAction $row): void
     {
         $this->action = [
