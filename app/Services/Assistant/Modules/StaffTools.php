@@ -18,6 +18,11 @@ class StaffTools extends MutatingTool
         ];
     }
 
+    protected function destructive(): array
+    {
+        return ['delete_staff'];
+    }
+
     public function moduleKey(): ?string
     {
         return 'bookings';

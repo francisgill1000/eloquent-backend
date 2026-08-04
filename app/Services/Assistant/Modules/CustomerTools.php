@@ -18,6 +18,11 @@ class CustomerTools extends MutatingTool
         ];
     }
 
+    protected function destructive(): array
+    {
+        return ['delete_customer'];
+    }
+
     public function moduleKey(): ?string
     {
         return 'bookings';

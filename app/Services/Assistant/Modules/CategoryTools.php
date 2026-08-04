@@ -18,6 +18,11 @@ class CategoryTools extends MutatingTool
         ];
     }
 
+    protected function destructive(): array
+    {
+        return ['delete_category'];
+    }
+
     public function moduleKey(): ?string
     {
         return 'bookings';

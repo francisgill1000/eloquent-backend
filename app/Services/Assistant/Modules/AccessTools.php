@@ -31,6 +31,11 @@ class AccessTools extends MutatingTool
         ];
     }
 
+    protected function destructive(): array
+    {
+        return ['delete_user', 'delete_role'];
+    }
+
     protected function handle(ToolCall $call): array
     {
         return match ($call->tool) {

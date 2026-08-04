@@ -36,6 +36,11 @@ class BookingTools extends MutatingTool
         ];
     }
 
+    protected function destructive(): array
+    {
+        return ['delete_booking', 'cancel_booking', 'update_booking_status'];
+    }
+
     public function moduleKey(): ?string
     {
         return 'bookings';

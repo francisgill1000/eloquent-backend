@@ -18,6 +18,11 @@ class ServiceTools extends MutatingTool
         ];
     }
 
+    protected function destructive(): array
+    {
+        return ['delete_service'];
+    }
+
     public function moduleKey(): ?string
     {
         return 'bookings';
