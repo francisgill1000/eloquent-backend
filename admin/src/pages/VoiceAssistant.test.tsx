@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { getConversation, postText } from '@/lib/assistant';
+import { getConversation, postText, confirmAction } from '@/lib/assistant';
 import * as sim from '@/lib/simulation';
 import VoiceAssistant from './VoiceAssistant';
 
@@ -34,6 +34,7 @@ vi.mock('@/lib/assistant', () => ({
   deleteConversation: vi.fn().mockResolvedValue(undefined),
   postText: vi.fn().mockResolvedValue({ conversation_id: 9, title: 'how much', reply_text: 'You made 50 dirhams.', reply_audio_url: null }),
   postVoice: vi.fn(),
+  confirmAction: vi.fn(),
 }));
 vi.mock('@/hooks/useRecorder', () => ({
   useRecorder: () => ({ recording: false, start: vi.fn(), stop: vi.fn(), supported: true }),
@@ -136,6 +137,67 @@ describe('VoiceAssistant page', () => {
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
     await waitFor(() => expect(screen.getByText('You made 50 dirhams.')).toBeInTheDocument());
     expect(navigate).not.toHaveBeenCalledWith(expect.stringContaining('/booking/'));
+  });
+
+  it('shows a confirm card when the reply carries one, and applies it on tap', async () => {
+    asMock(postText).mockResolvedValue({
+      conversation_id: 9, title: 't', reply_text: 'Add Jhon? Confirm below.', reply_audio_url: null,
+      action: { type: 'confirm', id: 42, summary: 'Add staff member "Jhon"', changes: { staff: 'new: Jhon' }, destructive: false },
+    });
+    asMock(confirmAction).mockResolvedValue({ applied: true, reply_text: '✅ Add staff member "Jhon"' });
+
+    render(<VoiceAssistant />);
+    await screen.findByPlaceholderText(/type/i);
+    fireEvent.change(screen.getByPlaceholderText(/type/i), { target: { value: 'add staff Jhon' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() => expect(screen.getByText('Add staff member "Jhon"')).toBeInTheDocument());
+    expect(screen.getByText('new: Jhon')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+
+    await waitFor(() => expect(confirmAction).toHaveBeenCalledWith(42));
+    await waitFor(() => expect(screen.getByText('✅ Add staff member "Jhon"')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /confirm/i })).not.toBeInTheDocument();
+  });
+
+  it('dismisses a confirm card without calling the server', async () => {
+    asMock(postText).mockResolvedValue({
+      conversation_id: 9, title: 't', reply_text: 'Delete Ali? Confirm below.', reply_audio_url: null,
+      action: { type: 'confirm', id: 43, summary: 'Delete staff member "Ali"', changes: {}, destructive: true },
+    });
+
+    render(<VoiceAssistant />);
+    await screen.findByPlaceholderText(/type/i);
+    fireEvent.change(screen.getByPlaceholderText(/type/i), { target: { value: 'delete Ali' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() => expect(screen.getByText('Delete staff member "Ali"')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+
+    await waitFor(() => expect(screen.queryByText('Delete staff member "Ali"')).not.toBeInTheDocument());
+    expect(confirmAction).not.toHaveBeenCalled();
+  });
+
+  it('surfaces an error and keeps the card usable when confirming fails', async () => {
+    asMock(postText).mockResolvedValue({
+      conversation_id: 9, title: 't', reply_text: 'Add Jhon? Confirm below.', reply_audio_url: null,
+      action: { type: 'confirm', id: 44, summary: 'Add staff member "Jhon"', changes: { staff: 'new: Jhon' }, destructive: false },
+    });
+    asMock(confirmAction).mockRejectedValue(new Error('network down'));
+
+    render(<VoiceAssistant />);
+    await screen.findByPlaceholderText(/type/i);
+    fireEvent.change(screen.getByPlaceholderText(/type/i), { target: { value: 'add staff Jhon' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() => expect(screen.getByText('Add staff member "Jhon"')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+
+    await waitFor(() => expect(screen.getByText('Could not apply that change.')).toBeInTheDocument());
+    // The card survives the failure so the owner can retry or dismiss — not stuck disabled.
+    expect(screen.getByText('Add staff member "Jhon"')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /confirm/i })).not.toBeDisabled();
   });
 
   it('sim mode plays the script and ends on the booking preview', async () => {

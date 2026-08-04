@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
 import { Icons } from '@/components/Icons';
 import { useShop } from '@/context/ShopContext';
-import { getConversation, postText, postVoice } from '@/lib/assistant';
+import { getConversation, postText, postVoice, confirmAction, type ConfirmAction } from '@/lib/assistant';
 import { getSimulation, speak, type SimScript } from '@/lib/simulation';
 import { createBooking } from '@/lib/bookings';
 import { useRecorder } from '@/hooks/useRecorder';
@@ -28,6 +28,9 @@ export default function VoiceAssistant() {
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
+  // Only the latest turn can have a live confirmation; a single slot is enough.
+  const [pendingConfirm, setPendingConfirm] = useState<ConfirmAction | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const { recording, start, stop, supported } = useRecorder();
   const threadRef = useRef<HTMLDivElement>(null);
   // Messages loaded from the server should not auto-play their audio; only
@@ -142,6 +145,7 @@ export default function VoiceAssistant() {
       setMessages((m) => [...m, { role: 'assistant', content: res.reply_text, audioUrl: res.reply_audio_url }]);
       adopt(res.conversation_id);
       if (res.action?.type === 'navigate') navigate(res.action.route);
+      else if (res.action?.type === 'confirm') setPendingConfirm(res.action);
     } catch { setError('Could not reach the assistant.'); }
     finally { setBusy(false); }
   }
@@ -161,6 +165,7 @@ export default function VoiceAssistant() {
         ]);
         adopt(res.conversation_id);
         if (res.action?.type === 'navigate') navigate(res.action.route);
+        else if (res.action?.type === 'confirm') setPendingConfirm(res.action);
       } catch {
         setMessages((m) => [...m, { role: 'user', content: '', audioUrl: voiceUrl }]);
         setError('Could not reach the assistant.');
@@ -219,6 +224,35 @@ export default function VoiceAssistant() {
             {m.content && <div className="va-text">{renderContent(m.content)}</div>}
           </div>
         ))}
+        {pendingConfirm && (
+          <div className={`va-confirm${pendingConfirm.destructive ? ' va-confirm-danger' : ''}`}>
+            <div className="va-confirm-summary">{pendingConfirm.summary}</div>
+            {Object.entries(pendingConfirm.changes).map(([k, v]) => (
+              <div key={k} className="va-confirm-change"><span>{k}</span>{v}</div>
+            ))}
+            <div className="va-confirm-actions">
+              <button className="va-confirm-no" disabled={confirming} onClick={() => setPendingConfirm(null)}>Dismiss</button>
+              <button
+                className="va-confirm-yes"
+                disabled={confirming}
+                onClick={async () => {
+                  setConfirming(true);
+                  try {
+                    const res = await confirmAction(pendingConfirm.id);
+                    setMessages((m) => [...m, { role: 'assistant', content: res.reply_text, audioUrl: null }]);
+                    setPendingConfirm(null);
+                  } catch {
+                    setError('Could not apply that change.');
+                  } finally {
+                    setConfirming(false);
+                  }
+                }}
+              >
+                {confirming ? 'Applying…' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        )}
         {(busy || simThinking) && <ThinkingBubble />}
         {error && <div className="c-error-box">{error}</div>}
       </div>

@@ -2057,6 +2057,18 @@
 .va-mic.recording { background: var(--danger); color: #fff; animation: va-pulse 1.2s ease-in-out infinite; }
 @keyframes va-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(248,113,113,0.5); } 50% { box-shadow: 0 0 0 8px rgba(248,113,113,0); } }
 
+.va-confirm { align-self: flex-start; max-width: 85%; margin: 6px 0 2px; padding: 12px 14px; border: 1px solid var(--border-3); border-radius: 14px; background: var(--surface-2); }
+.va-confirm-danger { border-color: var(--danger); background: var(--danger-soft); }
+.va-confirm-summary { font-weight: 700; color: var(--text-1); margin-bottom: 6px; }
+.va-confirm-change { display: flex; gap: 8px; font-size: 13px; color: var(--text-2); }
+.va-confirm-change span { color: var(--text-3); }
+.va-confirm-actions { display: flex; gap: 8px; margin-top: 10px; }
+.va-confirm-yes, .va-confirm-no { flex: 1; padding: 8px 12px; border-radius: var(--r-sm); font: inherit; font-weight: 700; cursor: pointer; }
+.va-confirm-yes { border: 0; background: var(--mint-300); color: #04110c; }
+.va-confirm-danger .va-confirm-yes { background: var(--danger); color: #fff; }
+.va-confirm-no { border: 1px solid var(--border-2); background: transparent; color: var(--text-1); }
+.va-confirm-yes:disabled, .va-confirm-no:disabled { opacity: 0.55; cursor: default; }
+
 .va-fab {
   position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   width: 54px; height: 54px; border-radius: 50%; z-index: 55;
