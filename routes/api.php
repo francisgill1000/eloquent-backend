@@ -280,6 +280,9 @@ Route::middleware(['auth:sanctum', 'rbac.context', 'subscription.active'])->grou
     // Using the Ask assistant (Home menu) spends money, so gate it on assistant.use.
     Route::post('/shop/assistant/text',                          [\App\Http\Controllers\OwnerAssistantController::class, 'text'])->middleware('can.perm:assistant.use');
     Route::post('/shop/assistant/voice',                         [\App\Http\Controllers\OwnerAssistantController::class, 'voice'])->middleware('can.perm:assistant.use');
+    // Applying a previewed change costs no model call, but it writes — so it
+    // needs the same assistant gate as the turns that produced the preview.
+    Route::post('/shop/assistant/confirm',                        [\App\Http\Controllers\OwnerAssistantController::class, 'confirm'])->middleware('can.perm:assistant.use');
 });
 
 // Lead Finder / Business Hunt — search real UAE businesses, save + work them.

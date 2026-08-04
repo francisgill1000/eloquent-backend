@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AssistantMessage;
+use App\Models\AssistantPendingAction;
 use App\Models\Conversation;
 use App\Models\Shop;
 use App\Services\Assistant\AssistantToolRegistry;
@@ -165,6 +166,40 @@ class OwnerAssistantController extends Controller
             $payload['transcript'] = $transcript;
         }
         return response()->json($payload, 201);
+    }
+
+    /**
+     * Apply a previewed change the owner tapped Confirm on. Re-executes the
+     * tool from the row's stored input — the client sends only an id, so the
+     * values written are exactly the values it was shown. The confirmation
+     * line is composed here, never by the model.
+     */
+    public function confirm(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate(['id' => ['required', 'integer']]);
+
+        $row = AssistantPendingAction::find($data['id']);
+        abort_unless($row && $row->shop_id === $request->user()->id, 404);
+        abort_unless($row->isLive(), 409, 'This change was already applied or has expired.');
+
+        $result = json_decode(
+            $this->registry->execute($request->user(), $row->tool, $row->input, userConfirmed: true),
+            true,
+        ) ?: [];
+
+        $row->update(['resolved_at' => now()]);
+
+        $applied = (bool) ($result['done'] ?? false);
+        $line = $applied
+            ? '✅ ' . $row->summary
+            : "⚠️ Couldn't apply that — " . ($result['error'] ?? 'unknown_error') . '.';
+
+        $message = null;
+        if ($row->conversation_id && $conversation = Conversation::find($row->conversation_id)) {
+            $message = $this->store->toApi($this->store->append($conversation, 'assistant', $line));
+        }
+
+        return response()->json(['applied' => $applied, 'reply_text' => $line, 'message' => $message], 201);
     }
 
     public function audio(AssistantMessage $message)
