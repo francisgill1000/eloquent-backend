@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Macros\FilterByKeyMacro;
 use App\Macros\SearchMacro;
+use App\Services\Assistant\AssistantCallLog;
 use App\Services\Assistant\Support\AssistantActions;
 use App\Services\Leads\Contracts\LeadSourceInterface;
 use App\Services\Leads\Sources\GooglePlacesSource;
@@ -35,6 +36,11 @@ class AppServiceProvider extends ServiceProvider
         // One navigation-action sink per request, shared by the assistant tools
         // and the owner assistant controller.
         $this->app->singleton(AssistantActions::class);
+
+        // One tool-call log per request: it remembers the rows this turn wrote
+        // so they can be tied to the thread, which is created only after a
+        // successful reply.
+        $this->app->singleton(AssistantCallLog::class);
     }
 
     /**

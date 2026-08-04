@@ -98,12 +98,24 @@ class AssistantToolRegistry
             userConfirmed: $userConfirmed,
         );
 
+        // Every owner-assistant tool call passes through here, so this is where
+        // the record of what actually ran belongs. A tool the model invented is
+        // logged too — that is exactly the kind of thing worth seeing later.
+        $started = hrtime(true);
+        $result = ['error' => 'unknown_tool'];
+
         foreach ($this->activeModules($shop) as $module) {
             if ($module->handles($tool)) {
-                return json_encode($module->run($call), JSON_UNESCAPED_UNICODE);
+                $result = $module->run($call);
+                break;
             }
         }
 
-        return json_encode(['error' => 'unknown_tool'], JSON_UNESCAPED_UNICODE);
+        app(AssistantCallLog::class)->recordSafely(
+            $shop->id, $tool, $input, $result, $userConfirmed,
+            (int) ((hrtime(true) - $started) / 1_000_000),
+        );
+
+        return json_encode($result, JSON_UNESCAPED_UNICODE);
     }
 }

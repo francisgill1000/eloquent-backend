@@ -29,6 +29,11 @@ Schedule::command('reviews:send-requests')->hourly()->withoutOverlapping();
 // removes them. Drop rows that expired over a week ago.
 Schedule::command('assistant:prune-pending-actions --days=7')->daily();
 
+// Assistant — retention: the tool-call log holds the same raw input (customer
+// names and phone numbers). Kept a month so a change the assistant claimed but
+// never made can still be investigated when it is reported late.
+Schedule::command('assistant:prune-tool-calls --days=30')->daily();
+
 Schedule::command('assistant:suggest-kb --days=7')
     ->weeklyOn(1, '03:00')
     ->withoutOverlapping()

@@ -5,6 +5,7 @@ use App\Models\AssistantMessage;
 use App\Models\AssistantPendingAction;
 use App\Models\Conversation;
 use App\Models\Shop;
+use App\Services\Assistant\AssistantCallLog;
 use App\Services\Assistant\AssistantToolRegistry;
 use App\Services\Assistant\ConversationStore;
 use App\Services\Assistant\Support\AssistantActions;
@@ -29,6 +30,7 @@ class OwnerAssistantController extends Controller
         protected Transcriber $transcriber,
         protected ConversationStore $store,
         protected AssistantActions $actions,
+        protected AssistantCallLog $callLog,
     ) {}
 
     public function conversations(Request $request)
@@ -116,8 +118,11 @@ class OwnerAssistantController extends Controller
         $context = $conversation ? $this->store->contextFor($conversation) : [];
         $messages = array_merge($context, [['role' => 'user', 'content' => $userText]]);
 
-        // Tie any preview this turn records to the thread it belongs to.
+        // Tie any preview this turn records to the thread it belongs to, and the
+        // same for the tool-call log — a turn's claims are only evidence when
+        // they can be read beside the tools that turn actually called.
         $this->actions->forConversation($conversation?->id);
+        $this->callLog->forConversation($conversation?->id);
 
         $replyText = '';
         try {
@@ -160,6 +165,10 @@ class OwnerAssistantController extends Controller
                 ->whereNull('conversation_id')
                 ->update(['conversation_id' => $conversation->id]);
         }
+
+        // Same for the log, except a turn may make several calls — all of this
+        // request's rows get the thread, not one row by id.
+        $this->callLog->backfillConversation($conversation->id);
 
         $this->store->append($conversation, 'user', $userText, $userAudio[0] ?? null, $userAudio[1] ?? null);
 
