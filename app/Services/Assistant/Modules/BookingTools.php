@@ -25,13 +25,14 @@ class BookingTools extends MutatingTool
     protected function permissions(): array
     {
         return [
-            'find_booking'          => 'bookings.view',
-            'open_booking'          => 'bookings.view',
-            'create_booking'        => 'bookings.create',
-            'reschedule_booking'    => 'bookings.update',
-            'update_booking_status' => 'bookings.update',
-            'cancel_booking'        => 'bookings.update',
-            'delete_booking'        => 'bookings.delete',
+            'find_booking'            => 'bookings.view',
+            'open_booking'            => 'bookings.view',
+            'create_booking'          => 'bookings.create',
+            'reschedule_booking'      => 'bookings.update',
+            'update_booking_status'   => 'bookings.update',
+            'update_booking_services' => 'bookings.update',
+            'cancel_booking'          => 'bookings.update',
+            'delete_booking'          => 'bookings.delete',
         ];
     }
 
@@ -43,14 +44,15 @@ class BookingTools extends MutatingTool
     protected function handle(ToolCall $call): array
     {
         return match ($call->tool) {
-            'find_booking'          => $this->find($call),
-            'open_booking'          => $this->open($call),
-            'create_booking'        => $this->create($call),
-            'reschedule_booking'    => $this->reschedule($call),
-            'update_booking_status' => $this->setStatus($call),
-            'cancel_booking'        => $this->cancel($call),
-            'delete_booking'        => $this->delete($call),
-            default                 => ['error' => 'unknown_tool'],
+            'find_booking'            => $this->find($call),
+            'open_booking'            => $this->open($call),
+            'create_booking'          => $this->create($call),
+            'reschedule_booking'      => $this->reschedule($call),
+            'update_booking_status'   => $this->setStatus($call),
+            'update_booking_services' => $this->setServices($call),
+            'cancel_booking'          => $this->cancel($call),
+            'delete_booking'          => $this->delete($call),
+            default                   => ['error' => 'unknown_tool'],
         };
     }
 
@@ -123,6 +125,40 @@ class BookingTools extends MutatingTool
         );
     }
 
+    /**
+     * Set (replace) the services on an existing booking and reprice it. Without
+     * this a booking saved with no service can only be deleted and re-made.
+     */
+    private function setServices(ToolCall $call): array
+    {
+        $booking = $this->resolveBooking($call);
+        if (! $booking) {
+            return $this->notFound('booking');
+        }
+
+        $resolved = $this->resolveServices($call);
+        if (isset($resolved['error'])) {
+            return $resolved;
+        }
+        $titles = array_column($resolved['services'], 'title');
+
+        return $this->gate(
+            $call,
+            resolve: fn () => $booking,
+            describe: fn ($b) => [
+                "Set booking {$b->booking_reference} to " . (implode(', ', $titles) ?: 'no service') . " ({$resolved['charges']} dirhams)",
+                [
+                    'services' => (implode(', ', array_column((array) $b->services, 'title')) ?: 'none') . ' → ' . (implode(', ', $titles) ?: 'none'),
+                    'charges' => "{$b->charges} → {$resolved['charges']}",
+                ],
+            ],
+            write: function ($b) use ($resolved) {
+                $b->update(['services' => $resolved['services'], 'charges' => $resolved['charges']]);
+                return ['reference' => $b->booking_reference, 'charges' => $resolved['charges']];
+            },
+        );
+    }
+
     private function reschedule(ToolCall $call): array
     {
         return $this->gate(
@@ -160,14 +196,64 @@ class BookingTools extends MutatingTool
         );
     }
 
+    /**
+     * Resolve requested service titles against this shop's catalog.
+     *
+     * Returns notFound() when ANY title doesn't match — silently dropping the
+     * misses is what produced BK00004: a booking stored with services=[] and
+     * charges=0 while the assistant told the owner it had booked the service.
+     * Matching is case-insensitive so "general checkup" finds "General Checkup".
+     *
+     * @return array{services: array<int, array{title: string, price: string}>, charges: float}|array{error: string}
+     */
+    private function resolveServices(ToolCall $call): array
+    {
+        $titles = array_values(array_filter(array_map(
+            fn ($t) => trim((string) $t),
+            (array) $call->get('services', []),
+        ), fn ($t) => $t !== ''));
+
+        if ($titles === []) {
+            return ['services' => [], 'charges' => 0.0];
+        }
+
+        $catalog = DB::table('catalogs')->where('shop_id', $call->shop->id)->get(['title', 'price']);
+        $byLower = $catalog->keyBy(fn ($r) => mb_strtolower((string) $r->title));
+
+        $services = [];
+        $unmatched = [];
+        foreach ($titles as $title) {
+            $row = $byLower->get(mb_strtolower($title));
+            if (! $row) {
+                $unmatched[] = $title;
+                continue;
+            }
+            // Keep the catalog's own spelling, and the request's ordering.
+            $services[] = ['title' => $row->title, 'price' => (string) $row->price];
+        }
+
+        if ($unmatched !== []) {
+            return array_merge($this->notFound('service'), [
+                'unmatched' => $unmatched,
+                'available' => $catalog->pluck('title')->all(),
+                'next' => 'NOT SAVED. This business has no service by that name. Read the available list back to the owner and ask which one they meant, or offer to create the service first.',
+            ]);
+        }
+
+        return ['services' => $services, 'charges' => (float) array_sum(array_column($services, 'price'))];
+    }
+
     private function create(ToolCall $call): array
     {
-        // Resolve service titles → charges from this shop's catalog.
-        $titles = (array) $call->get('services', []);
-        $rows = DB::table('catalogs')->where('shop_id', $call->shop->id)
-            ->whereIn('title', $titles)->get(['title', 'price']);
-        $services = $rows->map(fn ($r) => ['title' => $r->title, 'price' => (string) $r->price])->all();
-        $charges = (float) $rows->sum('price');
+        // Resolve service titles → charges from this shop's catalog. Bail before
+        // the preview so we never describe (or book) a slot we can't price.
+        $resolved = $this->resolveServices($call);
+        if (isset($resolved['error'])) {
+            return $resolved;
+        }
+        $services = $resolved['services'];
+        $charges = $resolved['charges'];
+        $titles = array_column($services, 'title');
 
         return $this->gate(
             $call,
@@ -203,9 +289,13 @@ class BookingTools extends MutatingTool
                 'customer_whatsapp' => ['type' => 'string', 'description' => 'The customer\'s contact/WhatsApp number — required'],
                 'date' => ['type' => 'string', 'description' => 'YYYY-MM-DD'],
                 'start_time' => ['type' => 'string', 'description' => 'HH:MM 24h'],
-                'services' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Service titles'],
+                'services' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Service titles — each must match a service this business already offers (use list_services if unsure). A title that matches nothing is rejected, not ignored.'],
                 'confirmed' => ['type' => 'boolean'],
             ], 'required' => ['customer_name', 'customer_whatsapp', 'date', 'start_time']]],
+            ['name' => 'update_booking_services', 'description' => 'Replace the services on an existing booking and reprice it from the catalog. Use when a booking was saved without a service, or the customer changes what they want. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => array_merge($ref, [
+                'services' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Service titles — must match services this business offers. Replaces whatever the booking had.'],
+                'confirmed' => ['type' => 'boolean'],
+            ]), 'required' => ['reference', 'services']]],
             ['name' => 'reschedule_booking', 'description' => 'Move a booking to a new date and/or time. Confirm first.', 'input_schema' => ['type' => 'object', 'properties' => array_merge($ref, [
                 'date' => ['type' => 'string', 'description' => 'YYYY-MM-DD'],
                 'start_time' => ['type' => 'string', 'description' => 'HH:MM 24h'],
