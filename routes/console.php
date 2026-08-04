@@ -24,6 +24,11 @@ Schedule::command('bookings:send-reminders')->hourly()->withoutOverlapping();
 // Bookings — post-visit WhatsApp review requests for completed bookings.
 Schedule::command('reviews:send-requests')->hourly()->withoutOverlapping();
 
+// Assistant — retention: previewed changes hold the tool's raw input (customer
+// names and phone numbers), are confirmable for 30 minutes, and nothing else
+// removes them. Drop rows that expired over a week ago.
+Schedule::command('assistant:prune-pending-actions --days=7')->daily();
+
 Schedule::command('assistant:suggest-kb --days=7')
     ->weeklyOn(1, '03:00')
     ->withoutOverlapping()
