@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import api from './api';
 import {
-  listConversations, getConversation, renameConversation, deleteConversation, postText, postVoice,
+  listConversations, getConversation, renameConversation, deleteConversation, postText, postVoice, confirmAction,
 } from './assistant';
 
 vi.mock('./api', () => ({ default: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() } }));
@@ -77,5 +77,15 @@ describe('assistant lib', () => {
     await postVoice(blob);
     const [, form] = (api.post as any).mock.calls[0];
     expect(form.get('conversation_id')).toBeNull();
+  });
+
+  it('posts the pending action id and returns the applied line', async () => {
+    (api.post as any).mockResolvedValue({ data: { applied: true, reply_text: '✅ Add staff member "Jhon"', message: null } });
+
+    const res = await confirmAction(42);
+
+    expect(api.post).toHaveBeenCalledWith('/shop/assistant/confirm', { id: 42 });
+    expect(res.applied).toBe(true);
+    expect(res.reply_text).toBe('✅ Add staff member "Jhon"');
   });
 });

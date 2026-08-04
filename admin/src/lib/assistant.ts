@@ -2,13 +2,25 @@ import api from './api';
 
 export type AssistantMsg = { id: number; role: 'user' | 'assistant'; content: string; audio_url: string | null };
 export type Conversation = { id: number; title: string; updated_at: string; source?: 'owner' | 'customer' };
+
+export type NavigateAction = { type: 'navigate'; route: string };
+/** A change the assistant previewed but has NOT written. Confirming it posts
+ *  only the id — the server re-executes from the arguments it stored. */
+export type ConfirmAction = {
+  type: 'confirm';
+  id: number;
+  summary: string;
+  changes: Record<string, string>;
+  destructive: boolean;
+};
+
 export type AssistantReply = {
   conversation_id?: number;
   title?: string;
   transcript?: string;
   reply_text: string;
   reply_audio_url: string | null;
-  action?: { type: 'navigate'; route: string };
+  action?: NavigateAction | ConfirmAction;
 };
 
 export type ConversationPage = { conversations: Conversation[]; has_more: boolean };
@@ -49,5 +61,12 @@ export async function postVoice(audio: Blob, conversationId?: number): Promise<A
   const { data } = await api.post('/shop/assistant/voice', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+  return data;
+}
+
+/** Applies a previewed change by id. The server re-executes the tool from the
+ *  arguments it stored, so the values written are exactly the values shown. */
+export async function confirmAction(id: number): Promise<{ applied: boolean; reply_text: string }> {
+  const { data } = await api.post('/shop/assistant/confirm', { id });
   return data;
 }
