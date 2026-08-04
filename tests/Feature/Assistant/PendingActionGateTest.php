@@ -51,4 +51,14 @@ class PendingActionGateTest extends TestCase
         $found = AssistantPendingAction::open(1, 'create_staff')->get();
         $this->assertSame([$mine->id], $found->pluck('id')->all());
     }
+
+    public function test_tool_call_defaults_user_confirmed_to_false(): void
+    {
+        $shop = \App\Models\Shop::create(['name' => 'S', 'shop_code' => '7401', 'pin' => '0', 'status' => 'active', 'category_id' => 11]);
+        $call = new \App\Services\Assistant\Support\ToolCall($shop, null, 'create_staff', ['name' => 'Jhon'], true);
+        $this->assertFalse($call->userConfirmed);
+
+        $userCall = new \App\Services\Assistant\Support\ToolCall($shop, null, 'create_staff', [], true, true);
+        $this->assertTrue($userCall->userConfirmed);
+    }
 }

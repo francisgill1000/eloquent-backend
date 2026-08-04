@@ -87,14 +87,15 @@ class AssistantToolRegistry
         return $defs;
     }
 
-    public function execute(Shop $shop, string $tool, array $input): string
+    public function execute(Shop $shop, string $tool, array $input, bool $userConfirmed = false): string
     {
         $call = new ToolCall(
             shop: $shop,
             actingUser: current_shop_user(),
             tool: $tool,
             input: $input,
-            confirmed: (bool) ($input['confirmed'] ?? false),
+            confirmed: $userConfirmed || (bool) ($input['confirmed'] ?? false),
+            userConfirmed: $userConfirmed,
         );
 
         foreach ($this->activeModules($shop) as $module) {

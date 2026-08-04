@@ -13,6 +13,9 @@ final class ToolCall
         public readonly string $tool,
         public readonly array $input,
         public readonly bool $confirmed,
+        /** True only when the owner tapped Confirm in the app — never when the
+         *  model set confirmed itself. Destructive tools require this. */
+        public readonly bool $userConfirmed = false,
     ) {}
 
     public function get(string $key, mixed $default = null): mixed
