@@ -200,6 +200,38 @@ describe('VoiceAssistant page', () => {
     expect(screen.getByRole('button', { name: /confirm/i })).not.toBeDisabled();
   });
 
+  it('clears a stale confirm card the moment an unrelated follow-up turn is sent', async () => {
+    // The second reply resolves under our control so we can assert the card
+    // is gone for the whole in-flight window, not just once the reply lands.
+    let resolveSecond!: (v: unknown) => void;
+    const secondReply = new Promise((resolve) => { resolveSecond = resolve; });
+    asMock(postText)
+      .mockResolvedValueOnce({
+        conversation_id: 9, title: 't', reply_text: 'Add Jhon? Confirm below.', reply_audio_url: null,
+        action: { type: 'confirm', id: 42, summary: 'Add staff member "Jhon"', changes: { staff: 'new: Jhon' }, destructive: false },
+      })
+      .mockImplementationOnce(() => secondReply);
+
+    render(<VoiceAssistant />);
+    await screen.findByPlaceholderText(/type/i);
+    fireEvent.change(screen.getByPlaceholderText(/type/i), { target: { value: 'add staff Jhon' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(screen.getByText('Add staff member "Jhon"')).toBeInTheDocument());
+
+    // Owner ignores the card and asks something unrelated instead.
+    fireEvent.change(screen.getByPlaceholderText(/type/i), { target: { value: 'how much this week' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    // Gone immediately — before the new reply even lands.
+    await waitFor(() => expect(screen.queryByText('Add staff member "Jhon"')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /confirm/i })).not.toBeInTheDocument();
+
+    resolveSecond({ conversation_id: 9, title: 't', reply_text: 'You made 80 dirhams.', reply_audio_url: null });
+    await waitFor(() => expect(screen.getByText('You made 80 dirhams.')).toBeInTheDocument());
+    expect(screen.queryByText('Add staff member "Jhon"')).not.toBeInTheDocument();
+    expect(confirmAction).not.toHaveBeenCalled();
+  });
+
   it('sim mode plays the script and ends on the booking preview', async () => {
     // jsdom has no real audio — make play() resolve and let us fire `ended`.
     window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);

@@ -137,6 +137,10 @@ export default function VoiceAssistant() {
 
   async function send(text: string) {
     if (!text.trim() || busy) return;
+    // A confirm card belongs to the turn that produced it. The moment the
+    // owner starts a new turn they've moved on — clear it now (not when the
+    // reply lands) so it can never be tapped as if it belonged to this turn.
+    setPendingConfirm(null);
     setBusy(true); setError('');
     setMessages((m) => [...m, { role: 'user', content: text }]);
     setDraft('');
@@ -152,6 +156,8 @@ export default function VoiceAssistant() {
 
   async function toggleMic() {
     if (recording) {
+      // Same rule as send(): a new turn starting invalidates any stale card.
+      setPendingConfirm(null);
       setBusy(true);
       const blob = await stop();
       if (!blob) { setBusy(false); return; }
