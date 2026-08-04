@@ -1,6 +1,7 @@
 <?php
 namespace Tests\Feature;
 
+use App\Models\AssistantPendingAction;
 use App\Models\Shop;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,7 @@ class OwnerAssistantConfirmGateTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_mutation_only_runs_after_confirmation_turn(): void
+    public function test_a_destructive_turn_returns_a_confirm_card_instead_of_writing(): void
     {
         Storage::fake('public');
         $shop = Shop::create(['name' => 'A', 'shop_code' => '1', 'pin' => '1', 'status' => 'active', 'category_id' => 11]);
@@ -26,24 +27,45 @@ class OwnerAssistantConfirmGateTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        // Single fake covering both turns via sequence:
-        // Turn 1 → text only (no tool_use). Turn 2 → tool_use then summary text.
         Http::fake([
             'api.anthropic.com/*' => Http::sequence()
-                ->push(['content' => [['type' => 'text', 'text' => 'Cancel BK00001? Say yes to confirm.']]]) // turn 1
-                ->push(['content' => [['type' => 'tool_use', 'id' => 'tu1', 'name' => 'cancel_booking', 'input' => ['reference' => 'BK00001', 'confirmed' => true]]]]) // turn 2 tool call — carries confirmed:true for the enforced gate
-                ->push(['content' => [['type' => 'text', 'text' => 'Done, BK00001 is cancelled.']]]), // turn 2 summary
+                ->push(['content' => [['type' => 'tool_use', 'id' => 'tu1', 'name' => 'cancel_booking', 'input' => ['reference' => 'BK00001', 'confirmed' => true]]]])
+                ->push(['content' => [['type' => 'text', 'text' => 'Cancel BK00001? Confirm below.']]]),
             'api.openai.com/v1/audio/speech' => Http::response('OGG', 200),
         ]);
 
-        // Turn 1: model asks for confirmation (no tool_use). Booking must stay unchanged.
-        $r1 = $this->postJson('/api/shop/assistant/text', ['text' => 'cancel BK00001', 'history' => []]);
-        $r1->assertCreated();
-        $this->assertSame('booked', DB::table('bookings')->where('booking_reference', 'BK00001')->value('status')); // NOT cancelled yet
+        // Even with confirmed:true from the model, a destructive tool must not write.
+        $res = $this->postJson('/api/shop/assistant/text', ['text' => 'cancel BK00001'])->assertCreated();
+        $this->assertSame('booked', DB::table('bookings')->where('booking_reference', 'BK00001')->value('status'));
 
-        // Turn 2: owner confirms; model now calls the tool, then summarizes.
-        $r2 = $this->postJson('/api/shop/assistant/text', ['text' => 'yes', 'history' => $r1->json('history')]);
-        $r2->assertCreated()->assertJsonPath('reply_text', 'Done, BK00001 is cancelled.');
+        $res->assertJsonPath('action.type', 'confirm')->assertJsonPath('action.destructive', true);
+        $row = AssistantPendingAction::firstOrFail();
+        $this->assertSame('cancel_booking', $row->tool);
+        $this->assertSame($res->json('action.id'), $row->id);
+
+        // The owner taps Confirm — now it writes.
+        $this->postJson('/api/shop/assistant/confirm', ['id' => $row->id])->assertCreated();
         $this->assertSame('cancelled', DB::table('bookings')->where('booking_reference', 'BK00001')->value('status'));
+    }
+
+    public function test_the_pending_row_is_tied_to_the_thread_the_turn_created(): void
+    {
+        Storage::fake('public');
+        $shop = Shop::create(['name' => 'B', 'shop_code' => '2', 'pin' => '1', 'status' => 'active', 'category_id' => 11]);
+        $this->startTrial($shop);
+        Sanctum::actingAs($shop, ['*']);
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::sequence()
+                ->push(['content' => [['type' => 'tool_use', 'id' => 'tu1', 'name' => 'create_staff', 'input' => ['name' => 'Jhon']]]])
+                ->push(['content' => [['type' => 'text', 'text' => 'Add Jhon? Confirm below.']]]),
+            'api.openai.com/v1/audio/speech' => Http::response('OGG', 200),
+        ]);
+
+        // First turn of a brand-new chat: the conversation is created lazily
+        // AFTER the tool ran, so the row must be backfilled with its id.
+        $res = $this->postJson('/api/shop/assistant/text', ['text' => 'add staff Jhon'])->assertCreated();
+
+        $this->assertSame($res->json('conversation_id'), AssistantPendingAction::firstOrFail()->conversation_id);
     }
 }

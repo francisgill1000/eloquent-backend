@@ -116,6 +116,9 @@ class OwnerAssistantController extends Controller
         $context = $conversation ? $this->store->contextFor($conversation) : [];
         $messages = array_merge($context, [['role' => 'user', 'content' => $userText]]);
 
+        // Tie any preview this turn records to the thread it belongs to.
+        $this->actions->forConversation($conversation?->id);
+
         $replyText = '';
         try {
             $replyText = $this->claude->toolLoop(
@@ -139,6 +142,17 @@ class OwnerAssistantController extends Controller
 
         // Success → lazily create the thread on its first message, then persist the pair.
         $conversation ??= $this->store->create($shop, $userText);
+
+        // A first turn creates the thread only after the tool ran, so a pending
+        // row written mid-turn has no conversation_id yet. Backfill it.
+        if ($action = $this->actions->pending()) {
+            if (($action['type'] ?? null) === 'confirm') {
+                \App\Models\AssistantPendingAction::where('id', $action['id'])
+                    ->whereNull('conversation_id')
+                    ->update(['conversation_id' => $conversation->id]);
+            }
+        }
+
         $this->store->append($conversation, 'user', $userText, $userAudio[0] ?? null, $userAudio[1] ?? null);
 
         $replyAudioBytes = null;
