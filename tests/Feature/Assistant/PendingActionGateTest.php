@@ -129,4 +129,20 @@ class PendingActionGateTest extends TestCase
         $this->assertTrue($out['done']);
         $this->assertSame(1, Staff::where('shop_id', $shop->id)->count());
     }
+
+    public function test_a_self_confirmed_write_resolves_the_open_card(): void
+    {
+        $shop = $this->shop('7414');
+
+        // Turn 1: preview leaves a live card.
+        app(StaffTools::class)->run(new ToolCall($shop, null, 'create_staff', ['name' => 'Jhon'], false));
+        $row = AssistantPendingAction::where('shop_id', $shop->id)->firstOrFail();
+        $this->assertTrue($row->isLive());
+
+        // Turn 2: the model confirms it itself.
+        app(StaffTools::class)->run(new ToolCall($shop, null, 'create_staff', ['name' => 'Jhon'], true, false));
+
+        $this->assertSame(1, Staff::where('shop_id', $shop->id)->count());
+        $this->assertFalse($row->fresh()->isLive()); // card can no longer double-write
+    }
 }

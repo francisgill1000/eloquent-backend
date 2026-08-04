@@ -62,7 +62,14 @@ abstract class MutatingTool extends AssistantModule
             return $this->preview($action, $changes);
         }
 
-        return $this->applied($write($target));
+        $result = $this->applied($write($target));
+
+        // The model confirmed this itself, so any card the client is still
+        // showing for the same tool is spent — resolve it or a tap would
+        // write a second time.
+        AssistantPendingAction::open($call->shop->id, $call->tool)->update(['resolved_at' => now()]);
+
+        return $result;
     }
 
     /**
